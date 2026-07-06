@@ -1,5 +1,10 @@
 import pytest
+import pandas as pd
+from pyecharts.charts import Bar
+from pyecharts.globals import CurrentConfig, NotebookType
+from pyecharts.options import InitOpts
 import xalpha as xa
+from xalpha.trade import vtradevolume
 
 xa.set_backend(backend="memory", prefix="pytest-")
 
@@ -29,7 +34,43 @@ def test_set_display():
     df = xa.get_daily("PDD", prev=30)
     df._repr_javascript_()
     xa.set_display()
-    assert getattr(df, "_repre_javascript_", None) is None
+    assert getattr(pd.DataFrame, "_repr_javascript_", None) is None
+
+
+def test_set_display_notebook_plus():
+    original_type = CurrentConfig.NOTEBOOK_TYPE
+
+    try:
+        xa.set_display("notebook+")
+        assert CurrentConfig.NOTEBOOK_TYPE == NotebookType.NTERACT
+        assert getattr(pd.DataFrame, "_repr_javascript_", None) is None
+
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2024-01-02", "2024-01-09"]),
+                "cash": [-1000, -500],
+            }
+        )
+        html = vtradevolume(df).data
+
+        assert "<iframe" in html
+        assert "require.config" not in html
+        assert "echarts.min.js" in html
+        assert "dataTables" in df._repr_html_()
+
+        tall_chart = (
+            Bar(init_opts=InitOpts(height=500)).add_xaxis(["a"]).add_yaxis("s", [1])
+        )
+        assert "height:500px" in tall_chart.render_notebook().data
+
+        big_df = pd.DataFrame({"a": range(250)})
+        big_html = big_df._repr_html_()
+        assert "Showing first 200 of 250 rows." in big_html
+        assert ">249<" not in big_html
+    finally:
+        xa.set_display()
+
+    assert CurrentConfig.NOTEBOOK_TYPE == original_type
 
 
 @pytest.mark.local

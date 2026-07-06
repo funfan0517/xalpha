@@ -4,15 +4,20 @@ modules for Object oriented toolbox which wrappers get_daily and some more
 """
 
 import datetime as dt
+import html
 import logging
 import re
 import sys
+import uuid
 from collections import deque
 from functools import lru_cache, wraps
 
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
+from pyecharts.charts.base import Base
+from pyecharts.globals import CurrentConfig, NotebookType
+from pyecharts.render.display import HTML
 from scipy import stats
 
 from xalpha.cons import (
@@ -46,6 +51,8 @@ from xalpha.exceptions import ParserFailure, DateMismatch, NonAccurate
 thismodule = sys.modules[__name__]
 
 logger = logging.getLogger(__name__)
+_ORIGINAL_DF_REPR_HTML = None
+_ORIGINAL_DF_REPR_HTML_CAPTURED = False
 
 
 def _set_holdings(module):
@@ -93,6 +100,9 @@ def _set_display_notebook():
     """
     from IPython.display import display, Javascript
 
+    _restore_pyecharts_notebook()
+    _restore_dataframe_html()
+    CurrentConfig.NOTEBOOK_TYPE = NotebookType.JUPYTER_NOTEBOOK
     display(Javascript("""
             require.config({
                 paths: {
@@ -121,20 +131,140 @@ def _set_display_notebook():
     pd.DataFrame._repr_javascript_ = _repr_datatable_
 
 
+def _capture_dataframe_html():
+    global _ORIGINAL_DF_REPR_HTML, _ORIGINAL_DF_REPR_HTML_CAPTURED
+    if not _ORIGINAL_DF_REPR_HTML_CAPTURED:
+        _ORIGINAL_DF_REPR_HTML = getattr(pd.DataFrame, "_repr_html_", None)
+        _ORIGINAL_DF_REPR_HTML_CAPTURED = True
+
+
+def _restore_dataframe_html():
+    _capture_dataframe_html()
+    if _ORIGINAL_DF_REPR_HTML is None:
+        try:
+            delattr(pd.DataFrame, "_repr_html_")
+        except AttributeError:
+            pass
+    else:
+        pd.DataFrame._repr_html_ = _ORIGINAL_DF_REPR_HTML
+
+
+def _restore_pyecharts_notebook():
+    original = getattr(Base, "_xalpha_original_render_notebook", None)
+    if original is not None:
+        Base.render_notebook = original
+
+    original_type = getattr(Base, "_xalpha_original_notebook_type", None)
+    if original_type is not None:
+        CurrentConfig.NOTEBOOK_TYPE = original_type
+
+
+def _unset_display_notebook():
+    try:
+        delattr(pd.DataFrame, "_repr_javascript_")
+    except AttributeError:
+        pass
+    _restore_dataframe_html()
+    _restore_pyecharts_notebook()
+
+
+def _iframe_html(document, width="100%", height="500px"):
+    def _css_size(value):
+        if isinstance(value, (int, float)):
+            return "%spx" % value
+        return str(value)
+
+    srcdoc = html.escape(document, quote=True)
+    return (
+        '<iframe srcdoc="{}" style="width:{}; height:{}; border:0;" '
+        'loading="lazy"></iframe>'
+    ).format(srcdoc, _css_size(width), _css_size(height))
+
+
+def _patch_pyecharts_iframe_notebook():
+    if not hasattr(Base, "_xalpha_original_render_notebook"):
+        Base._xalpha_original_render_notebook = Base.render_notebook
+    Base._xalpha_original_notebook_type = CurrentConfig.NOTEBOOK_TYPE
+
+    def _render_notebook_iframe(self):
+        self.chart_id = uuid.uuid4().hex
+        width = getattr(self, "width", "100%")
+        height = getattr(self, "height", "500px")
+        return HTML(_iframe_html(self.render_embed(), width=width, height=height))
+
+    Base.render_notebook = _render_notebook_iframe
+
+
+def _set_dataframe_iframe_display():
+    _capture_dataframe_html()
+
+    def _repr_iframe_datatable_(self):
+        table_id = "xalpha-df-" + uuid.uuid4().hex
+        df = self.head(200)
+        table = df.to_html(index=False, classes="display compact", table_id=table_id)
+        truncated = ""
+        if len(self) > len(df):
+            truncated = (
+                '<p style="font: 13px -apple-system, BlinkMacSystemFont, '
+                "'Segoe UI', sans-serif; color: #666; margin: 8px 0;\">"
+                "Showing first %d of %d rows.</p>" % (len(df), len(self))
+            )
+        rows = min(len(self), 15)
+        height = max(260, min(680, 130 + 34 * (rows + 1)))
+        document = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+  <style>
+    body {{ margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
+    table.dataTable.compact tbody th, table.dataTable.compact tbody td {{ padding: 5px 8px; }}
+    th, td {{ text-align: center; white-space: nowrap; }}
+  </style>
+</head>
+<body>
+  {truncated}
+  {table}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script>
+    window.addEventListener("load", function() {{
+      $("#{table_id}").DataTable({{ scrollX: true, pageLength: 10 }});
+    }});
+  </script>
+</body>
+</html>
+""".format(table=table, table_id=table_id, truncated=truncated)
+        return _iframe_html(document, height="%dpx" % height)
+
+    pd.DataFrame._repr_html_ = _repr_iframe_datatable_
+
+
+def _set_display_notebook_plus():
+    """
+    Use pyecharts' standalone notebook renderer for modern Jupyter frontends.
+    """
+    _unset_display_notebook()
+    _patch_pyecharts_iframe_notebook()
+    CurrentConfig.NOTEBOOK_TYPE = NotebookType.NTERACT
+    _set_dataframe_iframe_display()
+
+
 def set_display(env=""):
     """
     开关 DataFrame 的显示模式，仅 Jupyter Notebook 有效。
 
-    :param env: str, default "". If env="notebook", pd.DataFrame will be shown in fantastic web language
+    :param env: str, default "". If env="notebook", pd.DataFrame will be shown in fantastic web language.
+        If env="notebook+", pyecharts charts will use a modern Jupyter-compatible renderer.
     :return:
     """
     if not env:
-        try:
-            delattr(pd.DataFrame, "_repr_javascript_")
-        except AttributeError:
-            pass
+        _unset_display_notebook()
     elif env in ["notebook", "jupyter", "ipython"]:
         _set_display_notebook()
+    elif env == "notebook+":
+        _set_display_notebook_plus()
     else:
         raise ParserFailure("unknown env %s" % env)
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 移除 numpy 版本上限以兼容 Python 3.12 下的现代科学计算环境
+
+- 增加 `set_display("notebook+")` 以兼容 Jupyter Notebook 7 与 JupyterLab 中的 pyecharts 图表显示
+
 - 完善日历检查提醒
 
 ## v0.12.3 - 2026.12.17

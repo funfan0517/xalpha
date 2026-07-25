@@ -1024,6 +1024,8 @@ class fundinfo(basicinfo):
             return None
         self._updateurl = _lsjz_url(self.code, page=1, per=1)
         items = _lsjz_rows(self._updateurl)
+        if not items:
+            return None
         if dt.datetime.strptime(items[0]["FSRQ"], "%Y-%m-%d") == today_obj():
             diffdays += 1
         if diffdays <= 10:
@@ -1599,6 +1601,8 @@ class mfundinfo(basicinfo):
             return None
         self._updateurl = _lsjz_url(self.code, page=1, per=1)
         items = _lsjz_rows(self._updateurl)
+        if not items:
+            return None
         if dt.datetime.strptime(items[0]["FSRQ"], "%Y-%m-%d") == today_obj():
             diffdays += 1
         if diffdays <= 10:

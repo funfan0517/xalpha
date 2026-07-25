@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 修复天天基金 `f10/F10DataApi.aspx` 页面下线导致 `fundinfo` 和 `mfundinfo` 增量更新失败的问题，改用 `api.fund.eastmoney.com/f10/lsjz` 接口
+
 ## v0.12.4 - 2026.07.07
 
 - 移除 numpy 版本上限以兼容 Python 3.12 下的现代科学计算环境

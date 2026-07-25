@@ -85,6 +85,39 @@ def _nfloat(string):
     return result
 
 
+def _lsjz_url(code, page=1, per=1):
+    """
+    历史净值 API 的 url，替代已下线的 f10/F10DataApi.aspx 页面
+
+    :param code: string, 六位基金代码
+    :param page: int, 页码
+    :param per: int, 每页条数，服务端上限为 20
+    :returns: string
+    """
+    return (
+        "https://api.fund.eastmoney.com/f10/lsjz?fundCode="
+        + code
+        + "&pageIndex="
+        + str(page)
+        + "&pageSize="
+        + str(per)
+    )
+
+
+def _lsjz_rows(url):
+    """
+    抓取历史净值 API 并返回净值列表
+
+    每行为 dict，其中 FSRQ 为净值日期，DWJZ 为单位净值（货币基金为每万份收益），
+    LJJZ 为累计净值（货币基金为七日年化），FHSP 为分红送配
+
+    :param url: string, :func:`_lsjz_url` 生成的 url
+    :returns: list of dict
+    """
+    r = rget_json(url, headers={"Referer": "https://fundf10.eastmoney.com/"})
+    return r["Data"]["LSJZList"]
+
+
 class FundReport:
     """
     提供查看各种基金报告的接口
@@ -989,41 +1022,20 @@ class fundinfo(basicinfo):
             diffdays == 0
         ):  ## for some QDII, this value is 1, anyways, trying update is compatible (d+2 update)
             return None
-        self._updateurl = (
-            "http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code="
-            + self.code
-            + "&page=1&per=1"
-        )
-        con = rget(self._updateurl)
-        soup = BeautifulSoup(con.text, "lxml")
-        items = soup.findAll("td")
-        if dt.datetime.strptime(str(items[0].string), "%Y-%m-%d") == today_obj():
+        self._updateurl = _lsjz_url(self.code, page=1, per=1)
+        items = _lsjz_rows(self._updateurl)
+        if dt.datetime.strptime(items[0]["FSRQ"], "%Y-%m-%d") == today_obj():
             diffdays += 1
         if diffdays <= 10:
-            self._updateurl = (
-                "http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code="
-                + self.code
-                + "&page=1&per="
-                + str(diffdays)
-            )
-            con = rget(self._updateurl)
-            soup = BeautifulSoup(con.text, "lxml")
-            items = soup.findAll("td")
+            self._updateurl = _lsjz_url(self.code, page=1, per=diffdays)
+            items = _lsjz_rows(self._updateurl)
         elif (
             diffdays > 10
         ):  ## there is a 20 item per page limit in the API, so to be safe, we query each page by 10 items only
             items = []
             for pg in range(1, int(diffdays / 10) + 2):
-                self._updateurl = (
-                    "http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code="
-                    + self.code
-                    + "&page="
-                    + str(pg)
-                    + "&per=10"
-                )
-                con = rget(self._updateurl)
-                soup = BeautifulSoup(con.text, "lxml")
-                items.extend(soup.findAll("td"))
+                self._updateurl = _lsjz_url(self.code, page=pg, per=10)
+                items.extend(_lsjz_rows(self._updateurl))
         else:
             raise TradeBehaviorError(
                 "Weird incremental update: the saved copy has future records"
@@ -1033,13 +1045,13 @@ class fundinfo(basicinfo):
         netvalue = []
         totvalue = []
         comment = []
-        for i in range(int(len(items) / 7)):
-            ts = pd.Timestamp(str(items[7 * i].string))
+        for item in items:
+            ts = pd.Timestamp(item["FSRQ"])
             if (ts - lastdate).days > 0:
                 date.append(ts)
-                netvalue.append(_float(items[7 * i + 1].string))
-                totvalue.append(_float(items[7 * i + 2].string))
-                comment.append(_nfloat(items[7 * i + 6].string))
+                netvalue.append(_float(item["DWJZ"]))
+                totvalue.append(_float(item["LJJZ"]))
+                comment.append(_nfloat(item["FHSP"]))
             else:
                 break
         df = pd.DataFrame(
@@ -1585,42 +1597,21 @@ class mfundinfo(basicinfo):
         diffdays = (yesterdayobj() - lastdate).days
         if diffdays == 0:
             return None
-        self._updateurl = (
-            "http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code="
-            + self.code
-            + "&page=1&per=1"
-        )
-        con = rget(self._updateurl)
-        soup = BeautifulSoup(con.text, "lxml")
-        items = soup.findAll("td")
-        if dt.datetime.strptime(str(items[0].string), "%Y-%m-%d") == today_obj():
+        self._updateurl = _lsjz_url(self.code, page=1, per=1)
+        items = _lsjz_rows(self._updateurl)
+        if dt.datetime.strptime(items[0]["FSRQ"], "%Y-%m-%d") == today_obj():
             diffdays += 1
         if diffdays <= 10:
             # caution: there may be today data!! then a day gap will be in table
-            self._updateurl = (
-                "http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code="
-                + self.code
-                + "&page=1&per="
-                + str(diffdays)
-            )
-            con = rget(self._updateurl)
-            soup = BeautifulSoup(con.text, "lxml")
-            items = soup.findAll("td")
+            self._updateurl = _lsjz_url(self.code, page=1, per=diffdays)
+            items = _lsjz_rows(self._updateurl)
         elif (
             diffdays > 10
         ):  ## there is a 20 item per page limit in the API, so to be safe, we query each page by 10 items only
             items = []
             for pg in range(1, int(diffdays / 10) + 2):
-                self._updateurl = (
-                    "http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code="
-                    + self.code
-                    + "&page="
-                    + str(pg)
-                    + "&per=10"
-                )
-                con = rget(self._updateurl)
-                soup = BeautifulSoup(con.text, "lxml")
-                items.extend(soup.findAll("td"))
+                self._updateurl = _lsjz_url(self.code, page=pg, per=10)
+                items.extend(_lsjz_rows(self._updateurl))
         else:
             raise TradeBehaviorError(
                 "Weird incremental update: the saved copy has future records"
@@ -1629,12 +1620,12 @@ class mfundinfo(basicinfo):
         date = []
         earnrate = []
         comment = []
-        for i in range(int(len(items) / 6)):
-            ts = pd.Timestamp(str(items[6 * i].string))
+        for item in items:
+            ts = pd.Timestamp(item["FSRQ"])
             if (ts - lastdate).days > 0:
                 date.append(ts)
-                earnrate.append(float(items[6 * i + 1].string) * 1e-4)
-                comment.append(_nfloat(items[6 * i + 5].string))
+                earnrate.append(float(item["DWJZ"]) * 1e-4)
+                comment.append(_nfloat(item["FHSP"]))
         date = date[::-1]
         earnrate = earnrate[::-1]
         comment = comment[::-1]

@@ -13,6 +13,7 @@
 """
 import io
 import json
+import os
 import sys
 
 import numpy as np
@@ -20,7 +21,12 @@ import pandas as pd
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 import xalpha as xa
+from pipeline import bt_stats
 
 START = "2020-06-01"  # 提前给 warm-up，样本窗口 2021-09 ~ 至今
 FEE = 0.0003
@@ -162,21 +168,29 @@ def run_backtest(df):
     sig = build_signals(df)
     o, c = sig["open"], sig["close"]
     n = len(df)
-    cash, shares, pos, trades = 1.0, 0.0, False, 0
+    cash, shares, pos = 1.0, 0.0, False
     nav = np.ones(n)
     pos_log = np.zeros(n, dtype=bool)
+    open_px = None
+    trade_log = []  # 每笔 = 一次持仓周期(买入开盘价 → 卖出开盘价/期末收盘价估值)
     for i in range(n):
         if i >= 1:
             if pos and sig["sell"][i - 1] and sig["allow"][i - 1]:
                 cash = shares * o[i] * (1 - FEE)
                 shares, pos = 0.0, False
-                trades += 1
+                if open_px and open_px > 0:
+                    trade_log.append(dict(e1=str(df["date"].iloc[i].date()),
+                                          ret=o[i] / open_px * (1 - FEE) ** 2 - 1.0))
+                open_px = None
             elif (not pos) and sig["buy"][i - 1] and sig["allow"][i - 1]:
                 shares = cash * (1 - FEE) / o[i]
                 cash, pos = 0.0, True
-                trades += 1
+                open_px = o[i]
         pos_log[i] = pos
         nav[i] = cash + shares * c[i]
+    if open_px and open_px > 0:  # 期末仍持仓: 按最新收盘估值计入(未扣卖出费)
+        trade_log.append(dict(e1=str(df["date"].iloc[-1].date()),
+                              ret=c[-1] / open_px - 1.0))
 
     base_start = int(sig["allow"].argmax()) if sig["allow"].any() else n - 1
     if base_start >= n - 1 or c[base_start] <= 0:
@@ -195,11 +209,12 @@ def run_backtest(df):
 
     base_ret, base_ann, base_mdd = stat(bh[base_start:])
     st_ret, st_ann, st_mdd = stat(nav[base_start:])
+    ts = bt_stats.trade_stats(trade_log)
     return dict(
         days=len(df) - base_start, years=round(years, 2),
         base_ret=round(base_ret, 4), base_ann=round(base_ann, 4), base_mdd=round(base_mdd, 4),
         st_ret=round(st_ret, 4), st_ann=round(st_ann, 4), st_mdd=round(st_mdd, 4),
-        trades=trades,
+        trades=ts["n"], t_stats=ts, trade_log=trade_log,
         pos_ratio=round(float(pos_log[base_start:].mean()), 3),
     )
 

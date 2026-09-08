@@ -50,6 +50,52 @@
         "automation": "四灯A类每日信号(工作日14:05)"
       },
       "note": "每日 A 类 codes 变更时，需同步 strategies.json 与 run_daily_4d.ps1 两处。"
+    },
+    "momentum_rotation": {
+      "name": "全球相对动量ETF轮动(A, 唯一保留)",
+      "source_methodology": "strategies/momentum_rotation/README.md (来自 tradingagents fund_analysis_rotation 方法论)",
+      "universe": {
+        "offshore_pool": "SCAN34 (strategies/momentum_rotation/rule.py)",
+        "data": "data/_long_klines.json (xueqiu 2015+)",
+        "note": "scan_universe 34只场内 ETF/LOF"
+      },
+      "rules": [
+        "每21交易日再平衡; 当日收盘算信号/收盘换仓, 当日收益归旧仓(无前视)",
+        "momentum = close[t]/close[t-120]-1 降序",
+        "选动量第一且 close>=MA20 的标的(单仓)",
+        "无候选(全破位/历史不足140交易日) -> 空仓现金",
+        "成本: 卖出<=7交易日1.5%, 7日外0%"
+      ],
+      "thresholds": {
+        "lookback": 120,
+        "ma": 20,
+        "rebal_days": 21,
+        "min_hist": 140,
+        "holding": "single",
+        "short_days": 7,
+        "fee_short": 0.015,
+        "fee_long": 0.0
+      },
+      "backtest": {
+        "engine": "strategies/momentum_rotation/backtest.py",
+        "data": "data/_long_klines.json",
+        "raw_out": "data/_mom_out.json",
+        "report": "strategies/momentum_rotation/report.md",
+        "window": "2015-01-05 ~ 至今(十年)"
+      },
+      "select": {
+        "out_active_md": "data/_universe_momentum_rotation_active.md",
+        "out_active_json": "data/_universe_momentum_rotation_active.json",
+        "min_sample_years": 3.0,
+        "criteria": "A=策略年化>0 且 超额>0; B=超额>0 且 策略年化<=0"
+      },
+      "daily": {
+        "codes": [],
+        "runner": "pending (月频调仓提醒待接入)",
+        "note": "A 已定稿; 月频调仓 snapshot/automation 未建"
+      },
+      "note": "2026-09-08 定稿 A; B/C 已从代码库移除",
+      "pipeline_mode": "rotation"
     }
   }
 }

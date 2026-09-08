@@ -73,9 +73,10 @@ def cmd_rules(args):
     print("规则化(灯评分):")
     for i, r in enumerate(st["rules"], 1):
         print(f"  {i}. {r}")
-    print(f"决策阈值: {json.dumps(st['thresholds'], ensure_ascii=False)}")
-    print(f"回测口径: start={st['backtest']['start']}, 样本窗口自 {st['backtest']['window_from']}, "
-          f"成本 {st['thresholds']['fee']}, {st['thresholds']['trade_at']}")
+    print(f"决策阈值: {json.dumps(st.get('thresholds', {}), ensure_ascii=False)}")
+    bt = st.get("backtest", {})
+    print(f"回测引擎: {bt.get('engine', '—')} · 数据/窗口: {bt.get('data') or bt.get('start', '—')} "
+          f"/ {bt.get('window') or bt.get('window_from', '—')}")
 
 
 def cmd_backtest(args):
@@ -170,7 +171,9 @@ def cmd_scaffold(args):
         ),
         "backtest.py": (
             "# 回测骨架：完成后引擎逐行输出 JSON，schema 需含\n"
-            "# code/theme/off/years/base_ann/base_mdd/st_ann/st_mdd/trades/pos_ratio\n"
+            "# code/theme/off/years/base_ann/base_mdd/st_ann/st_mdd/pos_ratio\n"
+            "# 单笔统计统一复用 pipeline/bt_stats: 引擎收集 trades=[{code,entry_date,exit_date,bars,ret}],\n"
+            "# 输出 t_stats=bt_stats.trade_stats(trades)+trade_log; 报告默认含 bt_stats.section_lines\n"
             "def run_backtest(df):\n"
             "    raise NotImplementedError('实现状态机回测，参考 4d/_backtest.py')\n"
         ),

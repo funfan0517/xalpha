@@ -20,6 +20,16 @@
 
 > 分层：`data/`=池与数据；`4d/`=四灯策略实现与报告；`pipeline/`=流程编排层。
 
+### 回测报告统一口径（单笔交易统计）
+
+所有策略的 backtest 报告默认含「单笔交易统计」节，口径在 `pipeline/bt_stats.py` 唯一实现，禁止各策略重复实现：
+
+- 引擎记录单笔为一次持仓周期 `{code, entry_date, exit_date, bars, ret}`（`ret` 含扣交易成本与否由引擎注明）；
+- `trade_stats(trades)` 统一产出：交易笔数 / 胜率=盈利笔数÷总笔数 / 平均盈利 / 平均亏损 / 盈亏比=平均盈利÷|平均亏损| / 利润因子=总盈利÷|总亏损| / 最佳、最差单笔；
+- 报告用 `section_lines(ts)` 渲染默认 md 节，格式与 A 动量报告一致。
+
+已接入：`strategies/momentum_rotation/backtest.py`（本地十年库，直接可用）；`4d/_backtest.py` 每只标的输出 `t_stats` + `trade_log`，`4d/_reportbt.py` 汇总出「全体单笔合并统计」。**新增策略按 §5 脚手架生成的 `backtest.py` 应复用上述模块**，在引擎里收集单笔后调用 `bt_stats.section_lines(bt_stats.trade_stats(trades))`。
+
 ## 2. 使用命令（均在 `g:/xalpha` 下）
 
 ```powershell

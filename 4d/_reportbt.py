@@ -2,6 +2,13 @@
 import base64
 import io
 import json
+import os
+import sys
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from pipeline import bt_stats
 
 import matplotlib
 
@@ -38,18 +45,31 @@ L.append("# 四灯共振(量价代理版) 近5年回测: 策略 vs 买入持有"
 L.append("")
 L.append("> **区间** 2021-08 ~ 2026-09(样本至 2026-09-08) · **成本** 单次0.03%(ETF佣金) · **信号** 次日开盘执行")
 L.append("> **口径说明**: 主力/热度灯历史无主力资金与换手数据，用「放量上涨/5日动量+量能」代理(0-2)；趋势/持续力灯用真实 MA/ADX/MACD/周线。回测为**量价代理版**，与当日快照版不完全一致。")
-L.append(f"> 成功 {len(rows)} 只 / 失败 {len(fails)} 只; 胜率(策略年化>基准) = "
+L.append(f"> 成功 {len(rows)} 只 / 失败 {len(fails)} 只; 跑赢率(策略年化>基准) = "
          f"{sum(r['st_ann'] > r['base_ann'] for r in rows)}/{len(rows)}")
 L.append("")
 L.append("## 分类汇总(均值)")
 L.append("")
-L.append("| 类别 | n | 基准年化 | 策略年化 | 超额 | 基准回撤 | 策略回撤 | 回撤改善 | 持仓占比 | 胜率 |")
-L.append("|---|---|---|---|---|---|---|---|---|---|")
+L.append("| 类别 | n | 基准年化 | 策略年化 | 超额 | 基准回撤 | 策略回撤 | 回撤改善 | 持仓占比 | 跑赢率 | 单笔胜率 | 盈亏比 |")
+L.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
 
 def pct(x):
     return f"{x * 100:+.1f}%"
 
-cat_stats = {}
+def avg_wr(sub):
+    vs = [r["t_stats"]["win_rate"] for r in sub if r.get("t_stats") and r["t_stats"]["n"]]
+    return float(np.mean(vs)) if vs else None
+
+def avg_po(sub):
+    vs = [r["t_stats"]["payoff"] for r in sub
+          if r.get("t_stats") and r["t_stats"]["payoff"] != float("inf")]
+    return float(np.mean(vs)) if vs else None
+
+def tcols(sub):
+    wr, po = avg_wr(sub), avg_po(sub)
+    return f" | {pct(wr) if wr is not None else '—'} | {po:.2f}" if po is not None \
+        else f" | {pct(wr) if wr is not None else '—'} | —"
+
 for c in order:
     sub = [r for r in rows if CAT(r["idx"]) == c]
     if not sub:
@@ -59,29 +79,46 @@ for c in order:
     win = sum(r["st_ann"] > r["base_ann"] for r in sub)
     L.append(f"| {c} | {n} | {pct(ag('base_ann'))} | {pct(ag('st_ann'))} | {pct(ag('st_ann')-ag('base_ann'))}"
              f" | {pct(ag('base_mdd'))} | {pct(ag('st_mdd'))} | {pct(ag('st_mdd')-ag('base_mdd'))}"
-             f" | {pct(ag('pos_ratio'))} | {win}/{n} |")
-    cat_stats[c] = (n, ag("base_ann"), ag("st_ann"), ag("base_mdd"), ag("st_mdd"), ag("pos_ratio"))
+             f" | {pct(ag('pos_ratio'))} | {win}/{n}{tcols(sub)} |")
 L.append(f"| **全部** | {len(rows)} | {pct(np.mean([r['base_ann'] for r in rows]))} | {pct(np.mean([r['st_ann'] for r in rows]))}"
          f" | {pct(np.mean([r['st_ann']-r['base_ann'] for r in rows]))}"
          f" | {pct(np.mean([r['base_mdd'] for r in rows]))} | {pct(np.mean([r['st_mdd'] for r in rows]))}"
          f" | {pct(np.mean([r['st_mdd']-r['base_mdd'] for r in rows]))}"
          f" | {pct(np.mean([r['pos_ratio'] for r in rows]))} | "
-         f"{sum(r['st_ann']>r['base_ann'] for r in rows)}/{len(rows)} |")
+         f"{sum(r['st_ann']>r['base_ann'] for r in rows)}/{len(rows)}{tcols(rows)} |")
 L.append("")
 L.append("## 逐只明细(按策略年化排序)")
 L.append("")
-L.append("| 类别 | 标的 | 样本年 | 基准年化 | 策略年化 | 超额 | 基准回撤 | 策略回撤 | 交易 | 持仓占比 |")
-L.append("|---|---|---|---|---|---|---|---|---|---|")
+L.append("| 类别 | 标的 | 样本年 | 基准年化 | 策略年化 | 超额 | 基准回撤 | 策略回撤 | 单笔数 | 胜率 | 盈亏比 | 持仓占比 |")
+L.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
 for r in rows:
+    ts = r.get("t_stats") or {}
+    if ts.get("n"):
+        po = ts["payoff"]
+        po_s = "∞" if po == float("inf") else f"{po:.2f}"
+        wc = pct(ts["win_rate"])
+    else:
+        po_s, wc = "—", "—"
     L.append(f"| {CAT(r['idx'])} | {r['theme']} `{r['code']}` | {r['years']} | {pct(r['base_ann'])}"
              f" | {pct(r['st_ann'])} | {pct(r['st_ann']-r['base_ann'])} | {pct(r['base_mdd'])}"
-             f" | {pct(r['st_mdd'])} | {r['trades']} | {pct(r['pos_ratio'])} |")
+             f" | {pct(r['st_mdd'])} | {ts.get('n', r['trades'])} | {wc} | {po_s} | {pct(r['pos_ratio'])} |")
 if fails:
     L.append("")
     L.append("## 失败/样本不足")
     L.append("")
     for r in fails:
         L.append(f"- {r['theme']} `{r['code']}`: {r.get('err')}")
+
+# ---- 全体单笔合并统计 ----
+merged_log = [t for r in rows for t in (r.get("trade_log") or [])]
+if merged_log:
+    L += bt_stats.section_lines(
+        bt_stats.trade_stats(merged_log),
+        title="全体单笔合并统计（所有标的一并计，样本 " + str(len(rows)) + " 只）",
+        note="单笔=每标的每次持仓周期；已计 0.03% 双边佣金；期末未平仓按最新收盘估值计入。")
+else:
+    L.append("")
+    L.append("> 旧版 _bt_out.jsonl 未含单笔明细(trade_log)；请用升级后引擎重跑回测并 `--report` 以输出胜率/盈亏比。")
 
 # ---- 图 ----
 labels = [f"{r['theme']}" for r in rows]

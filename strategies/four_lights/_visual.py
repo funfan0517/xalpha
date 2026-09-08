@@ -37,7 +37,7 @@ for ln in text.splitlines():
     except json.JSONDecodeError:
         pass
 
-# 同 inner code（如红利 38/39 都指向 515080）合并为一行展示
+# 同 inner code 合并为一行展示（唯一池下无重复，兼容旧数据双行情况）
 merged = []
 seen = set()
 for r in sorted(rows, key=lambda x: (DEC_ORDER.get(x["dec"], 9), -x["total"], x["idx"])):

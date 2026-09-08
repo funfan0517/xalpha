@@ -26,55 +26,15 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import xalpha as xa
-from pipeline import bt_stats
+from pipeline import bt_stats, universe
 
 START = "2015-01-01"  # 抓取起点(提前给 warm-up)；样本窗口 2016-09 ~ 至今(最长十年)
 SAMPLE_FROM = "2016-09-01"
 FEE = 0.0003
 INV = 252
 
-# 与 _inner_4d.py 一致: 场外idx -> (场内code, 主题, 场外名)
-MAPPING = {
-    1: ("563360", "中证A500", "汇添富中证A500指数增强C"),
-    2: ("588000", "科创50", "易方达上证科创板50ETF联接C"),
-    3: ("512800", "银行", "天弘中证银行ETF联接C"),
-    4: ("512200", "房地产", "南方中证房地产ETF联接E"),
-    5: ("513100", "纳指100", "广发纳斯达克100ETF联接A"),
-    6: ("513500", "标普500", "摩根标普500指数(QDII)人民币A"),
-    10: ("513030", "德国DAX", "华安德国(DAX)ETF联接C"),
-    11: ("513880", "日经225", "华安日经225ETF联接C"),
-    12: ("513180", "恒生科技", "广发恒生科技ETF联接C"),
-    13: ("501025", "港股银行", "鹏华港股通香港银行(LOF)C"),
-    17: ("512480", "半导体", "招商中证半导体产业ETF联接C"),
-    18: ("515230", "软件/信创", "嘉实中证软件服务ETF联接C"),
-    19: ("515880", "通信", "天弘中证全指通信设备指数C"),
-    20: ("159819", "人工智能", "天弘中证人工智能主题ETF联接C"),
-    21: ("159732", "消费电子", "华夏国证消费电子ETF联接C"),
-    22: ("562500", "机器人", "招商中证机器人ETF联接C"),
-    23: ("512660", "军工", "广发中证军工ETF联接C"),
-    24: ("159698", "粮食", "博时国证粮食产业ETF联接C"),
-    25: ("159869", "动漫游戏", "华夏中证动漫游戏ETF联接C"),
-    26: ("512980", "传媒", "广发中证传媒ETF联接C"),
-    27: ("515220", "煤炭", "国泰中证煤炭ETF联接C"),
-    28: ("512000", "券商", "华宝中证全指证券ETF联接C"),
-    29: ("161725", "白酒", "招商中证白酒指数C"),
-    30: ("159928", "主要消费", "汇添富中证主要消费ETF联接C"),
-    31: ("516160", "新能源", "南方中证新能源ETF联接C"),
-    32: ("515790", "光伏", "天弘中证光伏产业指数C"),
-    33: ("159326", "电网设备", "华夏中证电网设备ETF联接C"),
-    34: ("159870", "化工", "天弘中证细分化工ETF联接C"),
-    35: ("512400", "有色金属", "南方中证申万有色金属ETF联接C"),
-    36: ("512010", "医药", "易方达沪深300医药ETF联接C"),
-    37: ("159992", "创新药", "广发创新药ETF联接C"),
-    38: ("515080", "红利(515080代)", "场外红利008163/007760代替"),
-    40: ("159201", "自由现金流", "华夏国证自由现金流ETF联接C"),
-    41: ("161226", "白银", "国投瑞银白银期货(LOF)C"),
-    42: ("518880", "黄金", "华安黄金ETF联接A"),
-}
-# 38/39 合并同标的，此处 39 省略
-DEDUP = {}
-for _i, (_c, _t, _n) in MAPPING.items():
-    DEDUP[_c] = (_i, _t, _n)
+# 唯一池: data/_universe.md 中「有场内对应」的行（_universe.md 为唯一维护入口，勿在此硬编码）
+POOL = universe.inner_rows()
 
 
 def sh(code):
@@ -222,7 +182,8 @@ def run_backtest(df):
 
 def main():
     want = set(sys.argv[1].split(",")) if len(sys.argv) > 1 and sys.argv[1] else None
-    for code, (idx, theme, off) in DEDUP.items():
+    for row in POOL:
+        code, idx, theme, off, cat = row["code"], row["idx"], row["theme"], row["off_name"], row["cat"]
         if want and code not in want:
             continue
         try:
@@ -233,19 +194,19 @@ def main():
             # 样本窗口: 最长十年(2016-09 起)；上市晚者按实有数据，warm-up 由 START 起缓冲
             df = df[df["date"] >= SAMPLE_FROM].reset_index(drop=True)
             if len(df) < 120:
-                print(json.dumps({"code": code, "idx": idx, "theme": theme, "ok": False,
+                print(json.dumps({"code": code, "idx": idx, "cat": cat, "theme": theme, "ok": False,
                                   "err": "样本不足(上市晚)"}, ensure_ascii=False), flush=True)
                 continue
         except Exception as e:
-            print(json.dumps({"code": code, "idx": idx, "theme": theme, "ok": False,
+            print(json.dumps({"code": code, "idx": idx, "cat": cat, "theme": theme, "ok": False,
                               "err": f"{type(e).__name__}: {e}"}, ensure_ascii=False), flush=True)
             continue
         r = run_backtest(df)
         if r is None:
-            print(json.dumps({"code": code, "idx": idx, "theme": theme, "ok": False,
+            print(json.dumps({"code": code, "idx": idx, "cat": cat, "theme": theme, "ok": False,
                               "err": "样本不足"}, ensure_ascii=False), flush=True)
             continue
-        r.update({"ok": True, "code": code, "idx": idx, "theme": theme, "off": off,
+        r.update({"ok": True, "code": code, "idx": idx, "cat": cat, "theme": theme, "off": off,
                   "end": str(df["date"].iloc[-1].date())})
         print(json.dumps(r, ensure_ascii=False), flush=True)
 

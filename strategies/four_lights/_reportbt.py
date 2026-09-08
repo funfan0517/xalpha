@@ -24,7 +24,8 @@ MD = "g:/xalpha/strategies/four_lights/_bt_report.md"
 PNG = "g:/xalpha/strategies/four_lights/_bt_visual.png"
 HTML = "g:/xalpha/strategies/four_lights/_bt_dashboard.html"
 
-CAT = lambda idx: ("宽基/另类" if idx <= 4 else "全球/QDII" if idx <= 16 else "A股行业" if idx <= 37 else "策略/商品")
+CAT = lambda c: c if c in ("宽基/另类", "全球/QDII", "A股行业", "策略/商品") else "其他"
+_ORDER = ["宽基/另类", "全球/QDII", "A股行业", "策略/商品"]
 
 raw = open(OUT, "rb").read()
 text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8")
@@ -38,7 +39,7 @@ for ln in text.splitlines():
     except json.JSONDecodeError:
         pass
 
-rows.sort(key=lambda r: (CAT(r["idx"]), -r["st_ann"]))
+rows.sort(key=lambda r: (CAT(r.get("cat", "")), -r["st_ann"]))
 order = ["宽基/另类", "全球/QDII", "A股行业", "策略/商品"]
 L = []
 _default = "2021-08-01"
@@ -74,7 +75,7 @@ def tcols(sub):
         else f" | {pct(wr) if wr is not None else '—'} | —"
 
 for c in order:
-    sub = [r for r in rows if CAT(r["idx"]) == c]
+    sub = [r for r in rows if r.get("cat", "") == c]
     if not sub:
         continue
     n = len(sub)
@@ -102,7 +103,7 @@ for r in rows:
         wc = pct(ts["win_rate"])
     else:
         po_s, wc = "—", "—"
-    L.append(f"| {CAT(r['idx'])} | {r['theme']} `{r['code']}` | {r['years']} | {pct(r['base_ann'])}"
+    L.append(f"| {r.get('cat', '')} | {r['theme']} `{r['code']}` | {r['years']} | {pct(r['base_ann'])}"
              f" | {pct(r['st_ann'])} | {pct(r['st_ann']-r['base_ann'])} | {pct(r['base_mdd'])}"
              f" | {pct(r['st_mdd'])} | {ts.get('n', r['trades'])} | {wc} | {po_s} | {pct(r['pos_ratio'])} |")
 if fails:

@@ -11,7 +11,12 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 import xalpha as xa
+from pipeline import universe
 
 CACHE = "g:/xalpha/data/_long_klines.json"
 START = "2015-01-01"
@@ -28,7 +33,7 @@ def main():
     cache = {}
     if os.path.exists(out):
         cache = json.load(open(out, encoding="utf-8"))
-    codes = want or list(cache.keys())
+    codes = want or universe.inner_codes()  # 未指定时按唯一池场内代码
     for code in codes:
         if want and code in cache and len(cache[code]["close"]) >= 1000:
             continue

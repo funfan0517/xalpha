@@ -21,6 +21,8 @@ import argparse
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 ROOT = "g:/xalpha"
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 CFG = os.path.join(ROOT, "pipeline", "strategies.json")
 config = json.load(open(CFG, encoding="utf-8"))
 
@@ -59,7 +61,8 @@ def cmd_universe(args):
         a_codes = [x["code"] for x in aj["A"]]
         b_codes = [x["code"] for x in aj["B"]]
         print(f"公共池(场外): {os.path.basename(md)} ~{n_off} 行")
-        print(f"场内映射唯一标的: 见 {st['universe']['inner_mapping']}")
+        from pipeline import universe
+        print(f"场内内池(唯一池派生): {len(universe.inner_rows())} 只")
         print(f"分级名单(生成 {aj['generated_at']}): A={len(a_codes)} B={len(b_codes)}")
         print(f"A 每日执行: {a_codes}")
     else:

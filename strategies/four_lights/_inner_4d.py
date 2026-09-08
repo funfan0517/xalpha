@@ -1,4 +1,4 @@
-"""场内映射四灯扫描：对「52只场外中有场内对应」的标的，用场内 OHLCV(现抓) + mx主力/换手快照跑四灯。
+"""场内映射四灯扫描：唯一池 _universe.md 中「有场内对应」的内池标的，用场内 OHLCV(现抓) + mx主力/换手快照跑四灯。
 
 评分逻辑与 gen_4d.py 一致（方法论 §5.1-5.4）。
 用法: python _inner_4d.py [code1,code2,...]  每行输出一条 JSON。
@@ -11,49 +11,16 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 import xalpha as xa
+from pipeline import universe
 
 MX = "G:/tradingagents/fund_data/data/mx_snapshot_latest.json"
-# 场外idx -> (场内code, 场外主题, 场外基金名)
-MAPPING = {
-    1: ("563360", "中证A500", "汇添富中证A500指数增强C"),
-    2: ("588000", "科创50", "易方达上证科创板50ETF联接C"),
-    3: ("512800", "银行", "天弘中证银行ETF联接C"),
-    4: ("512200", "房地产", "南方中证房地产ETF联接E"),
-    5: ("513100", "纳指100", "广发纳斯达克100ETF联接A"),
-    6: ("513500", "标普500", "摩根标普500指数(QDII)人民币A"),
-    10: ("513030", "德国DAX", "华安德国(DAX)ETF联接C"),
-    11: ("513880", "日经225", "华安日经225ETF联接C"),
-    12: ("513180", "恒生科技", "广发恒生科技ETF联接C"),
-    13: ("501025", "港股银行", "鹏华港股通香港银行(LOF)C"),
-    17: ("512480", "半导体", "招商中证半导体产业ETF联接C"),
-    18: ("515230", "软件/信创", "嘉实中证软件服务ETF联接C"),
-    19: ("515880", "通信", "天弘中证全指通信设备指数C"),
-    20: ("159819", "人工智能", "天弘中证人工智能主题ETF联接C"),
-    21: ("159732", "消费电子", "华夏国证消费电子ETF联接C"),
-    22: ("562500", "机器人", "招商中证机器人ETF联接C"),
-    23: ("512660", "军工", "广发中证军工ETF联接C"),
-    24: ("159698", "粮食", "博时国证粮食产业ETF联接C"),
-    25: ("159869", "动漫游戏", "华夏中证动漫游戏ETF联接C"),
-    26: ("512980", "传媒", "广发中证传媒ETF联接C"),
-    27: ("515220", "煤炭", "国泰中证煤炭ETF联接C"),
-    28: ("512000", "券商", "华宝中证全指证券ETF联接C"),
-    29: ("161725", "白酒", "招商中证白酒指数C"),
-    30: ("159928", "主要消费", "汇添富中证主要消费ETF联接C"),
-    31: ("516160", "新能源", "南方中证新能源ETF联接C"),
-    32: ("515790", "光伏", "天弘中证光伏产业指数C"),
-    33: ("159326", "电网设备", "华夏中证电网设备ETF联接C"),
-    34: ("159870", "化工", "天弘中证细分化工ETF联接C"),
-    35: ("512400", "有色金属", "南方中证申万有色金属ETF联接C"),
-    36: ("512010", "医药", "易方达沪深300医药ETF联接C"),
-    37: ("159992", "创新药", "广发创新药ETF联接C"),
-    # 用户指定(2026-09-08): 场外红利基金暂时用场内中证红利 515080 代替
-    38: ("515080", "红利低波(主)", "南方标普中国A股大盘红利低波50ETF联接A"),
-    39: ("515080", "红利低波(跨境补充)", "景顺长城中证沪港深红利成长低波指数C"),
-    40: ("159201", "自由现金流", "华夏国证自由现金流ETF联接C"),
-    41: ("161226", "白银", "国投瑞银白银期货(LOF)C"),
-    42: ("518880", "黄金", "华安黄金ETF联接A"),
-}
+# 唯一池: data/_universe.md 中「有场内对应」的行（_universe.md 为唯一维护入口，勿在此硬编码）
+POOL = universe.inner_rows()
 
 
 def sh(code):
@@ -251,14 +218,16 @@ def score_heat(kl, it):
 def main():
     intraday, snap_time = load_snapshot()
     want = set(sys.argv[1].split(",")) if len(sys.argv) > 1 and sys.argv[1] else None
-    for idx, (code, theme, off_name) in MAPPING.items():
+    for row in POOL:
+        idx, code, theme, off_name = row["idx"], row["code"], row["theme"], row["off_name"]
+        inner_name = row["inner_name"]
         if want and code not in want:
             continue
         it = intraday.get(code, dict(turn=None, volr=None, amount=None, main_net=None, main_pct=None))
         try:
             df = xa.get_daily(sh(code), start="2023-01-01")
         except Exception as e:
-            print(json.dumps({"idx": idx, "theme": theme, "inner": code, "ok": False,
+            print(json.dumps({"idx": idx, "cat": row["cat"], "theme": theme, "inner": code, "ok": False,
                               "err": f"{type(e).__name__}: {e}"}, ensure_ascii=False), flush=True)
             continue
         df = df.dropna(subset=["close"]).sort_values("date").reset_index(drop=True)
@@ -289,8 +258,8 @@ def main():
         else:
             dec, note = "观望", f"总分{total} 无买点"
         print(json.dumps({
-            "idx": idx, "theme": theme, "off_name": off_name, "inner": code,
-            "inner_name": None, "ok": True, "date": kl["dates"][-1],
+            "idx": idx, "cat": row["cat"], "theme": theme, "off_name": off_name, "inner": code,
+            "inner_name": inner_name, "ok": True, "date": kl["dates"][-1],
             "today": round(today, 2), "w5": round(w5, 2), "w20": round(w20, 2),
             "tl": tl, "tls": tls, "td": td, "cl": cl, "cls": cls, "cd": cd,
             "sl": sl, "sls": sls, "sd": sd, "hl": hl, "hls": hls, "hd": hd,

@@ -12,13 +12,22 @@
 
 | 阶段 | 输入 | 动作 | 输出产物 |
 |---|---|---|---|
-| 1 universe | 公共标的池 | 展示场外池 + 场内唯一映射 + 当前分级名单 | 摘要（含场外 52 只、场内映射 35 只） |
+| 1 universe | 公共标的池 | 展示场外池 + 场内内池 + 当前分级名单 | 摘要（唯一池 `_universe.md`：场外 56 只、场内内池 37 只） |
 | 2 rules | `pipeline/strategies.json` | 打印规则化定义（灯评分/阈值/回测口径） | 可读规则表（策略参数唯一权威源） |
-| 3 backtest | 场内映射标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `data/_bt_out.jsonl` → `strategies/four_lights/_bt_report.md`、`strategies/four_lights/_bt_dashboard.html` |
+| 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `data/_bt_out.jsonl` → `strategies/four_lights/_bt_report.md`、`strategies/four_lights/_bt_dashboard.html` |
 | 4 select | `data/_bt_out.jsonl` | 按回测分级 A/B/不适合 | `data/_universe_4d_active.md` + `.json` |
 | 5 daily | 分级名单 A | 抓当日(含盘中实时 bar)评分 | `strategies/four_lights/_inner_report.md`、`strategies/four_lights/_4d_dashboard.html` |
 
 > 分层：`data/`=池与数据；`strategies/<name>/`=策略实现与报告（four_lights、momentum_rotation）；`pipeline/`=流程编排层。
+
+### 标的池唯一维护（Single Source of Truth）
+
+`data/_universe.md` 是**唯一**的场内外标的维护入口：
+
+- **增/删/改标的只改这一个文件**；不要在各策略代码里硬编码标的清单；
+- `pipeline/universe.py` 负责解析：`inner_rows()/inner_codes()` 派生「有场内对应」的内池（当前 37 只），供四灯回测/每日扫描与动量十年库回测共同使用；`offshore_rows()` 给出全部场外清单；
+- 无场内对应的行（主动/债券/QDII 细分等）**只作为场外清单**，不进入场内信号回测与每日推荐；
+- 改完 `_universe.md` 后：`python pipeline/universe.py` 自查解析 → 新增场内代码需 `strategies/momentum_rotation/fetch.py <新代码>` 补十年库 → 再按阶段重跑 backtest / select / daily。
 
 ### 回测报告统一口径（单笔交易统计）
 
@@ -43,7 +52,7 @@ python pipeline/run_flow.py daily                       # 阶段5 当日信号(�
 ```
 
 阶段 3 说明：引擎一次执行一个 Python 进程，**建议分批传入 codes**（如每批 ≤9 只）避免单命令过长；
-全量 35 只分 4 批：首批加 `--fresh`，其余不加，完成后 `--report`。
+全量按唯一池内池数量分批（当前 37 只分 7 批）：首批加 `--fresh`，其余不加，完成后 `--report`。
 
 ## 3. 每日运维
 

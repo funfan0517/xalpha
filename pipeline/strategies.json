@@ -5,8 +5,8 @@
       "source_methodology": "G:/tradingagents/fund_analysis_4d/四灯共振短线选股方法论.md",
       "universe": {
         "offshore_pool": "data/_universe.md",
-        "inner_mapping": "strategies/four_lights/_inner_4d.py (MAPPING)",
-        "note": "公共标的池：场外 52 只 + 场内唯一映射 35 只"
+        "inner_mapping": "data/_universe.md (场内对应列=内池, 由 pipeline/universe.py 派生)",
+        "note": "唯一池 _universe.md: 场外 56 只 + 场内内池 37 只 (2026-09 起统一)"
       },
       "rules": [
         "趋势灯(0-2): MA5>MA10>MA20 且 MA20 向上 且 收>MA20 且 ADX14>25 -> 2; MA5>MA10 且 收>MA20 -> 1; 否则 0",
@@ -58,9 +58,10 @@
       "name": "全球相对动量ETF轮动(A, 唯一保留)",
       "source_methodology": "strategies/momentum_rotation/README.md (来自 tradingagents fund_analysis_rotation 方法论)",
       "universe": {
-        "offshore_pool": "SCAN34 (strategies/momentum_rotation/rule.py)",
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "data/_universe.md (场内对应列=内池, 由 pipeline/universe.py 派生)",
         "data": "data/_long_klines.json (xueqiu 2015+)",
-        "note": "scan_universe 34只场内 ETF/LOF"
+        "note": "唯一池场内映射 37 只场内 ETF/LOF (2026-09 起统一; 旧 SCAN34 池废弃)"
       },
       "rules": [
         "每21交易日再平衡; 当日收盘算信号/收盘换仓, 当日收益归旧仓(无前视)",

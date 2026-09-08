@@ -41,9 +41,12 @@ for ln in text.splitlines():
 rows.sort(key=lambda r: (CAT(r["idx"]), -r["st_ann"]))
 order = ["宽基/另类", "全球/QDII", "A股行业", "策略/商品"]
 L = []
-L.append("# 四灯共振(量价代理版) 近5年回测: 策略 vs 买入持有")
+_default = "2021-08-01"
+lo = min((r.get("start") or _default) for r in rows) if rows else _default
+hi = max(r["end"] for r in rows) if rows else "2026-09-08"
+L.append("# 四灯共振(量价代理版) 最长十年回测: 策略 vs 买入持有")
 L.append("")
-L.append("> **区间** 2021-08 ~ 2026-09(样本至 2026-09-08) · **成本** 单次0.03%(ETF佣金) · **信号** 次日开盘执行")
+L.append(f"> **区间** {lo[:7]} ~ {hi[:7]}(各标的按上市日起，最长十年) · **成本** 单次0.03%(ETF佣金) · **信号** 次日开盘执行")
 L.append("> **口径说明**: 主力/热度灯历史无主力资金与换手数据，用「放量上涨/5日动量+量能」代理(0-2)；趋势/持续力灯用真实 MA/ADX/MACD/周线。回测为**量价代理版**，与当日快照版不完全一致。")
 L.append(f"> 成功 {len(rows)} 只 / 失败 {len(fails)} 只; 跑赢率(策略年化>基准) = "
          f"{sum(r['st_ann'] > r['base_ann'] for r in rows)}/{len(rows)}")
@@ -143,7 +146,7 @@ ax2.barh(y - h / 2, sm, height=h, color="#ef6c00", label="策略最大回撤")
 ax2.axvline(0, color="k", lw=0.6)
 ax2.set_title("最大回撤(越靠右越浅=越好)")
 ax2.legend(fontsize=8, loc="lower right")
-fig.suptitle("四灯共振(量价代理) 近5年回测  vs 买入持有", fontsize=13)
+fig.suptitle("四灯共振(量价代理) 最长十年回测  vs 买入持有", fontsize=13)
 fig.tight_layout(rect=(0, 0, 1, 0.97))
 fig.savefig(PNG, dpi=150, bbox_inches="tight", facecolor="white")
 plt.close(fig)
@@ -156,7 +159,7 @@ body{{font-family:"Microsoft YaHei",sans-serif;background:#f5f6fa;margin:24px;co
 img{{max-width:100%;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.08)}}
 pre{{background:#fff;padding:16px;border-radius:10px;overflow:auto;font-size:12px;line-height:1.5}}
 </style></head><body>
-<h1>四灯共振(量价代理版) 近5年回测</h1>
+<h1>四灯共振(量价代理版) 最长十年回测</h1>
 <img src="data:image/png;base64,{b64}">
 <pre>{("\n".join(L)).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")}</pre>
 </body></html>"""

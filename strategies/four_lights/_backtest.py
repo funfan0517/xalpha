@@ -1,4 +1,4 @@
-"""四灯共振(量价代理版) 近5年回测：逐场内标的状态机择时 vs 买入持有。
+"""四灯共振(量价代理版) 最长十年(2016-09 起)回测：逐场内标的状态机择时 vs 买入持有。
 
 信号口径:
   趋势灯  真实 MA5/10/20 + MA20斜率 + 收盘>MA20 + ADX14
@@ -28,7 +28,8 @@ if _ROOT not in sys.path:
 import xalpha as xa
 from pipeline import bt_stats
 
-START = "2020-06-01"  # 提前给 warm-up，样本窗口 2021-09 ~ 至今
+START = "2015-01-01"  # 抓取起点(提前给 warm-up)；样本窗口 2016-09 ~ 至今(最长十年)
+SAMPLE_FROM = "2016-09-01"
 FEE = 0.0003
 INV = 252
 
@@ -211,7 +212,7 @@ def run_backtest(df):
     st_ret, st_ann, st_mdd = stat(nav[base_start:])
     ts = bt_stats.trade_stats(trade_log)
     return dict(
-        days=len(df) - base_start, years=round(years, 2),
+        start=str(d0.date()), days=len(df) - base_start, years=round(years, 2),
         base_ret=round(base_ret, 4), base_ann=round(base_ann, 4), base_mdd=round(base_mdd, 4),
         st_ret=round(st_ret, 4), st_ann=round(st_ann, 4), st_mdd=round(st_mdd, 4),
         trades=ts["n"], t_stats=ts, trade_log=trade_log,
@@ -229,8 +230,8 @@ def main():
             df = df.dropna(subset=["close", "open", "high", "low", "volume"])
             df["date"] = pd.to_datetime(df["date"])
             df = df.sort_values("date").reset_index(drop=True)
-            # 样本窗口：近5年(含少量warm之前的缓冲由2020-06起提供)
-            df = df[df["date"] >= "2021-08-01"].reset_index(drop=True)
+            # 样本窗口: 最长十年(2016-09 起)；上市晚者按实有数据，warm-up 由 START 起缓冲
+            df = df[df["date"] >= SAMPLE_FROM].reset_index(drop=True)
             if len(df) < 120:
                 print(json.dumps({"code": code, "idx": idx, "theme": theme, "ok": False,
                                   "err": "样本不足(上市晚)"}, ensure_ascii=False), flush=True)

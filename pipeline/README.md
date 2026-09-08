@@ -14,7 +14,7 @@
 |---|---|---|---|
 | 1 universe | 公共标的池 | 展示场外池 + 场内唯一映射 + 当前分级名单 | 摘要（含场外 52 只、场内映射 35 只） |
 | 2 rules | `pipeline/strategies.json` | 打印规则化定义（灯评分/阈值/回测口径） | 可读规则表（策略参数唯一权威源） |
-| 3 backtest | 场内映射标的日线 | 状态机择时 vs 买入持有（近 5 年） | `data/_bt_out.jsonl` → `strategies/four_lights/_bt_report.md`、`strategies/four_lights/_bt_dashboard.html` |
+| 3 backtest | 场内映射标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `data/_bt_out.jsonl` → `strategies/four_lights/_bt_report.md`、`strategies/four_lights/_bt_dashboard.html` |
 | 4 select | `data/_bt_out.jsonl` | 按回测分级 A/B/不适合 | `data/_universe_4d_active.md` + `.json` |
 | 5 daily | 分级名单 A | 抓当日(含盘中实时 bar)评分 | `strategies/four_lights/_inner_report.md`、`strategies/four_lights/_4d_dashboard.html` |
 
@@ -49,7 +49,7 @@ python pipeline/run_flow.py daily                       # 阶段5 当日信号(�
 
 - 自动：已注册定时任务「四灯A类每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
 - 手动：双击 `run_daily_4d.bat`，或 `python pipeline/run_flow.py daily`。
-- 信号只覆盖 A 类 6 只（`515230/588000/562500/512200/513180/516160`），A 类之外不做四灯推送。
+- 信号只覆盖 A 类 8 只（`588000/515230/512200/562500/512980/512000/513180/161725`），A 类之外不做四灯推送。
 
 ## 4. 分级口径（select 判定，样本 ≥ 3 年）
 

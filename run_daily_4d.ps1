@@ -9,7 +9,7 @@ Set-Location g:\xalpha
 $env:PYTHONIOENCODING = "utf-8"
 
 # A-core universe (see data/_universe_4d_active.md). No other symbols are scanned/pushed.
-$codes = "588000,515230,562500,516160,513180,512200"
+$codes = "588000,515230,512200,562500,512980,512000,513180,161725"
 
 Write-Host "[1/3] Fetching (incl. live today bar) and scoring 4D lights: $codes"
 python -W ignore strategies\four_lights\_inner_4d.py $codes > data\_inner_out.jsonl

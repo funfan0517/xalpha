@@ -24,8 +24,9 @@
       },
       "backtest": {
         "engine": "strategies/four_lights/_backtest.py",
-        "start": "2020-06-01",
-        "window_from": "2021-08-01",
+        "start": "2015-01-01",
+        "window_from": "2016-09-01",
+        "span": "2016-09 ~ 2026-09 (最长十年, 上市晚者按实有)",
         "raw_out": "data/_bt_out.jsonl",
         "report": "strategies/four_lights/_bt_report.md"
       },
@@ -39,10 +40,12 @@
         "codes": [
           "588000",
           "515230",
+          "512200",
           "562500",
-          "516160",
+          "512980",
+          "512000",
           "513180",
-          "512200"
+          "161725"
         ],
         "runner": "run_daily_4d.ps1",
         "signal_report": "strategies/four_lights/_inner_report.md",

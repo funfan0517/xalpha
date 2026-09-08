@@ -81,12 +81,21 @@ def cmd_rules(args):
 
 def cmd_backtest(args):
     st = strategy(args.strategy)
+    # 仅重生成报告：不跑引擎、不追加 jsonl
+    if args.report:
+        rep = os.path.join(ROOT, st["backtest"]["report"])
+        subprocess.run([sys.executable, "-W", "ignore",
+                        os.path.join(os.path.dirname(rep), "_reportbt.py")], cwd=ROOT, check=False)
+        print(f"回测报告: {st['backtest']['report']}")
+        return
+    codes = (args.codes or "").strip()
+    if not codes:
+        sys.exit("backtest 需 --codes \"...\"（或 --report 仅用现有 jsonl 重生成报告）")
     out = os.path.join(ROOT, st["backtest"]["raw_out"])
     if args.fresh and os.path.exists(out):
         os.remove(out)
     eng = os.path.join(ROOT, st["backtest"]["engine"])
-    codes = args.codes or ""
-    p = subprocess.run([sys.executable, "-W", "ignore", eng] + ([codes] if codes else []),
+    p = subprocess.run([sys.executable, "-W", "ignore", eng, codes],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
     ok_lines = [l for l in p.stdout.splitlines() if l.strip().startswith("{")]
     if p.returncode != 0 or not ok_lines:
@@ -97,11 +106,6 @@ def cmd_backtest(args):
         for l in ok_lines:
             f.write(l + "\n")
     print(f"已追加 {len(ok_lines)} 行 -> {out}")
-    if args.report or not args.codes:
-        rep = os.path.join(ROOT, st["backtest"]["report"])
-        subprocess.run([sys.executable, "-W", "ignore",
-                        os.path.join(os.path.dirname(rep), "_reportbt.py")], cwd=ROOT, check=False)
-        print(f"回测报告: {st['backtest']['report']}")
 
 
 def cmd_select(args):

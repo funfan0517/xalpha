@@ -5,7 +5,7 @@
       "source_methodology": "G:/tradingagents/fund_analysis_4d/四灯共振短线选股方法论.md",
       "universe": {
         "offshore_pool": "data/_universe.md",
-        "inner_mapping": "4d/_inner_4d.py (MAPPING)",
+        "inner_mapping": "strategies/four_lights/_inner_4d.py (MAPPING)",
         "note": "公共标的池：场外 52 只 + 场内唯一映射 35 只"
       },
       "rules": [
@@ -23,11 +23,11 @@
         "trade_at": "次日开盘"
       },
       "backtest": {
-        "engine": "4d/_backtest.py",
+        "engine": "strategies/four_lights/_backtest.py",
         "start": "2020-06-01",
         "window_from": "2021-08-01",
         "raw_out": "data/_bt_out.jsonl",
-        "report": "4d/_bt_report.md"
+        "report": "strategies/four_lights/_bt_report.md"
       },
       "select": {
         "out_active_md": "data/_universe_4d_active.md",
@@ -45,8 +45,8 @@
           "512200"
         ],
         "runner": "run_daily_4d.ps1",
-        "signal_report": "4d/_inner_report.md",
-        "dashboard": "4d/_4d_dashboard.html",
+        "signal_report": "strategies/four_lights/_inner_report.md",
+        "dashboard": "strategies/four_lights/_4d_dashboard.html",
         "automation": "四灯A类每日信号(工作日14:05)"
       },
       "note": "每日 A 类 codes 变更时，需同步 strategies.json 与 run_daily_4d.ps1 两处。"

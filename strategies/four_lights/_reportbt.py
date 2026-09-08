@@ -5,7 +5,7 @@ import json
 import os
 import sys
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 from pipeline import bt_stats
@@ -20,9 +20,9 @@ plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
 OUT = "g:/xalpha/data/_bt_out.jsonl"
-MD = "g:/xalpha/4d/_bt_report.md"
-PNG = "g:/xalpha/4d/_bt_visual.png"
-HTML = "g:/xalpha/4d/_bt_dashboard.html"
+MD = "g:/xalpha/strategies/four_lights/_bt_report.md"
+PNG = "g:/xalpha/strategies/four_lights/_bt_visual.png"
+HTML = "g:/xalpha/strategies/four_lights/_bt_dashboard.html"
 
 CAT = lambda idx: ("宽基/另类" if idx <= 4 else "全球/QDII" if idx <= 16 else "A股行业" if idx <= 37 else "策略/商品")
 
@@ -166,4 +166,4 @@ txt = "\n".join(L)
 with open(MD, "w", encoding="utf-8") as fh:
     fh.write(txt)
 print("\n".join(L[:28]))
-print(f"... 明细共 {len(rows)} 行; PNG/HTML/MD 已写入 4d/")
+print(f"... 明细共 {len(rows)} 行; PNG/HTML/MD 已写入 strategies/four_lights/")

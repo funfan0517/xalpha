@@ -98,9 +98,10 @@ def cmd_backtest(args):
             f.write(l + "\n")
     print(f"已追加 {len(ok_lines)} 行 -> {out}")
     if args.report or not args.codes:
+        rep = os.path.join(ROOT, st["backtest"]["report"])
         subprocess.run([sys.executable, "-W", "ignore",
-                        os.path.join(ROOT, "4d", "_reportbt.py")], cwd=ROOT, check=False)
-        print("回测报告: 4d/_bt_report.md")
+                        os.path.join(os.path.dirname(rep), "_reportbt.py")], cwd=ROOT, check=False)
+        print(f"回测报告: {st['backtest']['report']}")
 
 
 def cmd_select(args):
@@ -175,7 +176,7 @@ def cmd_scaffold(args):
             "# 单笔统计统一复用 pipeline/bt_stats: 引擎收集 trades=[{code,entry_date,exit_date,bars,ret}],\n"
             "# 输出 t_stats=bt_stats.trade_stats(trades)+trade_log; 报告默认含 bt_stats.section_lines\n"
             "def run_backtest(df):\n"
-            "    raise NotImplementedError('实现状态机回测，参考 4d/_backtest.py')\n"
+            "    raise NotImplementedError('实现状态机回测，参考 strategies/four_lights/_backtest.py')\n"
         ),
     }
     for fn, content in files.items():

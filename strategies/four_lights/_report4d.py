@@ -6,7 +6,7 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 OUT = "g:/xalpha/data/_inner_out.jsonl"
-REPORT = "g:/xalpha/4d/_inner_report.md"
+REPORT = "g:/xalpha/strategies/four_lights/_inner_report.md"
 
 I2N = {
     "563360": "A500ETF华泰柏瑞", "588000": "科创50ETF华夏", "512800": "银行ETF华宝",

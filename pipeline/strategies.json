@@ -100,6 +100,62 @@
       },
       "note": "2026-09-08 定稿 A; B/C 已从代码库移除",
       "pipeline_mode": "rotation"
+    },
+    "ema_cross": {
+      "name": "双均线趋势(EMA12/26 金叉死叉·趋势/阈值/锁仓过滤)",
+      "source_methodology": "C:/Users/hp/Downloads/双均线趋势策略 · 完整落地规则手册（实盘_回测通用版）.md",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "data/_universe.md (场内对应列=内池, 由 pipeline/universe.py 派生)",
+        "note": "唯一池 _universe.md: 场外 56 只 + 场内内池 37 只 (2026-09 起统一); 纯趋势择时, 逐场内标的状态机"
+      },
+      "rules": [
+        "快线 EMA12 / 慢线 EMA26(经典参数, 禁止频繁修改)",
+        "金叉(昨 fast<=slow 且 今 fast>slow) 且 两线差距>=0.3%(阈值) 且 close>EMA26(趋势过滤) -> 次日开盘全仓买入",
+        "死叉(昨 fast>=slow 且 今 fast<slow) 且 两线差距>=0.3% -> 次日开盘全部清仓",
+        "无信号 -> 维持原有仓位, 不手动止盈/止损/加减仓",
+        "锁仓: 两次实际交易间隔 <5 交易日 -> 忽略第二次信号, 防震荡反复打脸",
+        "成本: 单边 0.03%(ETF 佣金) · 交易时点: 信号次日开盘(回测/实盘一致, 无前视)"
+      ],
+      "thresholds": {
+        "ema_fast": 12,
+        "ema_slow": 26,
+        "trend_filter": true,
+        "cross_thresh": 0.003,
+        "lock_bars": 5,
+        "fee": 0.0003,
+        "trade_at": "信号次日开盘"
+      },
+      "backtest": {
+        "engine": "strategies/ema_cross/backtest.py",
+        "start": "2015-01-01",
+        "window_from": "2016-09-01",
+        "span": "2016-09 ~ 2026-09 (最长十年, 上市晚者按实有)",
+        "raw_out": "data/_ema_cross_bt.jsonl",
+        "report": "strategies/ema_cross/_bt_report.md"
+      },
+      "select": {
+        "out_active_md": "data/_universe_ema_cross_active.md",
+        "out_active_json": "data/_universe_ema_cross_active.json",
+        "min_sample_years": 3.0,
+        "criteria": "A=策略年化>0 且 超额(策略-基准)>0; B=超额>0 且 策略年化<=0(防守)"
+      },
+      "daily": {
+        "codes": [
+          "161226",
+          "515230",
+          "562500",
+          "159732",
+          "512980",
+          "513180",
+          "515790",
+          "512000"
+        ],
+        "runner": "pending (python strategies/ema_cross/_signal.py, runner/automation 未建)",
+        "signal_report": "strategies/ema_cross/_signal_report.md",
+        "automation": "(未创建)"
+      },
+      "note": "2026-09-08 按手册落地; 过滤参数集中在 strategies/ema_cross/rule.py(唯一权威源); A/B 名单由回测 select 生成并同步至 daily.codes; 震荡市为固有短板, 结合动量/配仓策略组合使用"
     }
   }
 }

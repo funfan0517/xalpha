@@ -1,4 +1,4 @@
-# 4D-signal daily runner (A-core 6 ETFs only)
+# 4D-signal daily runner (ALL inner pool = every "has inner" row of data/_universe.md)
 # Runs intraday at ~14:05 so off-market subscriptions can settle by 15:00 (T-day NAV).
 # NOTE: get_daily returns today's LIVE bar during trading hours (close = last price,
 # volume = accumulated). Signal therefore uses today's unfinished bar; it may change
@@ -8,11 +8,9 @@ $ErrorActionPreference = "Stop"
 Set-Location g:\xalpha
 $env:PYTHONIOENCODING = "utf-8"
 
-# A-core universe (see data/_universe_4d_active.md). No other symbols are scanned/pushed.
-$codes = "588000,515230,512200,562500,512980,512000,513180,161725"
-
-Write-Host "[1/3] Fetching (incl. live today bar) and scoring 4D lights: $codes"
-python -W ignore strategies\four_lights\_inner_4d.py $codes > data\_inner_out.jsonl
+# Full inner pool: no codes arg passed, _inner_4d.py scans universe.inner_rows() by default
+Write-Host "[1/3] Fetching (incl. live today bar) and scoring 4D lights: all inner pool"
+python -W ignore strategies\four_lights\_inner_4d.py > data\_inner_out.jsonl
 if ($LASTEXITCODE -ne 0) { throw "4D scan failed" }
 
 Write-Host "[2/3] Generating signal report..."

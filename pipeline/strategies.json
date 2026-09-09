@@ -37,22 +37,13 @@
         "criteria": "A = 策略年化>0 且 超额>0; B = 超额>0 且 策略年化<=0(防守)"
       },
       "daily": {
-        "codes": [
-          "588000",
-          "515230",
-          "512200",
-          "562500",
-          "512980",
-          "512000",
-          "513180",
-          "161725"
-        ],
+        "codes": [],
         "runner": "run_daily_4d.ps1",
         "signal_report": "strategies/four_lights/_inner_report.md",
         "dashboard": "strategies/four_lights/_4d_dashboard.html",
-        "automation": "四灯A类每日信号(工作日14:05)"
+        "automation": "四灯全池每日信号(工作日14:05)"
       },
-      "note": "每日 A 类 codes 变更时，需同步 strategies.json 与 run_daily_4d.ps1 两处。"
+      "note": "2026-09-09 起 daily 扫描口径改为全部场内基金 = 唯一池 _universe.md 所有「有场内对应」标的(由 pipeline/universe.py 派生, 38 只); codes=[] 表示全池, runner 不带 codes 调 _inner_4d.py。旧 A 类名单(588000/515230/512200/562500/512980/512000/513180/161725)仅作历史口径。"
     },
     "momentum_rotation": {
       "name": "全球相对动量ETF轮动(A, 唯一保留)",
@@ -190,9 +181,9 @@
         "trade_at": "场外按当日净值申赎(T日15:00前)"
       },
       "backtest": {
-        "engine": "",
-        "data": "data/_core_navcache.json (六只场外净值, 待建)",
-        "note": "组合层资产配置, 非单标的状态机择时; 估值锚缺历史, 暂不做 pipeline 逐码回测/select"
+          "engine": "strategies/core_rotation/_backtest.py",
+          "data": "data/_bt_caches/*.csv (中证官网peg/收盘 + 511260/513100/518880 + chinabond 10Y 月末)",
+          "note": "组合层月度回测 2019-08~2026-09(代理口径见 README §8); 逐码回测/select 不适用"
       },
       "select": {
         "out_active_md": "data/_universe_core_rotation_active.md",

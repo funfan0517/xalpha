@@ -2,7 +2,8 @@
 
 把「公共标的池 → 规则化 → 回测报告 → 适配名单 → 每日操作」固化为五阶段标准流程。
 当前已注册策略：`four_lights`（四灯共振·场内量价代理版）、`momentum_rotation`（全球相对动量轮动）、
-`ema_cross`（双均线趋势 EMA12/26·金叉死叉）；`four_lights` 可作为新增策略的模板。
+`ema_cross`（双均线趋势 EMA12/26·金叉死叉）；`core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select）。
+`four_lights` 可作为新增策略的模板。
 
 ## 1. 流程总览
 

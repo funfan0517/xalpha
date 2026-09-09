@@ -156,6 +156,64 @@
         "automation": "(未创建)"
       },
       "note": "2026-09-08 按手册落地; 过滤参数集中在 strategies/ema_cross/rule.py(唯一权威源); A/B 名单由回测 select 生成并同步至 daily.codes; 震荡市为固有短板, 结合动量/配仓策略组合使用"
+    },
+    "core_rotation": {
+      "name": "核心轮动(六类资产动态配置·场外6标的)",
+      "source_methodology": "doc/核心轮动投资策略手册.md",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "data/_universe.md (场外行=执行6标的; 场内对应列=信号代理, 由 pipeline/universe.py 派生)",
+        "note": "一类一标的(无第7只): 003377/012644/270042/023299/011609/000216; 代理 511260/515080/513100/563360/588000/518880"
+      },
+      "rules": [
+        "情景判定(三维): 股债收益比=中证红利股息率/10Y国债; 防御/低估=比>2.5 且 红利PE分位<30%; 成长/牛市=比<1.5 或 成长占优(创业板连5日跑赢红利&两市>2.3万亿); 其余均衡震荡; 矛盾留更防御档",
+        "中长债: 10Y>3%买入至上限 / 2.5-3%偏多 / 2-2.5%中性持有 / 1.5-2%压至下限 / <1.5%卖出至5%以下",
+        "中证红利: 股息率>4.5%买入 / 3.5-4.5%持有 / <3.5%卖出; PE分位<30%买 / 30-70%持 / >70%停加",
+        "纳指100: Forward PE 分位 <30%买 / 30-70%持 / 70-85%微降 / >85%卖出",
+        "中证A500: PE 分位 <30%买 / 30-50%偏多 / 50-70%持 / 70-85%微降 / >85%卖出",
+        "科创50: 科创PE比(科创PE/红利PE) <3买入 / 3-5持 / 5-6减 / >6禁超配(<=35%) / >7完全规避",
+        "黄金: 月涨幅>10%暂停加仓; 短期回调>8%触发减仓检查",
+        "月度再平衡: 持仓偏离情景中枢>±5pp 才调; 六类合计=100%, 单类<=40%"
+      ],
+      "thresholds": {
+        "ratio_def": 2.5,
+        "ratio_eq_lo": 1.5,
+        "ratio_eq_hi": 2.5,
+        "red_pe_def": 0.3,
+        "red_pe_eq_lo": 0.3,
+        "red_pe_eq_hi": 0.7,
+        "gold_monthly_cap": 10.0,
+        "kc_cap": 35.0,
+        "single_cap": 40.0,
+        "rebal_tol_pp": 5.0,
+        "fee": 0.0015,
+        "trade_at": "场外按当日净值申赎(T日15:00前)"
+      },
+      "backtest": {
+        "engine": "",
+        "data": "data/_core_navcache.json (六只场外净值, 待建)",
+        "note": "组合层资产配置, 非单标的状态机择时; 估值锚缺历史, 暂不做 pipeline 逐码回测/select"
+      },
+      "select": {
+        "out_active_md": "data/_universe_core_rotation_active.md",
+        "out_active_json": "data/_universe_core_rotation_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "固定6类(由策略手册直接定档, 非回测 select)"
+      },
+      "daily": {
+        "codes": [
+          "511260",
+          "515080",
+          "513100",
+          "563360",
+          "588000",
+          "518880"
+        ],
+        "runner": "run_daily_core_rotation.ps1",
+        "signal_report": "strategies/core_rotation/_daily_report.md",
+        "automation": "(未创建)"
+      },
+      "note": "2026-09-09 集成: 自动抓价格/净值/10Y/蛋卷估值(红利股息率·PE分位·科创PE比); A500/纳指Forward分位等人工补录 data/_core_valuation.json"
     }
   }
 }

@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-09-09",
+  "criteria": "核心轮动手册固定6类(一类一标的, 非回测 select)",
+  "A": [
+    {
+      "code": "003377",
+      "name": "广发中债7-10年国开债指数C",
+      "proxy": "511260",
+      "proxy_name": "十年国债ETF国泰",
+      "theme": "长端利率(10Y)",
+      "cat": "债券",
+      "role": "中长债"
+    },
+    {
+      "code": "012644",
+      "name": "招商中证红利ETF联接C",
+      "proxy": "515080",
+      "proxy_name": "中证红利ETF招商",
+      "theme": "中证红利",
+      "cat": "策略/商品",
+      "role": "中证红利"
+    },
+    {
+      "code": "270042",
+      "name": "广发纳斯达克100ETF联接(QDII)A",
+      "proxy": "513100",
+      "proxy_name": "纳指ETF国泰",
+      "theme": "纳指100",
+      "cat": "全球/QDII",
+      "role": "纳指100"
+    },
+    {
+      "code": "023299",
+      "name": "汇添富中证A500指数增强C",
+      "proxy": "563360",
+      "proxy_name": "A500ETF华泰柏瑞",
+      "theme": "中证A500",
+      "cat": "宽基/另类",
+      "role": "中证A500"
+    },
+    {
+      "code": "011609",
+      "name": "易方达上证科创板50ETF联接C",
+      "proxy": "588000",
+      "proxy_name": "科创50ETF华夏",
+      "theme": "科创50",
+      "cat": "宽基/另类",
+      "role": "科创50"
+    },
+    {
+      "code": "000216",
+      "name": "华安黄金ETF联接A",
+      "proxy": "518880",
+      "proxy_name": "黄金ETF华安",
+      "theme": "黄金",
+      "cat": "策略/商品",
+      "role": "黄金"
+    }
+  ],
+  "B": []
+}

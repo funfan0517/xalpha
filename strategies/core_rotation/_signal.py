@@ -165,8 +165,11 @@ def asset_advice(a, sc, v, y10):
     if a["key"] == "ndx":
         pct = v.get("ndx_fwd_pe_pct")
         if pct is not None:
-            act = "卖出" if pct > 0.85 else "微降" if pct > 0.70 else "持有" if pct >= 0.30 else "买入"
-            return f"Forward PE 分位 {pct:.0%} → {act} · 中枢 {core}"
+            act = ("卖出" if pct > 0.85 else
+                   "不操作/微降" if pct > 0.70 else
+                   "持有" if pct >= 0.30 else "买入(加至上限)")
+            src = "(周频共识·10年分位)" if v.get("_ndx") else "(人工录入)"
+            return f"Forward PE 分位 {pct:.0%}{src} → {act} · 中枢 {core}"
         ttm = (v.get("_mx") or {}).get("ndx_pe_ttm")
         suffix = f" · 参考(东财) PE-TTM={ttm}" if ttm else ""
         return f"缺 Forward PE 分位(人工){suffix} · 中枢 {core}"
@@ -195,6 +198,45 @@ def asset_advice(a, sc, v, y10):
     return f"中枢 {core}"
 
 
+_STALE_DAYS = 7
+
+
+def manual_reminders(v):
+    """运行前人工核对提醒（可选人工项缺失/过期 / 手动覆盖值过期）。
+
+    仅提示、不阻塞：估值分位(红利/科创/A500/纳指Forward)已全自动。
+    """
+    r = []
+    as_of = v.get("as_of")
+    stale = False
+    if as_of:
+        age = (datetime.now() - datetime.strptime(as_of, "%Y-%m-%d")).days
+        stale = age > _STALE_DAYS
+    if not as_of:
+        r.append("估值数据日期为空（自动拉取失败且无缓存?），建议重跑确认网络")
+    elif stale:
+        r.append(f"估值数据日期 {as_of} 距今已 {age} 天(> {_STALE_DAYS}天)，请更新后重跑")
+
+    if v.get("dxy") is None and v.get("us_real_yield") is None:
+        r.append("DXY/美债实际利率未填 → 黄金/纳指的美元·利率因子按中性处理；如需美元与利率加成请更新 `data/_core_valuation.json`")
+    elif stale:
+        r.append("已录 DXY/实际利率已超7天，建议更新（属可选微调项）")
+
+    if not v.get("growth_yes"):
+        r.append("成长占优开关 = False（默认）。若创业板连续5日跑赢红利 且 两市成交>2.3万亿，请改为 true")
+    if v.get("risk_hedge") or v.get("risk_red_component"):
+        r.append("⚠️ 风险开关已置 true（避险/红利成分股风险），请确认是否仍适用")
+
+    # 用户手动覆盖的估值分位若过期则提示（未覆盖=走自动源, 无需提示）
+    manual_override = []
+    for k, ak in (("a500_pe_pct", "_a500"), ("ndx_fwd_pe_pct", "_ndx")):
+        if v.get(k) is not None and not v.get(ak):
+            manual_override.append(k)
+    if manual_override and stale:
+        r.append("检测到你手动覆盖了估值分位且已超7天，请更新或删除对应键以回退自动源")
+    return r
+
+
 def build_report(assets, snap, nav_l, y10, y10_term, yseries, v, sc, sc_note):
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     ys = " | ".join(f"{d.date()}={r:.2f}%" for d, r in zip(yseries["date"], yseries["close"]))
@@ -214,6 +256,12 @@ def build_report(assets, snap, nav_l, y10, y10_term, yseries, v, sc, sc_note):
     L = ["# 核心轮动(六类资产动态配置) · 每日监控报告", "",
          f"> 生成 {now} · 标的一一取自 `data/_universe.md` 场外行(一类一标的, 无第7只); "
          "场内代理仅作行情/动量观察, 申赎一律走场外。机械规则输出, 非投资建议。", ""]
+
+    rem = manual_reminders(v)
+    if rem:
+        L += ["## 〇、运行前人工核对提醒（不影响自动结果, 请按需更新）", ""]
+        L += [f"- ⚠️ {x}" for x in rem]
+        L.append("")
 
     L += ["## 一、行情快照(场内代理 · 自动)", "",
           "| 资产 | 代理 | 日期 | 收盘 | 日涨 | 5日 | 20日 | 站上MA28 |",
@@ -254,14 +302,18 @@ def build_report(assets, snap, nav_l, y10, y10_term, yseries, v, sc, sc_note):
                  f"科创PE比 {v.get('kc_pe_over_hs'):.2f}")
     L.append(f"- 股债收益比 = 红利股息率 ÷ 10Y = {ratio_txt} "
              f"(分子红利股息率 {v.get('div_yield_hs_pct') or '未录'}%)")
-    kv = [("纳指Forward PE分位(手动)", "ndx_fwd_pe_pct"),
-          ("DXY(手动)", "dxy"), ("美债10Y实际利率(手动)", "us_real_yield")]
+    kv = [("DXY(手动)", "dxy"), ("美债10Y实际利率(手动)", "us_real_yield")]
     segs = [f"{k}={v[j] if v.get(j) is not None else '—'}" for k, j in kv]
     L.append(f"- 人工项: {' · '.join(segs)}")
     a5 = v.get("_a500")
     if a5:
         L.append(f"- A500 本地日频PE库(官方日频, 2024-09 发布起): 最新 PE={a5['pe']} @ {a5['as_of']} · "
                  f"发布以来累计分位 {a5['pe_pct']:.1%} · 区间 [{a5['pe_min']}, {a5['pe_max']}] n={a5['n']}")
+    nd = v.get("_ndx")
+    if nd:
+        L.append(f"- NDX Forward PE(12M一致预期, 周频): 最新 {nd['pe']} @ {nd['as_of']} · "
+                 f"近10年分位 {nd['pe_pct_10y']:.1%}(n={nd['n_10y']}) · 2001以来 {nd['pe_pct_full']:.1%}(n={nd['n_full']}) · "
+                 f"来源 historyofmarket(CC BY 4.0)")
     mx = v.get("_mx") or {}
     if mx.get("a500_pe"):
         L.append(f"- 东财MCP快照({mx.get('as_of')}): A500 PE(TTM)={mx.get('a500_pe')}"
@@ -332,10 +384,10 @@ def build_report(assets, snap, nav_l, y10, y10_term, yseries, v, sc, sc_note):
           "- QDII 溢价: 场内 `513100` 溢价>5% 一律走场外 `270042`(需人工核对溢价)",
           f"- 科创 PE 比>7 规避/TMT 拥挤度>90% 禁加: "
           f"{'**PE比>7, 完全规避**' if (v.get('kc_pe_over_hs') or 0) > 7 else '未触发/未录'}", ""]
-    L.append("> 估值锚来源: 红利股息率/PE分位与科创PE比=蛋卷(每日); A500 发布以来分位=本地日频库(中证官网, "
-             "每日自动); 东财MCP提供 A500/纳指 PE(TTM) 绝对值快照(agent 回填); "
-             "纳指 Forward PE 分位东财无, 仍需人工(每周, `data/_core_valuation.json`); DXY/实际利率可选。"
-             "自动拉取失败会自动沿用缓存并在此提醒。")
+    L.append("> 估值锚来源: 红利/科创=蛋卷(每日); A500 发布以来分位=中证官网本地日频库; "
+             "纳指 Forward PE 10年分位=historyofmarket 官方周频(2001-至今, CC BY 4.0)本地库; "
+             "东财MCP提供 A500/纳指 PE(TTM) 绝对值快照(agent 回填, 交叉验证); "
+             "DXY/实际利率为可选人工。自动拉取失败会自动沿用缓存并在此提醒。")
     L.append("> 免责声明: 机械规则仅供参考, 不构成投资建议; 市场有风险, 投资需谨慎。")
     return "\n".join(L) + "\n", dict(y10=y10, ydir=ydir, sc=sc, sc_note=sc_note)
 
@@ -401,6 +453,16 @@ def main():
             item["nav"] = {"err": f"{type(e).__name__}: {str(e)[:120]}"}
         snap.append(item)
 
+    # 纳指 Forward PE 10 年分位自动(historyofmarket 官方周频 2001-至今; 用户人工值优先)
+    if v.get("ndx_fwd_pe_pct") is None:
+        try:
+            import _ndx_pe
+            nd = _ndx_pe.daily_pe()
+            v["ndx_fwd_pe_pct"] = nd["pe_pct_10y"]
+            v["_ndx"] = nd
+        except Exception as e:  # noqa: BLE001
+            print(f"[i] NDX Forward PE 分位不可用(沿用人工/缺省): {type(e).__name__}: {str(e)[:120]}")
+
     y10, y10_term = fetch_yield_now()
     yseries = fetch_yield_series(weeks=6)
     sc, sc_note = rule.decide_scenario(v, y10)
@@ -416,9 +478,10 @@ def main():
         "valuation_auto": (v.get("_auto") or {}),
         "valuation_mxds": (v.get("_mx") or {}),
         "a500_local_pe": (v.get("_a500") or {}),
-        "valuation_manual": {"a500_pe_pct": v.get("a500_pe_pct"),
-                             "ndx_fwd_pe_pct": v.get("ndx_fwd_pe_pct"),
-                             "dxy": v.get("dxy"), "us_real_yield": v.get("us_real_yield")},
+        "ndx_local_pe": (v.get("_ndx") or {}),
+        "valuation_used": {"a500_pe_pct": v.get("a500_pe_pct"),
+                           "ndx_fwd_pe_pct": v.get("ndx_fwd_pe_pct"),
+                           "dxy": v.get("dxy"), "us_real_yield": v.get("us_real_yield")},
         "target_weights": {k: rule.TARGET[k][rule.scene_key(sc)] for k in rule.TARGET},
         "assets": [{
             "key": s["key"], "name": s["name"], "off": s["off"], "proxy": s["proxy"],

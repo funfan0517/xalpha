@@ -29,7 +29,7 @@
 | 科创50 PE 分位 / 绝对 PE（→ 自动算 科创PE比） | 蛋卷基金估值（SH000688） | ✅ 自动 |
 | A500 发布以来分位 / 绝对 PE | 中证官网 `index-perf`（000510，2024-09 发布起日频 `peg`，纯 Python） | ✅ 自动（本地日频库 `data/_a500_pe_hist.csv`，每日增量） |
 | A500/纳指 PE(TTM) 绝对值（辅助/交叉验证） | mx-ds-mcp（东方财富，agent 回填 `data/_mx_valuation_latest.json`） | ✅ 自动（agent 每日查） |
-| 纳指 Forward PE 分位 | — | ⚠️ 东财仅给 PE(TTM) 无前瞻；Forward 仍需人工或代理口径 |
+| 纳指 Forward PE 分位（12M 一致预期） | historyofmarket 公开 JSON `api/ndx/forward-pe.json`，官方周频 2001-至今（CC BY 4.0） | ✅ 自动（本地库 `data/_ndx_fwd_pe_hist.csv`，近10年/全窗分位） |
 | DXY、美债10Y 实际利率（TIPS） | — | ⚠️ 可选人工（仅微调因子） |
 | 成长占优信号 / 系统性风险开关 | — | ⚠️ 人工（布尔） |
 
@@ -53,23 +53,24 @@ python pipeline/run_flow.py daily --strategy core_rotation
 - `data/_core_daily.json` —— 机器可读快照
 - `strategies/core_rotation/valuation_template.json` —— 估值锚模板（自动生成）
 
-## 4. 估值锚说明（红利/科创/A500 分位已全自动，纳指 Forward 每周约 1 分钟）
+## 4. 估值锚说明（估值分位全部自动；仅 DXY/实际利率/开关可选人工）
 
 运行脚本时**自动**写入：
 
 - 蛋卷（每日）：`div_yield_hs_pct`（红利股息率%）、`hs_pe_pct`（红利 PE 分位）、`kc_pe_over_hs`（科创PE比=科创50 PE÷红利 PE）
 - A500 本地日频库（每日，`data/_a500_pe_hist.csv`，源=中证官网 `index-perf` 000510 `peg`，2024-09 发布起）：最新 PE / 区间 / **发布以来累计分位** → 写入 `a500_pe_pct`（标口径：官方日频估算）
+- NDX Forward PE 库（每日，`data/_ndx_fwd_pe_hist.csv`，源=historyofmarket `api/ndx/forward-pe.json`，官方周频 2001-至今，CC BY 4.0）：最新 12M 一致预期 Forward PE → **近10年分位**写入 `ndx_fwd_pe_pct`（另给 2001 以来全窗分位）
 
-> 说明：中证官网 `peg` 为近似静态 PE，与东财/蛋卷的 PE(TTM) 数值不同，但自始至终同一口径，故其「发布以来累计分位」自洽可比；报告明确标注「官方日频估算」，避免与 TTM 分位混淆。
+> 口径：中证官网 `peg` 为近似静态 PE、historyofmarket 为一致预期 Forward PE，二者与蛋卷/东财的 TTM 口径不同但各自全序列同口径，分位自洽；报告均显式标注来源口径。
 
-**仅需手动补录的键**（脚本不覆盖；已有 `a500_pe_pct` 手工值会优先于自动值）：
+**可选覆盖键**（脚本不覆盖；已有手工值会优先于自动值；留空则用上面的自动值）：
 
 ```json
 {
-  "as_of": "2026-09-08",      // 自动写为蛋卷数据日, 无需手动
-  "a500_pe_pct": 0.38,        // 可选覆盖: 若你手上有 TTM 口径分位则填, 否则自动用官方日频估算
-  "ndx_fwd_pe_pct": 0.52,     // 手动: 纳指 Forward PE 分位(0-1) — 唯一每周需录
-  "dxy": 96.5,                // 可选
+  "as_of": "2026-09-08",      // 自动写为数据日, 无需手动
+  "a500_pe_pct": 0.38,        // 可选覆盖 A500 分位(如你有 TTM 口径)
+  "ndx_fwd_pe_pct": 0.52,     // 可选覆盖纳指 Forward 分位(留空=自动周频共识10年分位)
+  "dxy": 96.5,                // 可选: 美元指数
   "us_real_yield": 1.9,       // 可选: 美债10Y 实际利率 %
   "growth_yes": false,        // 手动: 创业板连5日跑赢红利 & 两市>2.3万亿
   "risk_hedge": false,        // 手动: 系统性风险/科创暴雷/地缘冲突
@@ -78,7 +79,7 @@ python pipeline/run_flow.py daily --strategy core_rotation
 }
 ```
 
->纳指 Forward PE 分位建议来源：券商研报、理杏仁（免费日更额度）或自取分析师一致预期；报告会在估值数据日超过 7 天时标黄提醒。可选 `data/_core_holdings.json`（当前持仓权重）以启用第六节月度再平衡偏差检查：
+> 报告会在估值数据日超过 7 天时标黄提醒。可选 `data/_core_holdings.json`（当前持仓权重）以启用第六节月度再平衡偏差检查：
 
 ```json
 {"as_of": "2026-09-01",
@@ -95,12 +96,12 @@ python pipeline/run_flow.py daily --strategy core_rotation
 | 中证A500 历史分位 | ⚠️ 东财只给年内/月度窗口分位；**官方指数 2024-09 才发布，"10 年分位"不存在** | ✅ 已落地：改用「发布以来累计分位」，由中证官网日频 `peg` 本地灌库 `data/_a500_pe_hist.csv` 自动算（A 方案） |
 | 科创50/中证红利 PE | ✅ 135.5 / 8.618 | 与蛋卷交叉验证一致 |
 | 纳指100(NDX) PE(TTM) | ✅ 32.85 + 分位 | 绝对值快照（agent 每日回填） |
-| 纳指 Forward PE | ❌ 未提供（前瞻盈利预测） | Forward 分位仍人工，或用 PE-TTM 分位作代理并显式标注口径 |
+| 纳指 Forward PE | ❌ 东财未提供 | ✅ 改走 historyofmarket 官方周频(2001-至今)，`_ndx_pe.py` 本地算 10 年分位 |
 
 **接入形态**（Python 脚本无法直接调 MCP）：
-1. A500 **发布以来分位已完全本地化**：`_a500_pe.py` 每日自动拉中证官网日频 `peg`（476 日）→ 覆写 `data/_a500_pe_hist.csv` → 本地算累计分位，无需 agent/MCP 参与；
+1. A500 分位、纳指 Forward PE 10 年分位均已**本地化全自动**（`_a500_pe.py` / `_ndx_pe.py`，纯 HTTP，无需 agent/MCP）；
 2. mx-ds-mcp 只承担「绝对 PE 快照 / 交叉验证」（A500、纳指 PE-TTM）：agent 每日调 `mx_index_block_finance_data`/`mx_us_finance_data` → 写 `data/_mx_valuation_latest.json` → 再跑 `python strategies/core_rotation/_signal.py`；
-3. 若把步骤 2 也做成每日定时任务（agent 自动查询并回填后跑报告），A 股三只的估值就 100% 无人工；纳指 Forward 分位仍是唯一人工项（东财无前瞻）。
+3. 步骤 2 可做成每日定时任务；至此**估值分位(红利/科创/A500/纳指 Forward)全部自动**，仅剩可选的 DXY/实际利率与风险开关人工。
 
 ## 5. 规则与参数唯一权威源
 
@@ -116,7 +117,7 @@ python pipeline/run_flow.py daily --strategy core_rotation
 
 - [x] 红利/科创估值锚自动化（蛋卷接口，每日）
 - [x] A500 发布以来分位自动化（本地日频库，中证官网 index-perf，每日增量）
-- [ ] 纳指 Forward PE 分位自动化（东财无前瞻；需理杏仁付费或代理口径）
+- [x] 纳指 Forward PE 10 年分位自动化（historyofmarket 官方周频 2001-至今，本地库）
 - [ ] 每日 mx-ds-mcp 绝对PE快照 → 报告 做成定时任务（可选）
 - [ ] `data/_core_navcache.json` 净值本地增量缓存（当前每次运行实时拉取，约 5–8 秒）；
 - [ ] QDII 场内溢价与 TMT 拥挤度仍需人工/外部快照，报告内已留检查位；

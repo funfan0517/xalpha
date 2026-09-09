@@ -13,7 +13,8 @@
   [auto] 10Y 国债收益率 xalpha.universal.get_bond_rates('N') —— 中长债信号 + 股债收益比分母
   [auto] 中证红利股息率/PE分位、科创50 PE分位与 PE 比         —— 蛋卷基金估值 djapi/index_eva/dj
   [auto] A500 发布以来 PE 累计分位(官方日频 peg)             —— 中证官网 index-perf, 本地日频库 _a500_pe.py
-  [手动] 纳指 Forward PE 分位 / DXY / 实际利率              —— 可选补录 data/_core_valuation.json(东财仅 TTM)
+  [auto] 纳指 Forward PE(12M一致预期) 10 年分位            —— historyofmarket 官方周频 2001-至今, _ndx_pe.py
+  [手动] DXY / 实际利率 / 风险开关                          —— 可选补录 data/_core_valuation.json
 
 情景判定(手册第二章)与总配置矩阵(手册第一章)在此唯一实现, 供 _signal.py 与后续回测共用。
 """

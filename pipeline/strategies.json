@@ -213,7 +213,7 @@
         "signal_report": "strategies/core_rotation/_daily_report.md",
         "automation": "(未创建)"
       },
-      "note": "2026-09-09 集成: 自动抓价格/净值/10Y/蛋卷估值(红利股息率·PE分位·科创PE比); A500/纳指Forward分位等人工补录 data/_core_valuation.json"
+      "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工"
     }
   }
 }

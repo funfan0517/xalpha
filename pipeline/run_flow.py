@@ -183,7 +183,7 @@ def cmd_scaffold(args):
             "# 单笔统计统一复用 pipeline/bt_stats: 引擎收集 trades=[{code,entry_date,exit_date,bars,ret}],\n"
             "# 输出 t_stats=bt_stats.trade_stats(trades)+trade_log; 报告默认含 bt_stats.section_lines\n"
             "def run_backtest(df):\n"
-            "    raise NotImplementedError('实现状态机回测，参考 strategies/four_lights/_backtest.py')\n"
+            "    raise NotImplementedError('实现状态机回测，参考 strategies/four_lights/resonance_4d/_backtest.py')\n"
         ),
     }
     for fn, content in files.items():

@@ -10,18 +10,18 @@ $env:PYTHONIOENCODING = "utf-8"
 
 # Full inner pool: no codes arg passed, _inner_4d.py scans universe.inner_rows() by default
 Write-Host "[1/3] Fetching (incl. live today bar) and scoring 4D lights: all inner pool"
-python -W ignore strategies\four_lights\_inner_4d.py > data\_inner_out.jsonl
+python -W ignore strategies\four_lights\resonance_4d\_inner_4d.py > data\_inner_out.jsonl
 if ($LASTEXITCODE -ne 0) { throw "4D scan failed" }
 
 Write-Host "[2/3] Generating signal report..."
-python -W ignore strategies\four_lights\_report4d.py
+python -W ignore strategies\four_lights\resonance_4d\_report4d.py
 if ($LASTEXITCODE -ne 0) { throw "report generation failed" }
 
 Write-Host "[3/3] Updating dashboard..."
-python -W ignore strategies\four_lights\_visual.py
+python -W ignore strategies\four_lights\resonance_4d\_visual.py
 if ($LASTEXITCODE -ne 0) { throw "visualization failed" }
 
 Write-Host ""
-Write-Host "Done. Signal: strategies\four_lights\_inner_report.md ; Dashboard: strategies\four_lights\_4d_dashboard.html"
+Write-Host "Done. Signal: strategies\four_lights\resonance_4d\_inner_report.md ; Dashboard: strategies\four_lights\resonance_4d\_4d_dashboard.html"
 Write-Host "[i] Intraday signal - prices may move before 15:00 close."
 

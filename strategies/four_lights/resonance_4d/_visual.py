@@ -1,4 +1,4 @@
-"""四灯共振结果可视化：data/_inner_out.jsonl -> strategies/four_lights/_4d_dashboard.html (+PNG)
+"""四灯共振结果可视化：data/_inner_out.jsonl -> strategies/four_lights/resonance_4d/_4d_dashboard.html (+PNG)
 
 热力图(标的×四灯 红/黄/绿) + 总分排序条 + 决策分布。数据为最近一次扫描。
 """
@@ -16,8 +16,8 @@ plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
 OUT = "g:/xalpha/data/_inner_out.jsonl"
-PNG = "g:/xalpha/strategies/four_lights/_4d_visual.png"
-HTML = "g:/xalpha/strategies/four_lights/_4d_dashboard.html"
+PNG = "g:/xalpha/strategies/four_lights/resonance_4d/_4d_visual.png"
+HTML = "g:/xalpha/strategies/four_lights/resonance_4d/_4d_dashboard.html"
 
 DEC_ORDER = {"买入": 0, "持有": 1, "观望": 2, "卖出": 3}
 LNAMES = ["趋势灯", "主力灯", "持续力灯", "热度灯"]

@@ -1,7 +1,7 @@
 """场内映射四灯扫描：唯一池 _universe.md 中「有场内对应」的内池标的，用场内 OHLCV(现抓) + mx主力/换手快照跑四灯。
 
 评分逻辑与 gen_4d.py 一致（方法论 §5.1-5.4）。
-用法: python _inner_4d.py [code1,code2,...]  每行输出一条 JSON。
+用法: python strategies/four_lights/resonance_4d/_inner_4d.py [code1,code2,...]  每行输出一条 JSON。
 """
 import io
 import json
@@ -11,7 +11,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 

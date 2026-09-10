@@ -16,9 +16,9 @@
 |---|---|---|---|
 | 1 universe | 公共标的池 | 展示场外池 + 场内内池 + 当前分级名单 | 摘要（唯一池 `_universe.md`：场外 56 只、场内内池 37 只） |
 | 2 rules | `pipeline/strategies.json` | 打印规则化定义（灯评分/阈值/回测口径） | 可读规则表（策略参数唯一权威源） |
-| 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `data/_bt_out.jsonl` → `strategies/four_lights/_bt_report.md`、`strategies/four_lights/_bt_dashboard.html` |
+| 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `data/_bt_out.jsonl` → `strategies/four_lights/resonance_4d/_bt_report.md`、`strategies/four_lights/resonance_4d/_bt_dashboard.html` |
 | 4 select | `data/_bt_out.jsonl` | 按回测分级 A/B/不适合 | `data/_universe_4d_active.md` + `.json` |
-| 5 daily | 分级名单 A | 抓当日(含盘中实时 bar)评分 | `strategies/four_lights/_inner_report.md`、`strategies/four_lights/_4d_dashboard.html` |
+| 5 daily | 分级名单 A | 抓当日(含盘中实时 bar)评分 | `strategies/four_lights/resonance_4d/_inner_report.md`、`strategies/four_lights/resonance_4d/_4d_dashboard.html` |
 
 > 分层：`data/`=池与数据；`strategies/<name>/`=策略实现与报告（four_lights、momentum_rotation）；`pipeline/`=流程编排层。
 
@@ -39,7 +39,7 @@
 - `trade_stats(trades)` 统一产出：交易笔数 / 胜率=盈利笔数÷总笔数 / 平均盈利 / 平均亏损 / 盈亏比=平均盈利÷|平均亏损| / 利润因子=总盈利÷|总亏损| / 最佳、最差单笔；
 - 报告用 `section_lines(ts)` 渲染默认 md 节，格式与 A 动量报告一致。
 
-已接入：`strategies/momentum_rotation/backtest.py`（本地十年库，直接可用）；`strategies/four_lights/_backtest.py` 每只标的输出 `t_stats` + `trade_log`，`strategies/four_lights/_reportbt.py` 汇总出「全体单笔合并统计」。**新增策略按 §5 脚手架生成的 `backtest.py` 应复用上述模块**，在引擎里收集单笔后调用 `bt_stats.section_lines(bt_stats.trade_stats(trades))`。
+已接入：`strategies/momentum_rotation/backtest.py`（本地十年库，直接可用）；`strategies/four_lights/resonance_4d/_backtest.py` 每只标的输出 `t_stats` + `trade_log`，`strategies/four_lights/resonance_4d/_reportbt.py` 汇总出「全体单笔合并统计」。**新增策略按 §5 脚手架生成的 `backtest.py` 应复用上述模块**，在引擎里收集单笔后调用 `bt_stats.section_lines(bt_stats.trade_stats(trades))`。
 
 ## 2. 使用命令（均在 `g:/xalpha` 下）
 
@@ -90,7 +90,7 @@ python pipeline/run_flow.py scaffold --name <strategy_name>
 6. **每日** → 对 A 名单出信号；确认后创建 daily runner 与 automation（参照 `run_daily_4d.ps1`）。
 7. 各阶段产物与门槛复用同一 `run_flow.py`，`--strategy` 切换即可。
 
-说明：规则实现默认放 `strategies/<name>/`；four_lights 第一版（原 `4d/`）已于 2026-09-08 迁入 `strategies/four_lights/`。
+说明：规则实现默认放 `strategies/<name>/`；four_lights 第一版（原 `4d/`）已于 2026-09-08 迁入 `strategies/four_lights/`，并于 2026-09-10 拆为 `resonance_4d/`（原四灯共振：回测 + 盘中扫描）与 `short_5_10d/`（5-10 天短线变种）。
 
 ## 6. 已知边界与同步点
 

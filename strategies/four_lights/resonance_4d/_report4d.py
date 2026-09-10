@@ -6,7 +6,7 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 OUT = "g:/xalpha/data/_inner_out.jsonl"
-REPORT = "g:/xalpha/strategies/four_lights/_inner_report.md"
+REPORT = "g:/xalpha/strategies/four_lights/resonance_4d/_inner_report.md"
 
 # 场内标的显示名: 优先取扫描行自带 inner_name(= _universe.md「场内对应名称」, 全内池唯一来源,
 # 自动覆盖新增标的); 旧数据缺该字段时兜底显示代码。不再维护本地 代码->名称 硬编码表。

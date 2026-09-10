@@ -23,12 +23,12 @@
         "trade_at": "次日开盘"
       },
       "backtest": {
-        "engine": "strategies/four_lights/_backtest.py",
+        "engine": "strategies/four_lights/resonance_4d/_backtest.py",
         "start": "2015-01-01",
         "window_from": "2016-09-01",
         "span": "2016-09 ~ 2026-09 (最长十年, 上市晚者按实有)",
         "raw_out": "data/_bt_out.jsonl",
-        "report": "strategies/four_lights/_bt_report.md"
+        "report": "strategies/four_lights/resonance_4d/_bt_report.md"
       },
       "select": {
         "out_active_md": "data/_universe_4d_active.md",
@@ -39,11 +39,11 @@
       "daily": {
         "codes": [],
         "runner": "run_daily_4d.ps1",
-        "signal_report": "strategies/four_lights/_inner_report.md",
-        "dashboard": "strategies/four_lights/_4d_dashboard.html",
+        "signal_report": "strategies/four_lights/resonance_4d/_inner_report.md",
+        "dashboard": "strategies/four_lights/resonance_4d/_4d_dashboard.html",
         "automation": "四灯全池每日信号(工作日14:05)"
       },
-      "note": "2026-09-09 起 daily 扫描口径改为全部场内基金 = 唯一池 _universe.md 所有「有场内对应」标的(由 pipeline/universe.py 派生, 38 只); codes=[] 表示全池, runner 不带 codes 调 _inner_4d.py。旧 A 类名单(588000/515230/512200/562500/512980/512000/513180/161725)仅作历史口径。"
+      "note": "2026-09-10 起目录拆分为两个子目录: resonance_4d/ = 原四灯共振(回测 + 盘中扫描), short_5_10d/ = 5-10 天短线变种(独立回测/扫描, 未注册进本 json)。2026-09-09 起 daily 扫描口径改为全部场内基金 = 唯一池 _universe.md 所有「有场内对应」标的(由 pipeline/universe.py 派生, 38 只); codes=[] 表示全池, runner 不带 codes 调 resonance_4d/_inner_4d.py。旧 A 类名单(588000/515230/512200/562500/512980/512000/513180/161725)仅作历史口径。"
     },
     "momentum_rotation": {
       "name": "全球相对动量ETF轮动(A, 唯一保留)",

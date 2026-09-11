@@ -40,3 +40,42 @@ When generating HTML reports or dashboards (e.g., QDII prediction pages):
 1. **Atomic & Precise Changes:** When fixing bugs in the library itself, make the smallest possible change. Avoid unnecessary refactoring of legacy code.
 2. **Data-Driven:** When asked to analyze, write the code, run it, and let the data speak. 
 3. **Self-Healing & Fail-Fast:** If you encounter a `KeyError` or `NoneType` during data fetching, investigate the upstream response and patch the parsers or input normalizers autonomously. **Avoid over-protective code** (e.g., blanket try-except or returning empty DataFrames) that swallows original errors. Let it fail naturally so the root cause is visible, then fix it at the source.
+
+## 8. 目录与文件放置约定
+
+**判断依据是「文件的性质」，不是「谁生成的」。** 一个策略跑出来的产物，未必属于该策略。
+
+### 8.1 三类文件的落位
+
+| 文件性质 | 落位 | 判据 | 现存例子 |
+|---|---|---|---|
+| **数据类** | `data/` | 原始/参考数据、外部注入的快照、人工维护的输入、行情库、外部数据缓存。**判据是「别的策略将来可能也会用」** | `_universe.md`（主标的池）、`_long_klines.json`（十年行情库）、`_a500_pe_hist.csv`、`_ndx_fwd_pe_hist.csv`、`_mx_valuation_latest.json`（外部 agent 回填）、`_core_valuation.json`（人工每周维护）、`_bt_caches/` |
+| **策略类** | `strategies/<策略名>/` | ①**策略本体**：`rule.py`（参数权威源）、`factors.py`、`engine.py`、`data.py`、`backtest.py`、`scan.py`；②该策略的**产物**：回测产物 `_*_bt.jsonl`、分级名单 `_*_active.{md,json}`、扫描产物 `_*_scan_out.jsonl`、行情缓存 `_*_klines.json`、报告与图 `_*_report.md` / `.png` / `.html`；③该策略的**专项分析**：脚本 + 同名报告 | `strategies/lights/`、`strategies/core_rotation/`、`strategies/ema_cross/`、`strategies/momentum_rotation/` |
+| **跨策略共享工具** | `strategies/` 根目录 | 被多个策略或分析脚本复用的工具 | `_tune.py`（参数搜索）、`_walkforward.py`（分段验证）、`_merge_verify.py`（产物逐字段比对）、`_probe_data.py`（数据源探针） |
+
+> **反直觉但重要**：外部写入或人工维护的文件（如 `_mx_valuation_latest.json`、`_core_valuation.json`）属于**数据类**，留在 `data/`。移动它们会**静默打断仓库外的自动化流程 / 人的使用习惯**，而且失败时没有明显报错（只是读到旧文件）。
+
+### 8.2 策略产物的路径写法（强制）
+
+策略产物一律用**相对脚本自身**的路径，**禁止写死绝对路径**：
+
+```python
+# 正确
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_bt.jsonl")
+# 禁止
+OUT = "g:/xalpha/data/_lights_bt.jsonl"
+```
+
+`pipeline/strategies.json` 里的路径相对**仓库根**，指向策略目录，例如 `"raw_out": "strategies/lights/_lights_bt.jsonl"`。
+
+### 8.3 迁移某个策略的产物时
+
+**逐个策略原子迁移** —— 一个策略的「移动文件 + 改路径 + 端到端验证」一次做完，避免中途停下留下半坏状态。检查清单：
+
+1. 移动产物文件到 `strategies/<策略名>/`
+2. 改该策略所有脚本的路径常量 —— 注意**两种形式**：`os.path.join(_ROOT, "data", ...)` 与写死的绝对路径串
+3. 改 `pipeline/strategies.json` 中该策略的 `raw_out` / `out_active_md` / `out_active_json`
+4. 改 README、脚本 docstring、以及 `run_daily_*.ps1` 里的路径引用
+5. 跑一次该策略全流程（回测 → 报告 → 分级 → 扫描）验证产物落位
+
+> ⚠ 迁移会**暴露隐藏的路径耦合** —— 例如直接读 `data/` 下产物的分析脚本（用 `_DIR/../data/` 之类的相对层级），只读代码看不出来，**必须真跑一遍才会暴露**。所以第 5 步不可省。

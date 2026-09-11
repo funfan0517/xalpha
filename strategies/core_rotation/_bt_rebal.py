@@ -7,7 +7,7 @@
 
 口径: 月度; t末定权 -> 下月收益(无前视); 未计费; 样本 2019-09~2026-09(科创50上市后)
 用法: python strategies/core_rotation/_bt_rebal.py
-输出: strategies/core_rotation/_bt_rebal.md + data/_bt_rebal.json
+输出: strategies/core_rotation/_bt_rebal.md + strategies/core_rotation/_bt_rebal.json
 """
 import json
 import os
@@ -112,7 +112,7 @@ def main():
         f.write(txt)
     print(txt)
     json.dump({r[0]: {"cum": r[1], "ann": r[2], "vol": r[3], "mdd": r[4]} for r in rows},
-              open(os.path.join(_ROOT, "data", "_bt_rebal.json"), "w", encoding="utf-8"),
+              open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_bt_rebal.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
 

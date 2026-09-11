@@ -13,7 +13,7 @@
 持仓(可选, data/_core_holdings.json): weights -> 月度再平衡偏差
 
 用法: python strategies/core_rotation/_signal.py
-输出: strategies/core_rotation/_daily_report.md + data/_core_daily.json
+输出: strategies/core_rotation/_daily_report.md + strategies/core_rotation/_core_daily.json
 """
 import io
 import json
@@ -35,7 +35,7 @@ from xalpha.universal import get_bond_rates, get_bond_rates_range  # noqa: E402
 import rule  # noqa: E402
 
 _OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_daily_report.md")
-_JSON_OUT = os.path.join(_ROOT, "data", "_core_daily.json")
+_JSON_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_core_daily.json")
 _TEMPLATE_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "valuation_template.json")
 # 东财-mx-ds-mcp 估值快照(由 agent 每日查询后回填; A500/纳指等蛋卷未覆盖项)

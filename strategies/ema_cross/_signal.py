@@ -25,7 +25,7 @@ if _ROOT not in sys.path:
 
 import rule
 
-_ACTIVE = os.path.join(_ROOT, "data", "_universe_ema_cross_active.json")
+_ACTIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_universe_ema_cross_active.json")
 _OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_signal_report.md")
 
 

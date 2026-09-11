@@ -13,7 +13,7 @@
   基准: 静态均衡中枢(rule.TARGET 均衡 10/25/15/25/5/20) 与 六腿等权
 
 用法: python strategies/core_rotation/_backtest.py
-输出: strategies/core_rotation/_bt_report.md + data/_core_bt.json
+输出: strategies/core_rotation/_bt_report.md + strategies/core_rotation/_core_bt.json
 """
 import io
 import json
@@ -253,7 +253,7 @@ def main():
            "static": {"cum": totB, "ann": annB, "vol": volB, "mdd": ddB},
            "equal": {"cum": totE, "ann": annE, "vol": volE, "mdd": ddE},
            "scenario_counts": sc_hist.to_dict()}
-    json.dump(out, open(os.path.join(_ROOT, "data", "_core_bt.json"), "w", encoding="utf-8"),
+    json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_core_bt.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
 

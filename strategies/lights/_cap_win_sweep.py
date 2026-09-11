@@ -8,8 +8,8 @@
 本脚本在每个窗口下扫一遍阈值, 并标出「通过率与该窗口 3 日基准相当」的点,
       使两个窗口在**同等暴露约束**下可比。capital 保持停用, 只隔离门槛。
 
-用法: python strategies/_cap_win_sweep.py
-输出: strategies/_cap_win_sweep_report.md
+用法: python strategies/lights/_cap_win_sweep.py
+输出: strategies/lights/_cap_win_sweep_report.md
 """
 import os
 import sys

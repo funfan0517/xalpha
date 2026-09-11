@@ -357,7 +357,7 @@ def base_config(**kw):
     c = Config(
         # ---- 灯层: {维度: (定义名, 权重或 None=不启用)} ----
         # ⚠ 灯的分数**只作用于离场**（`exit_max`），不作用于买点 —— 实测把分数
-        #    均值从 2.08 改到 4.08，enter 序列逐位不变（见 strategies/_ablate_report.md）。
+        #    均值从 2.08 改到 4.08，enter 序列逐位不变（见 strategies/lights/_ablate_report.md）。
         #    买点实际由 `gate_pass & enter_required` 决定。
         lights={
             "trend": ("ma_short_adx", 1),
@@ -396,7 +396,7 @@ def base_config(**kw):
         weekly_order=WEEKLY_ORDER_DEFAULT,
         # ---- 决策层 ----
         # enter_min 刻意取**非约束值**: 实测 enter_min=1/2/3 的入场序列逐位相同
-        #   （入场率都是 15.1%），要 >=4 才开始起作用（见 strategies/_probe.py）。
+        #   （入场率都是 15.1%），要 >=4 才开始起作用（见 strategies/lights/_probe.py）。
         #   生效的买点条件是 `gate_pass & enter_required` 本身。
         #   写成 0.0 是为了让「它不设约束」显式可见, 而不是留一个看似有意义的 3.0,
         #   让人调 3->1 得到「毫无变化」后误判这个旋钮坏了。
@@ -446,7 +446,7 @@ def active_config(**overrides):
       1. `enter_required` 由 {trend>=1} 加严为 {trend>=1, momentum>=1}
          —— 只砍 0.5pp 暴露换 +2.5bp 边际, 年化不变
       2. `sustain` 权重 1 -> 2 —— 日线 MACD 是五盏灯里唯一「关掉就有明显损失」的软灯
-         （消融实测目标增量 +0.346、年化 +1.20pp, 见 strategies/_ablate_report.md）
+         （消融实测目标增量 +0.346、年化 +1.20pp, 见 strategies/lights/_ablate_report.md）
       3. `heat` 由纯涨幅带 `ret5_band` 改为量价灯 `ret5_vr5` —— 实测更优
       4. `ret3_max` 0.12 -> 0.15、`cap_abs_max` 6 -> 5 —— 放宽短端上限、收紧资金极端脉冲
 
@@ -454,7 +454,7 @@ def active_config(**overrides):
       进出场测试**的口径, 与这里「在完整配置里的增量」不是一回事, 并列会严重误导。
       在完整配置下 MACD 的净边际增量只有约 +2.6bp/日。
 
-    --- 2026-09-11 消融驱动的三处改动（依据 strategies/_ablate_report.md）---
+    --- 2026-09-11 消融驱动的三处改动（依据 strategies/lights/_ablate_report.md）---
       A. **停用 `capital` 灯**: 目标增量 -0.004（关掉后 0.976 > 基线 0.972）, 零贡献。
       B. **`enter_min` 3.0 -> 0.0（显式非约束）**: 实测 1/2/3 入场序列逐位相同,
          要 >=4 才起作用 —— 生效买点是 `gate_pass & enter_required`, enter_min 是死参数。

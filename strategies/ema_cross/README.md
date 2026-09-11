@@ -51,7 +51,7 @@
   `512980 传媒`、`513180 恒生科技`、`515790 光伏`、`512000 券商`
 - **B 类（防守候选）** 4 只：`159870 化工`、`159992 创新药`、`512200 房地产`、`161725 白酒`
 - 其余 25 只（宽基/QDII 等）判为“不适合该策略”（买入持有/定投替代）
-- 名单产物：`data/_universe_ema_cross_active.md` / `.json`（已同步 `strategies.json.daily.codes`）
+- 名单产物：`strategies/ema_cross/_universe_ema_cross_active.md` / `.json`（已同步 `strategies.json.daily.codes`）
 
 ## 文件与运行
 
@@ -59,7 +59,7 @@
 |---|---|
 | `rule.py` | 参数 + 数据加载 + 信号引擎 + 状态机（回测/每日信号共用，唯一权威源） |
 | `backtest.py` | 逐场内标的回测，每标的输出一行 JSON（可传 codes，缺省全池） |
-| `_reportbt.py` | `data/_ema_cross_bt.jsonl` → 汇总报告 md + PNG + HTML |
+| `_reportbt.py` | `strategies/ema_cross/_ema_cross_bt.jsonl` → 汇总报告 md + PNG + HTML |
 | `_signal.py` | 每日收盘信号扫描（默认 A 类 8 只 → `_signal_report.md`） |
 | `_bt_report.md` / `_bt_dashboard.html` / `_bt_visual.png` | 回测报告产物 |
 

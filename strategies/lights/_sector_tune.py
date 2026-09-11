@@ -6,8 +6,8 @@
   * 目标函数换成**单笔胜率**（P(单笔收益 > 0)）,
     并用「单笔期望 > 0」与「单笔数 >= 100」做护栏 —— 纯胜率可以靠小止盈刷到 90%,
     所以必须同时看期望与样本量。
-输出: 控制台表格 + strategies/_sector_tune_report.md
-用法: python strategies/_sector_tune.py
+输出: 控制台表格 + strategies/lights/_sector_tune_report.md
+用法: python strategies/lights/_sector_tune.py
 """
 import os
 import sys

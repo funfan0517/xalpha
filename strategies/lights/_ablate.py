@@ -14,9 +14,9 @@
   > 0 说明该灯能影响**买点**; == 0 说明它对买点零影响, 只可能作用于离场。
 
 用法:
-  python strategies/_ablate.py                 # 五盏灯全跑, 输出摘要网格 + 逐灯明细
-  python strategies/_ablate.py --light heat    # 只跑一盏
-输出: strategies/_ablate_report.md
+  python strategies/lights/_ablate.py                 # 五盏灯全跑, 输出摘要网格 + 逐灯明细
+  python strategies/lights/_ablate.py --light heat    # 只跑一盏
+输出: strategies/lights/_ablate_report.md
 """
 import os
 import sys

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """亮灯策略 · 回测报告（渲染 backtest.py 的产物）。
 
-输入: data/_lights_bt.jsonl（backtest.py 产出; 用 --in 可指定其它产物）
+输入: strategies/lights/_lights_bt.jsonl（backtest.py 产出; 用 --in 可指定其它产物）
 输出: strategies/lights/_bt_report.md
       strategies/lights/_bt_visual.png
       strategies/lights/_bt_dashboard.html
@@ -31,7 +31,7 @@ import rule  # noqa: E402
 import scan as _scan  # noqa: E402  （只为取门槛中文标签）
 from pipeline import bt_stats  # noqa: E402
 
-IN_DEFAULT = os.path.join(_ROOT, "data", "_lights_bt.jsonl")
+IN_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_bt.jsonl")
 MD = os.path.join(_DIR, "_bt_report.md")
 PNG = os.path.join(_DIR, "_bt_visual.png")
 HTML = os.path.join(_DIR, "_bt_dashboard.html")

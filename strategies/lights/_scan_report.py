@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """亮灯策略 · 每日操作报告（渲染 scan.py 的产物）。
 
-输入: data/_lights_scan_out.jsonl（scan.py 产出, 每标的一行完整指标明细）
-      data/_lights_state.json（可选, 调仓日历）
+输入: strategies/lights/_lights_scan_out.jsonl（scan.py 产出, 每标的一行完整指标明细）
+      strategies/lights/_lights_state.json（可选, 调仓日历）
 输出: strategies/lights/_signal_report.md
       strategies/lights/_signal_visual.png
       strategies/lights/_signal_dashboard.html
@@ -30,7 +30,7 @@ for p in (_ROOT, os.path.dirname(_DIR), _DIR):
 
 import rule  # noqa: E402
 
-IN = os.path.join(_ROOT, "data", "_lights_scan_out.jsonl")
+IN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_scan_out.jsonl")
 STATE = os.path.join(_ROOT, "data", "_lights_state.json")
 MD = os.path.join(_DIR, "_signal_report.md")
 PNG = os.path.join(_DIR, "_signal_visual.png")

@@ -26,5 +26,5 @@
 
 - `fetch.py`：抓 xueqiu 日线 → `data/_long_klines.json`（默认按唯一池场内代码 2015-01 起；`python fetch.py <codes> <start> <out>` 可扩展）
 - `rule.py`：参数定义；`POOL = universe.inner_codes()`（唯一池派生，保留 `SCAN34` 兼容名）
-- `backtest.py`：官方 A 回测（输出 `report.md` / `data/_mom_out.json` / `_mom_nav.png`）
+- `backtest.py`：官方 A 回测（输出 `report.md` / `strategies/momentum_rotation/_mom_out.json` / `_mom_nav.png`）
 - 运行：`python strategies/momentum_rotation/backtest.py`

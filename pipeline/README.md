@@ -21,8 +21,8 @@
 |---|---|---|---|
 | 1 universe | 公共标的池 | 展示场外池 + 场内内池 + 当前分级名单 | 摘要（唯一池 `_universe.md`：场外 56 只、场内内池 37 只） |
 | 2 rules | `pipeline/strategies.json` | 打印规则化定义（灯评分/阈值/回测口径） | 可读规则表（策略参数唯一权威源） |
-| 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `data/_lights_bt.jsonl` → `strategies/lights/_bt_report.md`、`strategies/lights/_bt_dashboard.html` |
-| 4 select | `data/_lights_bt.jsonl` | 按回测分级 A/B/不适合 | `data/_lights_active.md` + `.json` |
+| 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `strategies/lights/_lights_bt.jsonl` → `strategies/lights/_bt_report.md`、`strategies/lights/_bt_dashboard.html` |
+| 4 select | `strategies/lights/_lights_bt.jsonl` | 按回测分级 A/B/不适合 | `strategies/lights/_lights_active.md` + `.json` |
 | 5 daily | 分级名单 A | 抓当日(含盘中实时 bar)评分 | `strategies/lights/_signal_report.md`、`strategies/lights/_signal_dashboard.html` |
 
 > 分层：`data/`=池与数据；`strategies/<name>/`=策略实现与报告（lights、momentum_rotation）；`pipeline/`=流程编排层。
@@ -106,7 +106,7 @@ python pipeline/run_flow.py scaffold --name <strategy_name>
 
 - 主力灯/热度灯在历史与盘中无「主力资金/换手率」快照时降级为量价代理（回测与盘中均注明）。
 - 盘中(14:05)信号用当日未收盘 bar，收阳/量比可能随尾盘变化，操作留缓冲。
-- A 类 codes 变更时需**同步两处**：`pipeline/strategies.json.daily.codes` 与 `run_daily_lights.ps1`（或改为读取 `data/_lights_active.json`）。
+- A 类 codes 变更时需**同步两处**：`pipeline/strategies.json.daily.codes` 与 `run_daily_lights.ps1`（或改为读取 `strategies/lights/_lights_active.json`）。
 - `lights` 的资金/换手维度走**量价代理**（历史无主力资金与换手率明细）：**主力强度**→CMF 三日净流 × 标定系数（`cap_proxy_scale`，与真实值同号，幅度经 mx 快照 OLS 标定）、**换手分位**→成交额 60 日分位代理（份额近似恒定时等价）。回测结论**不代表真实资金口径下的表现**；真实值要到实盘扫描才可用（`mx_snapshot_*.json` 每日落盘，扫描报告第 5 节做同号交叉验证）。
 - `lights` 为**逐标的独立状态机 + 每日评估**（信号变化 → 次日开盘执行）。单只标的的信号满足率不高（门槛层 × 得分层双重收敛），故平均持仓占比低。判读时须同时看 `_bt_report.md` 的逐只明细：**持仓占比决定收益上限，择时边际决定暴露是否用在刀刃上**。当前生效配置 `c7`（池子 = **23 只 A 股行业 ETF**）的择时边际 **+14.0bp/日**（16/23 为正），持仓 14.8%，年化 +6.9% / 超额 +3.4%。
 - **调参入口**：`python strategies/lights/backtest.py --set key=value`（可覆盖任意参数，如 `--set enter_min=4,lights={"trend":["ma_short_adx",1]}`）。

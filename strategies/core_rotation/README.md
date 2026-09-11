@@ -50,7 +50,7 @@ python pipeline/run_flow.py daily --strategy core_rotation
 
 产物：
 - `strategies/core_rotation/_daily_report.md` —— 每日监控报告（七节：行情/净值/利率与估值锚/情景与目标配置/组合监控/月度再平衡检查/风险红线）
-- `data/_core_daily.json` —— 机器可读快照
+- `strategies/core_rotation/_core_daily.json` —— 机器可读快照
 - `strategies/core_rotation/valuation_template.json` —— 估值锚模板（自动生成）
 
 ## 4. 估值锚说明（估值分位全部自动；仅 DXY/实际利率/开关可选人工）
@@ -111,7 +111,7 @@ python pipeline/run_flow.py daily --strategy core_rotation
 
 - 这是**组合层资产配置**（权重在六类间分配），不是单标的状态机择时，pipeline 现有 backtest 引擎逐码输出「策略 vs 买入持有」的口径不适用；
 - 手册主键是估值类指标（PE 分位/股息率/Forward PE），这些没有可靠的历史序列可回测（见 §2）；
-- 因此按手册定档固定 6 类（`data/_universe_core_rotation_active.json`），直接进入每日监控，不做 A/B 分级。
+- 因此按手册定档固定 6 类（`strategies/core_rotation/_universe_core_rotation_active.json`），直接进入每日监控，不做 A/B 分级。
 
 ## 7. 待办 / 已知边界
 
@@ -126,7 +126,7 @@ python pipeline/run_flow.py daily --strategy core_rotation
 ## 8. 回测（组合层 · A 方案，2026-09-09）
 
 ```powershell
-python strategies/core_rotation\_backtest.py      # 结果: strategies/core_rotation/_bt_report.md + data/_core_bt.json
+python strategies/core_rotation\_backtest.py      # 结果: strategies/core_rotation/_bt_report.md + strategies/core_rotation/_core_bt.json
 ```
 
 **样本**: 2019-08 ~ 2026-09（7.1 年，月度调仓；科创50 2019-07 上市后、债券腿 2017-08 已运行）

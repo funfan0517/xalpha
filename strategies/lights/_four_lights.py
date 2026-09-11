@@ -14,8 +14,8 @@
     K=1 = 只要有一盏亮就买 (OR, 最松)
     K=4 = 四灯齐亮 (原机制, 最严)
 
-用法: python strategies/_four_lights.py
-输出: strategies/_four_lights_report.md
+用法: python strategies/lights/_four_lights.py
+输出: strategies/lights/_four_lights_report.md
 """
 import os
 import sys

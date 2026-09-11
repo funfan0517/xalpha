@@ -2,7 +2,7 @@
 """门槛审计: 每个门槛在样本窗口内实际挡住了多少交易日, 以及 indicators_ready 的
 warm-up 到底有多长（用数据回答"这个门槛什么意思", 而不是复述文档）。
 
-用法: python strategies/_gate_audit.py
+用法: python strategies/lights/_gate_audit.py
 """
 import os
 import sys

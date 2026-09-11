@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""双均线趋势(EMA12/26)回测结果汇总: data/_ema_cross_bt.jsonl -> _bt_report.md + PNG + HTML。
+"""双均线趋势(EMA12/26)回测结果汇总: strategies/ema_cross/_ema_cross_bt.jsonl -> _bt_report.md + PNG + HTML。
 
 对齐 lights/_reportbt.py 惯例, 供 run_flow backtest --report --strategy ema_cross 复用。
 汇总节: 参数/口径说明 + 分类均值表 + 逐只明细 + 全体单笔合并统计(bt_stats 统一口径)。
@@ -17,7 +17,7 @@ import numpy as np
 
 from pipeline import bt_stats
 
-_OUT = os.path.join(_ROOT, "data", "_ema_cross_bt.jsonl")
+_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ema_cross_bt.jsonl")
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _MD = os.path.join(_DIR, "_bt_report.md")
 _PNG = os.path.join(_DIR, "_bt_visual.png")

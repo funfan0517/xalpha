@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """按类别审计亮灯策略的表现与**单笔胜率**（回答「买入后多大比例能涨」）。
 
-现有回测产物 data/_lights_bt.jsonl 里每只标的都带 trade_log，所以可以精确汇总
+现有回测产物 strategies/lights/_lights_bt.jsonl 里每只标的都带 trade_log，所以可以精确汇总
 「按类别 / 按标的」的合并胜率、盈亏比与单笔期望，而不是只看平均值。
 
-用法: python strategies/_sector_audit.py [产物路径]
+用法: python strategies/lights/_sector_audit.py [产物路径]
 """
 import json
 import os
@@ -14,7 +14,8 @@ import numpy as np
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_DIR, "..", "data", "_lights_bt.jsonl")
+_ROOT = os.path.dirname(os.path.dirname(_DIR))          # g:/xalpha
+SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_DIR, "_lights_bt.jsonl")
 
 
 def load(path):

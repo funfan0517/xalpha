@@ -12,4 +12,4 @@
 | 科创50 | 011609 易方达上证科创板50ETF联接C | 588000 | 科创50ETF华夏 |
 | 黄金 | 000216 华安黄金ETF联接A | 518880 | 黄金ETF华安 |
 
-> 只此 6 只，无第 7 只。对应 JSON：`data/_universe_core_rotation_active.json`
+> 只此 6 只，无第 7 只。对应 JSON：`strategies/core_rotation/_universe_core_rotation_active.json`

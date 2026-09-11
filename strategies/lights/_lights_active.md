@@ -1,7 +1,7 @@
-# lights 策略执行标的池（自动生成）2026-09-11 10:21
+# lights 策略执行标的池（自动生成）2026-09-11 11:25
 
-> 来源: 策略回测 g:/xalpha\data/_lights_bt.jsonl · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)
-> 输出: 本文件 + g:/xalpha\data/_lights_active.json · 仅供流程参考，非投资建议
+> 来源: 策略回测 g:/xalpha\strategies/lights/_lights_bt.jsonl · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)
+> 输出: 本文件 + g:/xalpha\strategies/lights/_lights_active.json · 仅供流程参考，非投资建议
 
 ## A 类 · 核心（用该策略主推）
 

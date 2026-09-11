@@ -11,8 +11,8 @@
      它们与现有 trend 灯（ma5/ma10/ma20/adx）的重叠远小于 c>MA20。
   另附 MACD 自身的两个变体, 用来判断零轴过滤（DIF>0）是否多余。
 
-用法: python strategies/_macd_indep.py
-输出: strategies/_macd_report.md
+用法: python strategies/lights/_macd_indep.py
+输出: strategies/lights/_macd_report.md
 """
 import os
 import sys

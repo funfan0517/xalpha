@@ -35,7 +35,7 @@ def wilder(s, n):
 
     min_periods=n 是**必需**的: 没有它时 ewm 从第 1 根 bar 就有值, 于是 ADX 在
     warm-up 期「数值非空、但统计上无意义」, 使 `indicators_ready` 门槛对 ADX 的
-    保护完全失效（实测 adx 的 leading NaN = 0 天, 见 strategies/_gate_audit.py）。
+    保护完全失效（实测 adx 的 leading NaN = 0 天, 见 strategies/lights/_gate_audit.py）。
     加上之后 ADX 约需 2n 根才成形, 门槛才真正挡得住新上市标的。
     因为 adjust=False 的递推不依赖 min_periods, **第 n 根之后的值逐位不变**。
     """

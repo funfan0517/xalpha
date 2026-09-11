@@ -179,7 +179,7 @@ def main():
     out["trades"] = trades
     out["bench_stats"] = bts
     out["bench_trades"] = bm_trades
-    json.dump(out, open("g:/xalpha/data/_mom_out.json", "w", encoding="utf-8"),
+    json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_mom_out.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
     fig, ax = plt.subplots(figsize=(12, 5))

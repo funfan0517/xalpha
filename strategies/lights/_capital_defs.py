@@ -8,8 +8,8 @@
 判据用**目标增量**（含 capital vs 不含 capital 的目标差）:
       灯只有在「改变判定、且改对了」时才产生正增量。
 
-用法: python strategies/_capital_defs.py
-输出: strategies/_capital_defs_report.md
+用法: python strategies/lights/_capital_defs.py
+输出: strategies/lights/_capital_defs_report.md
 """
 import os
 import sys

@@ -10,7 +10,7 @@
 
 | 用途 | 产出 | 回答的问题 |
 |---|---|---|
-| 回测分级（`backtest` → `select`） | `data/_lights_active.{md,json}` 的 A/B/不适合名单 | 这套规则用在这只标的上**长期**是否有效 |
+| 回测分级（`backtest` → `select`） | `strategies/lights/_lights_active.{md,json}` 的 A/B/不适合名单 | 这套规则用在这只标的上**长期**是否有效 |
 | 每日扫描（`scan` → `_scan_report`） | `_signal_report.md` / `.png` / `.html` | **今天**哪些基金亮了几盏灯、为什么没达标 |
 
 标准流程（`pipeline/run_flow.py`）：
@@ -18,7 +18,7 @@
 ```
 universe → rules → backtest → select → daily
                     ↑            ↑
-            strategies/lights/backtest.py   data/_lights_bt.jsonl
+            strategies/lights/backtest.py   strategies/lights/_lights_bt.jsonl
 ```
 
 ## 2. 模型：五层，全部参数化
@@ -95,7 +95,7 @@ universe → rules → backtest → select → daily
 > ⚠ 这是**低胜率、高赔率**画像 —— 靠赔率赚钱，不靠胜率。想提胜率只有「加止盈」一条路，
 > 而实测**胜率与期望严格对立**：止盈 3% → 胜率 53.1% / 期望 +0.202% / 超额 −0.2%；
 > 止盈 1% → 胜率 65.6% / 期望 **−0.215%** / 超额 −6.9%；止盈 0.5% → 胜率 71.0% / 期望 −0.421%。
-> 复现：`python strategies/_sector_tune.py`。
+> 复现：`python strategies/lights/_sector_tune.py`。
 
 ### 灯的定位与消融图谱（2026-09-11）
 
@@ -114,7 +114,7 @@ universe → rules → backtest → select → daily
 判据用**目标增量**（= 真实目标 − 关掉该灯的目标），不能用边际增量 —— 边际对持仓变化
 不敏感，会漏掉「边际不变但暴露/年化变化」的贡献（`heat` 就是这样：关掉它边际仍是
 15.8bp，但目标 0.972 → 0.941）。方法为**置换对照**（打乱该灯取值顺序，保留分数水平、
-只摧毁时间信息）。复现：`python strategies/_ablate.py`。
+只摧毁时间信息）。复现：`python strategies/lights/_ablate.py`。
 
 > ⚠ `trend`/`momentum` 在 `enter_required` 里，一旦失效全池无法交易 —— 既没有可测的
 > 失效对照，其置换对照也**被污染**（置换会打散 `>=1` 的天数、直接抹掉入场机会），
@@ -134,7 +134,7 @@ universe → rules → backtest → select → daily
 | 长动量 `ret20>0` | 0.564 | 0.786 |
 
 共线性最低（0.266）的中期趋势代理只到 0.731，MACD 领先 **+0.246**。
-复现：`python strategies/_macd_indep.py`。
+复现：`python strategies/lights/_macd_indep.py`。
 （早先一版用 `c>MA20` 做代理，结果与「恒为 1」逐位相同 —— 那是代理与其它灯共线
 导致的**假结论**，已废弃。）
 
@@ -292,7 +292,7 @@ python strategies\lights\backtest.py --set enter_min=4,slip_k_bp=6   # 单次试
 # 走 pipeline
 python pipeline\run_flow.py rules    --strategy lights
 python pipeline\run_flow.py backtest --strategy lights --report
-python pipeline\run_flow.py select   --strategy lights      # -> data/_lights_active.{md,json}
+python pipeline\run_flow.py select   --strategy lights      # -> strategies/lights/_lights_active.{md,json}
 
 # 调参 / 验证 / 同步
 python strategies\_tune.py --oos        # 单变量扫描 + 组合候选 + 样本外
@@ -312,25 +312,27 @@ strategies/lights/
 ├── _reportbt.py     回测报告（md + png + html）
 ├── scan.py          每日信号扫描
 ├── _scan_report.py  每日操作报告（门槛逐条实际值 vs 阈值 + 各维灯得分与触发依据）
-└── _sync_meta.py    strategies.json 镜像块同步
+├── _sync_meta.py    strategies.json 镜像块同步
+│
+└── 专项分析（报告与脚本同名同目录，可复现 §3 各结论）
+    ├── _ablate.py / _ablate_report.md           ★ 灯消融台：置换对照 + 目标增量判据 + 作用端
+    ├── _macd_indep.py / _macd_report.md         不共线代理 + 共线性度量，检验 MACD 独立性
+    ├── _gate_audit.py                           门槛审计：各门槛实际挡住的交易日数
+    ├── _four_lights.py / _four_lights_report.md 原四灯 AND 机制复测（n_on>=K 扫描）
+    ├── _capital_defs.py / _capital_defs_report.md 资金灯四定义 × CMF 窗口对比
+    ├── _cap_win_sweep.py / _cap_win_sweep_report.md 窗口 × 门槛阈值联合扫描
+    ├── _light_dist.py                           灯取值分布诊断（识别退化代理）
+    ├── _probe.py                                逐日信号比对（定位「结果相同」类反常）
+    ├── _sector_audit.py                         按类别/标的的胜率与盈亏比审计
+    └── _sector_tune.py / _sector_tune_report.md 行业 ETF 专项（止盈代价曲线）
 
-strategies/
+strategies/                    ← 跨策略共享工具（各策略本体在各自子目录）
 ├── _tune.py / _tune_report.md               参数搜索（目标 = 年化 × 边际）
 ├── _walkforward.py / _walkforward_report.md 分段 walk-forward 验证
 ├── _merge_verify.py                         回测产物逐字段比对（A/B 对照用）
 ├── _probe_data.py                           数据源口径探针
-│
-│  # 消融与专项诊断（可复现 §3 各结论）
-├── _ablate.py / _ablate_report.md           ★ 灯消融台：置换对照 + 目标增量判据 + 入场/离场作用端
-├── _macd_indep.py / _macd_report.md         不共线代理 + 共线性度量，检验 MACD 独立性
-├── _gate_audit.py                           门槛审计：各门槛实际挡住的交易日数
-├── _four_lights.py / _four_lights_report.md  原四灯 AND 机制复测（n_on>=K 扫描）
-├── _capital_defs.py / _capital_defs_report.md 资金灯四定义 × CMF 窗口对比
-├── _cap_win_sweep.py / _cap_win_sweep_report.md 窗口 × 门槛阈值联合扫描
-├── _light_dist.py                           灯取值分布诊断（识别退化代理）
-├── _probe.py                                逐日信号比对（定位「结果相同」类反常）
-├── _sector_audit.py                         按类别/标的的胜率与盈亏比审计
-└── _sector_tune.py / _sector_tune_report.md  行业 ETF 专项（止盈代价曲线）
+├── lights/                                  亮灯策略（本体 + 专项分析，见上）
+└── ema_cross/ · momentum_rotation/ · core_rotation/
 ```
 
 ## 8. 调参历程

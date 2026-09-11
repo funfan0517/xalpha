@@ -9,8 +9,8 @@
   - 门槛/灯/评分/决策全部调用 rule.py 的同一套函数;
   - 额外并列本地 mx 快照的**真实**主力净额占比 / 换手率 / 量比供交叉验证（不参与计分）。
 
-输出: data/_lights_scan_out.jsonl（每标的一行）
-      data/_lights_state.json（调仓日历状态, --commit 推进）
+输出: strategies/lights/_lights_scan_out.jsonl（每标的一行）
+      strategies/lights/_lights_state.json（调仓日历状态, --commit 推进）
 用法:
   python strategies/lights/scan.py                  # 全池扫描（联网刷新当日数据）
   python strategies/lights/scan.py --cache          # 用本地缓存（不联网）
@@ -36,9 +36,10 @@ for p in (_ROOT, os.path.dirname(_DIR), _DIR):
 import rule  # noqa: E402
 
 MX = "G:/tradingagents/fund_data/data/mx_snapshot_latest.json"
-OUT = os.path.join(_ROOT, "data", "_lights_scan_out.jsonl")
-STATE = os.path.join(_ROOT, "data", "_lights_state.json")
-ACT_JSON = os.path.join(_ROOT, "data", "_lights_active.json")
+_LDIR = os.path.dirname(os.path.abspath(__file__))    # 产物随策略目录（2026-09-11 从 data/ 迁入）
+OUT = os.path.join(_LDIR, "_lights_scan_out.jsonl")
+STATE = os.path.join(_LDIR, "_lights_state.json")
+ACT_JSON = os.path.join(_LDIR, "_lights_active.json")
 
 # 门槛展示文案: name -> (短标签, 阈值模板)
 GATE_LABELS = {

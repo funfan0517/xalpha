@@ -61,12 +61,23 @@ When generating HTML reports or dashboards (e.g., QDII prediction pages):
 
 ```python
 # 正确
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_bt.jsonl")
-# 禁止
-OUT = "g:/xalpha/data/_lights_bt.jsonl"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_lights_bt.jsonl")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 仓库根：推导，不写死
+# 禁止（项目挪走就崩）
+OUT = "g:/xalpha/strategies/lights/backtest/_lights_bt.jsonl"
+ROOT = "g:/xalpha"
 ```
 
-`pipeline/strategies.json` 里的路径相对**仓库根**，指向策略目录，例如 `"raw_out": "strategies/lights/_lights_bt.jsonl"`。
+`pipeline/strategies.json` 里的路径相对**仓库根**，指向策略目录，例如 `"raw_out": "strategies/lights/backtest/_lights_bt.jsonl"`。
+
+**启动脚本**同理，用 `$PSScriptRoot` 而非写死盘符：
+
+```powershell
+Set-Location $PSScriptRoot      # 正确
+Set-Location g:\xalpha          # 禁止
+```
+
+**写进产物的路径**（如分级名单 `_*_active.md` 的「来源」行、`.json` 的 `source` 字段）也用**相对仓库根**的写法 —— 绝对路径会让产物换台机器就打不开。
 
 ### 8.3 迁移某个策略的产物时
 

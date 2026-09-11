@@ -107,12 +107,12 @@ def main():
     L += ["", f"> 再平衡-买入持有 年化差: {ann_rebal-ann_bh:+.1f}pp (未计费; 调仓成本会再吃掉一部分)",
           "> 免责声明: 代理口径估算, 非投资建议。"]
     txt = "\n".join(L) + "\n"
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_bt_rebal.md"),
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_bt_rebal.md"),
               "w", encoding="utf-8") as f:
         f.write(txt)
     print(txt)
     json.dump({r[0]: {"cum": r[1], "ann": r[2], "vol": r[3], "mdd": r[4]} for r in rows},
-              open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_bt_rebal.json"), "w", encoding="utf-8"),
+              open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_bt_rebal.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
 

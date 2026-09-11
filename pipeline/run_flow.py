@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Pipeline orchestrator —— 按阶段驱动一个策略的完整生命周期。
 
-用法(在 g:/xalpha 下):
+用法(在仓库根下):
   python pipeline/run_flow.py list
   python pipeline/run_flow.py universe                      # 公共标的池摘要
   python pipeline/run_flow.py rules                         # 规则化定义(打印)
@@ -20,7 +20,7 @@ import argparse
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-ROOT = "g:/xalpha"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 仓库根（随项目移动，勿写死）
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 CFG = os.path.join(ROOT, "pipeline", "strategies.json")
@@ -86,6 +86,9 @@ def cmd_backtest(args):
     st = strategy(args.strategy)
     # 仅重生成报告：不跑引擎、不追加 jsonl
     if args.report:
+        if "report" not in st.get("backtest", {}):
+            sys.exit(f"策略 {args.strategy} 未配置 backtest.report —— 组合层策略"
+                     f"（如 core_rotation）不走逐码回测报告，此命令不适用")
         rep = os.path.join(ROOT, st["backtest"]["report"])
         # 报告生成器与「引擎」同目录（引擎留在策略包根），而不是与报告产物同目录 ——
         # 产物已按职能移入 backtest/ 子目录，若按产物目录推断会找不到生成器。
@@ -101,6 +104,8 @@ def cmd_backtest(args):
     codes = (args.codes or "").strip()
     if not codes:
         sys.exit("backtest 需 --codes \"...\"（或 --report 仅用现有 jsonl 重生成报告）")
+    if "raw_out" not in st.get("backtest", {}):
+        sys.exit(f"策略 {args.strategy} 未配置 backtest.raw_out —— 组合层策略不走逐码回测")
     out = os.path.join(ROOT, st["backtest"]["raw_out"])
     if args.fresh and os.path.exists(out):
         os.remove(out)

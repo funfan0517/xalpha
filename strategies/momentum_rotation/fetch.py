@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """数据抓取(分批): 场内池日线 close -> json
 用法: python strategies/momentum_rotation/fetch.py [codes] [start=2015-01-01] [out=cache默认]
-示例(十年库): python .../fetch.py "512800,..." 2015-01-01 g:/xalpha/data/_long_klines.json
+示例(十年库): python .../fetch.py "512800,..." 2015-01-01 <仓库根>/data/_long_klines.json
 重复运行按 code 增量合并(已存在且长度>=1000 跳过)。
 """
 import io
@@ -18,7 +18,7 @@ if _ROOT not in sys.path:
 import xalpha as xa
 from pipeline import universe
 
-CACHE = "g:/xalpha/data/_long_klines.json"
+CACHE = os.path.join(_ROOT, "data", "_long_klines.json")
 START = "2015-01-01"
 
 

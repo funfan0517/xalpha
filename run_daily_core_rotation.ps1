@@ -3,7 +3,7 @@
 # 人工项: 每周更新 data/_core_valuation.json(估值锚), 可选 data/_core_holdings.json(当前持仓)
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_core_rotation.ps1
 $ErrorActionPreference = "Stop"
-Set-Location g:\xalpha
+Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
 
 Write-Host "[1/1] Generating core rotation daily monitor..."

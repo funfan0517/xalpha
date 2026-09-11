@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-# 允许被 g:/xalpha 下任意子目录的脚本直接 import（sys.path[0] = 脚本自身目录）
+# 允许被仓库内任意子目录的脚本直接 import（sys.path[0] = 脚本自身目录）
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)

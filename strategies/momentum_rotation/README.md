@@ -24,7 +24,14 @@
 
 ## 文件
 
-- `fetch.py`：抓 xueqiu 日线 → `data/_long_klines.json`（默认按唯一池场内代码 2015-01 起；`python fetch.py <codes> <start> <out>` 可扩展）
+**① 规则 / 入口（包根 · 供 import，不要移动）**
 - `rule.py`：参数定义；`POOL = universe.inner_codes()`（唯一池派生，保留 `SCAN34` 兼容名）
-- `backtest.py`：官方 A 回测（输出 `report.md` / `strategies/momentum_rotation/_mom_out.json` / `_mom_nav.png`）
-- 运行：`python strategies/momentum_rotation/backtest.py`
+- `fetch.py`：抓 xueqiu 日线 → `<仓库根>/data/_long_klines.json`（十年库属**数据类**，按约定留在仓库 `data/`；`python fetch.py <codes> <start> <out>` 可扩展）
+- `backtest.py`：官方 A 回测入口
+
+**③ backtest/** —— 回测产物与报告
+- `_mom_out.json`（机器可读）· `report.md`（报告）· `_mom_nav.png`（净值图）
+
+运行：`python strategies/momentum_rotation/backtest.py`
+
+> 本策略目前无 ② `data/` ④ `research/` ⑤ `daily/` 子目录 —— 它的数据源是十年库（数据类，留在仓库 `data/`），也没有每日推荐产物。五分类约定见 `AGENTS.md §8.4`。

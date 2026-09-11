@@ -34,8 +34,8 @@ from xalpha.universal import get_bond_rates, get_bond_rates_range  # noqa: E402
 
 import rule  # noqa: E402
 
-_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_daily_report.md")
-_JSON_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_core_daily.json")
+_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily", "_daily_report.md")
+_JSON_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily", "_core_daily.json")
 _TEMPLATE_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "valuation_template.json")
 # 东财-mx-ds-mcp 估值快照(由 agent 每日查询后回填; A500/纳指等蛋卷未覆盖项)

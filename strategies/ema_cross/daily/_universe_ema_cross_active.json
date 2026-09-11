@@ -1,7 +1,7 @@
 {
   "strategy": "ema_cross",
-  "generated_at": "2026-09-11 14:20",
-  "source": "g:/xalpha\\strategies/ema_cross/backtest/_ema_cross_bt.jsonl",
+  "generated_at": "2026-09-11 14:44",
+  "source": "strategies/ema_cross/backtest/_ema_cross_bt.jsonl",
   "A": [
     {
       "code": "161226",

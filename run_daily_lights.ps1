@@ -5,7 +5,7 @@
 # 用途: 每天看哪些基金亮了几盏灯、得分多少、为什么没达标 (strategies/lights/_signal_report.md)。
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_lights.ps1
 $ErrorActionPreference = "Stop"
-Set-Location g:\xalpha
+Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
 
 # Full inner pool: no codes arg passed, scan.py scans universe.inner_rows() by default

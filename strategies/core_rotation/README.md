@@ -48,10 +48,15 @@ powershell -ExecutionPolicy Bypass -File run_daily_core_rotation.ps1
 python pipeline/run_flow.py daily --strategy core_rotation
 ```
 
-产物：
-- `strategies/core_rotation/_daily_report.md` —— 每日监控报告（七节：行情/净值/利率与估值锚/情景与目标配置/组合监控/月度再平衡检查/风险红线）
-- `strategies/core_rotation/_core_daily.json` —— 机器可读快照
-- `strategies/core_rotation/valuation_template.json` —— 估值锚模板（自动生成）
+产物（按职能分子目录，见 `AGENTS.md §8.4`）：
+- `strategies/core_rotation/daily/_daily_report.md` —— 每日监控报告（七节：行情/净值/利率与估值锚/情景与目标配置/组合监控/月度再平衡检查/风险红线）
+- `strategies/core_rotation/daily/_core_daily.json` —— 机器可读快照
+- `strategies/core_rotation/daily/_universe_core_rotation_active.{md,json}` —— 6 类固定档（**组合层不做 A/B 分级**，见 §6）
+- `strategies/core_rotation/valuation_template.json` —— 估值锚模板（① 规则，留在包根）
+- `strategies/core_rotation/backtest/` —— 回测产物与报告（`_core_bt.json` · `_bt_rebal.{json,md}` · `_bt_report.md`）
+- `strategies/core_rotation/research/` —— 调优记录（`_bt_opt_report.md` · `_bt_variants.md` · `_dbg_bt.py`）
+
+> ⚠ 估值锚 `data/_core_valuation.json` 与 mx 快照 `data/_mx_valuation_latest.json` 是**数据类**（人工 / 外部 agent 写 入），按约定**留在仓库 `data/`**，不要移进策略目录。
 
 ## 4. 估值锚说明（估值分位全部自动；仅 DXY/实际利率/开关可选人工）
 

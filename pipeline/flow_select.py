@@ -14,7 +14,8 @@ from datetime import datetime
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-CFG = "g:/xalpha/pipeline/strategies.json"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 仓库根（随项目移动，勿写死）
+CFG = os.path.join(ROOT, "pipeline", "strategies.json")
 MIN_YEARS = 3.0
 
 
@@ -28,9 +29,13 @@ def main():
     if name not in cfg["strategies"]:
         sys.exit(f"未知策略 {name}")
     st = cfg["strategies"][name]
-    BT = os.path.join("g:/xalpha", st["backtest"]["raw_out"])
-    MD = os.path.join("g:/xalpha", st["select"]["out_active_md"])
-    JSON = os.path.join("g:/xalpha", st["select"]["out_active_json"])
+    # 读写用绝对路径；写进产物的 source/输出说明用**相对仓库根**的路径，保证机器无关
+    BT_REL = st["backtest"]["raw_out"]
+    MD_REL = st["select"]["out_active_md"]
+    JSON_REL = st["select"]["out_active_json"]
+    BT = os.path.join(ROOT, BT_REL)
+    MD = os.path.join(ROOT, MD_REL)
+    JSON = os.path.join(ROOT, JSON_REL)
 
     raw = open(BT, "rb").read()
     text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8")
@@ -80,8 +85,8 @@ def main():
     L = []
     L.append(f"# {name} 策略执行标的池（自动生成）{now}")
     L.append("")
-    L.append(f"> 来源: 策略回测 {BT} · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)")
-    L.append(f"> 输出: 本文件 + {JSON} · 仅供流程参考，非投资建议")
+    L.append(f"> 来源: 策略回测 {BT_REL} · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)")
+    L.append(f"> 输出: 本文件 + {JSON_REL} · 仅供流程参考，非投资建议")
     L.append("")
     L.append("## A 类 · 核心（用该策略主推）")
     L.append("")
@@ -106,7 +111,7 @@ def main():
     data = {
         "strategy": name,
         "generated_at": now,
-        "source": BT,
+        "source": BT_REL,
         "A": [{"code": r["code"], "theme": r["theme"], "off": r.get("off") or r["theme"]} for r in A],
         "B": [{"code": r["code"], "theme": r["theme"], "off": r.get("off") or r["theme"]} for r in B],
         "not_suitable": [{"code": r["code"], "theme": r["theme"]} for r in NA],

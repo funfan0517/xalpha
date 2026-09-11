@@ -134,7 +134,8 @@ def metrics(eq):
 def main():
     df = rule.load_wide()
     if len(df) == 0:
-        sys.exit("缺少十年库数据: 请先 python strategies/momentum_rotation/fetch.py <codes> 2015-01-01 g:/xalpha/data/_long_klines.json")
+        sys.exit("缺少十年库数据: 请先 python strategies/momentum_rotation/fetch.py <codes> 2015-01-01"
+                 " <仓库根>/data/_long_klines.json")
     s0 = df.index[rule.MIN_HIST]
     strat, trades = run_strategy(df)
     bm, bm_trades = run_benchmark(df)
@@ -173,13 +174,14 @@ def main():
              "基准无开平仓交易，以其每21交易日等权调仓周期收益作为同口径可比胜率。"
              "数据为 xueqiu 前复权；模拟结果，非投资建议。")
     txt = "\n".join(L)
-    open("g:/xalpha/strategies/momentum_rotation/report.md", "w", encoding="utf-8").write(txt)
+    open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "report.md"),
+         "w", encoding="utf-8").write(txt)
     print(txt)
     out["trades_stats"] = ts
     out["trades"] = trades
     out["bench_stats"] = bts
     out["bench_trades"] = bm_trades
-    json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_mom_out.json"), "w", encoding="utf-8"),
+    json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_mom_out.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
     fig, ax = plt.subplots(figsize=(12, 5))
@@ -189,7 +191,8 @@ def main():
     ax.set_title("A 全球相对动量 vs 等权基准 (净值)")
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    fig.savefig("g:/xalpha/strategies/momentum_rotation/_mom_nav.png", dpi=140, facecolor="white")
+    fig.savefig(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_mom_nav.png"),
+                dpi=140, facecolor="white")
     print("\n图: _mom_nav.png")
 
 

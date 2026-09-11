@@ -22,7 +22,7 @@ from pipeline import universe
 # 场内池代码：由 _universe.md 派生（唯一维护入口，勿在此硬编码）
 POOL = universe.inner_codes()
 SCAN34 = POOL  # 兼容旧引用名
-LONG_CACHE = "g:/xalpha/data/_long_klines.json"  # 十年库(2015+)
+LONG_CACHE = os.path.join(_ROOT, "data", "_long_klines.json")   # 十年库(2015+)，数据类留在 data/
 LOOKBACK, MA, REBAL, MIN_HIST = 120, 20, 21, 140
 FEE_SHORT_DAYS, FEE_SHORT, FEE_LONG = 7, 0.015, 0.0
 

@@ -46,7 +46,7 @@
 
 已接入：`strategies/momentum_rotation/backtest.py`（本地十年库，直接可用）；`strategies/lights/backtest.py` 每只标的输出 `t_stats` + `trade_log`，`strategies/lights/_reportbt.py` 汇总出「全体单笔合并统计」。**新增策略按 §5 脚手架生成的 `backtest.py` 应复用上述模块**，在引擎里收集单笔后调用 `bt_stats.section_lines(bt_stats.trade_stats(trades))`。
 
-## 2. 使用命令（均在 `g:/xalpha` 下）
+## 2. 使用命令（均在**仓库根**下）
 
 ```powershell
 python pipeline/run_flow.py list                        # 查看策略与阶段

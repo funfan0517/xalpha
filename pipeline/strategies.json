@@ -131,8 +131,8 @@
       "backtest": {
         "engine": "strategies/momentum_rotation/backtest.py",
         "data": "data/_long_klines.json",
-        "raw_out": "strategies/momentum_rotation/_mom_out.json",
-        "report": "strategies/momentum_rotation/report.md",
+        "raw_out": "strategies/momentum_rotation/backtest/_mom_out.json",
+        "report": "strategies/momentum_rotation/backtest/report.md",
         "window": "2015-01-05 ~ 至今(十年)"
       },
       "select": {
@@ -243,8 +243,8 @@
         "note": "组合层月度回测 2019-08~2026-09(代理口径见 README §8); 逐码回测/select 不适用"
       },
       "select": {
-        "out_active_md": "strategies/core_rotation/_universe_core_rotation_active.md",
-        "out_active_json": "strategies/core_rotation/_universe_core_rotation_active.json",
+        "out_active_md": "strategies/core_rotation/daily/_universe_core_rotation_active.md",
+        "out_active_json": "strategies/core_rotation/daily/_universe_core_rotation_active.json",
         "min_sample_years": 0.0,
         "criteria": "固定6类(由策略手册直接定档, 非回测 select)"
       },
@@ -258,7 +258,7 @@
           "518880"
         ],
         "runner": "run_daily_core_rotation.ps1",
-        "signal_report": "strategies/core_rotation/_daily_report.md",
+        "signal_report": "strategies/core_rotation/daily/_daily_report.md",
         "automation": "(未创建)"
       },
       "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工"

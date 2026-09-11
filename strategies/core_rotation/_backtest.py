@@ -244,7 +244,7 @@ def main():
     L.append("")
     L.append("> 免责声明: 公开数据回填的代理口径估算, 不构成投资建议。")
     txt = "\n".join(L) + "\n"
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_bt_report.md"),
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_bt_report.md"),
               "w", encoding="utf-8") as fh:
         fh.write(txt)
     print(txt)
@@ -253,7 +253,7 @@ def main():
            "static": {"cum": totB, "ann": annB, "vol": volB, "mdd": ddB},
            "equal": {"cum": totE, "ann": annE, "vol": volE, "mdd": ddE},
            "scenario_counts": sc_hist.to_dict()}
-    json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_core_bt.json"), "w", encoding="utf-8"),
+    json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_core_bt.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
 

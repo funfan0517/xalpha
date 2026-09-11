@@ -55,21 +55,30 @@
 
 ## 文件与运行
 
+**① 规则 / 入口（包根 · 供 import，不要移动）**
+
 | 文件 | 作用 |
 |---|---|
 | `rule.py` | 参数 + 数据加载 + 信号引擎 + 状态机（回测/每日信号共用，唯一权威源） |
 | `backtest.py` | 逐场内标的回测，每标的输出一行 JSON（可传 codes，缺省全池） |
-| `_reportbt.py` | `strategies/ema_cross/_ema_cross_bt.jsonl` → 汇总报告 md + PNG + HTML |
-| `_signal.py` | 每日收盘信号扫描（默认 A 类 8 只 → `_signal_report.md`） |
-| `_bt_report.md` / `_bt_dashboard.html` / `_bt_visual.png` | 回测报告产物 |
+| `_reportbt.py` | 回测报告生成器（读 `backtest/` 产物 → md + PNG + HTML） |
+| `_signal.py` | 每日收盘信号扫描（读 `daily/` 的 A 类名单 → `daily/_signal_report.md`） |
+
+**③ `backtest/`** —— 回测产物与报告
+`_ema_cross_bt.jsonl` · `_bt_report.md` · `_bt_visual.png` · `_bt_dashboard.html`
+
+**⑤ `daily/`** —— 每日推荐操作报告
+`_universe_ema_cross_active.{md,json}`（select 分级名单）· `_signal_report.md`（每日信号）
 
 ```powershell
-# 在 g:/xalpha 下
+# 在仓库根下
 python pipeline/run_flow.py backtest --strategy ema_cross --codes 588000,512800 --fresh   # 分批回测
 python pipeline/run_flow.py backtest --strategy ema_cross --report                       # 仅重生成汇总报告
 python pipeline/flow_select.py ema_cross                                                 # select 分级
 python strategies/ema_cross/_signal.py                                                   # 每日信号扫描
 ```
+
+> 本策略无 ② `data/` ④ `research/` 子目录。五分类约定见 `AGENTS.md §8.4`。
 
 ## 边界与组合定位
 

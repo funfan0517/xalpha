@@ -8,7 +8,7 @@ import numpy as np
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_DIR)
-for p in (_ROOT, _DIR, os.path.join(_DIR, "lights")):
+for p in (_ROOT, _DIR, os.path.dirname(_ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 

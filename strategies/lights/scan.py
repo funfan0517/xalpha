@@ -37,9 +37,9 @@ import rule  # noqa: E402
 
 MX = "G:/tradingagents/fund_data/data/mx_snapshot_latest.json"
 _LDIR = os.path.dirname(os.path.abspath(__file__))    # 产物随策略目录（2026-09-11 从 data/ 迁入）
-OUT = os.path.join(_LDIR, "_lights_scan_out.jsonl")
-STATE = os.path.join(_LDIR, "_lights_state.json")
-ACT_JSON = os.path.join(_LDIR, "_lights_active.json")
+OUT = os.path.join(_LDIR, "daily", "_lights_scan_out.jsonl")
+STATE = os.path.join(_LDIR, "daily", "_lights_state.json")
+ACT_JSON = os.path.join(_LDIR, "daily", "_lights_active.json")
 
 # 门槛展示文案: name -> (短标签, 阈值模板)
 GATE_LABELS = {

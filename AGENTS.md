@@ -79,3 +79,23 @@ OUT = "g:/xalpha/data/_lights_bt.jsonl"
 5. 跑一次该策略全流程（回测 → 报告 → 分级 → 扫描）验证产物落位
 
 > ⚠ 迁移会**暴露隐藏的路径耦合** —— 例如直接读 `data/` 下产物的分析脚本（用 `_DIR/../data/` 之类的相对层级），只读代码看不出来，**必须真跑一遍才会暴露**。所以第 5 步不可省。
+
+### 8.4 策略目录内部再分五类
+
+每个 `strategies/<策略名>/` 内部按职能再分五类：
+
+| 类别 | 落位 | 内容 | 能否移动 |
+|---|---|---|---|
+| **① 规则** | 策略包**根** | `rule.py`（参数权威源）、`factors.py`、`engine.py`、`data.py` | **不能** —— 它们是包的可导入核心，被大量文件 `import`（lights 有 21 处会失败），挪进子目录会让所有引用方的 `sys.path` 失效 |
+| **② 数据** | `<策略>/data/` | 该策略自己的行情缓存等 | 能（改路径常量） |
+| **③ 回测** | `<策略>/backtest/` | 回测产物 `_*_bt.jsonl` + 报告 `_*_report.md` / `.png` / `.html` | 能 |
+| **④ 测试调优** | `<策略>/research/` | 专项分析脚本 + 同名报告 | 能（每个改 1 行 `sys.path`） |
+| **⑤ 每日推荐操作报告** | `<策略>/daily/` | 扫描产物、分级名单、信号报告与看板 | 能 |
+
+> **入口脚本留在根**：`backtest.py`、`scan.py`、`_reportbt.py`、`_scan_report.py`、`_sync_meta.py`。它们被 `pipeline/strategies.json` 的 `engine` 字段按**路径**调用，或被其他模块 `import`（如 `_tune.py` 会 `import backtest`），移动它们的收益远小于代价。
+
+**参考实现**：`strategies/lights/` 已完成该结构，迁移其余策略时照搬。
+
+> ⚠ **迁移后必须实跑验证**，不要只看代码。这一轮踩到的坑：
+> 1. `pipeline/strategies.json` 里除了显眼的 `raw_out` / `out_active_md` / `out_active_json`，还有 **`backtest.report`** 和 **`daily.signal_report` / `daily.dashboard`** 这几个容易漏掉的字段 —— 它们是**回读运行日志**时才暴露的（日志里打印的仍是旧路径）。
+> 2. `pipeline/run_flow.py` 的 `--report` 分支原先**从产物目录推断报告生成器**（假设 `_reportbt.py` 与报告产物同目录）。产物一旦移进 `backtest/`，这个假设就失效 —— 已改为**从 `engine` 目录推断**（引擎留在策略包根）。**改动布局时要留意这种"从某个文件位置反推另一个文件位置"的隐式耦合**，它不会报语法错，只会在运行时找不到文件。

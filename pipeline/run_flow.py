@@ -87,8 +87,15 @@ def cmd_backtest(args):
     # 仅重生成报告：不跑引擎、不追加 jsonl
     if args.report:
         rep = os.path.join(ROOT, st["backtest"]["report"])
-        subprocess.run([sys.executable, "-W", "ignore",
-                        os.path.join(os.path.dirname(rep), "_reportbt.py")], cwd=ROOT, check=False)
+        # 报告生成器与「引擎」同目录（引擎留在策略包根），而不是与报告产物同目录 ——
+        # 产物已按职能移入 backtest/ 子目录，若按产物目录推断会找不到生成器。
+        eng = os.path.join(ROOT, st["backtest"]["engine"])
+        gen = os.path.join(os.path.dirname(eng), "_reportbt.py")
+        if not os.path.exists(gen):                     # 退化：与报告产物同目录
+            gen = os.path.join(os.path.dirname(rep), "_reportbt.py")
+        if not os.path.exists(gen):
+            sys.exit(f"找不到报告生成器 _reportbt.py（engine={st['backtest']['engine']}）")
+        subprocess.run([sys.executable, "-W", "ignore", gen], cwd=ROOT, check=False)
         print(f"回测报告: {st['backtest']['report']}")
         return
     codes = (args.codes or "").strip()

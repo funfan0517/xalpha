@@ -31,10 +31,10 @@ import rule  # noqa: E402
 import scan as _scan  # noqa: E402  （只为取门槛中文标签）
 from pipeline import bt_stats  # noqa: E402
 
-IN_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_bt.jsonl")
-MD = os.path.join(_DIR, "_bt_report.md")
-PNG = os.path.join(_DIR, "_bt_visual.png")
-HTML = os.path.join(_DIR, "_bt_dashboard.html")
+IN_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_lights_bt.jsonl")
+MD = os.path.join(_DIR, "backtest", "_bt_report.md")
+PNG = os.path.join(_DIR, "backtest", "_bt_visual.png")
+HTML = os.path.join(_DIR, "backtest", "_bt_dashboard.html")
 
 CAT_ORDER = ("宽基/另类", "全球/QDII", "A股行业", "策略/商品", "主动/量化", "债券")
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]

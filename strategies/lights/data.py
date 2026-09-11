@@ -24,7 +24,7 @@ from pipeline import universe  # noqa: E402
 START = "2015-01-01"          # 抓取起点（提前给指标 warm-up）
 SAMPLE_FROM = "2016-09-01"    # 样本窗口起点（最长十年口径）
 # 面板缓存: 命中则离线, --refresh 或文件缺失时联网抓取。
-CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_klines.json")
+CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "_lights_klines.json")
 
 _FIELDS = ("open", "high", "low", "close", "volume")
 

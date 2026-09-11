@@ -26,7 +26,7 @@ for p in (_ROOT, os.path.dirname(_DIR), _DIR):
 import rule  # noqa: E402
 from pipeline import bt_stats  # noqa: E402
 
-OUT_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_bt.jsonl")
+OUT_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_lights_bt.jsonl")
 
 
 def _stat(series, years):

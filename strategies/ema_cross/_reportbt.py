@@ -17,11 +17,11 @@ import numpy as np
 
 from pipeline import bt_stats
 
-_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ema_cross_bt.jsonl")
+_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest", "_ema_cross_bt.jsonl")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_MD = os.path.join(_DIR, "_bt_report.md")
-_PNG = os.path.join(_DIR, "_bt_visual.png")
-_HTML = os.path.join(_DIR, "_bt_dashboard.html")
+_MD = os.path.join(_DIR, "backtest", "_bt_report.md")
+_PNG = os.path.join(_DIR, "backtest", "_bt_visual.png")
+_HTML = os.path.join(_DIR, "backtest", "_bt_dashboard.html")
 
 _CAT_ORDER = ["宽基/另类", "全球/QDII", "A股行业", "策略/商品"]
 

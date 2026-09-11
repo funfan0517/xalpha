@@ -15,7 +15,7 @@ import numpy as np
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(os.path.dirname(_DIR))          # g:/xalpha
-SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_DIR, "_lights_bt.jsonl")
+SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_DIR, "..", "backtest", "_lights_bt.jsonl")
 
 
 def load(path):

@@ -285,14 +285,14 @@ python strategies\lights\scan.py  &&  python strategies\lights\_scan_report.py
 
 # 回测与报告
 python strategies\lights\backtest.py                        # 生效配置 C7
-python strategies\lights\backtest.py --out data\x.jsonl     # 换输出路径
+python strategies\lights\backtest.py --out strategies\lights\backtest\x.jsonl   # 换输出路径
 python strategies\lights\_reportbt.py                       # 渲染 md/png/html
 python strategies\lights\backtest.py --set enter_min=4,slip_k_bp=6   # 单次试验任意参数
 
 # 走 pipeline
 python pipeline\run_flow.py rules    --strategy lights
 python pipeline\run_flow.py backtest --strategy lights --report
-python pipeline\run_flow.py select   --strategy lights      # -> strategies/lights/_lights_active.{md,json}
+python pipeline\run_flow.py select   --strategy lights      # -> strategies/lights/daily/_lights_active.{md,json}
 
 # 调参 / 验证 / 同步
 python strategies\_tune.py --oos        # 单变量扫描 + 组合候选 + 样本外
@@ -304,17 +304,26 @@ python strategies\lights\_sync_meta.py  # json 镜像 <- rule.ACTIVE
 
 ```
 strategies/lights/
-├── rule.py          ★ 参数权威源（ACTIVE=C7）+ 灯/门槛/事件注册表 + 三份预设
-├── factors.py       因子库（唯一实现，Series 与面板通用）
-├── engine.py        统一状态机（rebal / 目标仓位 / 回撤止损 / 持仓上限 / 逐日成本）
-├── data.py          标的池 + 行情面板（唯一池 data/_universe.md，禁止硬编码）
-├── backtest.py      回测入口（--preset / --set / --out）
-├── _reportbt.py     回测报告（md + png + html）
-├── scan.py          每日信号扫描
-├── _scan_report.py  每日操作报告（门槛逐条实际值 vs 阈值 + 各维灯得分与触发依据）
-├── _sync_meta.py    strategies.json 镜像块同步
-│
-└── 专项分析（报告与脚本同名同目录，可复现 §3 各结论）
+├── ① 规则（包根 · 供 import —— 不要移动）
+│   ├── rule.py          ★ 参数权威源（ACTIVE=C7）+ 灯/门槛/事件注册表 + 三份预设
+│   ├── factors.py       因子库（唯一实现，Series 与面板通用）
+│   ├── engine.py        统一状态机（rebal / 目标仓位 / 回撤止损 / 持仓上限 / 逐日成本）
+│   └── data.py          标的池 + 行情面板（唯一池 data/_universe.md，禁止硬编码）
+├── ③⑤ 入口（包根）
+│   ├── backtest.py      回测入口（--preset / --set / --out）
+│   ├── _reportbt.py     回测报告生成（md + png + html）
+│   ├── scan.py          每日信号扫描
+│   ├── _scan_report.py  每日操作报告（门槛逐条实际值 vs 阈值 + 各维灯得分与触发依据）
+│   └── _sync_meta.py    strategies.json 镜像块同步
+├── backtest/           ③ 回测产物与报告
+│   ├── _lights_bt.jsonl
+│   └── _bt_report.md · _bt_visual.png · _bt_dashboard.html
+├── daily/              ⑤ 每日推荐操作报告
+│   ├── _lights_scan_out.jsonl · _lights_active.{md,json}
+│   └── _signal_report.md · _signal_visual.png · _signal_dashboard.html
+├── data/               ② 策略数据 / 缓存
+│   └── _lights_klines.json
+└── research/           ④ 测试调优（脚本与报告同名，可复现 §3 各结论）
     ├── _ablate.py / _ablate_report.md           ★ 灯消融台：置换对照 + 目标增量判据 + 作用端
     ├── _macd_indep.py / _macd_report.md         不共线代理 + 共线性度量，检验 MACD 独立性
     ├── _gate_audit.py                           门槛审计：各门槛实际挡住的交易日数
@@ -325,6 +334,11 @@ strategies/lights/
     ├── _probe.py                                逐日信号比对（定位「结果相同」类反常）
     ├── _sector_audit.py                         按类别/标的的胜率与盈亏比审计
     └── _sector_tune.py / _sector_tune_report.md 行业 ETF 专项（止盈代价曲线）
+```
+
+> 规则模块与入口**刻意留在包根**：`rule.py` 被 21 个文件 `import rule`，挪进子目录会让所有引用方的 `sys.path` 失效。五分类约定见 `AGENTS.md §8.4`。
+
+```
 
 strategies/                    ← 跨策略共享工具（各策略本体在各自子目录）
 ├── _tune.py / _tune_report.md               参数搜索（目标 = 年化 × 边际）

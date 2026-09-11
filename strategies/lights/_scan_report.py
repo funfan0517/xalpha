@@ -30,11 +30,11 @@ for p in (_ROOT, os.path.dirname(_DIR), _DIR):
 
 import rule  # noqa: E402
 
-IN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_lights_scan_out.jsonl")
+IN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily", "_lights_scan_out.jsonl")
 STATE = os.path.join(_ROOT, "data", "_lights_state.json")
-MD = os.path.join(_DIR, "_signal_report.md")
-PNG = os.path.join(_DIR, "_signal_visual.png")
-HTML = os.path.join(_DIR, "_signal_dashboard.html")
+MD = os.path.join(_DIR, "daily", "_signal_report.md")
+PNG = os.path.join(_DIR, "daily", "_signal_visual.png")
+HTML = os.path.join(_DIR, "daily", "_signal_dashboard.html")
 
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False

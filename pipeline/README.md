@@ -32,7 +32,7 @@
 `data/_universe.md` 是**唯一**的场内外标的维护入口：
 
 - **增/删/改标的只改这一个文件**；不要在各策略代码里硬编码标的清单；
-- `pipeline/universe.py` 负责解析：`inner_rows()/inner_codes()` 派生「有场内对应」的内池（当前 37 只），供亮灯回测/每日扫描与动量十年库回测共同使用；`offshore_rows()` 给出全部场外清单；
+- `pipeline/universe.py` 负责解析：`inner_rows()/inner_codes()` 派生「有场内对应」的内池（当前 38 只），供亮灯回测/每日扫描使用；`offshore_rows()` 给出全部场外清单；
 - 无场内对应的行（主动/债券/QDII 细分等）**只作为场外清单**，不进入场内信号回测与每日推荐；
 - 改完 `_universe.md` 后：`python pipeline/universe.py` 自查解析 → 新增场内代码需 `strategies/momentum_rotation/fetch.py <新代码>` 补十年库 → 再按阶段重跑 backtest / select / daily。
 

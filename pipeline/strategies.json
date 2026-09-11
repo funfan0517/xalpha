@@ -103,27 +103,28 @@
       "note": "2026-09-10 重构: 共振策略收敛为**单一参数化实现**（原多份实现与其 runner 已删除, git 可回滚）。参数权威源是 strategies/lights/rule.py::ACTIVE（label=c7）—— 由参数搜索（目标 = 策略年化 × 择时边际）选出、并经分段 walk-forward 交叉确认后采纳; 本 json 的 thresholds 块是它的**镜像**, 改参数只改 rule.py, 然后跑 strategies/lights/_sync_meta.py 同步。**标的池同日收窄到 A 股行业 ETF（23 只, 开关 strategies/lights/data.py::KEEP_CATS）** —— 按类别审计（同一配置跑全池 38 只）只有行业类产生正超额(+2.6%), 宽基 -1.2% / 全球QDII -8.5% / 策略商品 -8.5% / 债券 -4.1%; QDII(标普/纳指/日经)与商品(黄金/白银)是长期单边上涨资产, 任何降暴露的择时都是负贡献, 属该策略固有属性而非参数问题。收窄后择时边际 +12.2bp -> +15.8bp。当前生效: 基准年化 +3.5% vs 策略 +6.2%, 超额 +3.4%, 回撤 -52.8% vs -21.9%, 持仓 14.8%, 择时边际 +14.0bp(16/23 为正), 跑赢 16/23, 分级 A=12/B=4。注意画像: 单笔胜率仅 46.2%(1985 笔), 是**低胜率高赔率**(盈亏比 1.67, 单笔期望 +0.497%), 靠赔率而非胜率赚钱; 止盈参数 take_profit 已内置但默认关闭 —— 实测胜率与期望严格对立(止盈 3% -> 胜率 53.1%/期望 +0.202%/超额 -0.2%; 止盈 1% -> 胜率 65.6%/期望 -0.215%), 调高胜率是拿收益换的。调参入口: python strategies/lights/backtest.py --set key=value。已知边界: 资金/换手走量价代理; 滑点默认未计入(单边 0.03% 佣金已含); 灯定义内部阈值硬编码, 仅门槛层与决策层可调; 止损/持仓上限均未启用(实测从未触发)。**2026-09-11 消融驱动的改动(依据 strategies/lights/_ablate_report.md, _macd_report.md)**: (1) **停用 capital 灯** —— 目标增量 -0.004、零贡献(cap3 因子仍被 cap_abs_max 门槛与 indicators_ready 使用, 未删因子); (2) **enter_min 3.0 -> 0.0(显式非约束)** —— 实测 1/2/3 入场序列逐位相同、要 >=4 才起作用, 生效买点是 gate_pass & enter_required; (3) **写清灯的定位** —— 分数只进离场判据(exit_max)、对买点零影响; 五灯分工: trend/momentum = 入场硬开关(在 enter_required 里, 失效即全池停摆)、sustain(MACD) = 主力离场滤网(目标增量 +0.346 / 年化 +1.20pp, 五灯之首)、heat = 离场小贡献(+0.032)、capital = 已停用。修 P4: factors.wilder 原先因 ewm 无 NaN 期加 dx.fillna(0) 使 ADX warm-up 保护失效(leading NaN 0 日), 已加 min_periods=n 并去掉 dx 的 fillna, ADX 现需约 2n 根成形(26 日), 回测逐位不变。另: indicators_ready 门槛实质冗余(age 要求 250 根 bar, 它只挡 26 天)。MACD 独立性已验证: 用不共线代理(c>MA60 / MA20>MA60 / ret20>0)替换 sustain 灯后目标仅 0.719~0.786, MACD 0.976 领先 +0.190~+0.246, 不是趋势的重复表达; 早先基于共线代理(c>MA20)的假结论已废弃。待确认未改动: 去掉零轴过滤(只留 DIF>DEA)后目标 0.976 -> 0.989, 属单点差异, 需分段/walk-forward 确认。详见 strategies/lights/README.md。"
     },
     "momentum_rotation": {
-      "name": "全球相对动量ETF轮动(A, 唯一保留)",
+      "name": "全球相对动量ETF轮动(六类资产, 唯一保留)",
       "source_methodology": "strategies/momentum_rotation/README.md (来自 tradingagents fund_analysis_rotation 方法论)",
       "universe": {
         "offshore_pool": "data/_universe.md",
-        "inner_mapping": "data/_universe.md (场内对应列=内池, 由 pipeline/universe.py 派生)",
+        "inner_mapping": "data/_universe.md (场外行=执行6标的; 场内对应列=信号代理, 由 rule.pool() 按场外代码派生)",
         "data": "data/_long_klines.json (xueqiu 2015+)",
-        "note": "唯一池场内映射 37 只场内 ETF/LOF (2026-09 起统一; 旧 SCAN34 池废弃)"
+        "note": "2026-09-11 收窄为六类资产「一类一标的」(与 core_rotation 同一套): 执行 003377/012644/270042/023299/011609/000216, 信号 511260/515080/513100/563360/588000/518880; 旧「唯一池全部场内标的」口径废弃"
       },
       "rules": [
-        "每21交易日再平衡; 当日收盘算信号/收盘换仓, 当日收益归旧仓(无前视)",
+        "每10交易日再平衡; 当日收盘算信号/收盘换仓, 当日收益归旧仓(无前视)",
         "momentum = close[t]/close[t-120]-1 降序",
-        "选动量第一且 close>=MA20 的标的(单仓)",
-        "无候选(全破位/历史不足140交易日) -> 空仓现金",
+        "选动量排名前2名中 close>=MA20 的标的等权持有(合格不足2只按实际只数)",
+        "一只都不合格(全破位/历史不足140交易日) -> 空仓现金",
         "成本: 卖出<=7交易日1.5%, 7日外0%"
       ],
       "thresholds": {
         "lookback": 120,
         "ma": 20,
-        "rebal_days": 21,
+        "rebal_days": 10,
         "min_hist": 140,
-        "holding": "single",
+        "hold_n": 2,
+        "holding": "topN_equal",
         "short_days": 7,
         "fee_short": 0.015,
         "fee_long": 0.0
@@ -136,17 +137,26 @@
         "window": "2015-01-05 ~ 至今(十年)"
       },
       "select": {
-        "out_active_md": "data/_universe_momentum_rotation_active.md",
-        "out_active_json": "data/_universe_momentum_rotation_active.json",
-        "min_sample_years": 3.0,
-        "criteria": "A=策略年化>0 且 超额>0; B=超额>0 且 策略年化<=0"
+        "out_active_md": "strategies/momentum_rotation/daily/_universe_momentum_rotation_active.md",
+        "out_active_json": "strategies/momentum_rotation/daily/_universe_momentum_rotation_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "固定六类(由 rule.pool() 资产映射直接定档, 非逐标的回测 select)"
       },
       "daily": {
-        "codes": [],
-        "runner": "pending (月频调仓提醒待接入)",
-        "note": "A 已定稿; 月频调仓 snapshot/automation 未建"
+        "codes": [
+          "511260",
+          "515080",
+          "513100",
+          "563360",
+          "588000",
+          "518880"
+        ],
+        "runner": "python strategies/momentum_rotation/scan.py (先跑 fetch.py 刷新十年库)",
+        "signal_report": "strategies/momentum_rotation/daily/_signal_report.md",
+        "signal_json": "strategies/momentum_rotation/daily/_mom_signal.json",
+        "note": "2026-09-11 接入 scan.py: 决策点复算器, 口径与 backtest.run_strategy 逐行同构, 只读本地十年库不联网; 输出「今日是否调仓日 + 目标持仓 + 换仓动作 + 动量均线榜」。automation 未建"
       },
-      "note": "2026-09-08 定稿 A; B/C 已从代码库移除",
+      "note": "2026-09-11 两处改动: ①标的池由「唯一池全部场内标的」收窄为六类资产(与 core_rotation 同一套, 一类一标的: 场外执行/场内信号); ②调仓频率 21->10 交易日、持仓由「单仓」改为「动量前2名中≥MA20 等权」。依据 research/_pool6_report.md + _topn_report.md + _rebal_report.md: 10 日在 7 日赎回红线之外(惩罚费 0 次), 分散 2 只降低集中度风险。实测全期年化 +12.09%->+12.65%、回撤 -36.71%->-16.53%、夏普 0.68->0.93(基准等权 +13.21%/-12.86%/1.29)。仍略逊于等权持有基准的年化, 但风险调整后大幅拉近。",
       "pipeline_mode": "rotation"
     },
     "ema_cross": {

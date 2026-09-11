@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""数据抓取(分批): 场内池日线 close -> json
+"""数据抓取(分批): 六类资产场内代理日线 close -> json
 用法: python strategies/momentum_rotation/fetch.py [codes] [start=2015-01-01] [out=cache默认]
 示例(十年库): python .../fetch.py "512800,..." 2015-01-01 <仓库根>/data/_long_klines.json
-重复运行按 code 增量合并(已存在且长度>=1000 跳过)。
+未指定 codes 时按 rule.POOL(六类资产场内代理); 重复运行按 code 增量合并(已存在且长度>=1000 跳过)。
 """
 import io
 import json
@@ -16,7 +16,8 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import xalpha as xa
-from pipeline import universe
+
+import rule
 
 CACHE = os.path.join(_ROOT, "data", "_long_klines.json")
 START = "2015-01-01"
@@ -33,7 +34,7 @@ def main():
     cache = {}
     if os.path.exists(out):
         cache = json.load(open(out, encoding="utf-8"))
-    codes = want or universe.inner_codes()  # 未指定时按唯一池场内代码
+    codes = want or rule.POOL  # 未指定时按六类资产场内代理(唯一池派生的信号池)
     for code in codes:
         if want and code in cache and len(cache[code]["close"]) >= 1000:
             continue

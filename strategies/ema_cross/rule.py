@@ -30,7 +30,7 @@ TREND_FILTER = True      # 1) 趋势过滤: 金叉须 close > EMA26
 THRESHOLD = 0.003        # 2) 交叉阈值: 两线差距 >= 0.3% 才算有效交叉(毛刺过滤)
 LOCK_BARS = 5            # 3) 锁仓: 两次交易信号间隔 < 5 交易日忽略后信号
 
-FEE = 0.0003             # 单边交易成本(场内 ETF 佣金口径, 与 four_lights 一致)
+FEE = 0.0003             # 单边交易成本(场内 ETF 佣金口径, 与 lights 一致)
 START = "2015-01-01"     # 抓取起点(给 EMA warm-up 缓冲)
 SAMPLE_FROM = "2016-09-01"  # 样本窗口起点(最长十年口径)
 
@@ -53,7 +53,7 @@ def sh(code):
 def load_bars(code, start=START):
     """标的代码 -> 日线 DataFrame(date/open/close, 升序, RangeIndex)。
 
-    与 four_lights 回测同一数据管线(xa.get_daily), 供回测与每日信号共用。
+    与 lights 回测同一数据管线(xa.get_daily), 供回测与每日信号共用。
     """
     df = xa.get_daily(sh(code), start=start)
     df = df.dropna(subset=["close", "open"])

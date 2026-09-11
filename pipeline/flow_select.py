@@ -4,7 +4,7 @@
 A = 样本>=3 且 策略年化>0 且 超额(策略-基准)>0  -> 核心，用该策略主推
 B = 样本>=3 且 超额>0 且 策略年化<=0           -> 防守候选，仅供已持仓参考
 其余 = 不适合该策略（买入持有/定投替代）
-用法: python pipeline/flow_select.py [strategy_name]   默认 four_lights
+用法: python pipeline/flow_select.py [strategy_name]   默认 lights
 """
 import io
 import json
@@ -23,7 +23,7 @@ def pct(x):
 
 
 def main():
-    name = sys.argv[1] if len(sys.argv) > 1 else "four_lights"
+    name = sys.argv[1] if len(sys.argv) > 1 else "lights"
     cfg = json.load(open(CFG, encoding="utf-8"))
     if name not in cfg["strategies"]:
         sys.exit(f"未知策略 {name}")
@@ -95,7 +95,7 @@ def main():
     L.append("|---|---|---|---|---|---|---|---|---|")
     L.extend(table(B))
     L.append("")
-    L.append("## 不适合该策略（买入持有/定投替代，不推送四灯信号）")
+    L.append("## 不适合该策略（买入持有/定投替代，不推送该策略信号）")
     L.append("")
     for r in NA:
         L.append(f"- `{r['code']}` {r['theme']}：样本 {r['years']} 年，超额 {pct(r['st_ann']-r['base_ann'])}")

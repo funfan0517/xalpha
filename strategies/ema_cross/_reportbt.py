@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """双均线趋势(EMA12/26)回测结果汇总: data/_ema_cross_bt.jsonl -> _bt_report.md + PNG + HTML。
 
-对齐 four_lights/resonance_4d/_reportbt.py 惯例, 供 run_flow backtest --report --strategy ema_cross 复用。
+对齐 lights/_reportbt.py 惯例, 供 run_flow backtest --report --strategy ema_cross 复用。
 汇总节: 参数/口径说明 + 分类均值表 + 逐只明细 + 全体单笔合并统计(bt_stats 统一口径)。
 """
 import base64

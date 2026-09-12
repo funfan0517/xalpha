@@ -403,7 +403,10 @@ def valuation(refresh=False):
     """-> {code: {pe, pe_cs, pe_ttm_mx, pe_static, pe_pct, pe_pct_ytd, pb, dy, dy_dj, src_*}}。
 
     **打分口径以中证官网为单一源**（保证 PE 水平与 PE 分位同源、内部一致）:
-      打分用 PE : 中证官网指数估值「市盈率1」 → 官网 peg(静态) → 蛋卷
+      同源规则 : PE 分位只可能来自 peg(10年历史) 或 蛋卷(全历史)，二者均有独立 PE 序列；
+                故头部 PE **跟随分位源取同一序列**（cv 在 → pe_peg，dv 在 → dv.pe），
+                「指数估值·市盈率1」(pe_cs) 仅 20 日、无历史，仅作交叉校验列、不进打分头部，
+                以免出现「PE 高却分位低」的两口径错配（实测 931468 两源差 16%）。
       PE 分位   : 官网 peg 自算「过去最多 10 年」累计分位 → 蛋卷
       股息率    : 中证官网指数估值「股息率1」 → 蛋卷
     东财(mx-ds-mcp) 的 PE(TTM)/PB/年内分位作**交叉校验列**，不进打分 —— 因其 TTM 口径
@@ -422,7 +425,21 @@ def valuation(refresh=False):
         pe_cs = sv["pe"] if sv else None
         pe_peg = cv["pe"] if cv else None
         pe_mx = mv.get("pe_ttm") if mv else None
-        pe = next((x for x in (pe_cs, pe_peg, pe_mx, (dv or {}).get("pe")) if x is not None), None)
+        # —— 同源原则：头部 PE 必须与 PE 分位来自同一序列（否则打分不公平）——
+        # PE 分位只可能来自 peg(中证官网, 10年历史) 或 蛋卷(全历史)。故头部 PE 严格跟随
+        # 分位源：分位取 peg → 头部用 pe_peg；分位取蛋卷 → 头部用 dv.pe；
+        # 只在「两源皆无分位」时才回退 pe_cs / 东财(此时本就无分位, 不存在同源问题)。
+        # 若不跟随, 会出现「PE 高却分位低」的错配(实测 931468 两源差 16%; 159905 东财PE vs 蛋卷分位)。
+        if cv and pe_peg is not None:
+            pe, src_pe = pe_peg, "中证官网 peg(静态)"
+        elif dv and dv.get("pe") is not None:
+            pe, src_pe = dv["pe"], "蛋卷"
+        elif pe_cs is not None:
+            pe, src_pe = pe_cs, "中证官网指数估值"
+        elif pe_mx is not None:
+            pe, src_pe = pe_mx, _src_mx(mv)
+        else:
+            pe, src_pe = None, "缺失"
         dy_cs = sv["dy"] if sv else None
         dy_mx = mv.get("dy") if mv else None
         dy = next((x for x in (dy_cs, dy_mx, (dv or {}).get("dy")) if x is not None), None)
@@ -433,10 +450,7 @@ def valuation(refresh=False):
             pb=(mv.get("pb") if mv else None),
             dy=dy, dy_dj=(dv["dy"] if dv else None),
             method=(mv.get("method") if mv else None),
-            src_pe=("中证官网指数估值" if pe_cs is not None
-                    else ("中证官网 peg(静态)" if cv
-                          else (_src_mx(mv) if pe_mx is not None
-                                else ("蛋卷" if dv else "缺失")))),
+            src_pe=src_pe,
             src_pct=("中证官网 peg·自算10年分位" if cv else ("蛋卷" if dv else "缺失")),
             src_dy=("中证官网指数估值" if dy_cs is not None
                     else (_src_mx(mv) if dy_mx is not None else ("蛋卷" if dv else "缺失"))),

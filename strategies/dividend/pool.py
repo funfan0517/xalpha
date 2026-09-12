@@ -6,8 +6,13 @@ r"""红利基金池 + 净值/估值数据层（dividend 策略专用）· **全�
 原 dividend 策略是**单标的**（中证红利 012644/515080）估值择时。本轮把「各类红利
 基金」纳入本策略的标的池，用于横向打分 + 择优推荐：
 
-  * 表内 5 只 —— 用户《红利低波基金打分详情》里指定的 5 只（纳入池，但**不采用其数值**）；
-  * 对照 6 只 —— 各红利大类里历史较长、作基准 / 回填年份用的代表。
+  * 表内 —— 用户《红利低波基金打分详情》指定的 5 只（纳入，但**不采用其数值**）；
+  * 对照 —— 补足红利各主要大类（红利低波 / 中证红利 / 上证红利 / 深证红利 / 沪港深红利 /
+    红利机会 / 央企红利）的代表。
+
+**一指数一标的（2026-09-12 去重）**：池内**同跟踪指数只保留 1 只**（否则估值完全相同、
+业绩近乎重复，打分表会被同一指数刷屏）。保留规则：① 历史更长（覆盖 3/5/10 年窗更多）→
+② 场外 C 类 / 联接（与本策略执行通道一致）→ ③ 规模更大。落选者登记在 `RESERVE`，不进评分。
 
 > 2026-09-12 二次修订：用户要求「全按真实数据进行评分」。此前对表内 5 只使用过用户表
 > 快照（`TABLE_SNAPSHOT`）——**已删除**，改为全部走公开数据源。表中数据本身存在指数
@@ -58,6 +63,9 @@ CSV_CACHE = os.path.join(DATA_DIR, "_csindex_value.json")
 VAL_CACHE = os.path.join(DATA_DIR, "_valuation_snapshot.json")
 MX_CACHE = os.path.join(DATA_DIR, "_mx_valuation.json")
 POOL_JSON = os.path.join(DATA_DIR, "_dividend_pool.json")
+# 10Y 国债（中债月末）—— 与 core_rotation / data.py 共用的**数据类**缓存，按 AGENTS §8 留在仓库 data/
+BOND_10Y_CACHE = os.path.join(_ROOT, "data", "_bt_caches", "bond10y_m.csv")
+Y10_FALLBACK = 1.68           # 读不到缓存时的缺省值（2026-09 实测 ≈1.68%）
 
 _UA = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36")}
@@ -84,31 +92,69 @@ PE_WINDOW_DAYS = 10 * 244     # 10 年 = 10×244（与 data.py 的 PE_WINDOW_DAY
 #   H30269 中证红利低波动(50只)     -> 020603/512890
 # ----------------------------------------------------------------------
 POOL = [
-    # —— 表内 5 只（用户指定纳入；数值全部走真实源）——
+    # —— 一指数一标的（2026-09-12 去重：同一跟踪指数只保留 1 只；落选者见 RESERVE）——
     # 008164 跟踪的标普指数在中证官网/蛋卷/东财指数库三源皆无 -> 用 515450 持仓穿透估算
     dict(code="008164", name="南方标普红利低波50C", csi=None, dj=None, mx="SPCALVHD50.HOLDINGS",
-         idx_name="标普中国A股大盘红利低波动50", cat="红利低波", role="表内", channel="场外"),
-    dict(code="021551", name="博时中证红利低波100C", csi="930955", dj=None, mx="930955.CSI",
-         idx_name="中证红利低波动100(930955)", cat="红利低波", role="表内", channel="场外"),
+         idx_name="标普中国A股大盘红利低波动50", cat="红利低波", role="表内", channel="场外",
+         inner="515450"),
     dict(code="008115", name="天弘中证红利低波100C", csi="930955", dj=None, mx="930955.CSI",
          idx_name="中证红利低波动100(930955)", cat="红利低波", role="表内", channel="场外"),
-    dict(code="020603", name="易方达中证红利低波C", csi="H30269", dj="CSIH30269", mx="H30269.CSI",
-         idx_name="中证红利低波动(H30269)", cat="红利低波", role="表内", channel="场外"),
+    dict(code="007467", name="华泰柏瑞中证红利低波ETF联接C", csi="H30269", dj="CSIH30269",
+         mx="H30269.CSI", idx_name="中证红利低波动(H30269)", cat="红利低波", role="对照",
+         channel="场外", inner="512890"),
     dict(code="007606", name="嘉实沪深300红利低波C", csi="930740", dj="CSI930740", mx="930740.CSI",
          idx_name="沪深300红利低波动(930740)", cat="红利低波", role="表内", channel="场外"),
-    # —— 对照（补足 5 年 / 10 年窗口，并作各类红利基准）——
     dict(code="007760", name="景顺长城沪港深红利成长低波C", csi="931157", dj="CSI931157", mx="931157.CSI",
          idx_name="沪港深红利成长低波(931157)", cat="沪港深红利", role="对照", channel="场外"),
-    dict(code="012644", name="招商中证红利ETF联接C", csi="000922", dj="SH000922", mx="000922.SH",
-         idx_name="中证红利(000922)", cat="中证红利", role="对照", channel="场外"),
     dict(code="090010", name="大成中证红利指数A", csi="000922", dj="SH000922", mx="000922.SH",
          idx_name="中证红利(000922)", cat="中证红利", role="对照", channel="场外"),
     dict(code="012762", name="华泰柏瑞上证红利ETF联接C", csi="000015", dj="SH000015", mx="000015.SH",
          idx_name="上证红利(000015)", cat="上证红利", role="对照", channel="场外"),
     dict(code="159905", name="工银深证红利ETF", csi=None, dj="SZ399324", mx="399324.SZ",
          idx_name="深证红利(399324, 深交所指数)", cat="深证红利", role="对照", channel="场内"),
-    dict(code="512890", name="华泰柏瑞中证红利低波ETF", csi="H30269", dj="CSIH30269", mx="H30269.CSI",
-         idx_name="中证红利低波动(H30269)", cat="红利低波", role="对照", channel="场内"),
+    dict(code="005125", name="华宝标普中国A股红利机会ETF联接C", csi=None, dj="CSPSADRP", mx=None,
+         idx_name="标普中国A股红利机会", cat="红利机会", role="对照", channel="场外"),
+    dict(code="022720", name="广发中证国新港股通央企红利ETF联接C", csi="931722", dj=None, mx="931722.CSI",
+         idx_name="国新港股通央企红利(931722)", cat="央企红利", role="对照", channel="场外",
+         inner="520900"),
+    dict(code="021562", name="天弘中证央企红利50指数发起C", csi="931231", dj=None, mx="931231.CSI",
+         idx_name="央企红利50(931231)", cat="央企红利", role="对照", channel="场外"),
+    # —— 第二批扩充：因子类缺口（2026-09-12）——
+    dict(code="016441", name="华夏中证红利质量ETF联接C", csi="931468", dj=None, mx="931468.CSI",
+         idx_name="中证红利质量(931468)", cat="红利质量", role="对照", channel="场外"),
+    dict(code="024565", name="易方达中证红利价值ETF联接C", csi="H30270", dj=None, mx="H30270.CSI",
+         idx_name="中证红利价值(H30270)", cat="红利价值", role="对照", channel="场外"),
+    dict(code="561060", name="华安中证国有企业红利ETF", csi="000824", dj=None, mx=None,
+         idx_name="中证国有企业红利(000824)", cat="国企红利", role="对照", channel="场内"),
+    dict(code="561580", name="华泰柏瑞中证中央企业红利ETF", csi="000825", dj=None, mx=None,
+         idx_name="中证中央企业红利(000825)", cat="央企红利", role="对照", channel="场内"),
+    dict(code="563180", name="银华中证高股息策略ETF", csi="H30366", dj=None, mx="H30366.CSI",
+         idx_name="中证高股息策略(H30366)", cat="高股息策略", role="对照", channel="场内"),
+    # —— 第二批扩充：港股族缺口（2026-09-12）——
+    dict(code="018388", name="华泰柏瑞中证港股通高股息投资ETF联接C", csi="930914", dj=None,
+         mx="930914.CSI", idx_name="中证港股通高股息投资(930914)", cat="港股红利",
+         role="对照", channel="场外"),
+    dict(code="021143", name="华夏港股通央企红利ETF联接C", csi="931233", dj=None, mx="931233.CSI",
+         idx_name="中证港股通央企红利(931233)", cat="港股红利", role="对照", channel="场外"),
+    dict(code="004533", name="民生加银中证港股通高股息精选C", csi="930839", dj=None, mx="930839.CSI",
+         idx_name="中证港股通高股息精选(930839)", cat="港股红利", role="对照", channel="场外"),
+]
+
+# ----------------------------------------------------------------------
+# RESERVE：与池内某只**跟踪同一指数**、因而未进打分池的标的（备用申赎通道 / A 类替代）。
+# 不进评分、不进回测；只登记，便于换通道时取用。
+# ----------------------------------------------------------------------
+RESERVE = [
+    dict(code="021551", name="博时中证红利低波100C", idx_name="中证红利低波动100(930955)",
+         peer="008115", reason="同指数；历史仅 2.2 年(2024-07)，短于 008115 的 6.7 年"),
+    dict(code="512890", name="华泰柏瑞中证红利低波ETF", idx_name="中证红利低波动(H30269)",
+         peer="007467", reason="同指数；场内 ETF —— 007467 即其场外联接 C，保留联接以保证执行通道一致"),
+    dict(code="007466", name="华泰柏瑞中证红利低波ETF联接A", idx_name="中证红利低波动(H30269)",
+         peer="007467", reason="同指数；A 类（申购费前置），本策略走 C 类"),
+    dict(code="020603", name="易方达中证红利低波动ETF联接C", idx_name="中证红利低波动(H30269)",
+         peer="007467", reason="同指数；历史仅 2.5 年(2024-03)"),
+    dict(code="012644", name="招商中证红利ETF联接C", idx_name="中证红利(000922)",
+         peer="090010", reason="同指数；历史仅 4.5 年(2022-02)。注意：rule.py 单标的模式仍以它为场外执行主仓"),
 ]
 
 CODES = [r["code"] for r in POOL]
@@ -123,7 +169,8 @@ def dump_pool(path=POOL_JSON):
     """写池的 JSON 镜像（供外部流程读取）。"""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     payload = {"generated_at": datetime.now().strftime("%Y-%m-%d"),
-               "count": len(POOL), "funds": POOL}
+               "rule": "同跟踪指数只保留 1 只（历史更长 > 场外C类 > 规模更大）；落选者见 reserve",
+               "count": len(POOL), "funds": POOL, "reserve": RESERVE}
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
     return path
@@ -399,8 +446,26 @@ def valuation(refresh=False):
     return out
 
 
+def y10_latest(cache=BOND_10Y_CACHE, fallback=Y10_FALLBACK):
+    """10Y 国债收益率(%) —— 复用与 core_rotation/data.py 共用的中债月末缓存（数据类）。
+
+    股债收益比 = 指数股息率(%) ÷ 10Y国债(%)，故需要这个分母；读不到则用 fallback 并在
+    stderr 提示（不静默假装成功）。
+    """
+    try:
+        raw = pd.read_csv(cache)
+        col = "close" if "close" in raw.columns else raw.columns[-1]
+        s = pd.to_numeric(raw[col], errors="coerce").dropna()
+        if len(s):
+            return round(float(s.iloc[-1]), 3)
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 10Y 国债缓存读取失败, 用缺省 {fallback}: {type(e).__name__}: {e}",
+              file=sys.stderr)
+    return fallback
+
+
 def mom6(navs, asof=None):
-    """近 6 月（126 交易日）区间收益(%) —— 趋势分用的短周期强弱, 全池同口径自算。"""
+    """近 6 月（126 交易日）区间收益(%) —— 仅作信息列保留, 已不参与打分。"""
     end = pd.Timestamp(asof) if asof is not None else navs.index[-1]
     hist = navs.loc[:end]
     win = hist if len(hist) <= 126 else hist.iloc[-127:]
@@ -408,6 +473,30 @@ def mom6(navs, asof=None):
     for c in hist.columns:
         s = win[c].dropna()
         out[c] = round(float(s.iloc[-1] / s.iloc[0] - 1) * 100, 2) if len(s) >= 60 else None
+    return out
+
+
+def rsi14(navs, asof=None, window=14):
+    """RSI14（Wilder 平滑）—— 用基金**累计净值**（与业绩分同源，场内/场外同口径）。
+
+    RSI = 100 − 100/(1+RS)，RS = Wilder 平均涨幅 / Wilder 平均跌幅。
+    打分含义：<40 视为超卖（便宜）→ 满分；>70 视为超买（贵）→ 零分。
+    """
+    end = pd.Timestamp(asof) if asof is not None else navs.index[-1]
+    hist = navs.loc[:end]
+    out = {}
+    for c in hist.columns:
+        s = hist[c].dropna()
+        if len(s) < window + 1:
+            out[c] = None
+            continue
+        d = s.diff().dropna()
+        au = d.clip(lower=0).ewm(alpha=1 / window, adjust=False).mean().iloc[-1]
+        ad = (-d).clip(lower=0).ewm(alpha=1 / window, adjust=False).mean().iloc[-1]
+        if ad <= 0:
+            out[c] = 100.0
+        else:
+            out[c] = round(100 - 100 / (1 + au / ad), 2)
     return out
 
 

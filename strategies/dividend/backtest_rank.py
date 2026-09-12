@@ -55,6 +55,7 @@ OUT_REPORT = os.path.join(BACKTEST_DIR, "_rank_report.md")
 BACKTEST_FROM = "2016-09-01"     # 与仓库其他策略一致的样本起点
 FEE = 0.0003                     # 单边(场外 C 类按佣金口径近似, 见 README)
 TOPN_LIST = (1, 2)
+POOL_N = len(pool.POOL)          # 池内标的数（报告文案用，随池变化）
 
 WINDOWS = (3, 5, 10)
 SCHEMES = {
@@ -226,7 +227,9 @@ def main(argv=None):
         obj, obj_parts = objective(nav)
         win = {y: trailing(nav, y) for y in WINDOWS}
         rows.append(dict(scheme=s, topn=n,
-                         label=PICK_LABELS.get(s, "等权基准" + ("(表内5)" if s == "bench" else "(全池)")),
+                         label=PICK_LABELS.get(
+                             s, "等权基准" + (f"(表内{len(benches['bench'])}只)" if s == "bench"
+                                              else "(全池)")),
                          weights=(SCHEMES.get(s) if s in SCHEMES else None),
                          **st, obj=obj, obj_parts=obj_parts,
                          w3=win[3], w5=win[5], w10=win[10],
@@ -326,7 +329,8 @@ def render(rows, sample, best):
           f"- **选基判别力层面，3 年权重最高确实更优**：选择边际(bp) = {sq_txt} —— "
           "三组 3 年主导方案为正、等权与 10 年主导为负，**直接支持用户「近 3 年收益 + 回撤权重最高」的要求**。",
           f"- **组合层窗权差异在噪声范围**：topN=2 各方案 obj 落在 {_obj_range(rows)}，"
-          "说明这 11 只红利基金高度相关，窗权不是组合收益的主要来源（判别力差异要先于组合差异体现）。",
+          f"说明这 {POOL_N} 只红利基金高度相关，窗权不是组合收益的主要来源"
+          "（判别力差异要先于组合差异体现）。",
           f"- **分散 >> 择基**：topN=2（{_p(best2['ann'])} / {_p(best2['mdd'])}）显著优于 "
           f"topN=1（{_p(best1['ann'])} / {_p(best1['mdd'])}），回撤收窄是主要收益来源。",
           f"- {judge}",

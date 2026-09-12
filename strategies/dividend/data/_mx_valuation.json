@@ -41,6 +41,46 @@
       "method": "em_index_pe_ttm",
       "pe_ttm": 17.47
     },
+    "931722.CSI": {
+      "name": "国新港股通央企红利(中证国新港股通央企红利)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 9.294
+    },
+    "931231.CSI": {
+      "name": "央企红利50(中证央企红利50)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 13.87
+    },
+    "931468.CSI": {
+      "name": "红利质量(中证红利质量)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 16.09
+    },
+    "H30270.CSI": {
+      "name": "红利价值(中证红利价值)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 8.064
+    },
+    "H30366.CSI": {
+      "name": "高息策略(中证高股息策略)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 11.98
+    },
+    "930914.CSI": {
+      "name": "港股通高股息港元(中证港股通高股息投资)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 8.069
+    },
+    "931233.CSI": {
+      "name": "港股通央企红利(中证港股通央企红利)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 7.286
+    },
+    "930839.CSI": {
+      "name": "HK高股息港元(中证港股通高股息精选)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 12.12
+    },
     "SPCALVHD50.HOLDINGS": {
       "name": "标普中国A股大盘红利低波动50(持仓穿透估算)",
       "method": "holdings_penetration",

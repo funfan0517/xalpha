@@ -494,7 +494,7 @@ def rsi14(navs, asof=None, window=14):
     """RSI14（Wilder 平滑）—— 用基金**累计净值**（与业绩分同源，场内/场外同口径）。
 
     RSI = 100 − 100/(1+RS)，RS = Wilder 平均涨幅 / Wilder 平均跌幅。
-    打分含义：<40 视为超卖（便宜）→ 满分；>70 视为超买（贵）→ 零分。
+    打分含义：<35 视为超卖（便宜）→ 满分；>65 视为超买（贵）→ 零分。
     """
     end = pd.Timestamp(asof) if asof is not None else navs.index[-1]
     hist = navs.loc[:end]

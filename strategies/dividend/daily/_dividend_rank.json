@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-12 16:45",
+  "generated_at": "2026-09-12 17:37",
   "as_of": "2026-09-11",
   "weights": {
     "perf": 0.6,
@@ -46,8 +46,8 @@
       ]
     ],
     "rsi_full_zero": [
-      40.0,
-      70.0
+      35.0,
+      65.0
     ],
     "y10": 1.681
   },
@@ -76,13 +76,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 61.7,
+      "value_score": 58.3,
       "value_parts": {
         "pe": 16.7,
         "pe_pct": 3.8,
         "dy": 14.9,
         "ratio": 15,
-        "rsi": 11.3
+        "rsi": 7.9
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -109,8 +109,8 @@
           "years": 7.01
         }
       },
-      "total": 70.4,
-      "action": "加大分批",
+      "total": 69.0,
+      "action": "正常逢跌加",
       "valuation": "偏高区间",
       "pe_xs_pct": 44.4,
       "short_hist": false
@@ -139,13 +139,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 62.3,
+      "value_score": 58.9,
       "value_parts": {
         "pe": 13.4,
         "pe_pct": 0.1,
         "dy": 16.8,
         "ratio": 18,
-        "rsi": 14.0
+        "rsi": 10.6
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -167,8 +167,8 @@
         },
         "10": null
       },
-      "total": 70.0,
-      "action": "加大分批",
+      "total": 68.6,
+      "action": "正常逢跌加",
       "valuation": "高估区间",
       "pe_xs_pct": 72.2,
       "short_hist": false
@@ -197,13 +197,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 55.0,
+      "value_score": 51.7,
       "value_parts": {
         "pe": 17.1,
         "pe_pct": 1.4,
         "dy": 13.3,
         "ratio": 12,
-        "rsi": 11.2
+        "rsi": 7.9
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -225,7 +225,7 @@
         },
         "10": null
       },
-      "total": 66.3,
+      "total": 65.0,
       "action": "正常逢跌加",
       "valuation": "高估区间",
       "pe_xs_pct": 27.8,
@@ -255,13 +255,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 61.0,
+      "value_score": 57.6,
       "value_parts": {
         "pe": 18.1,
         "pe_pct": 1.0,
         "dy": 17.5,
         "ratio": 18,
-        "rsi": 6.4
+        "rsi": 3.0
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -278,7 +278,7 @@
         "5": null,
         "10": null
       },
-      "total": 64.9,
+      "total": 63.5,
       "action": "正常逢跌加",
       "valuation": "高估区间",
       "pe_xs_pct": 11.1,
@@ -308,13 +308,13 @@
       "src_pct": "缺失",
       "src_dy": "mx-ds-mcp(持仓穿透估算)",
       "val_src": "mx-ds-mcp(持仓穿透估算) / 缺失",
-      "value_score": 64.5,
+      "value_score": 61.2,
       "value_parts": {
         "pe": 15.9,
         "pe_pct": 2.9,
         "dy": 16.3,
         "ratio": 18,
-        "rsi": 11.4
+        "rsi": 8.1
       },
       "imputed": [
         "pe_pct"
@@ -343,7 +343,7 @@
           "years": 6.64
         }
       },
-      "total": 62.8,
+      "total": 61.5,
       "action": "正常逢跌加",
       "valuation": "—（无分位）",
       "pe_xs_pct": 55.6,
@@ -373,13 +373,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 50.3,
+      "value_score": 46.9,
       "value_parts": {
         "pe": 16.4,
         "pe_pct": 0.7,
         "dy": 13.2,
         "ratio": 12,
-        "rsi": 8.0
+        "rsi": 4.6
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -401,8 +401,8 @@
         },
         "10": null
       },
-      "total": 60.4,
-      "action": "正常逢跌加",
+      "total": 59.1,
+      "action": "逢跌小额",
       "valuation": "高估区间",
       "pe_xs_pct": 50.0,
       "short_hist": false
@@ -431,13 +431,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 45.0,
+      "value_score": 41.7,
       "value_parts": {
         "pe": 9.5,
         "pe_pct": 1.2,
         "dy": 12.6,
         "ratio": 12,
-        "rsi": 9.7
+        "rsi": 6.4
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -454,7 +454,7 @@
         "5": null,
         "10": null
       },
-      "total": 59.2,
+      "total": 57.9,
       "action": "逢跌小额",
       "valuation": "高估区间",
       "pe_xs_pct": 88.9,
@@ -484,13 +484,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 60.8,
+      "value_score": 57.4,
       "value_parts": {
         "pe": 18.4,
         "pe_pct": 5.0,
         "dy": 14.1,
         "ratio": 15,
-        "rsi": 8.3
+        "rsi": 4.9
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -517,7 +517,7 @@
           "years": 7.16
         }
       },
-      "total": 59.1,
+      "total": 57.7,
       "action": "逢跌小额",
       "valuation": "偏低区间",
       "pe_xs_pct": 5.6,
@@ -547,13 +547,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 65.2,
+      "value_score": 61.8,
       "value_parts": {
         "pe": 16.9,
         "pe_pct": 2.9,
         "dy": 14.3,
         "ratio": 15,
-        "rsi": 16.1
+        "rsi": 12.7
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -580,7 +580,7 @@
           "years": 6.75
         }
       },
-      "total": 56.9,
+      "total": 55.6,
       "action": "逢跌小额",
       "valuation": "偏高区间",
       "pe_xs_pct": 33.3,
@@ -610,13 +610,13 @@
       "src_pct": "蛋卷",
       "src_dy": "蛋卷",
       "val_src": "蛋卷",
-      "value_score": 67.5,
+      "value_score": 64.2,
       "value_parts": {
         "pe": 15.2,
         "pe_pct": 0.3,
         "dy": 16.7,
         "ratio": 18,
-        "rsi": 17.3
+        "rsi": 14.0
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -643,7 +643,7 @@
           "years": 9.04
         }
       },
-      "total": 54.5,
+      "total": 53.2,
       "action": "逢跌小额",
       "valuation": "高估区间",
       "pe_xs_pct": 66.7,
@@ -673,13 +673,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 58.4,
+      "value_score": 55.1,
       "value_parts": {
         "pe": 17.3,
         "pe_pct": 2.8,
         "dy": 13.7,
         "ratio": 12,
-        "rsi": 12.6
+        "rsi": 9.3
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -701,7 +701,7 @@
         },
         "10": null
       },
-      "total": 53.4,
+      "total": 52.0,
       "action": "逢跌小额",
       "valuation": "偏高区间",
       "pe_xs_pct": 22.2,
@@ -731,13 +731,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 56.0,
+      "value_score": 52.7,
       "value_parts": {
         "pe": 16.8,
         "pe_pct": 1.6,
         "dy": 14.3,
         "ratio": 15,
-        "rsi": 8.3
+        "rsi": 5.0
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -764,7 +764,7 @@
           "years": 6.76
         }
       },
-      "total": 52.3,
+      "total": 51.0,
       "action": "逢跌小额",
       "valuation": "高估区间",
       "pe_xs_pct": 38.9,
@@ -794,13 +794,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 57.3,
+      "value_score": 54.0,
       "value_parts": {
         "pe": 12.9,
         "pe_pct": 1.7,
         "dy": 14.7,
         "ratio": 15,
-        "rsi": 13.0
+        "rsi": 9.7
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -817,7 +817,7 @@
         "5": null,
         "10": null
       },
-      "total": 49.2,
+      "total": 47.9,
       "action": "减仓观望",
       "valuation": "高估区间",
       "pe_xs_pct": 77.8,
@@ -847,13 +847,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 62.6,
+      "value_score": 59.3,
       "value_parts": {
         "pe": 17.5,
         "pe_pct": 5.2,
         "dy": 13.9,
         "ratio": 12,
-        "rsi": 14.0
+        "rsi": 10.7
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -880,7 +880,7 @@
           "years": 10.0
         }
       },
-      "total": 45.0,
+      "total": 43.6,
       "action": "减仓观望",
       "valuation": "偏低区间",
       "pe_xs_pct": 16.7,
@@ -910,13 +910,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 73.4,
+      "value_score": 70.0,
       "value_parts": {
         "pe": 12.1,
         "pe_pct": 4.9,
         "dy": 19.7,
         "ratio": 20,
-        "rsi": 16.7
+        "rsi": 13.3
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -943,7 +943,7 @@
           "years": 9.28
         }
       },
-      "total": 42.8,
+      "total": 41.4,
       "action": "减仓观望",
       "valuation": "偏低区间",
       "pe_xs_pct": 83.3,
@@ -973,13 +973,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 49.9,
+      "value_score": 47.9,
       "value_parts": {
         "pe": 3.3,
         "pe_pct": 12.5,
         "dy": 10.1,
         "ratio": 4,
-        "rsi": 20.0
+        "rsi": 18.0
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -1001,7 +1001,7 @@
         },
         "10": null
       },
-      "total": 33.9,
+      "total": 33.1,
       "action": "规避",
       "valuation": "深度低估",
       "pe_xs_pct": 100.0,
@@ -1094,13 +1094,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 74.6,
+      "value_score": 71.3,
       "value_parts": {
         "pe": 15.8,
         "pe_pct": 9.3,
         "dy": 19.1,
         "ratio": 20,
-        "rsi": 10.4
+        "rsi": 7.1
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -1111,7 +1111,7 @@
         "5": null,
         "10": null
       },
-      "total": 74.6,
+      "total": 71.3,
       "action": "加大分批",
       "valuation": "偏低区间",
       "pe_xs_pct": 61.1,
@@ -1141,13 +1141,13 @@
       "src_pct": "中证官网 peg·自算10年分位",
       "src_dy": "中证官网指数估值",
       "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
-      "value_score": 59.0,
+      "value_score": 55.7,
       "value_parts": {
         "pe": 18.7,
         "pe_pct": 5.3,
         "dy": 13.8,
         "ratio": 12,
-        "rsi": 9.2
+        "rsi": 5.9
       },
       "imputed": [],
       "n_value_dims": 5,
@@ -1158,7 +1158,7 @@
         "5": null,
         "10": null
       },
-      "total": 59.0,
+      "total": 55.7,
       "action": "逢跌小额",
       "valuation": "偏低区间",
       "pe_xs_pct": 0.0,

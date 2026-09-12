@@ -6,8 +6,8 @@
 {"dim": "dy", "topn": 2, "label": "股息率(高者高)", "kind": "single", "years": 4.99, "cum": 0.2652, "ann": 0.0482, "mdd": -0.2172, "sharpe": 0.38, "calmar": 0.22, "obj": -0.0245, "edge": [-75.3, 60], "n_rebal": 61}
 {"dim": "ratio", "topn": 1, "label": "股债收益比(高者高)", "kind": "single", "years": 4.99, "cum": 0.1005, "ann": 0.0194, "mdd": -0.3425, "sharpe": 0.2, "calmar": 0.06, "obj": -0.0657, "edge": [-64.0, 60], "n_rebal": 61}
 {"dim": "ratio", "topn": 2, "label": "股债收益比(高者高)", "kind": "single", "years": 4.99, "cum": 0.2305, "ann": 0.0424, "mdd": -0.2278, "sharpe": 0.37, "calmar": 0.19, "obj": -0.0385, "edge": [-64.0, 60], "n_rebal": 61}
-{"dim": "rsi", "topn": 1, "label": "RSI14(低者高)", "kind": "single", "years": 4.99, "cum": 0.2596, "ann": 0.0473, "mdd": -0.2291, "sharpe": 0.38, "calmar": 0.21, "obj": 0.0001, "edge": [-33.2, 60], "n_rebal": 61}
-{"dim": "rsi", "topn": 2, "label": "RSI14(低者高)", "kind": "single", "years": 4.99, "cum": 0.2355, "ann": 0.0433, "mdd": -0.1658, "sharpe": 0.38, "calmar": 0.26, "obj": 0.0025, "edge": [-33.2, 60], "n_rebal": 61}
-{"dim": "combined", "topn": 1, "label": "combined(合并5维)", "kind": "combined", "years": 4.99, "cum": 0.4596, "ann": 0.0787, "mdd": -0.1965, "sharpe": 0.52, "calmar": 0.4, "obj": 0.0194, "edge": null, "n_rebal": 61}
-{"dim": "combined", "topn": 2, "label": "combined(合并5维)", "kind": "combined", "years": 4.99, "cum": 0.3832, "ann": 0.0671, "mdd": -0.1982, "sharpe": 0.53, "calmar": 0.34, "obj": 0.0109, "edge": null, "n_rebal": 61}
+{"dim": "rsi", "topn": 1, "label": "RSI14(低者高)", "kind": "single", "years": 4.99, "cum": 0.1809, "ann": 0.0339, "mdd": -0.2071, "sharpe": 0.29, "calmar": 0.16, "obj": -0.0421, "edge": [-26.2, 60], "n_rebal": 61}
+{"dim": "rsi", "topn": 2, "label": "RSI14(低者高)", "kind": "single", "years": 4.99, "cum": 0.2023, "ann": 0.0376, "mdd": -0.1757, "sharpe": 0.34, "calmar": 0.21, "obj": -0.0278, "edge": [-26.2, 60], "n_rebal": 61}
+{"dim": "combined", "topn": 1, "label": "combined(合并5维)", "kind": "combined", "years": 4.99, "cum": 0.2813, "ann": 0.0509, "mdd": -0.3096, "sharpe": 0.37, "calmar": 0.16, "obj": -0.0141, "edge": null, "n_rebal": 61}
+{"dim": "combined", "topn": 2, "label": "combined(合并5维)", "kind": "combined", "years": 4.99, "cum": 0.2331, "ann": 0.0429, "mdd": -0.2272, "sharpe": 0.37, "calmar": 0.19, "obj": -0.0151, "edge": null, "n_rebal": 61}
 {"dim": "all", "topn": 0, "label": "全池等权基准", "kind": "bench", "years": 4.99, "cum": 0.3167, "ann": 0.0566, "mdd": -0.1563, "sharpe": 0.5, "calmar": 0.36, "obj": -0.0007, "edge": null, "n_rebal": 61}

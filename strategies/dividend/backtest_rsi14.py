@@ -2,7 +2,7 @@
 r"""单标的 RSI14 择时回测（dividend 策略 · 专项分析）
 
 标的: 大成中证红利指数A（090010，跟踪中证红利 000922）
-策略: RSI14 < 40 买入（满仓），RSI14 > 70 卖出（空仓）；40~70 之间持仓不变。
+策略: RSI14 < 35 买入（满仓），RSI14 > 65 卖出（空仓）；35~65 之间持仓不变。
        RSI14 用基金**累计净值 totvalue** 计算（与 `rank.py` / `pool.rsi14` 同口径，
        场内 ETF 与场外联接可横向比较）。
 
@@ -38,8 +38,8 @@ OUT_JSON = os.path.join(BACKTEST_DIR, "_rsi14_090010.json")
 
 CODE = "090010"          # 大成中证红利指数A
 RSI_WINDOW = 14
-BUY = 40.0               # RSI < 40 买入
-SELL = 70.0              # RSI > 70 卖出
+BUY = 35.0               # RSI < 35 买入
+SELL = 65.0              # RSI > 65 卖出
 
 
 # ----------------------------------------------------------------------
@@ -135,11 +135,11 @@ def main(argv=None):
     last_pos = pos.iloc[-1]
     last_state = ("持仓" if last_pos == 1 else "空仓")
     if last_rsi < BUY:
-        rec = "买入信号(<40)"
+        rec = f"买入信号(<{BUY:.0f})"
     elif last_rsi > SELL:
-        rec = "卖出信号(>70)"
+        rec = f"卖出信号(>{SELL:.0f})"
     else:
-        rec = "持有不动(40~70)"
+        rec = f"持有不动({BUY:.0f}~{SELL:.0f})"
 
     payload = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -175,7 +175,7 @@ def render(p, s_p, s_b, nav):
          f"> 生成 {p['generated_at']} · 标的 {p['code']} {p['name']}（{p['idx']}）",
          f"> 样本 {p['sample'][0]} ~ {p['sample'][1]} · RSI14=Wilder(window={RSI_WINDOW})，"
          f"基于**累计净值 totvalue** 计算（与 dividend 策略同口径）",
-         f"> 规则: RSI14 < {BUY:.0f} 满仓买入，RSI14 > {SELL:.0f} 清仓，40~70 持仓不变；"
+         f"> 规则: RSI14 < {BUY:.0f} 满仓买入，RSI14 > {SELL:.0f} 清仓，35~65 持仓不变；"
          "信号次日生效（无前视）。", ""]
 
     L += ["## 一、RSI14 择时 vs 买入持有", "",
@@ -204,7 +204,7 @@ def render(p, s_p, s_b, nav):
           "- RSI14 用**累计净值 totvalue**（含分红再投），与 dividend 策略打分层的 RSI 同源、同口径。",
           "- 无前视：t-1 收盘 RSI 决定 t 日持仓；若当日无 RSI（上市初期）沿用前一日仓位。",
           "- 成本未计（无申赎费/佣金假设）；实际场外 A 类短期赎回费、ETF 佣金会侵蚀高频轮动收益。",
-          "- 单标的、单参数（14/40/70）未做参数稳健性检验；RSI 在趋势市易频繁假信号。",
+          "- 单标的、单参数（14/35/65）未做参数稳健性检验；RSI 在趋势市易频繁假信号。",
           "- 历史回测不代表未来；机械输出，非投资建议。", ""]
     return "\n".join(L) + "\n"
 

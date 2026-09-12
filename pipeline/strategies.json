@@ -272,6 +272,98 @@
         "automation": "(未创建)"
       },
       "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工"
+    },
+    "dividend": {
+      "name": "中证红利ETF估值择时(单标的 · 手册 §4 防御底仓)",
+      "source_methodology": "doc/核心轮动投资策略手册.md §4（把 core_rotation 的中证红利规则抽出为单标的可回测实现）",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "fund_pool": "strategies/dividend/data/_dividend_pool.json (11 只红利基金: 表内 5 + 对照 6; 权威源 strategies/dividend/pool.py::POOL)",
+        "note": "主标的: 场外执行 012644(联接C), 场内信号代理 515080, 指数 000922 (价格) / H00922 (全收益); 2026-09-12 扩展为 11 只红利基金池做横向打分"
+      },
+      "rank": {
+        "engine": "strategies/dividend/rank.py",
+        "backtest": "strategies/dividend/backtest_rank.py",
+        "out_md": "strategies/dividend/daily/_dividend_rank.md",
+        "out_json": "strategies/dividend/daily/_dividend_rank.json",
+        "bt_report": "strategies/dividend/backtest/_rank_report.md",
+        "weights": {
+          "perf": 0.6,
+          "value": 0.4,
+          "windows": {
+            "3": 0.5,
+            "5": 0.3,
+            "10": 0.2
+          },
+          "ret": 0.6,
+          "dd": 0.4
+        },
+        "note": "窗权 3年50/5年30/10年20(3年最高); 由 backtest_rank.py walk-forward 确认 —— 选择边际 3年主导 +60~66bp vs 等权 -15bp/10年主导 -41bp; 推荐档 topN=2 等权",
+        "valuation_sources": {
+          "pe": "中证指数官网「指数估值」市盈率1 -> 官网 peg(静态) -> 蛋卷 (打分口径以中证官网为单一源, 保证 PE 水平与分位同源)",
+          "pe_percentile": "官网 peg 历史自算「过去最多10年」累计分位(与 data.py 同口径)",
+          "dividend_yield": "中证指数官网「指数估值」股息率1(经 akshare) -> 蛋卷; 实测股息率1 与蛋卷口径一致",
+          "trend": "基金累计净值近126交易日区间收益(全池自算)",
+          "cross_check_only": "mx-ds-mcp(东财) PE-TTM/PB/年内YTD分位 —— 仅交叉校验, 不进打分(东财TTM与官网静态混用会使 PE分 与 分位分 不同源; 实测 931157 两源差 1.5)",
+          "sources_matrix": "官网 index-perf(peg): PE✓ 股息率✗ 10年分位✓自算; 官网「指数估值」(akshare): PE✓ 股息率✓ 10年分位✗(仅20日); 蛋卷: 三者皆✓(399324 唯一源); 东财(东财MCP): PE✓TTM 股息率✗ 10年分位✗(仅年内); 韭圈儿funddb: akshare 1.18.94 已移除其接口",
+          "mx_backfill": "strategies/dividend/data/_mx_valuation.json (agent 用 mx-ds-mcp 查询后回填; 同 data/_mx_valuation_latest.json 既有模式); pool.py::load_mx() 只读, 缺失自动跳过",
+          "akshare": "可选依赖(延迟 import, pip install akshare); 未安装则该层跳过并退回蛋卷, 不报错",
+          "holdings_penetration": "008164 跟踪的 标普中国A股大盘红利低波动50 在中证官网(2365只指数无此码)/蛋卷/东财指数库三源皆无 -> 由 515450(南方标普中国A股大盘红利低波动50ETF) 2026-06-30 全部持股明细(50 只, 权重合计 100%) + 个股 PE(TTM)/股息率(近12个月)(东财 2026-09-11) 穿透估算: PE=1/Σ(w/PE)=9.68, 股息率=Σ(w·dy)=4.90%。推导值(非指数公司口径), 权重滞后约 2.5 个月; 无 PE 历史故无 10 年分位 -> 估值定性留空; 价值分由 PE+股息率+趋势 三项归一化。结果写入 _mx_valuation.json 的 SPCALVHD50.HOLDINGS",
+          "gap": "全池 11/11 已有估值。历史缺口处理: 021551/008115(930955) 股息率由中证官网「指数估值」补齐(4.28%); 008164 由持仓穿透补齐(见 holdings_penetration); 159905(399324) 中证官网不收录深交所指数 -> PE/股息率用蛋卷",
+          "note": "2026-09-12 用户要求全按真实数据评分: 已删除此前的表内快照覆盖(TABLE_SNAPSHOT); 随后按用户追问接入 mx-ds-mcp(东财) 作交叉校验, 用 akshare(中证官网「指数估值」)补齐 930955 股息率, 并用 515450 持仓穿透补齐 008164(下标普指数三源皆无)"
+        }
+      },
+      "rules": [
+        "股债收益比 = 中证红利股息率 ÷ 10Y国债: >2.5 买入 / 1.5–2.5 持有 / <1.5 卖出停加",
+        "中证红利 PE 分位(10年): <30% 买入 / 30%–70% 持有 / >70% 停加",
+        "股息率(TTM): >4.5% 买入 / 3.5%–4.5% 持有 / <3.5% 卖出",
+        "合成(本策略采纳): 三个指标任一进入卖出区即空仓; 三者都非卖出才持有",
+        "§4.4 风险红线(人工): 成分股暴雷≥2 只 或 下调分红≥3 只 或 系统性 -> 停加/减仓",
+        "第 t 日收盘算信号 -> 第 t+1 日持仓(无前视), 单边成本 0.03%"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/dividend/rule.py（本块为镜像）",
+        "ratio_buy": 2.5,
+        "ratio_sell": 1.5,
+        "pe_buy": 0.3,
+        "pe_sell": 0.7,
+        "dy_buy": 4.5,
+        "dy_sell": 3.5,
+        "dy_floor": 3.0,
+        "pe_window_years": 10,
+        "dy_lookback": 252,
+        "compose": "all",
+        "fee": 0.0003,
+        "trade_at": "信号次日执行"
+      },
+      "backtest": {
+        "engine": "strategies/dividend/backtest.py",
+        "data": "data/_bt_caches/csi_000922.csv + csi_H00922.csv + bond10y_m.csv",
+        "start": "2015-06-01",
+        "window_from": "2016-09-01",
+        "span": "2016-09 ~ 至今 (中证红利全收益 H00922)",
+        "out": "strategies/dividend/backtest/_dividend_bt.jsonl",
+        "report": "strategies/dividend/backtest/_bt_report.md",
+        "note": "单标的估值择时; 逐指标单独 + 合成 + 买入持有基准同口径对比(回答哪个指标更好); 组合层口径故不设 raw_out, run_flow backtest --codes 不适用, 直接跑 backtest.py"
+      },
+      "select": {
+        "out_active_md": "strategies/dividend/daily/_universe_dividend_active.md",
+        "out_active_json": "strategies/dividend/daily/_universe_dividend_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "固定 1 标的(由手册 §4 直接定档, 非回测 select A/B 分级)"
+      },
+      "daily": {
+        "codes": [
+          "515080"
+        ],
+        "runner": "run_daily_dividend.ps1",
+        "signal_report": "strategies/dividend/daily/_signal_report.md",
+        "signal_json": "strategies/dividend/daily/_dividend_signal.json",
+        "rank_md": "strategies/dividend/daily/_dividend_rank.md",
+        "rank_json": "strategies/dividend/daily/_dividend_rank.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-09-11 落地: 把手册 §4 从 core_rotation 组合层抽出为单标的估值择时策略并首次可回测。回测(2016-09~2026-09, 中证红利全收益)结论 —— 股息率(TTM) 是三个指标里最好的: 年化 +9.4%(基准 +8.3%)、回撤 -20.5%(基准 -27.1%)、夏普 0.67(基准 0.59)、择时边际 +8.6bp、全期仅 6 笔; PE 分位(10年) 次之(年化 +8.4%/回撤 -21.4%/夏普 0.60, 降回撤但收益与基准持平); 股债收益比在低利率环境最差 —— 买入区未来20日收益反而最低(0.28% vs 持有区 1.07%)、择时边际 -0.3bp, 因 10Y 长期低位使该比值长时间浸在 <1.5 的卖出区而误杀。故本策略主用股息率、PE 分位作确认、股债收益比仅参考。daily 估值锚全自动(蛋卷 SH000922 + xalpha 10Y); 红线人工(data/_dividend_redline.json)。详见 strategies/dividend/backtest/_bt_report.md 与 README.md。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 共 11 只, 权威源 strategies/dividend/pool.py::POOL)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分参照用户表四项 PE-TTM/PE分位/股息率/趋势), 输出打分排序 + 操作建议。估值: 表内 5 只用用户表快照(复现其排序, 008164 居首), 对照用蛋卷实时; 净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 上句的「表内用快照」已作废 —— TABLE_SNAPSHOT 已删除, 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值, 趋势=基金净值近126交易日(全池自算)。真实源覆盖缺口如实保留: 008164(标普中国A股大盘红利低波动50)在中证官网与蛋卷均无条目 -> 价值分不可算, 总分=业绩分; 021551/008115(930955)蛋卷无条目 -> 股息率缺失(价值分由 PE+分位+趋势归一化); 159905(399324)中证官网不收录深交所指数 -> PE/分位用蛋卷。真实数据下的当前排序: 012762 71.4 / 007760 70.2 / 008164 66.5 / 512890 61.8 / 021551 57.9 / 020603 56.5 / 007606 50.0 / 008115 43.5 / 090010 38.1 / 012644 37.8 / 159905 12.4。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/backtest/_rank_report.md 与 README.md §4b。"
     }
   }
 }

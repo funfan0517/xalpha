@@ -1,0 +1,61 @@
+{
+  "as_of": "2026-09-11",
+  "source": "mx-ds-mcp (东方财富数据浏览器) — 由 agent 查询后回填",
+  "refresh_hint": "agent 用 mx-ds-mcp 查询各指数「市盈率PE(TTM)、市净率PB」后更新本文件；策略脚本不联网调 MCP。",
+  "index": {
+    "930955.CSI": {
+      "name": "红利低波100(中证红利低波动100)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 9.241,
+      "pe_pct_ytd": 0.9702,
+      "pe_pct_ytd_window": "2026-01-05~2026-09-11"
+    },
+    "H30269.CSI": {
+      "name": "红利低波(中证红利低波动)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 8.56
+    },
+    "930740.CSI": {
+      "name": "300红利低波(沪深300红利低波动)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 9.238
+    },
+    "931157.CSI": {
+      "name": "SHS红利成长LV人民币(沪港深红利成长低波)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 7.807
+    },
+    "000922.SH": {
+      "name": "中证红利",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 8.706,
+      "pb": 0.853
+    },
+    "000015.SH": {
+      "name": "红利指数(上证红利)",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 9.003
+    },
+    "399324.SZ": {
+      "name": "深证红利",
+      "method": "em_index_pe_ttm",
+      "pe_ttm": 17.47
+    },
+    "SPCALVHD50.HOLDINGS": {
+      "name": "标普中国A股大盘红利低波动50(持仓穿透估算)",
+      "method": "holdings_penetration",
+      "pe_ttm": 9.68,
+      "dy": 4.9,
+      "pe_ttm_median": 12.43,
+      "dy_median": 4.62,
+      "basis": "成分股权重取自 515450(南方标普中国A股大盘红利低波动50ETF) 2026-06-30 全部持股明细(50 只, 权重合计 100%); 个股 PE(TTM) 与股息率(近12个月) 取自东财 2026-09-11",
+      "formula": "PE = 1/Σ(w_i/PE_i)（整体法/调和加权）; 股息率 = Σ(w_i·dy_i)（权重加权）",
+      "caveat": "**推导值, 非指数公司口径**: 权重为基金半年报快照(2026-06-30, 滞后约 2.5 个月), 个股缺失日按最近可得值处理; 该指数为标普道琼斯编制, 中证官网/蛋卷/东财指数库均无条目, 故只能用穿透估算。"
+    }
+  },
+  "unavailable": {
+    "index_dividend_yield": "东财指数数据浏览器不暴露「股息率」字段 —— 中证系指数的股息率改由中证官网「指数估值」(经 akshare) 提供。",
+    "sp_index_direct": "标普中国A股大盘红利低波动50指数 东财指数库/中证官网(2365 只)/蛋卷 均无条目 -> 索引值只能由 515450 持仓穿透估算(见 SPCALVHD50.HOLDINGS)。",
+    "pe_percentile_10y": "东财只提供「年内(YTD)」PE 分位, 非 10 年窗; 10 年窗分位仍由中证官网 peg 历史自算(标普指数无 peg 历史, 故无分位)。"
+  }
+}

@@ -1,0 +1,336 @@
+{
+  "sample": [
+    "2016-09-01",
+    "2026-09-08"
+  ],
+  "rows": [
+    {
+      "variant": "buy_hold",
+      "mode": "binary",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 1.234,
+      "ann": 0.0835,
+      "vol": 0.1657,
+      "mdd": -0.2708,
+      "sharpe": 0.59,
+      "calmar": 0.31,
+      "pos_ratio": 1.0,
+      "timing_edge": 0.00039,
+      "turnover": 0.1,
+      "trades": 1,
+      "t_stats": {
+        "n": 1,
+        "win_rate": 1.0,
+        "avg_win": 1.2333636427642687,
+        "avg_loss": 0.0,
+        "payoff": Infinity,
+        "profit_factor": Infinity,
+        "best": 1.2333636427642687,
+        "worst": 1.2333636427642687
+      }
+    },
+    {
+      "variant": "ratio",
+      "mode": "binary",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 0.5728,
+      "ann": 0.0462,
+      "vol": 0.1278,
+      "mdd": -0.166,
+      "sharpe": 0.43,
+      "calmar": 0.28,
+      "pos_ratio": 0.594,
+      "timing_edge": -3e-05,
+      "turnover": 2.1,
+      "trades": 11,
+      "t_stats": {
+        "n": 11,
+        "win_rate": 0.6363636363636364,
+        "avg_win": 0.09741338654048216,
+        "avg_loss": -0.035562959174740616,
+        "payoff": 2.7391811255592082,
+        "profit_factor": 4.793566969728614,
+        "best": 0.43276674915563196,
+        "worst": -0.09099835666307576
+      }
+    },
+    {
+      "variant": "pe_pct",
+      "mode": "binary",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 1.2455,
+      "ann": 0.0841,
+      "vol": 0.1603,
+      "mdd": -0.2142,
+      "sharpe": 0.6,
+      "calmar": 0.39,
+      "pos_ratio": 0.862,
+      "timing_edge": 0.00048,
+      "turnover": 4.59,
+      "trades": 23,
+      "t_stats": {
+        "n": 23,
+        "win_rate": 0.8260869565217391,
+        "avg_win": 0.05609777059058323,
+        "avg_loss": -0.017825047763510377,
+        "payoff": 3.147131572091542,
+        "profit_factor": 14.948874967434824,
+        "best": 0.7190074367642929,
+        "worst": -0.05066008278849121
+      }
+    },
+    {
+      "variant": "dy",
+      "mode": "binary",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 1.4659,
+      "ann": 0.0943,
+      "vol": 0.1594,
+      "mdd": -0.2053,
+      "sharpe": 0.67,
+      "calmar": 0.46,
+      "pos_ratio": 0.904,
+      "timing_edge": 0.00086,
+      "turnover": 1.1,
+      "trades": 6,
+      "t_stats": {
+        "n": 6,
+        "win_rate": 0.8333333333333334,
+        "avg_win": 0.25932018194183637,
+        "avg_loss": -0.049301786990817664,
+        "payoff": 5.2598536030780005,
+        "profit_factor": 26.299268015390002,
+        "best": 1.036894464610044,
+        "worst": -0.049301786990817664
+      }
+    },
+    {
+      "variant": "combo",
+      "mode": "binary",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 0.6451,
+      "ann": 0.0509,
+      "vol": 0.1265,
+      "mdd": -0.166,
+      "sharpe": 0.47,
+      "calmar": 0.31,
+      "pos_ratio": 0.568,
+      "timing_edge": 9e-05,
+      "turnover": 4.39,
+      "trades": 22,
+      "t_stats": {
+        "n": 22,
+        "win_rate": 0.6363636363636364,
+        "avg_win": 0.05652644731094466,
+        "avg_loss": -0.026694003469125496,
+        "payoff": 2.117570988417815,
+        "profit_factor": 3.7057492297311763,
+        "best": 0.38802403744277725,
+        "worst": -0.09099835666307576
+      }
+    },
+    {
+      "variant": "buy_hold",
+      "mode": "graded",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 1.234,
+      "ann": 0.0835,
+      "vol": 0.1657,
+      "mdd": -0.2708,
+      "sharpe": 0.59,
+      "calmar": 0.31,
+      "pos_ratio": 1.0,
+      "timing_edge": 0.00039,
+      "turnover": 0.1,
+      "trades": 1,
+      "t_stats": {
+        "n": 1,
+        "win_rate": 1.0,
+        "avg_win": 1.2333636427642687,
+        "avg_loss": 0.0,
+        "payoff": Infinity,
+        "profit_factor": Infinity,
+        "best": 1.2333636427642687,
+        "worst": 1.2333636427642687
+      }
+    },
+    {
+      "variant": "ratio",
+      "mode": "graded",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 0.4012,
+      "ann": 0.0342,
+      "vol": 0.092,
+      "mdd": -0.1444,
+      "sharpe": 0.43,
+      "calmar": 0.24,
+      "pos_ratio": 0.41,
+      "timing_edge": -3e-05,
+      "turnover": 1.6,
+      "trades": 11,
+      "t_stats": {
+        "n": 11,
+        "win_rate": 0.6363636363636364,
+        "avg_win": 0.09741338654048216,
+        "avg_loss": -0.035562959174740616,
+        "payoff": 2.7391811255592082,
+        "profit_factor": 4.793566969728614,
+        "best": 0.43276674915563196,
+        "worst": -0.09099835666307576
+      }
+    },
+    {
+      "variant": "pe_pct",
+      "mode": "graded",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 1.1427,
+      "ann": 0.079,
+      "vol": 0.1401,
+      "mdd": -0.1839,
+      "sharpe": 0.63,
+      "calmar": 0.43,
+      "pos_ratio": 0.697,
+      "timing_edge": 0.00048,
+      "turnover": 4.69,
+      "trades": 23,
+      "t_stats": {
+        "n": 23,
+        "win_rate": 0.8260869565217391,
+        "avg_win": 0.05609777059058323,
+        "avg_loss": -0.017825047763510377,
+        "payoff": 3.147131572091542,
+        "profit_factor": 14.948874967434824,
+        "best": 0.7190074367642929,
+        "worst": -0.05066008278849121
+      }
+    },
+    {
+      "variant": "dy",
+      "mode": "graded",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 1.1945,
+      "ann": 0.0816,
+      "vol": 0.1304,
+      "mdd": -0.1453,
+      "sharpe": 0.69,
+      "calmar": 0.56,
+      "pos_ratio": 0.756,
+      "timing_edge": 0.00086,
+      "turnover": 1.45,
+      "trades": 6,
+      "t_stats": {
+        "n": 6,
+        "win_rate": 0.8333333333333334,
+        "avg_win": 0.25932018194183637,
+        "avg_loss": -0.049301786990817664,
+        "payoff": 5.2598536030780005,
+        "profit_factor": 26.299268015390002,
+        "best": 1.036894464610044,
+        "worst": -0.049301786990817664
+      }
+    },
+    {
+      "variant": "combo",
+      "mode": "graded",
+      "start": "2016-09-01",
+      "end": "2026-09-08",
+      "years": 10.02,
+      "cum": 0.3338,
+      "ann": 0.0292,
+      "vol": 0.0637,
+      "mdd": -0.0847,
+      "sharpe": 0.5,
+      "calmar": 0.34,
+      "pos_ratio": 0.286,
+      "timing_edge": 9e-05,
+      "turnover": 2.7,
+      "trades": 22,
+      "t_stats": {
+        "n": 22,
+        "win_rate": 0.6363636363636364,
+        "avg_win": 0.05652644731094466,
+        "avg_loss": -0.026694003469125496,
+        "payoff": 2.117570988417815,
+        "profit_factor": 3.7057492297311763,
+        "best": 0.38802403744277725,
+        "worst": -0.09099835666307576
+      }
+    }
+  ],
+  "forward_by_zone": {
+    "ratio": {
+      "buy": {
+        "n": 532,
+        "fwd": 0.28
+      },
+      "hold": {
+        "n": 894,
+        "fwd": 1.07
+      },
+      "sell": {
+        "n": 987,
+        "fwd": 0.72
+      }
+    },
+    "pe_pct": {
+      "buy": {
+        "n": 1294,
+        "fwd": 1.01
+      },
+      "hold": {
+        "n": 796,
+        "fwd": 0.69
+      },
+      "sell": {
+        "n": 323,
+        "fwd": -0.11
+      }
+    },
+    "dy": {
+      "buy": {
+        "n": 1479,
+        "fwd": 0.95
+      },
+      "hold": {
+        "n": 702,
+        "fwd": 0.73
+      },
+      "sell": {
+        "n": 232,
+        "fwd": -0.4
+      }
+    },
+    "combo": {
+      "buy": {
+        "n": 9,
+        "fwd": 5.1
+      },
+      "hold": {
+        "n": 1365,
+        "fwd": 0.83
+      },
+      "sell": {
+        "n": 1039,
+        "fwd": 0.61
+      }
+    }
+  }
+}

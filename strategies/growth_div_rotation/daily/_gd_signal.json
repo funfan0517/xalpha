@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-09-12 18:18",
+  "as_of": "2026-09-11",
+  "alt": false,
+  "growth": "创业板指",
+  "dividend": "中证红利",
+  "snapshot": {
+    "date": "2026-09-11",
+    "R": 285.1536480686695,
+    "R_prev": 280.77544154751894,
+    "ma20": 286.86385259991494,
+    "ma30": 291.6637916539263,
+    "upper": 289.73249112591407,
+    "lower": 283.9952140739158,
+    "q": 0.288,
+    "valid": true
+  },
+  "current_position": "红利/现金",
+  "current_position_code": "012644",
+  "action_tomorrow": "不动",
+  "indicated": false,
+  "paused_by_monthly_cap": false,
+  "reason": "处于中间地带 / 未触发切换阈值",
+  "month_switches": 0,
+  "month_cap": 4,
+  "exec": {
+    "growth_off": "011362",
+    "growth_name": "易方达创业板ETF联接C",
+    "dividend_off": "012644",
+    "dividend_name": "招商中证红利ETF联接C"
+  },
+  "params": {
+    "buffer": 0.01,
+    "enter_q": 0.8,
+    "exit_q": 0.9,
+    "q_low": 0.3,
+    "q_high": 0.7,
+    "max_trades_month": 4,
+    "fee": 0.0003
+  }
+}

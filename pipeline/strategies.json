@@ -323,6 +323,60 @@
         "automation": "(未创建)"
       },
       "note": "2026-09-12 落地多标的红利基金横向打分(同日移除原「中证红利ETF单标的估值择时」引擎与其产物, 其规则与结论并入本策略价值分; 手册 §4 原始阈值仍由 core_rotation 保留)。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 后同日第二批扩充至 19 只, 权威源 strategies/dividend/pool.py::POOL)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分五项各 20 分), 输出打分排序 + 操作建议。净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 删除此前的表内快照覆盖(TABLE_SNAPSHOT), 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值。真实源覆盖缺口如实保留(见 rank.valuation_sources.gap)。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/backtest/_rank_report.md 与 README.md。"
+    },
+    "growth_div_rotation": {
+      "name": "成长/红利风格轮动（Growth/Dividend Style Rotation · 二元切换）",
+      "source_methodology": "strategies/growth_div_rotation/rule.py（参数权威源）· 用户《成长/红利风格轮动》手册",
+      "universe": {
+        "signal": "指数日线: 成长 创业板指(399006)/科创50(000688) ÷ 红利 中证红利(000922)，由 rule.growth_code() 切换",
+        "exec": "场外联接基金(执行口径, 见 rule.EXEC): 成长 011362(创业板)/011609(科创50) · 红利 012644（与唯一池 #42 同代码）",
+        "cache": "strategies/growth_div_rotation/data/_gd_index_klines.json（策略类行情缓存, 随目录移动, 不进 data/）",
+        "note": "二元轮动(成长 vs 红利/现金), 非逐码多标的池; 指数代码与执行基金为方法论固有, 不由 data/_universe.md 派生"
+      },
+      "rules": [
+        "盘后算 Rₜ=成长指数收盘÷中证红利收盘; MA20ₜ=R 近20日均; 上轨=MA20×(1+BUFFER), 下轨=MA20×(1−BUFFER)",
+        "250日分位 Qₜ=Rₜ 在过往250个R中≤当前值的比例; Q<0.3 成长低估, Q>0.7 成长高估",
+        "持有红利/现金: 若 R₋₁>上轨 且 Q₋₁<0.8 → 满仓成长; 否则持有不动",
+        "持有成长: 若 R₋₁<下轨 或 Q₋₁>0.9 → 切红利; 否则持有不动",
+        "中间地带(下轨<R<上轨 且 0.3<Q<0.7): 不交易, 留原仓防来回打脸",
+        "月频上限: 当月切换已≥4次则暂停下一次(防摩擦); 决策用 R₋₁, 次日开盘执行(无前视)"
+      ],
+      "thresholds": {
+        "ma_fast": 20,
+        "ma_slow": 30,
+        "quantile_window": 250,
+        "buffer": 0.01,
+        "buffer_range": [0.005, 0.015],
+        "enter_q_max": 0.8,
+        "exit_q_min": 0.9,
+        "q_low": 0.3,
+        "q_high": 0.7,
+        "max_trades_per_month": 4,
+        "fee": 0.0003,
+        "trade_at": "信号次日开盘"
+      },
+      "backtest": {
+        "engine": "strategies/growth_div_rotation/backtest.py",
+        "raw_out": "strategies/growth_div_rotation/backtest/_gd_bt.jsonl",
+        "report": "strategies/growth_div_rotation/backtest/_bt_report.md",
+        "window": "2015-01-01 ~ 至今(指数十年库)",
+        "note": "二元净值: 成长侧用成长指数收益、红利侧用中证红利指数收益; 价格口径(未含分红再投/跟踪误差); --alt 切科创50"
+      },
+      "select": {
+        "out_active_md": "strategies/growth_div_rotation/daily/_universe_growth_div_active.md",
+        "out_active_json": "strategies/growth_div_rotation/daily/_universe_growth_div_active.json",
+        "min_sample_years": 3.0,
+        "criteria": "二元轮动, 非逐码 select: 整策略作为单标的 GD_ROT 评级(A=策略年化>0且超额>0; B=超额>0但年化≤0)"
+      },
+      "daily": {
+        "codes": [],
+        "runner": "run_daily_growth_div_rotation.ps1",
+        "signal_report": "strategies/growth_div_rotation/daily/_signal_report.md",
+        "signal_json": "strategies/growth_div_rotation/daily/_gd_signal.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-09-12 落地: 风格比值 R 的缓冲带 + 250日分位双信号二元轮动; 回测与每日信号共用本地指数缓存(无前视); 参数权威源 rule.py。整策略经 flow_select 作单标的评级(GD_ROT), select 产物即策略认证档。",
+      "pipeline_mode": "rotation"
     }
   }
 }

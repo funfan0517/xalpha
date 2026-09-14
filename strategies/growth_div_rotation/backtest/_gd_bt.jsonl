@@ -1,0 +1,1 @@
+{"ok": true, "code": "GD_ROT", "theme": "成长/红利风格轮动", "off": "—", "years": 10.7, "base_ann": 0.06684613102495596, "base_mdd": -0.6211359188569263, "st_ann": 0.11916388026791558, "st_mdd": -0.6214328780180542, "params": {"buffer": 0.01, "enter_q": 0.8, "exit_q": 0.9, "max_trades_month": 4, "fee": 0.0003}, "alt": false}

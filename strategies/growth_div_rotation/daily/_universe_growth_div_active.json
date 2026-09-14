@@ -1,0 +1,14 @@
+{
+  "strategy": "growth_div_rotation",
+  "generated_at": "2026-09-12 18:01",
+  "source": "strategies/growth_div_rotation/backtest/_gd_bt.jsonl",
+  "A": [
+    {
+      "code": "GD_ROT",
+      "theme": "成长/红利风格轮动",
+      "off": "—"
+    }
+  ],
+  "B": [],
+  "not_suitable": []
+}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>红利基金打分 · 合并视图（总分＋估值分项）</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --line:#eceef1; --text:#1a1a1a; --sub:#8a909a;
+    --brand:#1763e6; --brand-soft:#eaf1ff; --head:#f7f9fc;
+    --green:#16a34a; --red:#e23b3b; --amber:#b7791f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text);font-size:13px;}
+  .wrap{max-width:1180px;margin:0 auto;padding:14px 14px 28px;}
+  .ttl{font-size:17px;font-weight:700;margin:2px 0 2px;}
+  .meta{color:var(--sub);font-size:12px;line-height:1.6;margin-bottom:10px;}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);}
+  table{border-collapse:collapse;width:100%;min-width:1180px;}
+  thead th{position:sticky;top:0;background:var(--head);z-index:2;
+    border-bottom:1px solid var(--line);padding:8px 9px;text-align:right;white-space:nowrap;
+    cursor:pointer;user-select:none;font-weight:600;color:#444;}
+  thead th.l{text-align:left;}
+  thead th:hover{background:#eef2f8;}
+  thead th .ar{color:var(--brand);font-size:10px;margin-left:3px;}
+  tbody td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;
+    font-variant-numeric:tabular-nums;}
+  tbody td.l{text-align:left;}
+  tbody tr:hover{background:#fafbfe;}
+  .code{font-family:"SF Mono",Consolas,Menlo,monospace;color:var(--brand);}
+  .nm{font-weight:600;}
+  .grp-score{background:var(--brand-soft);}
+  .grp-val{background:#fff7ec;}
+  .grp-ind{background:#f3f8f3;}
+  .op-buy{color:var(--green);font-weight:600;}
+  .op-cut{color:var(--red);font-weight:600;}
+  .op-mid{color:var(--amber);}
+  .qual-low{color:var(--green);}
+  .qual-high{color:var(--red);}
+  .null{color:var(--sub);}
+  footer{color:var(--sub);font-size:11px;line-height:1.7;margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ttl">红利基金打分 · 合并视图</div>
+  <div class="meta">
+    合并来源：每日报告「一、总分与操作建议」＋「三、估值与分项（全部真实数据源）」 · 池内 19 只 · 数据截至 2026-09-11<br>
+    点击任意列表头排序（再点切换升/降序）；业绩分/价值分各 60%/40% 合成总分；价值分 5 项各 20 分。<br>
+    <span class="null">—</span> = 无数据（如 022720/024565 历史不足 3 年，无业绩分）；<b>*</b> = 该项真实源缺失、用池内中位数补齐（008164 分位分）。
+  </div>
+
+  <div class="scroll">
+    <table id="t">
+      <thead><tr id="h"></tr></thead>
+      <tbody id="b"></tbody>
+    </table>
+  </div>
+
+  <footer>机械输出，非投资建议；市场有风险，投资需谨慎。</footer>
+</div>
+
+<script>
+// 列定义：key / 标题 / 对齐 / 类型(num|str) / 分组样式
+const COLS = [
+  {k:"rank", t:"排名", a:"r", ty:"num"},
+  {k:"code", t:"代码", a:"l", ty:"str"},
+  {k:"nm",   t:"简称", a:"l", ty:"str"},
+  {k:"cat",  t:"大类", a:"l", ty:"str"},
+  {k:"idx",  t:"跟踪指数", a:"l", ty:"str"},
+  {k:"perf", t:"业绩分", a:"r", ty:"num", g:"grp-score"},
+  {k:"val",  t:"价值分", a:"r", ty:"num", g:"grp-score"},
+  {k:"total",t:"总分", a:"r", ty:"num", g:"grp-score"},
+  {k:"qual", t:"估值定性", a:"l", ty:"str"},
+  {k:"op",   t:"操作", a:"l", ty:"str"},
+  {k:"pe",   t:"PE", a:"r", ty:"num", g:"grp-ind"},
+  {k:"pePct",t:"PE10年分位", a:"r", ty:"num", g:"grp-ind"},
+  {k:"dy",   t:"股息率", a:"r", ty:"num", g:"grp-ind"},
+  {k:"be",   t:"股债收益比", a:"r", ty:"num", g:"grp-ind"},
+  {k:"rsi",  t:"RSI14", a:"r", ty:"num", g:"grp-ind"},
+  {k:"peS",  t:"PE分", a:"r", ty:"num", g:"grp-val"},
+  {k:"pctS", t:"分位分", a:"r", ty:"num", g:"grp-val"},
+  {k:"dyS",  t:"股息分", a:"r", ty:"num", g:"grp-val"},
+  {k:"beS",  t:"股债分", a:"r", ty:"num", g:"grp-val"},
+  {k:"rsiS", t:"RSI分", a:"r", ty:"num", g:"grp-val"},
+];
+
+// 合并数据（表一 + 表三，按代码连接）。null = "—"
+const R = [
+ {rank:1,code:"007760",nm:"景顺长城沪港深红利成长低波C",cat:"沪港深红利",idx:"沪港深红利成长低波(931157)",perf:76.2,val:58.3,total:69.0,qual:"偏高区间",op:"正常逢跌加",pe:9.14,pePct:81,dy:4.5,be:2.67,rsi:53.1,peS:16.7,pctS:3.8,dyS:14.9,beS:15.0,rsiS:7.9},
+ {rank:2,code:"018388",nm:"华泰柏瑞中证港股通高股息投资ETF联接C",cat:"港股红利",idx:"中证港股通高股息投资(930914)",perf:75.1,val:58.9,total:68.6,qual:"高估区间",op:"正常逢跌加",pe:11.27,pePct:99,dy:5.0,be:2.99,rsi:49.1,peS:13.4,pctS:0.1,dyS:16.8,beS:18.0,rsiS:10.6},
+ {rank:3,code:"012762",nm:"华泰柏瑞上证红利ETF联接C",cat:"上证红利",idx:"上证红利(000015)",perf:73.9,val:51.7,total:65.0,qual:"高估区间",op:"正常逢跌加",pe:8.87,pePct:93,dy:4.0,be:2.37,rsi:53.2,peS:17.1,pctS:1.4,dyS:13.3,beS:12.0,rsiS:7.9},
+ {rank:4,code:"021143",nm:"华夏港股通央企红利ETF联接C",cat:"港股红利",idx:"中证港股通央企红利(931233)",perf:67.5,val:57.6,total:63.5,qual:"高估区间",op:"正常逢跌加",pe:8.22,pePct:95,dy:5.2,be:3.12,rsi:60.5,peS:18.1,pctS:1.0,dyS:17.5,beS:18.0,rsiS:3.0},
+ {rank:5,code:"008164",nm:"南方标普红利低波50C",cat:"红利低波",idx:"标普中国A股大盘红利低波动50",perf:61.7,val:61.2,total:61.5,qual:"—（无分位）",op:"正常逢跌加",pe:9.68,pePct:null,dy:4.9,be:2.92,rsi:52.9,peS:15.9,pctS:2.9,pctStar:true,dyS:16.3,beS:18.0,rsiS:8.1},
+ {rank:6,code:"561580",nm:"华泰柏瑞中证中央企业红利ETF",cat:"央企红利",idx:"中证中央企业红利(000825)",perf:67.2,val:46.9,total:59.1,qual:"高估区间",op:"逢跌小额",pe:9.37,pePct:97,dy:4.0,be:2.35,rsi:58.1,peS:16.4,pctS:0.7,dyS:13.2,beS:12.0,rsiS:4.6},
+ {rank:7,code:"021562",nm:"天弘中证央企红利50指数发起C",cat:"央企红利",idx:"央企红利50(931231)",perf:68.7,val:41.7,total:57.9,qual:"高估区间",op:"逢跌小额",pe:13.82,pePct:94,dy:3.8,be:2.24,rsi:55.4,peS:9.5,pctS:1.2,dyS:12.6,beS:12.0,rsiS:6.4},
+ {rank:8,code:"007467",nm:"华泰柏瑞中证红利低波ETF联接C",cat:"红利低波",idx:"中证红利低波动(H30269)",perf:57.9,val:57.4,total:57.7,qual:"偏低区间",op:"逢跌小额",pe:8.02,pePct:75,dy:4.2,be:2.51,rsi:57.6,peS:18.4,pctS:5.0,dyS:14.1,beS:15.0,rsiS:4.9},
+ {rank:9,code:"008115",nm:"天弘中证红利低波100C",cat:"红利低波",idx:"中证红利低波动100(930955)",perf:51.4,val:61.8,total:55.6,qual:"偏高区间",op:"逢跌小额",pe:8.99,pePct:85,dy:4.3,be:2.55,rsi:45.9,peS:16.9,pctS:2.9,dyS:14.3,beS:15.0,rsiS:12.7},
+ {rank:10,code:"005125",nm:"华宝标普中国A股红利机会ETF联接C",cat:"红利机会",idx:"标普中国A股红利机会",perf:45.9,val:64.2,total:53.2,qual:"高估区间",op:"逢跌小额",pe:10.15,pePct:98,dy:5.0,be:2.99,rsi:44.0,peS:15.2,pctS:0.3,dyS:16.7,beS:18.0,rsiS:14.0},
+ {rank:11,code:"561060",nm:"华安中证国有企业红利ETF",cat:"国企红利",idx:"中证国有企业红利(000824)",perf:50.0,val:55.1,total:52.0,qual:"偏高区间",op:"逢跌小额",pe:8.76,pePct:86,dy:4.1,be:2.45,rsi:51.0,peS:17.3,pctS:2.8,dyS:13.7,beS:12.0,rsiS:9.3},
+ {rank:12,code:"007606",nm:"嘉实沪深300红利低波C",cat:"红利低波",idx:"沪深300红利低波动(930740)",perf:49.8,val:52.7,total:51.0,qual:"高估区间",op:"逢跌小额",pe:9.11,pePct:92,dy:4.3,be:2.55,rsi:57.5,peS:16.8,pctS:1.6,dyS:14.3,beS:15.0,rsiS:5.0},
+ {rank:13,code:"563180",nm:"银华中证高股息策略ETF",cat:"高股息策略",idx:"中证高股息策略(H30366)",perf:43.8,val:54.0,total:47.9,qual:"高估区间",op:"减仓观望",pe:11.60,pePct:92,dy:4.4,be:2.62,rsi:50.4,peS:12.9,pctS:1.7,dyS:14.7,beS:15.0,rsiS:9.7},
+ {rank:14,code:"090010",nm:"大成中证红利指数A",cat:"中证红利",idx:"中证红利(000922)",perf:33.2,val:59.3,total:43.6,qual:"偏低区间",op:"减仓观望",pe:8.61,pePct:74,dy:4.2,be:2.48,rsi:49.0,peS:17.5,pctS:5.2,dyS:13.9,beS:12.0,rsiS:10.7},
+ {rank:15,code:"004533",nm:"民生加银中证港股通高股息精选C",cat:"港股红利",idx:"中证港股通高股息精选(930839)",perf:22.4,val:70.0,total:41.4,qual:"偏低区间",op:"减仓观望",pe:12.12,pePct:75,dy:5.9,be:3.52,rsi:45.0,peS:12.1,pctS:4.9,dyS:19.7,beS:20.0,rsiS:13.3},
+ {rank:16,code:"016441",nm:"华夏中证红利质量ETF联接C",cat:"红利质量",idx:"中证红利质量(931468)",perf:23.3,val:47.9,total:33.1,qual:"深度低估",op:"规避",pe:17.86,pePct:38,dy:3.0,be:1.80,rsi:38.0,peS:3.3,pctS:12.5,dyS:10.1,beS:4.0,rsiS:18.0},
+ {rank:17,code:"159905",nm:"工银深证红利ETF",cat:"深证红利",idx:"深证红利(399324, 深交所指数)",perf:4.9,val:48.7,total:22.4,qual:"偏低区间",op:"规避",pe:17.43,pePct:77,dy:3.6,be:2.17,rsi:33.0,peS:4.0,pctS:4.6,dyS:12.1,beS:8.0,rsiS:20.0},
+ {rank:18,code:"022720",nm:"广发中证国新港股通央企红利ETF联接C",cat:"央企红利",idx:"国新港股通央企红利(931722)",perf:null,val:71.3,total:71.3,qual:"偏低区间",op:"加大分批",pe:9.72,pePct:53,dy:5.7,be:3.40,rsi:54.4,peS:15.8,pctS:9.3,dyS:19.1,beS:20.0,rsiS:7.1},
+ {rank:19,code:"024565",nm:"易方达中证红利价值ETF联接C",cat:"红利价值",idx:"中证红利价值(H30270)",perf:null,val:55.7,total:55.7,qual:"偏低区间",op:"逢跌小额",pe:7.84,pePct:74,dy:4.2,be:2.47,rsi:56.2,peS:18.7,pctS:5.3,dyS:13.8,beS:12.0,rsiS:5.9},
+];
+
+let sortKey = "total", sortDir = -1; // 默认按总分降序
+
+function disp(r, c){
+  let v = r[c.k];
+  if (c.k === "dy") return v==null ? "—" : (v+"%");
+  if (c.k === "pePct") return v==null ? "—" : (v+"%");
+  if (c.k === "pctS" && r.pctStar) return v+"*";
+  if (v==null) return "—";
+  return v;
+}
+function valOf(r, c){ return r[c.k]==null ? (sortDir===-1 ? -Infinity : Infinity) : r[c.k]; }
+
+function opClass(op){ if(op.includes("加")) return "op-buy"; if(op.includes("减")||op.includes("规避")) return "op-cut"; return "op-mid"; }
+function qualClass(q){
+  if(q.includes("低估")||q.includes("偏低")) return "qual-low";
+  if(q.includes("高估")||q.includes("偏高")) return "qual-high";
+  return "";
+}
+
+function render(){
+  // header
+  const h = document.getElementById("h");
+  h.innerHTML = "";
+  COLS.forEach(c=>{
+    const th = document.createElement("th");
+    if(c.a==="l") th.className="l";
+    if(c.g) th.classList.add(c.g);
+    const ar = (c.k===sortKey) ? (sortDir===-1?" ▼":" ▲") : "";
+    th.innerHTML = c.t + '<span class="ar">'+ar+'</span>';
+    th.onclick = ()=>{
+      if(sortKey===c.k){ sortDir = -sortDir; }
+      else { sortKey = c.k; sortDir = (c.ty==="num") ? -1 : 1; }
+      render();
+    };
+    h.appendChild(th);
+  });
+  // body
+  const rows = R.slice().sort((a,b)=>{
+    const ca = COLS.find(c=>c.k===sortKey);
+    const va = valOf(a, ca), vb = valOf(b, ca);
+    if(va<vb) return -1*sortDir;
+    if(va>vb) return 1*sortDir;
+    return 0;
+  });
+  const b = document.getElementById("b");
+  b.innerHTML = "";
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+    COLS.forEach(c=>{
+      const td = document.createElement("td");
+      if(c.a==="l") td.className="l";
+      if(c.g) td.classList.add(c.g);
+      const txt = disp(r,c);
+      if(txt==="—") td.classList.add("null");
+      if(c.k==="code") td.innerHTML = '<span class="code">'+txt+'</span>';
+      else if(c.k==="nm") td.innerHTML = '<span class="nm">'+txt+'</span>';
+      else if(c.k==="op") td.innerHTML = '<span class="'+opClass(r.op)+'">'+txt+'</span>';
+      else if(c.k==="qual") td.innerHTML = '<span class="'+qualClass(r.qual)+'">'+txt+'</span>';
+      else td.textContent = txt;
+      tr.appendChild(td);
+    });
+    b.appendChild(tr);
+  });
+}
+render();
+</script>
+</body>
+</html>

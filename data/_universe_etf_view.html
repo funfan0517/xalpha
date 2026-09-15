@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>场内基金名单 · ETF/LOF</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --line:#eceef1; --text:#1a1a1a;
+    --sub:#8a909a; --brand:#1763e6; --brand-soft:#eaf1ff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text);}
+  .app{max-width:720px;margin:0 auto;min-height:100vh;background:var(--bg);padding-bottom:18px;}
+
+  .top{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);
+       padding:10px 14px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .top h1{font-size:16px;margin:0;font-weight:700;}
+  .top .cnt{font-size:12px;color:var(--sub);}
+  .top .search{flex:1;min-width:160px;}
+  .top .search input{width:100%;border:1px solid var(--line);background:var(--bg);
+    border-radius:9px;padding:7px 11px;font-size:13px;outline:none;}
+  .top .search input:focus{border-color:var(--brand);background:#fff;}
+
+  .group{margin:10px 12px 2px;}
+  .g-title{font-size:12px;color:var(--sub);font-weight:600;margin:4px 2px 6px;
+    border-left:3px solid var(--brand);padding-left:7px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:8px 10px;display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .chip .nm{font-size:13px;font-weight:600;line-height:1.25;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;}
+  .chip .cd{font-family:"SF Mono",Consolas,Menlo,monospace;font-size:12px;
+    color:var(--brand);background:var(--brand-soft);align-self:flex-start;
+    padding:1px 7px;border-radius:6px;}
+  .empty{text-align:center;color:var(--sub);padding:40px 0;font-size:14px;display:none;}
+  footer{padding:12px 14px 0;text-align:center;color:var(--sub);font-size:11px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>场内基金</h1>
+    <span class="cnt" id="cnt"></span>
+    <div class="search">
+      <input id="q" type="text" placeholder="搜索名称或代码…" autocomplete="off">
+    </div>
+  </div>
+
+  <div id="groups"></div>
+  <div class="empty" id="empty">没有匹配结果</div>
+
+  <footer>数据来源：data/_universe.md（场内对应代码/名称）· 仅名称与代码 · 非投资建议</footer>
+</div>
+
+<script>
+const DATA = [
+  {g:"宽基指数 / 另类", items:[
+    {nm:"A500ETF华泰柏瑞", cd:"563360"},
+    {nm:"科创50ETF华夏", cd:"588000"},
+    {nm:"沪深300ETF华泰柏瑞", cd:"510300"},
+    {nm:"中证800ETF易方达", cd:"515810"},
+  ]},
+  {g:"全球 / 跨境 QDII", items:[
+    {nm:"纳指ETF国泰", cd:"513100"},
+    {nm:"标普500ETF博时", cd:"513500"},
+    {nm:"德国ETF华安", cd:"513030"},
+    {nm:"日经225ETF华安", cd:"513880"},
+    {nm:"恒生科技ETF华夏", cd:"513180"},
+    {nm:"香港银行LOF", cd:"501025"},
+  ]},
+  {g:"A 股行业主题", items:[
+    {nm:"银行ETF华宝", cd:"512800"},
+    {nm:"房地产ETF南方", cd:"512200"},
+    {nm:"半导体ETF国联安", cd:"512480"},
+    {nm:"软件ETF国泰", cd:"515230"},
+    {nm:"通信ETF国泰", cd:"515880"},
+    {nm:"人工智能ETF易方达", cd:"159819"},
+    {nm:"消费电子ETF华夏", cd:"159732"},
+    {nm:"机器人ETF华夏", cd:"562500"},
+    {nm:"军工ETF国泰", cd:"512660"},
+    {nm:"粮食ETF鹏华", cd:"159698"},
+    {nm:"游戏ETF华夏", cd:"159869"},
+    {nm:"传媒ETF广发", cd:"512980"},
+    {nm:"煤炭ETF国泰", cd:"515220"},
+    {nm:"券商ETF华宝", cd:"512000"},
+    {nm:"白酒基金LOF", cd:"161725"},
+    {nm:"消费ETF汇添富", cd:"159928"},
+    {nm:"新能源ETF南方", cd:"516160"},
+    {nm:"光伏ETF华泰柏瑞", cd:"515790"},
+    {nm:"电网设备ETF华夏", cd:"159326"},
+    {nm:"化工ETF鹏华", cd:"159870"},
+    {nm:"有色金属ETF南方", cd:"512400"},
+    {nm:"医药ETF易方达", cd:"512010"},
+    {nm:"创新药ETF银华", cd:"159992"},
+  ]},
+  {g:"策略因子 / 商品", items:[
+    {nm:"中证红利ETF招商", cd:"515080"},
+    {nm:"自由现金流ETF华夏", cd:"159201"},
+    {nm:"国投白银LOF", cd:"161226"},
+    {nm:"黄金ETF华安", cd:"518880"},
+  ]},
+  {g:"债券（长端利率）", items:[
+    {nm:"十年国债ETF国泰", cd:"511260"},
+  ]},
+];
+
+const groupsEl = document.getElementById("groups");
+const emptyEl = document.getElementById("empty");
+const cntEl = document.getElementById("cnt");
+const qEl = document.getElementById("q");
+
+let total = 0;
+DATA.forEach(s => total += s.items.length);
+cntEl.textContent = "共 " + total + " 只";
+
+function render(filter){
+  const f = (filter||"").trim().toLowerCase();
+  groupsEl.innerHTML = "";
+  let shown = 0;
+  DATA.forEach(sec => {
+    const items = sec.items.filter(it =>
+      !f || it.nm.toLowerCase().includes(f) || it.cd.includes(f));
+    if(!items.length) return;
+    shown += items.length;
+    const g = document.createElement("div");
+    g.className = "group";
+    g.innerHTML = '<div class="g-title">'+sec.g+' · '+items.length+'</div>';
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(it => {
+      const c = document.createElement("div");
+      c.className = "chip";
+      c.innerHTML = '<div class="nm" title="'+it.nm+'">'+it.nm+'</div><div class="cd">'+it.cd+'</div>';
+      grid.appendChild(c);
+    });
+    g.appendChild(grid);
+    groupsEl.appendChild(g);
+  });
+  emptyEl.style.display = shown ? "none" : "block";
+  cntEl.textContent = "共 " + total + " 只" + (f ? " · 匹配 " + shown : "");
+}
+qEl.addEventListener("input", e => render(e.target.value));
+render("");
+</script>
+</body>
+</html>

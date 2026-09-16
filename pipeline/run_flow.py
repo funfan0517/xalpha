@@ -141,10 +141,12 @@ def cmd_select(args):
 
 def cmd_daily(args):
     st = strategy(args.strategy)
-    act = os.path.join(ROOT, st["select"]["out_active_json"])
-    if not os.path.exists(act):
-        sys.exit("缺少分级名单，请先: python pipeline/run_flow.py select")
-    print(f"调用 daily runner: {st['daily']['runner']} (A={st['daily']['codes']})")
+    # 轮动/组合层策略不走逐码 select, 无分级名单 -> 跳过闸门(见 pipeline/README.md §5)
+    if st.get("pipeline_mode") != "rotation":
+        act = os.path.join(ROOT, st["select"]["out_active_json"])
+        if not os.path.exists(act):
+            sys.exit("缺少分级名单，请先: python pipeline/run_flow.py select")
+    print(f"调用 daily runner: {st['daily']['runner']} (A={st['daily'].get('codes', [])})")
     p = subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File",
                         os.path.join(ROOT, st["daily"]["runner"])], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
     print(p.stdout[-1500:])

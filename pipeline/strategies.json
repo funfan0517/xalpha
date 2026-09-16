@@ -151,10 +151,10 @@
           "588000",
           "518880"
         ],
-        "runner": "python strategies/momentum_rotation/scan.py (先跑 fetch.py 刷新十年库)",
+        "runner": "run_daily_momentum_rotation.ps1",
         "signal_report": "strategies/momentum_rotation/daily/_signal_report.md",
         "signal_json": "strategies/momentum_rotation/daily/_mom_signal.json",
-        "note": "2026-09-11 接入 scan.py: 决策点复算器, 口径与 backtest.run_strategy 逐行同构, 只读本地十年库不联网; 输出「今日是否调仓日 + 目标持仓 + 换仓动作 + 动量均线榜」。automation 未建"
+        "note": "2026-09-11 接入 scan.py: 决策点复算器, 口径与 backtest.run_strategy 逐行同构, 只读本地十年库不联网; 输出「今日是否调仓日 + 目标持仓 + 换仓动作 + 动量均线榜」。2026-09-16 补 run_daily_momentum_rotation.ps1 (fetch.py 刷新库 → scan.py), 接入 pipeline 每日入口(run_flow.py daily)。automation 未建"
       },
       "note": "2026-09-11 两处改动: ①标的池由「唯一池全部场内标的」收窄为六类资产(与 core_rotation 同一套, 一类一标的: 场外执行/场内信号); ②调仓频率 21->10 交易日、持仓由「单仓」改为「动量前2名中≥MA20 等权」。依据 research/_pool6_report.md + _topn_report.md + _rebal_report.md: 10 日在 7 日赎回红线之外(惩罚费 0 次), 分散 2 只降低集中度风险。实测全期年化 +12.09%->+12.65%、回撤 -36.71%->-16.53%、夏普 0.68->0.93(基准等权 +13.21%/-12.86%/1.29)。仍略逊于等权持有基准的年化, 但风险调整后大幅拉近。",
       "pipeline_mode": "rotation"
@@ -209,7 +209,7 @@
           "515790",
           "512000"
         ],
-        "runner": "pending (python strategies/ema_cross/_signal.py, runner/automation 未建)",
+        "runner": "run_daily_ema_cross.ps1",
         "signal_report": "strategies/ema_cross/daily/_signal_report.md",
         "automation": "(未创建)"
       },

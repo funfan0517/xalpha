@@ -19,7 +19,7 @@
 
 | 阶段 | 输入 | 动作 | 输出产物 |
 |---|---|---|---|
-| 1 universe | 公共标的池 | 展示场外池 + 场内内池 + 当前分级名单 | 摘要（唯一池 `_universe.md`：场外 56 只、场内内池 37 只） |
+| 1 universe | 公共标的池 | 展示场外池 + 场内内池 + 当前分级名单 | 摘要（唯一池 `_universe.md`：场外 74 只、场内内池 55 只） |
 | 2 rules | `pipeline/strategies.json` | 打印规则化定义（灯评分/阈值/回测口径） | 可读规则表（策略参数唯一权威源） |
 | 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `strategies/lights/_lights_bt.jsonl` → `strategies/lights/_bt_report.md`、`strategies/lights/_bt_dashboard.html` |
 | 4 select | `strategies/lights/_lights_bt.jsonl` | 按回测分级 A/B/不适合 | `strategies/lights/_lights_active.md` + `.json` |
@@ -32,7 +32,8 @@
 `data/_universe.md` 是**唯一**的场内外标的维护入口：
 
 - **增/删/改标的只改这一个文件**；不要在各策略代码里硬编码标的清单；
-- `pipeline/universe.py` 负责解析：`inner_rows()/inner_codes()` 派生「有场内对应」的内池（当前 38 只），供亮灯回测/每日扫描使用；`offshore_rows()` 给出全部场外清单；
+- **编号按类别留空分段**（2026-09-18 起）：宽基/另类 `1xx`、全球/跨境 QDII `2xx`、A 股行业 `3xx`、策略/商品 `4xx`、主动/量化 `5xx`、债券 `6xx`。**新增标的一律追加到所属段末尾**，因此不会再触发全表重编号、也就不会连带改 `doc/核心轮动投资策略手册.md` 与各策略 README 里的 `#N` 引用。编号只是标识（`inner_rows()['idx']`），**不参与排序** —— 顺序由 md 行序决定；
+- `pipeline/universe.py` 负责解析：`inner_rows()/inner_codes()` 派生「有场内对应」的内池（当前 55 只），供亮灯回测/每日扫描使用；`offshore_rows()` 给出全部场外清单；
 - 无场内对应的行（主动/债券/QDII 细分等）**只作为场外清单**，不进入场内信号回测与每日推荐；
 - 改完 `_universe.md` 后：`python pipeline/universe.py` 自查解析 → 新增场内代码需 `strategies/momentum_rotation/fetch.py <新代码>` 补十年库 → 再按阶段重跑 backtest / select / daily。
 
@@ -59,7 +60,7 @@ python pipeline/run_flow.py daily                       # 阶段5 当日信号(�
 ```
 
 阶段 3 说明：引擎一次执行一个 Python 进程，**建议分批传入 codes**（如每批 ≤9 只）避免单命令过长；
-全量按唯一池内池数量分批（当前 37 只分 7 批）：首批加 `--fresh`，其余不加，完成后 `--report`。
+全量按唯一池内池数量分批（当前 55 只分 7 批）：首批加 `--fresh`，其余不加，完成后 `--report`。
 
 ## 3. 每日运维
 
@@ -108,7 +109,7 @@ python pipeline/run_flow.py scaffold --name <strategy_name>
 - 盘中(14:05)信号用当日未收盘 bar，收阳/量比可能随尾盘变化，操作留缓冲。
 - A 类 codes 变更时需**同步两处**：`pipeline/strategies.json.daily.codes` 与 `run_daily_lights.ps1`（或改为读取 `strategies/lights/_lights_active.json`）。
 - `lights` 的资金/换手维度走**量价代理**（历史无主力资金与换手率明细）：**主力强度**→CMF 三日净流 × 标定系数（`cap_proxy_scale`，与真实值同号，幅度经 mx 快照 OLS 标定）、**换手分位**→成交额 60 日分位代理（份额近似恒定时等价）。回测结论**不代表真实资金口径下的表现**；真实值要到实盘扫描才可用（`mx_snapshot_*.json` 每日落盘，扫描报告第 5 节做同号交叉验证）。
-- `lights` 为**逐标的独立状态机 + 每日评估**（信号变化 → 次日开盘执行）。单只标的的信号满足率不高（门槛层 × 得分层双重收敛），故平均持仓占比低。判读时须同时看 `_bt_report.md` 的逐只明细：**持仓占比决定收益上限，择时边际决定暴露是否用在刀刃上**。当前生效配置 `c7`（池子 = **23 只 A 股行业 ETF**）的择时边际 **+14.0bp/日**（16/23 为正），持仓 14.8%，年化 +6.9% / 超额 +3.4%。
+- `lights` 为**逐标的独立状态机 + 每日评估**（信号变化 → 次日开盘执行）。单只标的的信号满足率不高（门槛层 × 得分层双重收敛），故平均持仓占比低。判读时须同时看 `_bt_report.md` 的逐只明细：**持仓占比决定收益上限，择时边际决定暴露是否用在刀刃上**。当前生效配置 `c7`（池子 = **唯一池内池 47 只**，2026-09-18 扩池后的官方口径；**参数本体仍在 23 只行业池上选出、未重调**）的择时边际 **+5.0bp/日**（27/47 为正），持仓 15.6%，年化 +4.8% / 超额 -0.3%；23 行业基线为 +14.0bp / 16-23 / 14.8% / +6.9% / +3.4%。
 - **调参入口**：`python strategies/lights/backtest.py --set key=value`（可覆盖任意参数，如 `--set enter_min=4,lights={"trend":["ma_short_adx",1]}`）。
 - `lights` 每日扫描报告（`strategies/lights/_signal_report.md`）含逐标的的**门槛层逐条实际值 vs 阈值**与**各维灯得分 + 触发依据**；盘中运行时换手分位等会因未收盘 bar 偏低，以尾盘复核为准。
 - 产物均非投资建议；实盘前须人工复核。

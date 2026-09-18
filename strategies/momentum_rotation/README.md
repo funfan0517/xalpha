@@ -138,7 +138,7 @@ python strategies/momentum_rotation/scan.py     # 2) 算今天的建议
 运行：`python strategies/momentum_rotation/backtest.py`（回测）
 · `python strategies/momentum_rotation/scan.py`（今日信号，先跑 `fetch.py` 刷新数据）
 
-> ⚠ 数据补录：唯一池 #56 的场内代理 `511260 十年国债ETF国泰` 此前**未在**十年库 `data/_long_klines.json` 中
+> ⚠ 数据补录：唯一池 #603 的场内代理 `511260 十年国债ETF国泰` 此前**未在**十年库 `data/_long_klines.json` 中
 > （唯一池内池实为 **38** 只，旧回测静默按 37 列跑），本次一并补入。
 
 > 本策略 ② `data/` 为空（行情源是十年库，属**数据类**、按约定留在仓库 `data/`）；③ `backtest/` 与 ⑤ `daily/` 见上。五分类约定见 `AGENTS.md §8.4`。

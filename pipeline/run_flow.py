@@ -217,6 +217,18 @@ def cmd_scaffold(args):
     print("下一步: 收到策略文档后由我来填充 rule.py/backtest.py 并运行 backtest->select->daily")
 
 
+def _ensure_market_fresh():
+    """策略执行前：确保本地公用行情库(data/_long_klines.json)为最新。"""
+    try:
+        data_dir = os.path.join(ROOT, "data")
+        if data_dir not in sys.path:
+            sys.path.insert(0, data_dir)
+        import _refresh_data
+        _refresh_data.ensure_fresh()
+    except Exception as e:  # noqa
+        print(f"[行情] 刷新检查失败，沿用本地数据：{type(e).__name__}: {e}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="strategy pipeline orchestrator")
     ap.add_argument("phase", nargs="?", default="list")
@@ -226,6 +238,8 @@ def main():
     ap.add_argument("--fresh", action="store_true")
     ap.add_argument("--report", action="store_true")
     args = ap.parse_args()
+    if args.phase != "list":
+        _ensure_market_fresh()
     {"list": cmd_phases, "universe": cmd_universe, "rules": cmd_rules,
      "backtest": cmd_backtest, "select": cmd_select, "daily": cmd_daily,
      "scaffold": cmd_scaffold}.get(args.phase, cmd_phases)(args)

@@ -33,8 +33,11 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(os.path.dirname(_HERE))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+if os.path.join(_ROOT, "data") not in sys.path:
+    sys.path.insert(0, os.path.join(_ROOT, "data"))
 
 from pipeline.bt_stats import trade_stats, section_lines, pct  # noqa: E402
+import _refresh_data  # noqa: E402  公用行情刷新器(data/)
 
 DATA = os.path.join(_ROOT, "data")
 OUTDIR = os.path.join(_HERE, "backtest")
@@ -58,6 +61,11 @@ def _arr(x):
 
 
 def load():
+    """读取指标库与行情库；执行前先确保本地行情为最新（公用刷新器）。"""
+    try:
+        _refresh_data.ensure_fresh()
+    except Exception as e:  # noqa
+        print(f"[行情] 刷新检查失败，沿用本地数据：{type(e).__name__}: {e}")
     ind = json.load(open(os.path.join(DATA, "_indicators_hist.json"), encoding="utf-8"))
     ind.pop("_meta", None)
     lk = json.load(open(os.path.join(DATA, "_long_klines.json"), encoding="utf-8"))

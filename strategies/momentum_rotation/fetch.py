@@ -31,6 +31,20 @@ def main():
     want = sys.argv[1].split(",") if len(sys.argv) > 1 and sys.argv[1] else None
     start = sys.argv[2] if len(sys.argv) > 2 else START
     out = sys.argv[3] if len(sys.argv) > 3 else CACHE
+
+    # 默认口径（无显式 codes、写默认库）：委托给公用刷新器（增量+一致性校验，含指标重算）
+    if want is None and out == CACHE:
+        data_dir = os.path.join(_ROOT, "data")
+        if data_dir not in sys.path:
+            sys.path.insert(0, data_dir)
+        import _refresh_data
+        latest, fails = _refresh_data.ensure_fresh()
+        for c, d in sorted(latest.items()):
+            print(f"{c}: last {d}")
+        print(f"cache -> {out}, {len(latest)} codes, fail {len(fails)}")
+        return
+
+    # 显式 codes / 自定义 out：保留原逐码抓取逻辑
     cache = {}
     if os.path.exists(out):
         cache = json.load(open(out, encoding="utf-8"))

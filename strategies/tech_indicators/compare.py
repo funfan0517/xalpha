@@ -38,7 +38,38 @@ def _load(path, name):
 base = _load(os.path.join(_HERE, "backtest.py"), "cmp_base")
 V = {n: _load(os.path.join(_HERE, n, "backtest.py"), "cmp_" + n)
      for n in ["v1_kdj_ma10", "v2_macd_kdj", "v3_macd_boll",
-               "v4_golden_triad", "v5_regime_switch", "v6_score_wf"]}
+               "v4_boll_kdj_macd", "v5_regime_switch", "v6_score_wf"]}
+
+
+def _load_style():
+    """code -> 风格（取自 data/_universe.md），供 v7 路由使用。"""
+    m = {}
+    p = os.path.join(_ROOT, "data", "_universe.md")
+    for line in open(p, encoding="utf-8"):
+        if not line.startswith("|"):
+            continue
+        f = [x.strip() for x in line.strip().strip("|").split("|")]
+        if len(f) >= 10 and len(f[4]) == 6 and f[4].isdigit():
+            m[f[4]] = f[9] or "其他"
+    return m
+
+
+_STYLE = _load_style()
+ROUTE_LABEL = "v7 风格路由"
+ROUTE = {"避险": "买入持有", "防御": "BOLL", "中枢": "MACD", "进攻": "v3 MACD+BOLL", "其他": "MACD"}
+SIG_FN = {
+    "v1 KDJ+MA10": V["v1_kdj_ma10"].build_variant, "v2 MACD+KDJ": V["v2_macd_kdj"].build_variant,
+    "v3 MACD+BOLL": V["v3_macd_boll"].build_variant, "v4 BOLL_KDJ_MACD": V["v4_boll_kdj_macd"].build_variant,
+    "v5 Regime切换": V["v5_regime_switch"].sig_regime, "v6 打分制(≥5/≤2)": V["v6_score_wf"].build_score,
+    "买入持有": lambda c, r: np.ones(len(c), dtype=int),
+}
+
+
+def _route_sig(code, close, r, bsigs):
+    """按基金风格返回其路由策略的信号（v7）。"""
+    lb = ROUTE.get(_STYLE.get(code, "其他"), "MACD")
+    return bsigs[lb] if lb in bsigs else SIG_FN[lb](close, r)
+
 
 # (标签, 基础键 or 变种信号函数, 风格, 一句话)
 STRATS = [
@@ -50,9 +81,10 @@ STRATS = [
     ("v1 KDJ+MA10", V["v1_kdj_ma10"].build_variant, "防守", "超卖金叉+站上MA10，破MA10走"),
     ("v2 MACD+KDJ", V["v2_macd_kdj"].build_variant, "波段", "零轴上+缩量回踩+KDJ金叉"),
     ("v3 MACD+BOLL", V["v3_macd_boll"].build_variant, "突破", "零轴上+布林开口突破（风控最优）"),
-    ("v4 黄金三角", V["v4_golden_triad"].build_variant, "反转", "布林近下轨+MACD金叉+KDJ超卖拐头"),
+    ("v4 BOLL_KDJ_MACD", V["v4_boll_kdj_macd"].build_variant, "反转", "布林近下轨+MACD金叉+KDJ超卖拐头"),
     ("v5 Regime切换", V["v5_regime_switch"].sig_regime, "混合", "趋势用v3/震荡用v4"),
     ("v6 打分制(≥5/≤2)", V["v6_score_wf"].build_score, "打分", "7项看多票数投票（此行为全样本；WF 样本外见 v6 报告）"),
+    (ROUTE_LABEL, None, "路由", "按风格：避险→买入持有 / 防御→BOLL / 中枢→MACD / 进攻→v3"),
 ]
 OOS_LABELS = set()
 
@@ -79,7 +111,10 @@ def main():
         bh, bh_eq = base.backtest_bh(close, dates, code)
         bsigs = base.build_signals(close, r)
         for lb, fn, _, _ in STRATS:
-            sig = bsigs[lb] if lb in bsigs else fn(close, r)
+            if lb == ROUTE_LABEL:
+                sig = _route_sig(code, close, r, bsigs)
+            else:
+                sig = bsigs[lb] if lb in bsigs else fn(close, r)
             m, eq, tr = base.backtest(close, sig, dates, code)
             results[lb].append({"code": code, "m": m, "bh": bh, "trades": tr})
             if code == "510300":
@@ -131,8 +166,10 @@ def main():
         "",
         "- **风险调整最优 = v3（MACD+BOLL 突破）**：全池回撤最小、利润因子最高，510300 上夏普最高。",
         "- **收益最高 = 基线 MACD**：中位年化与夏普居首，且 walk-forward 样本外仍最强。",
-        "- **v4 黄金三角**：收益靠前但回撤最大——抄底/接飞刀的固有风险。",
+        "- **v4 BOLL_KDJ_MACD**：收益靠前但回撤最大——抄底/接飞刀的固有风险。",
         "- **v5 Regime 切换未跑赢其组件**；**v6 打分制** 样本外仍为正收益但不敌 MACD。",
+        "- **v7 风格路由**：夏普 ≈ MACD，但回撤更小、利润因子更高（本质是「低暴露版 MACD」）；"
+        "其收益取决于风格→策略映射的稳定性。",
         "- **规律**：单指标里 MACD 最抗打；复杂共振（v1–v5）大多「用收益换回撤」或无效。",
         "",
         "> 口径：单笔=建/平仓收盘价收益（未计费用）；无风险利率 0。**模拟结果，非投资建议。**",

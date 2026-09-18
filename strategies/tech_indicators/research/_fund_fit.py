@@ -35,14 +35,14 @@ def _load(path, name):
 base = _load(os.path.join(_PARENT, "backtest.py"), "ff_base")
 V = {n: _load(os.path.join(_PARENT, n, "backtest.py"), "ff_" + n)
      for n in ["v1_kdj_ma10", "v2_macd_kdj", "v3_macd_boll",
-               "v4_golden_triad", "v5_regime_switch", "v6_score_wf"]}
+               "v4_boll_kdj_macd", "v5_regime_switch", "v6_score_wf"]}
 
 ITEMS = [
     ("MA", "MA"), ("VOL", "VOL"), ("MACD", "MACD"), ("KDJ", "KDJ"), ("BOLL", "BOLL"),
     ("v1 KDJ+MA10", V["v1_kdj_ma10"].build_variant),
     ("v2 MACD+KDJ", V["v2_macd_kdj"].build_variant),
     ("v3 MACD+BOLL", V["v3_macd_boll"].build_variant),
-    ("v4 黄金三角", V["v4_golden_triad"].build_variant),
+    ("v4 BOLL_KDJ_MACD", V["v4_boll_kdj_macd"].build_variant),
     ("v5 Regime切换", V["v5_regime_switch"].sig_regime),
     ("v6 打分制", V["v6_score_wf"].build_score),
 ]

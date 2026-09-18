@@ -1,4 +1,4 @@
-# 变种 4 · 黄金三角战法（BOLL + MACD + KDJ 三共振）
+# 变种 4 · BOLL_KDJ_MACD（布林 + KDJ + MACD 三共振）
 
 技术指标策略的**第四个变种**。用**布林带定空间、MACD 看趋势动能、KDJ 抓情绪时机**，三者共振以提高
 抄底 / 逃顶判断胜率。它是辅助判断工具，不是稳赚公式。
@@ -25,13 +25,13 @@
 ## 运行
 
 ```powershell
-python strategies/tech_indicators/v4_golden_triad/backtest.py
+python strategies/tech_indicators/v4_boll_kdj_macd/backtest.py
 ```
 
 ## 产物
 
-- `backtest/_v4_golden_triad_report.md` —— 变种 vs 基础策略 vs 买入持有
-- `backtest/_v4_golden_triad_results.jsonl` —— 逐基金明细
-- `backtest/_v4_golden_triad_510300.png` —— 代表标的净值对比图
+- `backtest/_v4_boll_kdj_macd_report.md` —— 变种 vs 基础策略 vs 买入持有
+- `backtest/_v4_boll_kdj_macd_results.jsonl` —— 逐基金明细
+- `backtest/_v4_boll_kdj_macd_510300.png` —— 代表标的净值对比图
 
 > 机械规则输出，**非投资建议**。

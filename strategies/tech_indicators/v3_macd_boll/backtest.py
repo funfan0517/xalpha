@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""技术指标策略 · 变种 3：MACD + 布林通道 波段 · 全池回测。
+"""技术指标策略 · 变种 3：MACD + 布林通道（自适应窗口）波段 · 全池回测。
 
 核心：用 MACD 过滤震荡、定多空；用布林找突破入场与转势离场；布林带平行时不做，
-只抓开口后的波段行情。
+只抓开口后的波段行情。**布林窗口随行情自适应**：趋势态用短窗、震荡态用长窗。
 
 - 入场：MACD 金叉且站上零轴（DIF>0 且 DIF>DEA）；
         布林三线开口放大（带宽 (上轨-下轨)/中轨 放大）且 K 线突破上轨（收上穿）。
@@ -10,7 +10,7 @@
 - 观望：布林带平行走平、K 线在通道内震荡 → 无突破即不进场（自然空仓）。
 
 未量化项：MACD 顶背离（主观信号）。
-参数：MACD(12,26,9)、BOLL(20,2)。
+参数：MACD(12,26,9)、BOLL 自适应窗口 20↔30（倍数 k=2）、ER(20) 阈值 0.40/0.30。
 
 本脚本**复用基线** ../../backtest.py 的引擎与 5 个基础策略（只读导入，不修改基线文件），
 额外加入本变种并与之对照；产物落在本目录 backtest/ 下。模拟结果，非投资建议。
@@ -45,24 +45,91 @@ WARMUP = base.WARMUP
 VARIANT = "MACD+BOLL"
 BUY_DESC = "DIF>0 且 DIF>DEA（零轴上金叉状态）且 布林带宽放大（开口）且 收盘上穿布林上轨（突破）"
 SELL_DESC = "DIF 下穿 DEA（死叉）或 收盘自上轨下穿布林中轨（转弱）"
+ADAPT_DESC = ("Kaufman 效率比 ER(20) ≥0.40 → 趋势态用窗口 20（窄通道、早抓突破）；"
+              "≤0.30 → 震荡态用窗口 30（宽通道、过滤假突破）；带滞回。倍数 k=2.0。")
+W_FAST, W_SLOW, K = 20, 30, 2.0
+ER_N, ER_HI, ER_LO = 20, 0.40, 0.30
+SEGMENTS = [("2015–2019", "2015-01-01", "2019-12-31"),
+            ("2020–2022", "2020-01-01", "2022-12-31"),
+            ("2023–2026", "2023-01-01", "2026-12-31")]
 
 
-def build_variant(close, r):
-    """MACD 定多空 + 布林开口突破买入; 死叉或下穿中轨卖出。"""
+def _bands(close, w, k=K):
+    """布林三轨 → (上轨, 中轨, 相对带宽 (上轨-下轨)/中轨)。"""
+    s = pd.Series(close, dtype="float64")
+    mid = s.rolling(w).mean()
+    sd = s.rolling(w).std()
+    upper = mid + k * sd
+    bw = (upper - (mid - k * sd)) / mid
+    return upper.to_numpy(), mid.to_numpy(), bw.to_numpy()
+
+
+def efficiency_ratio(close, n=ER_N):
+    """Kaufman 效率比 ER：|n 日净变动| / n 日路径总变动，衡量趋势性（0~1）。"""
+    s = pd.Series(close, dtype="float64")
+    return ((s - s.shift(n)).abs() / s.diff().abs().rolling(n).sum()).to_numpy()
+
+
+def build_variant(close, r, w_fast=W_FAST, w_slow=W_SLOW, k=K,
+                  er_n=ER_N, er_hi=ER_HI, er_lo=ER_LO):
+    """MACD 定多空 + 自适应布林窗口的开口突破买入; 死叉或下穿中轨卖出。
+
+    窗口按 ER 滞回切换：ER≥er_hi → 趋势态(短窗 w_fast)；ER≤er_lo → 震荡态(长窗 w_slow)。
+    """
     n = len(close)
     dif, dea = base._arr(r["DIF"]), base._arr(r["DEA"])
-    upper, mid, lower = base._arr(r["BOLL_UPPER"]), base._arr(r["BOLL_MID"]), base._arr(r["BOLL_LOWER"])
-    bw = (upper - lower) / mid  # 布林带宽(相对)
+    up_f, mid_f, bw_f = _bands(close, w_fast, k)
+    up_s, mid_s, bw_s = _bands(close, w_slow, k)
+    er = efficiency_ratio(close, er_n)
     sig = np.zeros(n, dtype=int)
     p = 0
+    fast = False   # 当前是否趋势态(短窗)
     for t in range(1, n):
-        need = (dif[t], dea[t], upper[t], mid[t], lower[t],
-                dif[t - 1], dea[t - 1], upper[t - 1], mid[t - 1], bw[t - 1])
+        if np.isnan(bw_f[t - 1]) or np.isnan(bw_s[t - 1]):
+            sig[t] = p
+            continue
+        if not np.isnan(er[t]):
+            if er[t] >= er_hi:
+                fast = True
+            elif er[t] <= er_lo:
+                fast = False
+        up = up_f if fast else up_s
+        mid = mid_f if fast else mid_s
+        bw = bw_f if fast else bw_s
+        upp, midp, bwp = ((up_f[t - 1], mid_f[t - 1], bw_f[t - 1]) if fast
+                          else (up_s[t - 1], mid_s[t - 1], bw_s[t - 1]))
+        need = (dif[t], dea[t], dif[t - 1], dea[t - 1], up[t], upp, midp, bwp)
         if any(np.isnan(x) for x in need):
             sig[t] = p
             continue
-        breakout = close[t] > upper[t] and close[t - 1] <= upper[t - 1]   # 上穿上轨
-        expand = bw[t] > bw[t - 1]                                        # 开口放大
+        breakout = close[t] > up[t] and close[t - 1] <= upp   # 上穿上轨
+        expand = bw[t] > bwp                                  # 开口放大
+        if p == 0:
+            if dif[t] > 0 and dif[t] > dea[t] and expand and breakout:
+                p = 1
+        else:
+            death = dif[t] < dea[t] and dif[t - 1] >= dea[t - 1]
+            mid_break = close[t] < mid[t] and close[t - 1] >= midp
+            if death or mid_break:
+                p = 0
+        sig[t] = p
+    return sig
+
+
+def sig_fixed(close, r, w=W_SLOW, k=K):
+    """固定布林窗口（对照用，禁用自适应）：窗口恒为 w。"""
+    n = len(close)
+    dif, dea = base._arr(r["DIF"]), base._arr(r["DEA"])
+    up, mid, bw = _bands(close, w, k)
+    sig = np.zeros(n, dtype=int)
+    p = 0
+    for t in range(1, n):
+        need = (dif[t], dea[t], dif[t - 1], dea[t - 1], up[t], up[t - 1], mid[t - 1], bw[t - 1])
+        if any(np.isnan(x) for x in need):
+            sig[t] = p
+            continue
+        breakout = close[t] > up[t] and close[t - 1] <= up[t - 1]
+        expand = bw[t] > bw[t - 1]
         if p == 0:
             if dif[t] > 0 and dif[t] > dea[t] and expand and breakout:
                 p = 1
@@ -79,6 +146,21 @@ def _row(label, a):
     return (f"| {label} | {base.pct(a['ann'])} | {base.pct(a['dd'])} | {a['sharpe']:.2f} | "
             f"{a['exposure']:.0%} | {a['beat_ret']:.0%} | {a['beat_dd']:.0%} | "
             f"{a['pooled']['n']} | {base.pct(a['pooled']['win_rate'])} |")
+
+
+def _seg_sharpe(eqs, d0, d1):
+    """eqs: code -> (equity, dates)；返回该期间内各基金夏普的中位数。"""
+    out = []
+    for eq, dates in eqs.values():
+        i0 = next((i for i, d in enumerate(dates) if d >= d0), None)
+        i1 = next((len(dates) - 1 - i for i, d in enumerate(reversed(dates)) if d <= d1), None)
+        if i0 is None or i1 is None or i1 <= i0:
+            continue
+        k0, k1 = max(0, i0 - WARMUP), min(i1 - WARMUP, len(eq) - 1)
+        if k1 <= k0:
+            continue
+        out.append(base._metrics([v / eq[k0] for v in eq[k0:k1 + 1]], [])["sharpe"])
+    return float(np.median(out)) if out else float("nan")
 
 
 def _plot(dates, curves, path):
@@ -99,7 +181,7 @@ def _plot(dates, curves, path):
         if kk in curves:
             ax.plot(x, curves[kk], label=("买入持有" if kk == "BH" else kk),
                     color=colors.get(kk), linewidth=1.4)
-    ax.set_title("510300 沪深300ETF · MACD+BOLL 变种 vs 基础策略 vs 买入持有（净值, 起=1）")
+    ax.set_title("510300 沪深300ETF · MACD+BOLL（自适应窗口）vs 基础策略 vs 买入持有（净值, 起=1）")
     ax.set_ylabel("净值")
     ax.grid(alpha=0.3)
     ax.legend()
@@ -113,6 +195,7 @@ def main():
     ind, lk = base.load()
     var_rows = []
     baserows = {s: [] for s in base.STRAT}
+    eqs_adapt, eqs20, eqs30 = {}, {}, {}   # 供分段稳健性对照
     curves, dates_510300 = {}, None
 
     for code, r in ind.items():
@@ -124,6 +207,9 @@ def main():
 
         m, eq, trades = base.backtest(close, build_variant(close, r), dates, code)
         var_rows.append({"code": code, "m": m, "bh": bh, "trades": trades})
+        eqs_adapt[code] = (eq, dates)
+        eqs20[code] = (base.backtest(close, sig_fixed(close, r, w=W_FAST), dates, code)[1], dates)
+        eqs30[code] = (base.backtest(close, sig_fixed(close, r, w=W_SLOW), dates, code)[1], dates)
 
         sigs = base.build_signals(close, r)
         base_curves = {}
@@ -164,7 +250,7 @@ def main():
     c_bh_sh = np.median([x["bh"]["sharpe"] for x in cohort])
 
     L = [
-        "# 技术指标策略 · 变种 3：MACD + 布林通道 波段 · 全池回测",
+        "# 技术指标策略 · 变种 3：MACD + 布林通道（自适应窗口）波段 · 全池回测",
         "> 55 只场内 ETF · 各自全历史（第 61 个交易日起）· 多头/空仓 0-1 · "
         "信号当日收盘成交 · 未计佣金滑点 · 无风险利率 0",
         "",
@@ -173,6 +259,7 @@ def main():
         f"- **入场**：{BUY_DESC}",
         f"- **离场**：{SELL_DESC}",
         "- **观望**：布林带平行走平、K 线在通道内震荡 → 无突破即不进场（自然空仓）。",
+        f"- **窗口自适应**：{ADAPT_DESC}",
         "",
         "> 说明：MACD 顶背离为主观信号，未纳入量化。",
         "",
@@ -197,6 +284,13 @@ def main():
     for s in base.STRAT:
         L.append(_row(s, a_cbase[s]))
     L.append(f"| 买入持有(基准) | {base.pct(c_bh_ann)} | {base.pct(c_bh_dd)} | {c_bh_sh:.2f} | 100% | — | — | 1 | — |")
+
+    L += ["", "## 自适应窗口 vs 固定窗口（分段中位夏普）", "",
+          "| 期间 | 自适应(20↔30) | 固定 w20 | 固定 w30 |",
+          "|---|---|---|---|"]
+    for name, d0, d1 in SEGMENTS:
+        L.append(f"| {name} | {_seg_sharpe(eqs_adapt, d0, d1):.2f} | "
+                 f"{_seg_sharpe(eqs20, d0, d1):.2f} | {_seg_sharpe(eqs30, d0, d1):.2f} |")
 
     L += ["", "## 代表标的：510300 沪深300ETF（2015-01-05 起）", "",
           "| 口径 | 年化 | 最大回撤 | 夏普 | 总收益 | 卡玛比率 | 交易 | 胜率 | 盈亏比 |",

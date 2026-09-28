@@ -20,13 +20,23 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _PARENT = os.path.dirname(_HERE)                    # strategies/tech_indicators
 _ROOT = os.path.dirname(os.path.dirname(_PARENT))   # 仓库根
 
-_spec = importlib.util.spec_from_file_location("ti_base", os.path.join(_PARENT, "backtest.py"))
-base = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(base)
+def _load_module(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+base = _load_module(os.path.join(_PARENT, "backtest.py"), "ti_base")
+v6 = _load_module(os.path.join(_PARENT, "v6_score_wf", "backtest.py"), "ti_v6")
 
 OUTDIR = _HERE
 COHORT_2015 = base.COHORT_2015
 WARMUP = base.WARMUP
+
+# 打分制统一复用 v6 的 4 票实现（单一事实来源），阈值取 v6 网格最优
+SCORE_E, SCORE_X = v6.DEFAULT_PARAM
+SCORE_BEST = f"打分制(≥{SCORE_E}/≤{SCORE_X} 网格最优)"
 
 
 # ------------------------------- 候选信号 ------------------------------- #
@@ -88,31 +98,19 @@ def build_v4(close, r, buy_pos=0.20, sell_pos=0.80, kwin=10, res=10, stop=None):
     return sig
 
 
-def build_score(close, r, enter=5, exit_th=2, stop=None):
-    """多指标打分制: 7 项看多票数 >= enter 进场, <= exit_th 离场(滞回)。可选固定止损。"""
+def with_stop(sig, close, stop):
+    """在给定信号上叠加固定止损（收盘跌破 entry×(1-stop) 即离场，信号再度转多才重进）。"""
     n = len(close)
-    ma20, ma60 = base._arr(r["MA20"]), base._arr(r["MA60"])
-    dif, dea = base._arr(r["DIF"]), base._arr(r["DEA"])
-    k, d = base._arr(r["K"]), base._arr(r["D"])
-    mid = base._arr(r["BOLL_MID"])
-    vol = base._arr(r["volume"])
-    vol_ma5 = pd.Series(vol).rolling(5).mean().to_numpy()
-    prev = np.concatenate([[np.nan], close[:-1]])
-    sig = np.zeros(n, dtype=int)
+    out = np.zeros(n, dtype=int)
     p, entry = 0, None
-    for t in range(1, n):
-        if any(np.isnan(x) for x in (ma20[t], ma60[t], dif[t], dea[t], k[t], d[t], mid[t], vol_ma5[t])):
-            sig[t] = p
-            continue
-        score = (int(close[t] > ma20[t]) + int(close[t] > ma60[t]) + int(dif[t] > dea[t])
-                 + int(dif[t] > 0) + int(k[t] > d[t]) + int(close[t] > mid[t])
-                 + int(vol[t] > vol_ma5[t] and close[t] > prev[t]))
-        if p == 0 and score >= enter:
-            p, entry = 1, close[t]
-        elif p == 1 and (score <= exit_th or (stop is not None and close[t] < entry * (1 - stop))):
+    for t in range(n):
+        if p == 0:
+            if sig[t] == 1:
+                p, entry = 1, close[t]
+        elif sig[t] == 0 or close[t] < entry * (1 - stop):
             p, entry = 0, None
-        sig[t] = p
-    return sig
+        out[t] = p
+    return out
 
 
 def build_union(close, r):
@@ -128,10 +126,10 @@ CAND = {
     "v4抄底(参考)": lambda c, r: build_v4(c, r),
     "v4+止损8%": lambda c, r: build_v4(c, r, stop=0.08),
     "v3∪v4(并集)": lambda c, r: build_union(c, r),
-    "打分制(≥5/≤2)": lambda c, r: build_score(c, r, 5, 2),
-    "打分制(≥6/≤3)": lambda c, r: build_score(c, r, 6, 3),
-    "打分制(≥4/≤1)": lambda c, r: build_score(c, r, 4, 1),
-    "打分制(≥5)+止损8%": lambda c, r: build_score(c, r, 5, 2, 0.08),
+    "打分制(≥2/≤1)": lambda c, r: v6.build_score(c, r, 2, 1),
+    "打分制(≥3/≤1)": lambda c, r: v6.build_score(c, r, 3, 1),
+    SCORE_BEST: lambda c, r: v6.build_score(c, r),
+    "打分制+止损8%": lambda c, r: with_stop(v6.build_score(c, r), c, 0.08),
 }
 
 
@@ -205,7 +203,8 @@ def main():
                  f"{base.pct(m['total'])} | {m['n']} | {base.pct(m['win_rate'])} | {m['payoff']:.2f} |")
 
     L += ["", "> 口径：止损=收盘跌破 entry×(1-SL) 离场；MA60 过滤=仅在价>MA60 时开仓；"
-              "打分制=7 项看多票数（价>MA20/>MA60、DIF>DEA、DIF>0、K>D、价>中轨、放量上涨）。"
+              "打分制=4 项看多票数（价>MA20且>MA60、DIF>DEA且DIF>0、K>D、放量上涨），"
+              f"实现复用 v6_score_wf，阈值取其网格最优 {SCORE_E}/{SCORE_X}。"
               "**模拟结果，非投资建议。**"]
 
     with open(os.path.join(OUTDIR, "_variant_explore_report.md"), "w", encoding="utf-8") as f:
@@ -227,7 +226,7 @@ def _plot(dates, curves, path):
     plt.rcParams["axes.unicode_minus"] = False
     x = pd.to_datetime(dates)
     fig, ax = plt.subplots(figsize=(12, 6))
-    for name in ["买入持有", "基线MACD", "v3突破(参考)", "打分制(≥5/≤2)", "v3∪v4(并集)"]:
+    for name in ["买入持有", "基线MACD", "v3突破(参考)", SCORE_BEST, "v3∪v4(并集)"]:
         if name in curves:
             ax.plot(x, curves[name], label=name, linewidth=1.5)
     ax.set_title("510300 沪深300ETF · 变体探索（净值, 起=1）")

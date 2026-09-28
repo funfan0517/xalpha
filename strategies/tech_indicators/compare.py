@@ -56,11 +56,13 @@ def _load_style():
 
 _STYLE = _load_style()
 ROUTE_LABEL = "v7 风格路由"
+_V6_E, _V6_X = V["v6_score_wf"].DEFAULT_PARAM          # v6 采用阈值（4 票制的网格最优）
+V6_LABEL = f"v6 打分制(≥{_V6_E}/≤{_V6_X})"
 ROUTE = {"避险": "买入持有", "防御": "BOLL", "中枢": "MACD", "进攻": "v3 MACD+BOLL", "其他": "MACD"}
 SIG_FN = {
     "v1 KDJ+MA10": V["v1_kdj_ma10"].build_variant, "v2 MACD+KDJ": V["v2_macd_kdj"].build_variant,
     "v3 MACD+BOLL": V["v3_macd_boll"].build_variant, "v4 BOLL_KDJ_MACD": V["v4_boll_kdj_macd"].build_variant,
-    "v5 Regime切换": V["v5_regime_switch"].sig_regime, "v6 打分制(≥5/≤2)": V["v6_score_wf"].build_score,
+    "v5 Regime切换": V["v5_regime_switch"].sig_regime, V6_LABEL: V["v6_score_wf"].build_score,
     "买入持有": lambda c, r: np.ones(len(c), dtype=int),
 }
 
@@ -83,7 +85,8 @@ STRATS = [
     ("v3 MACD+BOLL", V["v3_macd_boll"].build_variant, "突破", "零轴上+布林开口突破，窗口 20↔30 自适应（风控最优）"),
     ("v4 BOLL_KDJ_MACD", V["v4_boll_kdj_macd"].build_variant, "反转", "布林近下轨+MACD金叉+KDJ超卖拐头"),
     ("v5 Regime切换", V["v5_regime_switch"].sig_regime, "混合", "趋势用v3/震荡用v4"),
-    ("v6 打分制(≥5/≤2)", V["v6_score_wf"].build_score, "打分", "7项看多票数投票（此行为全样本；WF 样本外见 v6 报告）"),
+    (V6_LABEL, V["v6_score_wf"].build_score, "打分",
+     f"4项看多票数投票，阈值 {_V6_E}/{_V6_X} 由网格取最优（此行为全样本；WF 样本外见 v6 报告）"),
     (ROUTE_LABEL, None, "路由", "按风格：避险→买入持有 / 防御→BOLL / 中枢→MACD / 进攻→v3"),
 ]
 OOS_LABELS = set()
@@ -164,15 +167,17 @@ def main():
         "",
         "## 结论",
         "",
-        "- **风险调整最优 = v3 MACD+BOLL（自适应窗口）**：全池回撤最小、利润因子最高；510300 上夏普 0.60 居首。",
-        "- **收益最高 = 基线 MACD**：中位年化与夏普居首，且 walk-forward 样本外仍最强。",
+        "- **全池利润因子最高 = v3 MACD+BOLL（自适应窗口）**：1.88，回撤次小；510300 上年化 +5.23%、夏普 0.60。",
+        "- **全池回撤最小 = v6 打分制(≥4/≤2)**：-14.90%、曝光仅 9%；510300 上夏普 0.73、卡玛 0.65 双双居首"
+        "——典型「以收益换回撤」，样本外收益仍为正但绝对值偏低（见 v6 报告）。",
+        "- **收益最高 = 基线 MACD**：中位年化与夏普居前，且 walk-forward 样本外仍最强。",
         "- **v4 BOLL_KDJ_MACD**：收益靠前但回撤最大——抄底/接飞刀的固有风险。",
-        "- **v5 Regime 切换未跑赢其组件**；**v6 打分制** 样本外仍为正收益但不敌 MACD。",
+        "- **v5 Regime 切换未跑赢其组件**。",
         "- **v7 风格路由**：夏普 ≈ MACD，但回撤更小、利润因子更高（本质是「低暴露版 MACD」）；"
         "其收益取决于风格→策略映射的稳定性。",
         "- **v3（自适应窗口）**：布林窗口随 ER 在 20↔30 间切换，比固定窗口跨行情更稳（2020–2022 改善明显）——"
         "在保留突破逻辑的同时降低对单一行情参数的依赖。",
-        "- **规律**：单指标里 MACD 最抗打；复杂共振（v1–v5）大多「用收益换回撤」或无效。",
+        "- **规律**：单指标里 MACD 最抗打；复杂共振（v1–v6）大多「用收益换回撤」或无效。",
         "",
         "> 口径：单笔=建/平仓收盘价收益（未计费用）；无风险利率 0。**模拟结果，非投资建议。**",
     ]

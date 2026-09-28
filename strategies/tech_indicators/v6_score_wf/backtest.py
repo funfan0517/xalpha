@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """技术指标策略 · 变种 6：打分制 · Walk-Forward 样本外验证 · 全池回测。
 
-打分制（多指标共振）：5 项看多票数（①价>MA20 且 价>MA60、②DIF>DEA 且 DIF>0、③K>D、
-④价触及/跌破 BOLL 下轨、⑤放量上涨），默认 >= 3 票进场、<= 2 票离场（滞回）。
+打分制（多指标共振）：4 项看多票数（①价>MA20 且 价>MA60、②DIF>DEA 且 DIF>0、③K>D、④放量上涨），
+>= enter 票进场、<= exit 票离场（滞回）；进出阈值不写死，由参数网格搜索取最优。
 为检验其全样本高收益是否过拟合，做锚定式滚动 Walk-Forward：
 
-- 参数网格：enter∈{3,4,5} × exit∈{1,2,3}（仅取 exit < enter，8 组）。
+- 参数网格：enter∈{2,3,4} × exit∈{1,2,3}（仅取 exit < enter，6 组）。
 - 测试年 2019..2026；训练窗口 = 该测试年之前的全部历史（锚定式扩张）。
 - 选择指标 = 全池「中位夏普」（仅用训练期数据），取最优参数固定用于紧接的测试年。
 - 把逐年测试结果拼成连续样本外（OOS）净值，与「全样本最优固定参数」「基线 MACD」「买入持有」对照。
@@ -40,13 +40,14 @@ COHORT_2015 = base.COHORT_2015
 WARMUP = base.WARMUP
 
 VARIANT = "打分制(WF)"
-DEFAULT_PARAM = (3, 2)                                              # 默认：>=3 票买、<=2 票卖
-PARAMS = [(e, x) for e in (3, 4, 5) for x in (1, 2, 3) if x < e]     # (enter, exit_th) 8 组
+DEFAULT_PARAM = (4, 2)                                       # 采用参数＝下列网格的「中位夏普」最优组
+GRID_ENTER = (2, 3, 4)
+GRID_EXIT = (1, 2, 3)
+PARAMS = [(e, x) for e in GRID_ENTER for x in GRID_EXIT if x < e]    # (enter, exit_th) 6 组
 TEST_YEARS = list(range(2019, 2027))
 OOS_START = "2019-01-01"
-TOUCH_TOL = 0.01    # 「触及」下轨的容差：close <= BOLL_LOWER * (1 + 1%)
-DESC = ("5 项看多票数(①价>MA20且价>MA60 ②DIF>DEA且DIF>0 ③K>D ④价触及/跌破BOLL下轨(1%容差) "
-        "⑤放量上涨(价涨且量>5日均量))：>= enter 买、<= exit 卖(滞回)")
+DESC = ("4 项看多票数(①价>MA20且价>MA60 ②DIF>DEA且DIF>0 ③K>D ④放量上涨(价涨且量>5日均量))："
+        ">= enter 买、<= exit 卖(滞回)")
 
 
 def build_score(close, r, enter=DEFAULT_PARAM[0], exit_th=DEFAULT_PARAM[1]):
@@ -54,7 +55,6 @@ def build_score(close, r, enter=DEFAULT_PARAM[0], exit_th=DEFAULT_PARAM[1]):
     ma20, ma60 = base._arr(r["MA20"]), base._arr(r["MA60"])
     dif, dea = base._arr(r["DIF"]), base._arr(r["DEA"])
     k, d = base._arr(r["K"]), base._arr(r["D"])
-    low = base._arr(r["BOLL_LOWER"])
     vol = base._arr(r["volume"])
     vol_ma5 = pd.Series(vol).rolling(5).mean().to_numpy()
     prev = np.concatenate([[np.nan], close[:-1]])
@@ -62,14 +62,13 @@ def build_score(close, r, enter=DEFAULT_PARAM[0], exit_th=DEFAULT_PARAM[1]):
     p = 0
     for t in range(1, n):
         if any(np.isnan(x) for x in (ma20[t], ma60[t], dif[t], dea[t], k[t], d[t],
-                                     low[t], vol_ma5[t], prev[t])):
+                                     vol_ma5[t], prev[t])):
             sig[t] = p
             continue
         score = (int(close[t] > ma20[t] and close[t] > ma60[t])          # ① 双均线之上
                  + int(dif[t] > dea[t] and dif[t] > 0)                   # ② MACD 多头且零轴上方
                  + int(k[t] > d[t])                                      # ③ KDJ 金叉状态
-                 + int(close[t] <= low[t] * (1 + TOUCH_TOL))             # ④ 触及/跌破 BOLL 下轨
-                 + int(close[t] > prev[t] and vol[t] > vol_ma5[t]))      # ⑤ 放量上涨
+                 + int(close[t] > prev[t] and vol[t] > vol_ma5[t]))      # ④ 放量上涨
         if p == 0 and score >= enter:
             p = 1
         elif p == 1 and score <= exit_th:
@@ -100,7 +99,7 @@ def _row(label, a):
             f"{a['pooled']['n']} | {a['pooled']['profit_factor']:.2f} |")
 
 
-def _plot(dates, curves, path):
+def _plot(dates, curves, path, fixed_label):
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -112,13 +111,11 @@ def _plot(dates, curves, path):
     plt.rcParams["axes.unicode_minus"] = False
     x = pd.to_datetime(dates)
     fig, ax = plt.subplots(figsize=(12, 6))
-    colors = {"买入持有": "#888", "打分制(WF)": "#111", "固定参数(全样本最优)": "#0a7",
-              "基线MACD": "#2a2", f"默认参数{DEFAULT_PARAM[0]}/{DEFAULT_PARAM[1]}": "#36c"}
-    for kk in ["买入持有", "基线MACD", f"默认参数{DEFAULT_PARAM[0]}/{DEFAULT_PARAM[1]}",
-               "固定参数(全样本最优)", "打分制(WF)"]:
+    colors = {"买入持有": "#888", "打分制(WF)": "#111", fixed_label: "#0a7", "基线MACD": "#2a2"}
+    for kk in ["买入持有", "基线MACD", fixed_label, "打分制(WF)"]:
         if kk in curves:
             ax.plot(x, curves[kk], label=kk, color=colors.get(kk), linewidth=1.5)
-    ax.set_title("510300 沪深300ETF · 打分制 Walk-Forward vs 固定参数 vs 买入持有（OOS 2019 起, 净值=1）")
+    ax.set_title("510300 沪深300ETF · 打分制 Walk-Forward vs 网格最优固定参数 vs 买入持有（OOS 2019 起, 净值=1）")
     ax.set_ylabel("净值")
     ax.grid(alpha=0.3)
     ax.legend()
@@ -160,14 +157,23 @@ def main():
         chosen[y] = best
         fold_rows.append((y, best, med[best]))
 
-    # 全样本最优参数（参考，含训练期，乐观口径）
-    full_med = {}
+    # 参数网格全样本表现（含训练期，乐观口径）——「取最优」的依据
+    grid_stats = []
     for pr in PARAMS:
-        full_med[pr] = float(np.median([base._metrics(st["eqs"][pr], [])["sharpe"] for st in store.values()]))
-    best_param = max(PARAMS, key=lambda pr: full_med[pr])
+        ms = [base._metrics(st["eqs"][pr], []) for st in store.values()]
+        expo = float(np.median([float(np.mean(st["sigs"][pr][WARMUP:])) for st in store.values()]))
+        grid_stats.append((pr,
+                           float(np.median([m["ann"] for m in ms])),
+                           float(np.median([m["dd"] for m in ms])),
+                           float(np.median([m["sharpe"] for m in ms])),
+                           expo))
+    best_param = max(grid_stats, key=lambda r: r[3])[0]     # 中位夏普最优
+    fixed_label = f"固定参数{best_param[0]}/{best_param[1]}(全样本最优)"
+    if DEFAULT_PARAM != best_param:
+        print(f"[提示] 网格最优 {best_param} 与 DEFAULT_PARAM {DEFAULT_PARAM} 不一致，建议同步。")
 
     # 样本外（OOS）拼接
-    wf_rows, fixed_rows, macd_rows, def_rows = [], [], [], []
+    wf_rows, fixed_rows, macd_rows = [], [], []
     curves, dates_510300 = {}, None
     for code, st in store.items():
         close, dates = st["close"], st["dates"]
@@ -186,14 +192,10 @@ def main():
         mf, eqf, trf = base.backtest(close, st["sigs"][best_param], dates, code, s=oos0)
         fixed_rows.append({"code": code, "m": mf, "bh": bh, "trades": trf})
 
-        md_, eqd, trd = base.backtest(close, st["sigs"][DEFAULT_PARAM], dates, code, s=oos0)
-        def_rows.append({"code": code, "m": md_, "bh": bh, "trades": trd})
-
         if code == "510300":
             dates_510300 = dates[oos0:]
             curves["打分制(WF)"] = eq
-            curves["固定参数(全样本最优)"] = eqf
-            curves[f"默认参数{DEFAULT_PARAM[0]}/{DEFAULT_PARAM[1]}"] = eqd
+            curves[fixed_label] = eqf
             curves["买入持有"] = bh_eq
 
     # 基线 MACD 在 OOS 上的对照（需要用原始指标重建信号）
@@ -224,11 +226,9 @@ def main():
             }, ensure_ascii=False) + "\n")
 
     a_wf, a_fx, a_macd = base._agg(wf_rows), base._agg(fixed_rows), base._agg(macd_rows)
-    a_def = base._agg(def_rows)
     longset = {c for c in store if store[c]["dates"][0] <= COHORT_2015}
     c_wf = base._agg([x for x in wf_rows if x["code"] in longset])
     c_fx = base._agg([x for x in fixed_rows if x["code"] in longset])
-    c_def = base._agg([x for x in def_rows if x["code"] in longset])
     bh_ann = np.median([x["bh"]["ann"] for x in wf_rows])
     bh_dd = np.median([x["bh"]["dd"] for x in wf_rows])
     bh_sh = np.median([x["bh"]["sharpe"] for x in wf_rows])
@@ -240,10 +240,21 @@ def main():
         "## 策略与验证方法",
         "",
         f"- **打分制**：{DESC}。",
-        f"- **默认参数**：enter={DEFAULT_PARAM[0]} / exit={DEFAULT_PARAM[1]}（≥{DEFAULT_PARAM[0]} 票买入、≤{DEFAULT_PARAM[1]} 票卖出）。",
-        f"- **参数网格**：enter∈{{3,4,5}} × exit∈{{1,2,3}}（仅取 exit < enter，{len(PARAMS)} 组）。",
+        f"- **参数网格**：enter∈{{2,3,4}} × exit∈{{1,2,3}}（仅取 exit < enter，{len(PARAMS)} 组）；"
+        f"**取中位夏普最优组 enter={best_param[0]} / exit={best_param[1]}** 作为采用参数。",
         f"- **锚定式滚动**：测试年 {TEST_YEARS[0]}..{TEST_YEARS[-1]}，训练=该年之前全部历史；选择指标=全池中位夏普（仅用训练期）。",
         "- **样本外拼接**：逐年用训练期选出、其后固定不变的参数，拼成连续 OOS 净值。",
+        "",
+        "## 参数网格（全样本 · 中位数 · 用于取最优）",
+        "",
+        "| enter / exit | 中位年化 | 中位最大回撤 | 中位夏普 | 中位曝光 |",
+        "|---|---|---|---|---|",
+    ]
+    for pr, ann, dd, sh, expo in sorted(grid_stats, key=lambda r: r[0]):
+        mark = " ★" if pr == best_param else ""
+        L.append(f"| {pr[0]} / {pr[1]}{mark} | {base.pct(ann)} | {base.pct(dd)} | {sh:.2f} | {expo:.0%} |")
+
+    L += [
         "",
         "## 逐年参数选择",
         "",
@@ -260,8 +271,7 @@ def main():
         "| 口径 | 中位年化 | 中位最大回撤 | 中位夏普 | 中位曝光 | 跑赢买入持有 | 回撤更小 | 交易 | 利润因子 |",
         "|---|---|---|---|---|---|---|---|---|",
         _row(f"**{VARIANT}（样本外）**", a_wf),
-        _row(f"默认参数 {DEFAULT_PARAM[0]}/{DEFAULT_PARAM[1]}（OOS）", a_def),
-        _row(f"固定参数 {best_param[0]}/{best_param[1]}（全样本最优, OOS）", a_fx),
+        _row(f"网格最优参数 {best_param[0]}/{best_param[1]}（OOS）", a_fx),
         _row("基线MACD（OOS）", a_macd),
         f"| 买入持有（OOS） | {base.pct(bh_ann)} | {base.pct(bh_dd)} | {bh_sh:.2f} | 100% | — | — | 1 | — |",
         "",
@@ -270,8 +280,7 @@ def main():
         "| 口径 | 中位年化 | 中位最大回撤 | 中位夏普 | 中位曝光 | 跑赢买入持有 | 回撤更小 | 交易 | 利润因子 |",
         "|---|---|---|---|---|---|---|---|---|",
         _row(f"**{VARIANT}（样本外）**", c_wf),
-        _row(f"默认参数 {DEFAULT_PARAM[0]}/{DEFAULT_PARAM[1]}（OOS）", c_def),
-        _row(f"固定参数 {best_param[0]}/{best_param[1]}（OOS）", c_fx),
+        _row(f"网格最优参数 {best_param[0]}/{best_param[1]}（OOS）", c_fx),
     ]
 
     L += ["", "## 代表标的：510300 沪深300ETF（OOS 2019 起）", "",
@@ -280,12 +289,10 @@ def main():
     m510 = {x["code"]: x for x in wf_rows}["510300"]
     mf510 = {x["code"]: x for x in fixed_rows}["510300"]
     mm510 = {x["code"]: x for x in macd_rows}["510300"]
-    md510 = {x["code"]: x for x in def_rows}["510300"]
     L.append(f"| 买入持有 | {base.pct(m510['bh']['ann'])} | {base.pct(m510['bh']['dd'])} | {m510['bh']['sharpe']:.2f} | "
              f"{base.pct(m510['bh']['total'])} | {m510['bh']['calmar']:.2f} | 1 | — | — |")
     for lab, m in (("打分制(WF)", m510["m"]),
-                   (f"默认{DEFAULT_PARAM[0]}/{DEFAULT_PARAM[1]}", md510["m"]),
-                   (f"固定{best_param[0]}/{best_param[1]}", mf510["m"]),
+                   (f"网格最优{best_param[0]}/{best_param[1]}", mf510["m"]),
                    ("基线MACD", mm510["m"])):
         L.append(f"| {lab} | {base.pct(m['ann'])} | {base.pct(m['dd'])} | {m['sharpe']:.2f} | "
                  f"{base.pct(m['total'])} | {m['calmar']:.2f} | {m['n']} | {base.pct(m['win_rate'])} | {m['payoff']:.2f} |")
@@ -296,7 +303,7 @@ def main():
 
     with open(os.path.join(OUTDIR, "_v6_score_wf_report.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(L))
-    _plot(dates_510300, curves, os.path.join(OUTDIR, "_v6_score_wf_510300.png"))
+    _plot(dates_510300, curves, os.path.join(OUTDIR, "_v6_score_wf_510300.png"), fixed_label)
     print("报告:", os.path.join(OUTDIR, "_v6_score_wf_report.md"))
     print("全样本最优参数:", best_param)
 

@@ -2,8 +2,10 @@
 
 把「公共标的池 → 规则化 → 回测报告 → 适配名单 → 每日操作」固化为五阶段标准流程。
 当前已注册策略：`lights`（亮灯策略·共振策略重构版·全参数化）、
-`momentum_rotation`（全球相对动量轮动）、`ema_cross`（双均线趋势 EMA12/26·金叉死叉）；
-`core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select）。
+`momentum_rotation`（全球相对动量轮动）、`ema_cross`（双均线趋势 EMA12/26·金叉死叉）、
+`core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select）、
+`dividend`（多标的红利基金打分）、`growth_div_rotation`（成长/红利二元轮动）、
+`tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）。
 `lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层/轮动**策略参照 `momentum_rotation`。
 
 > `lights` 是**参数化策略**：所有行为差异由 `strategies/lights/rule.py::ACTIVE` 表达，
@@ -64,9 +66,29 @@ python pipeline/run_flow.py daily                       # 阶段5 当日信号(�
 
 ## 3. 每日运维
 
-- 自动：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
-- 手动：双击 `run_daily_4d.bat`，或 `python pipeline/run_flow.py daily`。
-- 信号只覆盖 A 类 8 只（`588000/515230/512200/562500/512980/512000/513180/161725`），A 类之外不做信号推送。
+**一键跑全部策略**（所有大策略的每日操作放在一起，推荐）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run_daily_all.ps1
+powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_indicators   # 只跑指定策略
+```
+
+`run_daily_all.ps1` 读取本 json 中所有已注册策略的 `daily.runner`，按注册顺序依次执行，**单策略失败不中断**，最后汇总成功/失败/跳过。也可逐个走 pipeline：`python pipeline/run_flow.py daily --strategy <name>`（会做前置闸门检查：非 `rotation`/`full_pool` 模式必须先有分级名单）。
+
+| 策略 | 每日 runner | 产物（`daily.signal_report`） |
+|---|---|---|
+| lights | `run_daily_lights.ps1` | `strategies/lights/daily/_signal_report.md` |
+| momentum_rotation | `run_daily_momentum_rotation.ps1` | `strategies/momentum_rotation/daily/_signal_report.md` |
+| ema_cross | `run_daily_ema_cross.ps1` | `strategies/ema_cross/daily/_signal_report.md` |
+| core_rotation | `run_daily_core_rotation.ps1` | `strategies/core_rotation/daily/_daily_report.md` |
+| dividend | `run_daily_dividend.ps1` | `strategies/dividend/daily/_dividend_rank.md` |
+| growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
+| tech_indicators | `run_daily_tech_indicators.ps1` | `strategies/tech_indicators/daily/_daily_recommend.md` |
+
+- 每个策略的 runner 都先刷新行情再出信号；缺少数据的标的会在产物里显式标注（陈旧 / 刷新失败 / 盘中未收盘 bar）。
+- **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
+- lights 信号只覆盖 A 类 8 只（`588000/515230/512200/562500/512980/512000/513180/161725`），A 类之外不做信号推送；**tech_indicators 例外**：它是 `full_pool` 模式，四个策略对全池 55 只全部出信号，不做 A/B 分级。
+- 新增 runner 时：在 `pipeline/strategies.json` 的 `daily.runner` 填 `.ps1` 文件名（放仓库根，脚本内用 `$PSScriptRoot` 定位，勿写死盘符），`run_daily_all.ps1` 会自动带上它。
 
 ## 4. 分级口径（select 判定，样本 ≥ 3 年）
 
@@ -98,10 +120,11 @@ python pipeline/run_flow.py scaffold --name <strategy_name>
 
 说明：规则实现默认放 `strategies/<name>/`。`lights` 的演进：共振策略于 2026-09-10 重构为**单一参数化实现**（`strategies/lights/`），参数集中在 `rule.py::ACTIVE`，此处不再保留多份实现。
 
-> **两类策略的流程差异**（重要）：
+> **三类策略的流程差异**（重要）：
 >
-> - **逐标的型**（`lights`、`ema_cross`）：每只标的一次独立回测 → `flow_select.py` 按 A/B/不适合分级 → `daily` 只推 A 名单。走 `run_flow backtest/select`。
-> - **组合层/轮动型**（`momentum_rotation`、`core_rotation`）：回测是**整个组合的净值**（横截面选标的 + 权重分配 + 调仓），逐标的 A/B 分级不适用。**直接运行 `strategies/<name>/backtest.py`**，不走 `run_flow backtest/select`。
+> - **逐标的型**（`lights`、`ema_cross`、`dividend`）：每只标的一次独立回测 → `flow_select.py` 按 A/B/不适合分级 → `daily` 只推 A 名单。走 `run_flow backtest/select`。`daily` 闸门要求存在分级名单。
+> - **组合层/轮动型**（`momentum_rotation`、`core_rotation`、`growth_div_rotation`，`pipeline_mode = "rotation"`）：回测是**整个组合的净值**（横截面选标的 + 权重分配 + 调仓），逐标的 A/B 分级不适用。**直接运行 `strategies/<name>/backtest.py`**，不走 `run_flow backtest/select`；`daily` 闸门按 `rotation` 跳过。
+> - **全池固定策略集型**（`tech_indicators`，`pipeline_mode = "full_pool"`）：回测是**一次跑完全池 × 全家族**（`strategies/tech_indicators/compare.py`，不接受 `--codes` 分批），每日对全池每只标的都出信号、不逐码筛选标的（阈值只由回测网格取优）。`daily` 闸门按 `full_pool` 跳过。
 
 ## 6. 已知边界与同步点
 

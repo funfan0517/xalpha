@@ -141,8 +141,10 @@ def cmd_select(args):
 
 def cmd_daily(args):
     st = strategy(args.strategy)
-    # 轮动/组合层策略不走逐码 select, 无分级名单 -> 跳过闸门(见 pipeline/README.md §5)
-    if st.get("pipeline_mode") != "rotation":
+    # 不走逐码 select 的模式无分级名单 -> 跳过闸门(见 pipeline/README.md §5):
+    #   rotation  = 轮动/组合层(整个组合净值, 无逐码名单)
+    #   full_pool = 全池固定策略集(对全池每只都出信号, 不做 A/B 筛选)
+    if st.get("pipeline_mode") not in ("rotation", "full_pool"):
         act = os.path.join(ROOT, st["select"]["out_active_json"])
         if not os.path.exists(act):
             sys.exit("缺少分级名单，请先: python pipeline/run_flow.py select")

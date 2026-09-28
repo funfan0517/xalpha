@@ -382,6 +382,56 @@
       },
       "note": "2026-09-12 落地: 风格比值 R 的缓冲带 + 250日分位双信号二元轮动; 回测与每日信号共用本地指数缓存(无前视); 参数权威源 rule.py。整策略经 flow_select 作单标的评级(GD_ROT), select 产物即策略认证档。",
       "pipeline_mode": "rotation"
+    },
+    "tech_indicators": {
+      "name": "技术指标（大策略家族 · 每日固定四策略 MACD/V3/V6/V7）",
+      "source_methodology": "strategies/tech_indicators/README.md（基线五指标 + v1~v7 变种；每日操作固定跑 MACD/V3/V6/V7）",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "data/_universe.md (场内对应列=内池 55 只, 由 pipeline/universe.py 派生)",
+        "note": "全池 55 只场内 ETF 全部出信号, 不做 A/B 分级（见 select.criteria）"
+      },
+      "rules": [
+        "MACD（基础）: DIF 上穿 DEA（金叉）买入 · DIF 下穿 DEA（死叉）卖出",
+        "V3 MACD+BOLL（变种3）: DIF>0 且 DIF>DEA 且 布林开口放大 且 收盘上穿上轨买入 · MACD 死叉 或 收盘下穿布林中轨卖出；布林窗口随 ER 在 20↔30 自适应",
+        "V6 打分制（变种6 · 4 票）: ①价>MA20且价>MA60 ②DIF>DEA且DIF>0 ③K>D ④放量上涨(价涨且量>5日均量) —— 四票求和, 票数>=4 买入、<=2 卖出（阈值 = 参数网格「中位夏普」最优）",
+        "V7 风格路由（变种7）: 按 data/_universe.md 风格列自动选策略 —— 避险→买入持有 · 防御→BOLL · 中枢/其他→MACD · 进攻→V3",
+        "★ 每日操作固定为以上四个策略各跑一遍（见 daily.strategies），增删只改 strategies/tech_indicators/daily/_daily_recommend.py::STRATS"
+      ],
+      "thresholds": {
+        "v6_enter": 4,
+        "v6_exit": 2,
+        "v6_param_grid": "enter∈{2,3,4} × exit∈{1,2,3}（仅取 exit<enter, 6 组）, 以全池中位夏普取最优 → (4,2)",
+        "v6_impl": "strategies/tech_indicators/v6_score_wf/backtest.py::DEFAULT_PARAM（权威源, compare.py/daily/v7 均直接引用）",
+        "v3_impl": "strategies/tech_indicators/v3_macd_boll/backtest.py",
+        "fee": 0.0,
+        "trade_at": "信号当日收盘成交（回测口径, 未计佣金滑点）；实盘建议次日开盘"
+      },
+      "backtest": {
+        "engine": "strategies/tech_indicators/backtest.py",
+        "compare": "strategies/tech_indicators/compare.py",
+        "note": "基线五指标走 backtest.py、全家族横截面对比走 compare.py；两者都是**全池一次跑完**、不接受 --codes 分批, 故本策略不走 run_flow backtest/select（同组合层策略）。回测报告 backtest/_tech_indicators_report.md、对比报告 _comparison_report.md、v6 的 Walk-Forward 见 v6_score_wf/backtest/_v6_score_wf_report.md"
+      },
+      "select": {
+        "out_active_md": "strategies/tech_indicators/daily/_active.md",
+        "out_active_json": "strategies/tech_indicators/daily/_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "不做 A/B 分级: 四个策略对全池 55 只全部出信号（阈值由回测网格取优, 不逐码筛选标的）"
+      },
+      "daily": {
+        "codes": [],
+        "strategies": [
+          "MACD",
+          "V3",
+          "V6",
+          "V7"
+        ],
+        "runner": "run_daily_tech_indicators.ps1",
+        "signal_report": "strategies/tech_indicators/daily/_daily_recommend.md",
+        "automation": "(未创建)"
+      },
+      "note": "2026-09-28 接入 pipeline: 每日操作固定为 MACD/V3/V6/V7 四策略各跑一遍, 唯一入口 strategies/tech_indicators/daily/_daily_recommend.py（先刷新行情 data/_refresh_data.py, 再基于最新一根 K 线出动作: 买入/卖出/持有/空仓 + 四策略共振名单, 陈旧/失败数据标注）。pipeline_mode=full_pool 表示全池出信号、不做逐码分级。V6 于 2026-09-28 由 7 票改为 4 票（去掉「价触及/跌破 BOLL 下轨」票, 该项与「价>MA20且>MA60」天然互斥导致曝光仅 9%）, 阈值由参数网格取最优 4/2。",
+      "pipeline_mode": "full_pool"
     }
   }
 }

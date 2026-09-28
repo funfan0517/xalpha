@@ -25,6 +25,28 @@
 python strategies/tech_indicators/backtest.py
 ```
 
+## 每日操作（固定四策略）
+
+技术指标类（本目录）的每日操作**固定为按 MACD / V3 / V6 / V7 四个策略各跑一遍**：
+
+```powershell
+python strategies/tech_indicators/daily/_daily_recommend.py
+```
+
+- **先刷新行情**：`data/_refresh_data.py` 拉最新日线并重算指标；刷新失败的标的会被标 `❌`，陈旧数据标 `⚠️ 陈旧(日期)`，不作为最新信号。
+- 基于最新一根 K 线，对 55 只场内 ETF 输出四个策略的当日动作（买入 0→1 / 卖出 1→0 / 持有 / 空仓），并给出四策略共振名单。
+- 四个策略的增删只改 `_daily_recommend.py` 顶部的 `STRATS` 一处；策略规则复用各变种自己的实现（`base.build_signals` / `v3_macd_boll` / `v6_score_wf` / `v7_style_route`），不重复维护。
+- 产物：`daily/_daily_recommend.md`。
+
+| 标签 | 策略 | 规则 |
+|---|---|---|
+| **MACD** | 基础 MACD | DIF 上穿 DEA（金叉）买入 · 下穿（死叉）卖出 |
+| **V3** | 变种 3 MACD+BOLL | 零轴上 + 布林开口放大 + 收盘上穿上轨买入 · 死叉或下穿中轨卖出 |
+| **V6** | 变种 6 打分制 | 4 项看多票数 ≥4 买、≤2 卖（阈值 = 参数网格最优） |
+| **V7** | 变种 7 风格路由 | 按风格自动选：避险→买入持有 · 防御→BOLL · 中枢/其他→MACD · 进攻→V3 |
+
+> 全家族横向对比见 `_comparison_report.md`（`python strategies/tech_indicators/compare.py`）。
+
 ## 产物
 
 - `backtest/_tech_indicators_report.md` —— 全池汇总 / 长历史子样本 / 代表标的(510300) / 分策略单笔统计

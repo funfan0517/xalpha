@@ -1,10 +1,10 @@
 {
-  "as_of": "2026-09-17",
-  "div_yield_hs_pct": 4.49,
-  "hs_pe_pct": 0.7732,
+  "as_of": "2026-09-24",
+  "div_yield_hs_pct": 4.28,
+  "hs_pe_pct": 0.7856,
   "a500_pe_pct": null,
   "ndx_fwd_pe_pct": null,
-  "kc_pe_over_hs": 15.435576067094598,
+  "kc_pe_over_hs": 15.536088359683566,
   "dxy": null,
   "us_real_yield": null,
   "growth_yes": false,
@@ -13,9 +13,9 @@
   "note": "",
   "_auto": {
     "source": "蛋卷基金 djapi/index_eva/dj",
-    "as_of": "2026-09-17",
-    "red_pe": 8.5372,
-    "kc_pe": 131.7766,
-    "kc_pe_pct": 0.7939
+    "as_of": "2026-09-24",
+    "red_pe": 8.5831,
+    "kc_pe": 133.3478,
+    "kc_pe_pct": 0.7957
   }
 }

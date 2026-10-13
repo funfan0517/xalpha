@@ -8,6 +8,9 @@
 - 刷新策略「增量 + 一致性校验」：取近月窗口与库中重叠交易日比对收盘价，
   一致 → 仅追加新交易日；不一致（复权基准变了）→ 对整段历史重取。
 - 指标随刷新一并重算：MA(5/10/20/60) / MACD(12,26,9) / KDJ(9,3,3) / BOLL(20,2) / VOL。
+- **盘中跑过的兜底**：若最后一根 bar 是「当日盘中」写入的（收盘价尚未定型），仅比日期会误判为
+  「已最新」而永不修正 —— 此时 `ensure_fresh` 会在收盘后强制刷新一次（判据见 `_last_bar_intraday`）。
+  该兜底自带收敛：修正过一次后 mtime 就晚于 15:00，后续运行不再触发。
 
 用法：
     import _refresh_data                      # 需先把本目录加入 sys.path
@@ -144,10 +147,32 @@ def refresh(codes=None):
     return latest, fails
 
 
+def _last_bar_intraday():
+    """最后一根 bar 是否为「当日盘中」写入的未收盘快照。
+
+    仅比日期看不出来（盘中与收盘后是同一天），但收盘价会不同 —— 判据是
+    **库文件最后写入时刻 < 最后一根 bar 当日 15:00**（写入发生在盘中）**且当前已过该 15:00**。
+    后半条是必须的：盘中连续跑多个策略时，前一个刚写的盘中 bar 不该让后一个再整库刷一次。
+    该判据自带收敛：收盘后刷新过一次，mtime 就 > 15:00，后续运行不再触发。
+    """
+    try:
+        mtime = dt.datetime.fromtimestamp(os.path.getmtime(LK))
+        last = max(last_dates().values())
+    except (FileNotFoundError, ValueError):
+        return False
+    try:
+        close_at = dt.datetime.strptime(last, "%Y-%m-%d").replace(hour=15, minute=0)
+    except ValueError:
+        return False
+    return mtime < close_at < dt.datetime.now()
+
+
 def ensure_fresh(codes=None, verbose=True):
     """检查是否最新；非最新则刷新。返回 (latest_map, fail_map)。
 
     已最新时只读文件做日期比较，不联网，开销可忽略。
+    **盘中快照兜底**：若最后一根 bar 是「当日盘中」写入的（见 `_last_bar_intraday`），
+    仅比日期会误判为「已最新」而永远不修正那根未收盘的收盘价 —— 此时强制刷新一次。
     **进程内幂等**：同一次执行里多次调用只检查/刷新一次（策略入口与底层 load 都会调它）。
     """
     global _CHECKED
@@ -166,6 +191,15 @@ def ensure_fresh(codes=None, verbose=True):
     exp = expected_latest()
     mx = max(latest.values())
     if mx >= exp:
+        if _last_bar_intraday():
+            if verbose:
+                print(f"[行情] 已最新（{mx}）但该 bar 为盘中写入，收盘价可能未定型 → 强制刷新")
+            latest, fails = refresh(codes)
+            if verbose:
+                mx2 = max(latest.values()) if latest else mx
+                print(f"[行情] 刷新完成：最新 {mx2} · 失败 {len(fails)}")
+            _CHECKED = (latest, fails)
+            return _CHECKED
         if verbose:
             print(f"[行情] 已最新：全池最新 {mx}（基准 {exp}）")
         _CHECKED = (latest, {})

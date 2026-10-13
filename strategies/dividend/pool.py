@@ -194,8 +194,10 @@ def load_navs(codes=None, refresh=False, cache=NAV_CACHE):
     命中缓存直接读（离线可跑）；refresh=True 或缓存缺失时联网抓取。
     """
     codes = codes or CODES
+    # 先载入旧缓存作为底稿（refresh 时也一样）：单只抓取失败不会被写掉，
+    # 否则 refresh 会把缓存写成「只剩本次成功的那几只」，静默丢掉其余标的的历史。
     raw = {}
-    if not refresh and os.path.exists(cache):
+    if os.path.exists(cache):
         raw = json.load(open(cache, encoding="utf-8"))
     missing = [c for c in codes if not raw.get(c)]
     if refresh or missing:

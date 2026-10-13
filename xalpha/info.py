@@ -65,20 +65,22 @@ def _nfloat(string):
         try:
             result = float(string)
         except ValueError:
+
+            def _num(pattern, sign=1):  # noqa: E306
+                """取正则首组并转 float；组为空（如公告只有「派现金元」无数字）按 0 处理。"""
+                grp = re.match(pattern, string).group(1)
+                return sign * float(grp) if grp else 0
+
             if re.match(r'"分红\D*(\d*(?:\.\d*)?)\D*"', string):
-                result = float(
-                    re.match(r'"分红\D*(\d*(?:\.\d*)?)\D*"', string).group(1)
-                )
+                result = _num(r'"分红\D*(\d*(?:\.\d*)?)\D*"')
             elif re.match(r".*现金(\d*(?:\.\d*)?)\D*", string):
-                result = float(re.match(r".*现金(\d*(?:\.\d*)?)\D*", string).group(1))
+                result = _num(r".*现金(\d*(?:\.\d*)?)\D*")
             elif re.match(r".*折算(\d*(?:\.\d*)?)\D*", string):
-                result = -float(re.match(r".*折算(\d*(?:\.\d*)?)\D*", string).group(1))
+                result = _num(r".*折算(\d*(?:\.\d*)?)\D*", -1)
             elif re.match(r'"拆分\D*(\d*(?:\.\d*)?)\D*"', string):
-                result = -float(
-                    re.match(r'"拆分\D*(\d*(?:\.\d*)?)\D*"', string).group(1)
-                )
+                result = _num(r'"拆分\D*(\d*(?:\.\d*)?)\D*"', -1)
             elif re.match(r"\D*分拆(\d*(?:\.\d*)?)\D*", string):
-                result = -float(re.match(r"\D*分拆(\d*(?:\.\d*)?)\D*", string).group(1))
+                result = _num(r"\D*分拆(\d*(?:\.\d*)?)\D*", -1)
             else:
                 logger.warning("The comment col cannot be converted: %s" % string)
                 result = string

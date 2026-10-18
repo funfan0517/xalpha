@@ -220,6 +220,73 @@
       },
       "note": "2026-09-08 按手册落地; 过滤参数集中在 strategies/ema_cross/rule.py(唯一权威源); A/B 名单由回测 select 生成并同步至 daily.codes; 震荡市为固有短板, 结合动量/配仓策略组合使用"
     },
+    "right_side": {
+      "name": "右侧买入（五票确认 · 右侧买点识别）",
+      "source_methodology": "strategies/right_side/rule.py（参数权威源）—— 由「怎么判断右侧买入点而不是抄底到半山腰」的方法论落地：判据从「价格位置」换成「状态转移」",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "data/_universe.md (场内对应列=内池 55 只, 由 pipeline/universe.py 派生)",
+        "data": "data/_long_klines.json (收盘) + data/_indicators_hist.json (成交量), 刷新走 data/_refresh_data.py",
+        "note": "全池 55 只场内 ETF 全部出信号, 不做 A/B 筛选（分级名单仅供横向比较参考）"
+      },
+      "rules": [
+        "V1 结构止跌: 近 20 日最低收盘 > 再往前 60 日最低收盘 ×(1+0.5%) —— 不再创新低",
+        "V2 结构翻越: 收盘 > 前 60 日最高收盘（不含当日）—— 打破箱体/下跌结构上沿",
+        "V3 均线转向: 收盘 > MA20 且 MA20 较 5 日前抬升 —— 排除「下行均线上的反抽」",
+        "V4 动能确认: DIF > DEA 且 DIF > 0 —— 零轴上方多头, 排除零轴下金叉（只是反弹）",
+        "V5 量能确认: 成交量 ≥ 1.5×20 日均量 且 当日收涨 —— 排除缩量假突破",
+        "5 票全过 -> 买点（READY）; 4 票 -> 差一票（WATCH, 等次日确认, 不提前埋伏）",
+        "硬否决: 5 日涨幅 > 12%（追高）· 20 日均成交额 < 0.3 亿（流动性）· 因子未就绪",
+        "离场: 收盘跌破入场结构位（信号日前 10 日最低收盘）· 或连续 2 日收盘 < MA20",
+        "执行: 当日收盘判定 -> 次日收盘成交（十年库无开盘价）· 单边 0.03% · 0/1 满仓"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/right_side/rule.py（本块为镜像）",
+        "label": "rs5v1",
+        "vote_enter": 5,
+        "vote_watch": 4,
+        "struct_win_short": 20,
+        "struct_win_long": 60,
+        "struct_eps": 0.005,
+        "break_win": 60,
+        "ma_short": 20,
+        "ma_trend": 60,
+        "ma_slope": 5,
+        "macd": [12, 26, 9],
+        "vol_win": 20,
+        "vol_mult": 1.5,
+        "ret5_max": 0.12,
+        "amt_min": 30000000.0,
+        "exit_ma": 20,
+        "exit_confirm": 2,
+        "stop_lookback": 10,
+        "fee": 0.0003,
+        "trade_at": "信号次日收盘"
+      },
+      "backtest": {
+        "engine": "strategies/right_side/backtest.py",
+        "start": "2015-01-01",
+        "window_from": "2016-09-01",
+        "span": "2016-09 ~ 至今 (最长十年, 上市晚者按实有)",
+        "raw_out": "strategies/right_side/backtest/_right_side_bt.jsonl",
+        "report": "strategies/right_side/backtest/_bt_report.md"
+      },
+      "select": {
+        "out_active_md": "strategies/right_side/daily/_right_side_active.md",
+        "out_active_json": "strategies/right_side/daily/_right_side_active.json",
+        "min_sample_years": 3.0,
+        "criteria": "A = 策略年化>0 且 超额>0; B = 超额>0 且 策略年化<=0(防守)"
+      },
+      "daily": {
+        "codes": [],
+        "runner": "run_daily_right_side.ps1",
+        "signal_report": "strategies/right_side/daily/_right_side_report.md",
+        "signal_json": "strategies/right_side/daily/_right_side_scan_out.jsonl",
+        "automation": "(未创建)"
+      },
+      "note": "2026-10-18 落地。**定位**: 择时叠加层/买点识别器, 不是收益增强器 —— 55 只中位年化 +1.3% vs 买入持有 +3.9%, 但中位回撤 -16.8% vs -46.0%、择时边际 +8.3bp(34/55 为正)、单笔盈亏比 2.59/利润因子 2.07。**5 票 vs 4 票的取舍**(research/_sweep_report.md): 4 票把持仓从 9.3% 抬到 18.1%、年化几乎不变, 但中位回撤从 -16.8% 劣化到 -25.2%、单笔胜率 44.3%->38.6%、边际 8.3bp->3.1bp —— 多出来的那一票买到的正是「半山腰」。**主要约束票**: 结构翻越(历史满足率 7.1%)与量能确认(7.0%), 故买点频率约 1% 的交易日(每只每年 ~2.5 个), 全池日均 0~1 只触发, 属设计目标。**口径边界**: 十年库只有收盘价, 执行按次日收盘(比次日开盘更保守); 0/1 满仓不分层; 未计滑点。**不做的事**: 不在 4 票时提前埋伏(那等于左侧), 不因「跌得多/估值低/触下轨」买入。",
+      "pipeline_mode": "full_pool"
+    },
     "core_rotation": {
       "name": "核心轮动(六类资产动态配置·场外6标的)",
       "source_methodology": "doc/核心轮动投资策略手册.md",

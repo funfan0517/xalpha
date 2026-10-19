@@ -77,7 +77,7 @@ strategies/right_side/
   _reportbt.py       # 回测报告生成器
   _scan_report.py    # 每日操作报告生成器
   backtest/          # _right_side_bt.jsonl · _bt_report.md · _bt_visual.png
-  daily/             # _right_side_scan_out.jsonl · _right_side_report.md · _right_side_active.{md,json}
+  daily/             # _right_side_scan_out.jsonl · _right_side_dashboard.html · _right_side_report.md · _right_side_active.{md,json}
   research/          # _sweep.py + _sweep_report.md（参数敏感性）
 ```
 
@@ -93,6 +93,7 @@ python strategies/right_side/_scan_report.py
 
 # 每日一键（也可由 run_flow.py daily --strategy right_side 调用）
 powershell -ExecutionPolicy Bypass -File run_daily_right_side.ps1
+powershell -ExecutionPolicy Bypass -File run_daily_right_side.ps1 -Open   # 跑完自动打开 HTML 看板
 
 # 参数敏感性（改了 rule.py 的阈值后建议重跑）
 python strategies/right_side/research/_sweep.py
@@ -108,7 +109,9 @@ python strategies/right_side/research/_sweep.py
 - `backtest/_bt_report.md` —— 分类汇总、逐只明细、五票满足率、离场原因分布、单笔统计
 - `backtest/_bt_visual.png` —— 年化/回撤双条形图
 - `daily/_right_side_scan_out.jsonl` —— 每只标的的五票逐条实际值、状态、止损位
-- `daily/_right_side_report.md` —— **每日操作报告：买点名单 + 差一票观察名单 + 全池票数矩阵**
+- `daily/_right_side_dashboard.html` —— **每日看板（主入口）**：KPI 卡片 + 买点/观察卡片 + 可排序筛选的全池矩阵。
+  自包含单文件（CSS/JS 内联、无 CDN、不联网），双击即开，也可直接发给别人。
+- `daily/_right_side_report.md` —— 同一份内容的文本版（供 pipeline / diff / 纯文本场景）
 - `daily/_right_side_active.{md,json}` —— select 产出的 A/B 分级（横向比较参考，不参与买点判定）
 
 ## 7. 边界与已知局限

@@ -281,6 +281,7 @@
         "codes": [],
         "runner": "run_daily_right_side.ps1",
         "signal_report": "strategies/right_side/daily/_right_side_report.md",
+        "dashboard": "strategies/right_side/daily/_right_side_dashboard.html",
         "signal_json": "strategies/right_side/daily/_right_side_scan_out.jsonl",
         "automation": "(未创建)"
       },

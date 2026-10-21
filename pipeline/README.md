@@ -92,6 +92,19 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 - lights 信号只覆盖 A 类 8 只（`588000/515230/512200/562500/512980/512000/513180/161725`），A 类之外不做信号推送；**tech_indicators 例外**：它是 `full_pool` 模式，四个策略对全池 55 只全部出信号，不做 A/B 分级（`right_side` 同属全池出信号）。
 - 新增 runner 时：在 `pipeline/strategies.json` 的 `daily.runner` 填 `.ps1` 文件名（放仓库根，脚本内用 `$PSScriptRoot` 定位，勿写死盘符），`run_daily_all.ps1` 会自动带上它。
 
+**跨策略汇总看板**（一页看「每天 × 每个策略」的操作）：
+
+```powershell
+python pipeline/daily_digest.py                 # 归档今天 + 重绘看板（run_daily_all.ps1 已自动调用）
+python pipeline/daily_digest.py --html-only     # 只按已有历史重绘
+python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容仍取当前产物，只适合当天补跑）
+```
+
+- 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
+- 解析口径：优先读结构化产物（json / jsonl）；`ema_cross`、`tech_indicators` 只落 markdown，由脚本解析其自产表格。单个策略解析失败只影响本卡片，不中断汇总。
+- **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
+- 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。
+
 ## 4. 分级口径（select 判定，样本 ≥ 3 年）
 
 | 级 | 条件 | 用途 |

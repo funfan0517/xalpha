@@ -49,4 +49,11 @@ Write-Host "汇总: 成功 $($ok.Count) / 失败 $($fail.Count) / 跳过 $($skip
 if ($ok.Count)   { Write-Host "  OK  : $($ok -join ', ')" }
 if ($fail.Count) { Write-Host "  FAIL: $($fail -join ', ')" }
 if ($skip.Count) { Write-Host "  SKIP: $($skip -join ', ')" }
+
+# 跨策略汇总: 各策略 daily 产物 -> 历史库 + 单文件 HTML 看板（失败不影响上面的策略结果）
+Write-Host ("=" * 70)
+Write-Host "[digest] 汇总每日操作 -> data\_daily_digest.html"
+python -W ignore (Join-Path $PSScriptRoot "pipeline\daily_digest.py")
+if ($LASTEXITCODE -ne 0) { Write-Host "  [!] 汇总失败, 各策略产物已生成但看板未更新" }
+
 Write-Host "[i] 各策略产物见 pipeline/strategies.json 的 daily.signal_report; 机械规则, 非投资建议."

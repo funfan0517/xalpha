@@ -50,9 +50,15 @@ RSI 择时对它们是「负和」：减半月本来也在涨，一半仓位只�
 from __future__ import annotations
 
 import os
+import sys
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
+_STRAT = os.path.dirname(_DIR)
+if _STRAT not in sys.path:      # 取 pool.py 的 TIMING_POOL（本文件可能被按路径单独加载）
+    sys.path.insert(0, _STRAT)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
+
+import pool  # noqa: E402  pylint: disable=wrong-import-position
 
 SIGNAL = "rsi"
 TITLE = "V4 · RSI14 单指标红利策略"
@@ -60,15 +66,9 @@ TOP_K = 2
 Q_OUT, Q_HALF = 0.70, 0.50      # RSI 70 清仓 / RSI 50 减半
 WINDOW = 14
 
-# V4 专用标的池（5 只，顺序 = universe.py 的 ΔCalmar 排名）。
-# 判据与落选理由见模块 docstring；改池只改这里，回测与每日信号共用。
-POOL = [
-    dict(code="561060", name="华安中证国有企业红利ETF", idx="000824", cat="国企红利"),
-    dict(code="008163", name="南方标普红利低波50A", idx="SPCALVHD50", cat="红利低波"),
-    dict(code="090010", name="大成中证红利指数A", idx="000922", cat="中证红利"),
-    dict(code="008115", name="天弘中证红利低波100C", idx="930955", cat="红利低波"),
-    dict(code="016441", name="华夏中证红利质量ETF联接C", idx="931468", cat="红利质量"),
-]
+# 择时专用标的池（5 只）—— **单一定义在 `../pool.py::TIMING_POOL`**，V4 与 V8 共用，
+# 避免两个版本各写一份池导致漂移。判据与落选理由见 pool.py 与该常量上方的注释。
+POOL = pool.TIMING_POOL
 CODES = [p["code"] for p in POOL]
 NAME = {p["code"]: p["name"] for p in POOL}
 BASE_LABEL = f"基准：{len(CODES)} 只等权"

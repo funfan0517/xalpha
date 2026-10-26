@@ -52,6 +52,7 @@ def _load_rule(name: str, path: str):
 
 
 V4 = _load_rule("v4_rule", os.path.join(_DIR, "v4_rsi", "rule.py"))
+V8 = _load_rule("v8_rule", os.path.join(_DIR, "v8_rsi12", "rule.py"))
 
 ROOT = S.ROOT
 OUT_MD = os.path.join(_DIR, "backtest", "_compare_all_report.md")
@@ -147,13 +148,21 @@ def build_a() -> tuple[dict, pd.DataFrame]:
     out: dict = {}
     for kind, name, mech in SINGLE:
         if kind == "rsi":
-            # V4 有自己的 5 只池（v4_rsi/rule.py::POOL），与 V3/V5/V6 的 7 只不同源
+            # V4/V8 有自己的 5 只池（pool.py::TIMING_POOL），与 V3/V5/V6 的 7 只不同源
             navs_v4 = pool.load_navs(codes=V4.CODES)
             rets_v4 = S.load_rets(navs_v4)
-            raw = S.load_signal("rsi", navs_v4).reindex(rets_v4.index)
+            raw = S.load_signal("rsi", navs_v4).reindex(rets_v4.index)   # 14 日（RSI_WIN）
             _add_a(out, rets_v4, name, f"{mech}（5 只专用池）",
                    (raw / 100.0).loc[S.START:], raw.loc[S.START:], SINGLE_TH[kind],
                    base_label=V4.BASE_LABEL)
+            # V8：同池、同横截面，窗口 12 日 + 清仓线 80
+            rsi12 = pd.DataFrame({c: S.rsi_series(navs_v4[c].dropna(), V8.WINDOW)
+                                  .resample("ME").last().dropna()
+                                  for c in navs_v4.columns}).sort_index().reindex(rets_v4.index)
+            _add_a(out, rets_v4, "V8 RSI12",
+                   f"q = RSI{V8.WINDOW}/100（{V8.Q_OUT * 100:.0f}/{V8.Q_HALF * 100:.0f}，同一 5 只池）",
+                   (rsi12 / 100.0).loc[S.START:], rsi12.loc[S.START:],
+                   (V8.Q_OUT, V8.Q_HALF), base_label=V8.BASE_LABEL)
             continue
         _add_a(out, rets, name, mech,
                S.cheapness(kind).reindex(rets.index),
@@ -357,7 +366,7 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
           f"{(b10['cagr'] - bst['cagr']) * 100:+.1f}pp，所以 V0 的两行要各自对自己的基准读。",
           f"- 基准 ③：**V4 的 5 只专用池等权** 年化 **{_p(base5['cagr'])}**、回撤 {_p(base5['dd'])}、"
           f"Calmar **{base5['calmar']:.2f}** —— V4 从 2026-10-26 起只用这 5 只"
-          "（`v4_rsi/rule.py::POOL`），所以它的 ΔCalmar 要对着这一行读，不是基准 ①。",
+          "（`pool.py::TIMING_POOL`，V4/V8 共用），所以它的 ΔCalmar 要对着这一行读，不是基准 ①。",
           "- `平均仓位` 只对含时间维度的方案有意义（V0 与纯横截面方案始终满仓）；"
           "`剔除 3 月后` = 剔掉相对同池基准贡献最大的 3 个月。",
           "- V7 的 `rsi（单指标对照）` 与 V4 完全等价，已跳过，不重复占一行。", ""]

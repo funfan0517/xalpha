@@ -358,7 +358,8 @@
       "v4": {
         "name": "V4 · RSI14 单指标红利（每日操作口径）",
         "positioning": "**2026-10-26 起每日操作跑这个, 不再跑 V0 打分**。规则: 板块(池内 5 只)RSI14 均值 ≥70 清仓 / ≥50 减半 / 其余满仓; 横截面取 RSI 最低 2 只等权; 月末信号下月生效, 单边 0.03%",
-        "pool": "strategies/dividend/v4_rsi/rule.py::POOL（V4 专用池 5 只: 561060/008163/090010/008115/016441 —— 判据为单标的 RSI 择时 ΔCalmar 全区间与共同窗口均 ≥ +0.10, 见 v4_rsi/universe.py; 落选 005125/007760/007467/561580/018388 择时为负和）",
+        "pool": "strategies/dividend/pool.py::TIMING_POOL（择时专用池 5 只: 561060/008163/090010/008115/016441, V4 与 V8 共用 —— 判据为单标的 RSI 择时 ΔCalmar 全区间与共同窗口均 ≥ +0.10, 见 v4_rsi/universe.py; 落选 005125/007760/007467/561580/018388 择时为负和）",
+        "sibling": "strategies/dividend/v8_rsi12/ —— V8 = 12 日 + 80/50 参数孪生（同池同横截面），Calmar 0.98 vs V4 1.44; 未接每日流程, 仅作口径对照（发现: 清仓线 70–90 不敏感、窗口 12→13 日跳 +0.42）",
         "engine": "strategies/dividend/v4_rsi/daily.py",
         "backtest": "strategies/dividend/v4_rsi/backtest.py",
         "universe_probe": "strategies/dividend/v4_rsi/universe.py",

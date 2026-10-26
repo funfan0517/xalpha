@@ -1,5 +1,5 @@
 # 红利基金每日操作(V4 · RSI14 择时) - 双击运行
-# 标的池: V4 专用 5 只(按单标的 RSI 择时适配度筛出, 见 strategies/dividend/v4_rsi/rule.py::POOL)
+# 标的池: 择时专用 5 只(按单标的 RSI 择时适配度筛出, 见 strategies/dividend/pool.py::TIMING_POOL)
 # 规则: 板块 RSI14 均值 >=70 清仓 / >=50 减半 / 其余满仓; 横截面取 RSI 最低 2 只等权
 # 输出: 今日该持什么(当前生效信号) + 预览 + 下一个决策点
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1

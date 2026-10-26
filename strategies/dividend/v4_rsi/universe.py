@@ -255,7 +255,7 @@ def render(rows: list[dict], common: dict, asof: pd.Timestamp) -> str:
     pos_cut_txt = "、".join(f"{c} {v * 100:+.1f}%" for c, v in pos_cut)
     shorts = [r for r in rows if r["n"] < MIN_MONTHS]
     short_txt = " / ".join(f"{r['code']}({r['n']}m)" for r in shorts)
-    # 实际采用的 V4 池 = 双窗口 ΔCalmar 都 ≥ +0.10（见 rule.py::POOL）
+    # 实际采用的择时池 = 双窗口 ΔCalmar 都 ≥ +0.10（见 pool.py::TIMING_POOL）
     ok5 = [r for r in rows if r["dcalmar"] >= 0.10
            and common["dcalmar"].get(r["code"], -9) >= 0.10]
     pool_codes = " / ".join(r["code"] for r in ok5)
@@ -378,7 +378,8 @@ Calmar 的改善主要来自分母（回撤）变小。若目标是绝对收益�
 
 <li><b>单标的择时 ≠ V4。</b>V4 的组合表现来自「横截面 top2 选品 + 板块 RSI 择时」两半，
 本页只保留后一半。**落地口径**：每日操作（`run_daily_dividend.ps1`）采用的是
-「全区间与共同窗口 ΔCalmar 都 ≥ +0.10」的 {len(ok5)} 只 —— {pool_codes}，写在 `rule.py::POOL`；
+「全区间与共同窗口 ΔCalmar 都 ≥ +0.10」的 {len(ok5)} 只 —— {pool_codes}，写在
+`pool.py::TIMING_POOL`（V4 与 V8 共用）；
 本页其余标的只作对照。若只买一只、又想要更长时间验证，可再收窄到 ≥{MIN_MONTHS} 月的 {ok_codes}。</li>
 
 <li><b>短样本标的要留保留意见。</b>{short_txt} 都不足 {MIN_MONTHS} 个月，

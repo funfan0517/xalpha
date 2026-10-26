@@ -162,6 +162,7 @@ strategies/dividend/
     backtest/_rank_bt.{jsonl,json} · _rank_report.md
     daily/_dividend_rank.{md,json}
   v1_spread/ V1 · v2_temp/ V2 · v3_yield/ · v4_rsi/ · v5_spread/ · v6_ratio/ · v7_combo/
+  v8_rsi12/            V8 · RSI12（12 日 + 80/20 口径）—— V4 的参数孪生，未接每日流程
   research/            ④ 专项分析（不属于任何版本）
     backtest_dims.py（5 指标边际） · backtest_rsi14.py（单标的 RSI14）
     backtest/_dims_* · _rsi14_090010*
@@ -179,11 +180,13 @@ strategies/dividend/
 | ③ V1 | `v1_spread/`（单标的利差分位择时，已验证时间维度不成立）→ `v1_spread/backtest/_v1_report.md` |
 | ③ V2 | `v2_temp/`（四维估值温度 + 温度分位减仓）→ `v2_temp/backtest/_v2_report.md` · `v2_temp/daily/_v2_read.md` |
 | ③ V3–V6 | `v3_yield/`（股息率）· `v4_rsi/`（RSI14）· `v5_spread/`（股债利差）· `v6_ratio/`（股债收益比）→ 各自 `backtest/_vN_report.md` |
+| ③ **V8** | `v8_rsi12/`（RSI12 = 12 日 + 80/50，与 V4 **同池**的参数孪生）→ `v8_rsi12/backtest/_v8_report.md`（含参数族 / 窗口×清仓线网格 / 窗口敏感性分解） |
+| ⑤ V8 今日信号（手动对照） | `v8_rsi12/daily.py` → `v8_rsi12/daily/_v8_signal.{md,json}`（**不进每日流程**，JSON 结构与 V4 对齐，便于并排比较） |
 | ⑤ V4 今日信号 | `v4_rsi/daily.py`（当前档位 + 持仓 + 下个决策点）→ `v4_rsi/daily/_v4_signal.md` |
 | ⑤ V4 读数图 | `v4_rsi/chart.py`（左轴点位 / 右轴分数 RSI14，双阈值线）→ `v4_rsi/daily/_v4_<code>_chart[_all].png` |
 | ③ V7 | `v7_combo/`（组合搜索 + 最终优选）→ `v7_combo/backtest/_v7_report.md` |
 | ③ 备选规则 | `pool_rule_v1.py`（利差读数卡，并行未替换）→ `daily/_pool_rule_v1.{md,json}` |
-| ③ 总对比 | `_compare_all.py`（V0–V7：**§一 对齐窗口全景** + §三 原生口径）→ `backtest/_compare_all_report.md` |
+| ③ 总对比 | `_compare_all.py`（V0–V8：**§一 对齐窗口全景** + §三 原生口径）→ `backtest/_compare_all_report.md` |
 | ④ 专项分析 | `research/backtest_dims.py`（5 指标边际）· `research/backtest_rsi14.py`（单标的 RSI14 择时）· `research/mood_band.py`（80/65 情绪双阈值波段，外部策略复现）→ `research/backtest/*` |
 | 启动 | `run_daily_dividend.ps1`（仓库根） |
 
@@ -199,14 +202,22 @@ strategies/dividend/
 | V5 `v5_spread` | 股债利差单指标 | 同上 | ❌ 横截面 ≡ V3（0 月差异），时间维度从不触发 |
 | V6 `v6_ratio` | 股债收益比单指标 | 同上 | ❌ 同 V5，且低利率下更钝 |
 | V7 `v7_combo` | 8 个组合候选优选 | 同上 | ❌ 组合全部落在 0.87–1.05，**没跑赢纯 RSI** |
+| V8 `v8_rsi12` | RSI12 参数孪生（12 日 + 80/50，与 V4 同池同横截面） | 同上 | ❌ Calmar **0.98** vs V4 1.44；差距来自**窗口**（12→13 日跳 +0.42），清仓线 70–90 几乎不动 |
 
-> **最终优选：V4（RSI14），不是组合。** 原因是估值类三项在 2020–2026 已失效
-> （利率单边下行把分位顶死），掺进组合只是稀释有效信号。详见 `v7_combo/backtest/_v7_report.md`。
+> **最终优选：V4（RSI14），不是组合、也不是 12 日口径。** 原因是估值类三项在 2020–2026 已失效
+> （利率单边下行把分位顶死），掺进组合只是稀释有效信号；而 12 日窗口的 RSI12 明显更差。
+> 详见 `v7_combo/backtest/_v7_report.md` 与 `v8_rsi12/backtest/_v8_report.md`。
 > 代价：V4 平均仓位仅 72%，2020/2021/2024 三年落后基准，赢的是回撤而非收益。
 >
+> ⚠ **V8 带来的新认知（2026-10-26）：V4 的 Calmar 对「窗口」敏感、对「清仓线」不敏感。**
+> 窗口 10/11/12/13/14/16 日 → 主方案 Calmar 0.96/0.93/0.98/**1.40/1.40**/1.34；
+> 而 12 日窗口内清仓线 70→90 只从 1.02 动到 0.94。也就是说 V4 的 1.44 里有「14 日恰好躲过
+> 某几次下跌」的成分（13 日同样 1.40，属平台而非孤立最优点，但 12 日及以下确实更差）。
+> 引用 V4 的 1.44 时应同时给出这个平台区间，不要当成「14 日最优」的证据。
+>
 > **全版本横向对比**见 `backtest/_compare_all_report.md`（`_compare_all.py` 生成）：
-> **§一 是 V0–V7 全景** —— 把 V0 拉到 V3–V7 的窗口（2020-01~2026-10、82 月、基金累计净值、
-> 单边 0.03%）重算，池取 7 只与 10 只两种，13 行之间只差「信号」与「池大小」；
+> **§一 是 V0–V8 全景** —— 把 V0 拉到 V3–V7 的窗口（2020-01~2026-10、82 月、基金累计净值、
+> 单边 0.03%）重算，池取 7 只 / 10 只 / V4-V8 的 5 只三种，14 行之间只差「信号」与「池大小」；
 > 可直接排名。V0 的原生口径（2016-09 起、10 只池）与 V1/V2 放在 §三，**不进排名**。
 > 该报告还量化了口径差 —— 同一段窗口里「价格指数 → 全收益」就差 5pp/年，
 > 比 A 组内部策略的最大差距（3.3pp）还大。
@@ -227,6 +238,8 @@ strategies/dividend/
 python strategies/dividend/v4_rsi/daily.py --refresh      # ★ 每日操作(现行): V4 RSI14 择时信号
 python strategies/dividend/v4_rsi/backtest.py             # V4 回测(5 只池) + 阈值敏感性
 python strategies/dividend/v4_rsi/universe.py             # 池筛选: 10 只红利标的的择时适配度
+python strategies/dividend/v8_rsi12/backtest.py           # V8 对照(12 日 + 80/20): 参数族 + 窗口网格
+python strategies/dividend/v8_rsi12/daily.py              # V8 今日信号(手动对照, 不进每日流程)
 python strategies/dividend/v0_rank/rank.py --refresh      # V0 打分排序 + 推荐操作(已退出每日流程)
 python strategies/dividend/v0_rank/backtest_rank.py       # V0 打分窗权 walk-forward 调优回测
 python strategies/dividend/pool_rule_v1.py                # v1.0 利差读数卡（不替换 V0）

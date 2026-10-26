@@ -1,0 +1,668 @@
+{
+  "generated_at": "2026-10-26 11:29",
+  "as_of": "2026-10-22",
+  "weights": {
+    "perf": 0.6,
+    "value": 0.4,
+    "windows": {
+      "3": 0.5,
+      "5": 0.3,
+      "10": 0.2
+    },
+    "ret": 0.6,
+    "dd": 0.4,
+    "value_dims": [
+      "pe",
+      "pe_pct",
+      "dy",
+      "ratio",
+      "rsi"
+    ],
+    "value_full": 20.0,
+    "ratio_bands": [
+      [
+        3.2,
+        20
+      ],
+      [
+        2.8,
+        18
+      ],
+      [
+        2.5,
+        15
+      ],
+      [
+        2.2,
+        12
+      ],
+      [
+        1.9,
+        8
+      ],
+      [
+        -1000000000.0,
+        4
+      ]
+    ],
+    "rsi_full_zero": [
+      35.0,
+      65.0
+    ],
+    "y10": 1.681
+  },
+  "rows": [
+    {
+      "code": "007760",
+      "name": "景顺长城沪港深红利成长低波C",
+      "cat": "沪港深红利",
+      "role": "对照",
+      "channel": "场外",
+      "idx": "沪港深红利成长低波(931157)",
+      "pe": 8.99,
+      "pe_pct": 0.7509,
+      "pe_cs": 9.19,
+      "pe_peg": 8.99,
+      "pe_ttm_mx": 7.807,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 4.73,
+      "dy_dj": 4.66,
+      "ratio": 2.814,
+      "y10": 1.681,
+      "mom6": -2.4,
+      "rsi": 37.88,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 73.8,
+      "value_parts": {
+        "pe": 16.9,
+        "pe_pct": 5.0,
+        "dy": 15.8,
+        "ratio": 18,
+        "rsi": 18.1
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 69.4,
+      "win_scores": {
+        "3": 75.6,
+        "5": 86.7,
+        "10": 28.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.09793634715912258,
+          "mdd": -0.09182818856185693,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.08753334600660634,
+          "mdd": -0.12506337671117107,
+          "years": 5.0
+        },
+        "10": {
+          "ann": 0.06814560181988161,
+          "mdd": -0.1956917185256104,
+          "years": 7.13
+        }
+      },
+      "total": 71.2,
+      "action": "加大分批",
+      "valuation": "偏低区间",
+      "pe_xs_pct": 33.3,
+      "short_hist": false
+    },
+    {
+      "code": "018388",
+      "name": "华泰柏瑞中证港股通高股息投资ETF联接C",
+      "cat": "港股红利",
+      "role": "对照",
+      "channel": "场外",
+      "idx": "中证港股通高股息投资(930914)",
+      "pe": 10.64,
+      "pe_pct": 0.9344,
+      "pe_cs": 10.59,
+      "pe_peg": 10.64,
+      "pe_ttm_mx": 8.069,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 5.59,
+      "dy_dj": null,
+      "ratio": 3.325,
+      "y10": 1.681,
+      "mom6": -6.73,
+      "rsi": 29.38,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 74.3,
+      "value_parts": {
+        "pe": 14.4,
+        "pe_pct": 1.3,
+        "dy": 18.6,
+        "ratio": 20,
+        "rsi": 20.0
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 66.7,
+      "win_scores": {
+        "3": 66.7,
+        "5": 66.7
+      },
+      "windows": {
+        "3": {
+          "ann": 0.12125211053187757,
+          "mdd": -0.15476111369526213,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.09385354024821946,
+          "mdd": -0.15476111369526213,
+          "years": 3.34
+        },
+        "10": null
+      },
+      "total": 69.7,
+      "action": "正常逢跌加",
+      "valuation": "高估区间",
+      "pe_xs_pct": 88.9,
+      "short_hist": false
+    },
+    {
+      "code": "008163",
+      "name": "南方标普红利低波50A",
+      "cat": "红利低波",
+      "role": "表内",
+      "channel": "场外",
+      "idx": "标普中国A股大盘红利低波动50",
+      "pe": 9.68,
+      "pe_pct": null,
+      "pe_cs": null,
+      "pe_peg": null,
+      "pe_ttm_mx": 9.68,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 4.9,
+      "dy_dj": null,
+      "ratio": 2.915,
+      "y10": 1.681,
+      "mom6": 1.29,
+      "rsi": 54.09,
+      "src_pe": "mx-ds-mcp(持仓穿透估算)",
+      "src_pct": "缺失",
+      "src_dy": "mx-ds-mcp(持仓穿透估算)",
+      "val_src": "mx-ds-mcp(持仓穿透估算) / 缺失",
+      "value_score": 60.5,
+      "value_parts": {
+        "pe": 15.9,
+        "pe_pct": 3.0,
+        "dy": 16.3,
+        "ratio": 18,
+        "rsi": 7.3
+      },
+      "imputed": [
+        "pe_pct"
+      ],
+      "n_value_dims": 4,
+      "perf_score": 71.6,
+      "win_scores": {
+        "3": 73.4,
+        "5": 57.8,
+        "10": 88.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.08014295209253297,
+          "mdd": -0.06612250063275127,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.07323208165282424,
+          "mdd": -0.13247049866768168,
+          "years": 5.0
+        },
+        "10": {
+          "ann": 0.08835855664341596,
+          "mdd": -0.13247049866768168,
+          "years": 6.75
+        }
+      },
+      "total": 67.2,
+      "action": "正常逢跌加",
+      "valuation": "—（无分位）",
+      "pe_xs_pct": 55.6,
+      "short_hist": false
+    },
+    {
+      "code": "561580",
+      "name": "华泰柏瑞中证中央企业红利ETF",
+      "cat": "央企红利",
+      "role": "对照",
+      "channel": "场内",
+      "idx": "中证中央企业红利(000825)",
+      "pe": 9.83,
+      "pe_pct": 0.9922,
+      "pe_cs": 9.92,
+      "pe_peg": 9.83,
+      "pe_ttm_mx": null,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 3.87,
+      "dy_dj": null,
+      "ratio": 2.302,
+      "y10": 1.681,
+      "mom6": 1.5,
+      "rsi": 45.74,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 53.5,
+      "value_parts": {
+        "pe": 15.6,
+        "pe_pct": 0.2,
+        "dy": 12.9,
+        "ratio": 12,
+        "rsi": 12.8
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 68.9,
+      "win_scores": {
+        "3": 68.9,
+        "5": 68.9
+      },
+      "windows": {
+        "3": {
+          "ann": 0.13843490935080305,
+          "mdd": -0.15626717976910398,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.1047722802600255,
+          "mdd": -0.15626717976910398,
+          "years": 3.43
+        },
+        "10": null
+      },
+      "total": 62.7,
+      "action": "正常逢跌加",
+      "valuation": "高估区间",
+      "pe_xs_pct": 66.7,
+      "short_hist": false
+    },
+    {
+      "code": "007467",
+      "name": "华泰柏瑞中证红利低波ETF联接C",
+      "cat": "红利低波",
+      "role": "对照",
+      "channel": "场外",
+      "idx": "中证红利低波动(H30269)",
+      "pe": 8.38,
+      "pe_pct": 0.7926,
+      "pe_cs": 8.46,
+      "pe_peg": 8.38,
+      "pe_ttm_mx": 8.56,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 4.27,
+      "dy_dj": 4.7,
+      "ratio": 2.54,
+      "y10": 1.681,
+      "mom6": 0.72,
+      "rsi": 48.57,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 62.2,
+      "value_parts": {
+        "pe": 17.9,
+        "pe_pct": 4.1,
+        "dy": 14.2,
+        "ratio": 15,
+        "rsi": 11.0
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 62.3,
+      "win_scores": {
+        "3": 57.8,
+        "5": 55.5,
+        "10": 84.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.07750729180613303,
+          "mdd": -0.11749547672569771,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.07046491793993903,
+          "mdd": -0.12662506500260018,
+          "years": 5.0
+        },
+        "10": {
+          "ann": 0.09618071226768787,
+          "mdd": -0.1548907695335564,
+          "years": 7.27
+        }
+      },
+      "total": 62.3,
+      "action": "正常逢跌加",
+      "valuation": "偏低区间",
+      "pe_xs_pct": 0.0,
+      "short_hist": false
+    },
+    {
+      "code": "008115",
+      "name": "天弘中证红利低波100C",
+      "cat": "红利低波",
+      "role": "表内",
+      "channel": "场外",
+      "idx": "中证红利低波动100(930955)",
+      "pe": 8.94,
+      "pe_pct": 0.8499,
+      "pe_cs": 8.8,
+      "pe_peg": 8.94,
+      "pe_ttm_mx": 9.241,
+      "pe_pct_ytd": 0.9702,
+      "pb": null,
+      "dy": 4.32,
+      "dy_dj": null,
+      "ratio": 2.57,
+      "y10": 1.681,
+      "mom6": -2.05,
+      "rsi": 47.14,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 61.3,
+      "value_parts": {
+        "pe": 17.0,
+        "pe_pct": 3.0,
+        "dy": 14.4,
+        "ratio": 15,
+        "rsi": 11.9
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 50.3,
+      "win_scores": {
+        "3": 33.3,
+        "5": 66.7,
+        "10": 68.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.06353246770290744,
+          "mdd": -0.13264100491262987,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.07554903762376641,
+          "mdd": -0.13264100491262987,
+          "years": 5.0
+        },
+        "10": {
+          "ann": 0.08298817004154757,
+          "mdd": -0.14082545997016416,
+          "years": 6.87
+        }
+      },
+      "total": 54.7,
+      "action": "逢跌小额",
+      "valuation": "偏高区间",
+      "pe_xs_pct": 22.2,
+      "short_hist": false
+    },
+    {
+      "code": "005125",
+      "name": "华宝标普中国A股红利机会ETF联接C",
+      "cat": "红利机会",
+      "role": "对照",
+      "channel": "场外",
+      "idx": "标普中国A股红利机会",
+      "pe": 10.3751,
+      "pe_pct": 0.9932,
+      "pe_cs": null,
+      "pe_peg": null,
+      "pe_ttm_mx": null,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 5.0,
+      "dy_dj": 5.0,
+      "ratio": 2.974,
+      "y10": 1.681,
+      "mom6": -6.97,
+      "rsi": 41.37,
+      "src_pe": "蛋卷",
+      "src_pct": "蛋卷",
+      "src_dy": "蛋卷",
+      "val_src": "蛋卷",
+      "value_score": 65.4,
+      "value_parts": {
+        "pe": 14.8,
+        "pe_pct": 0.1,
+        "dy": 16.7,
+        "ratio": 18,
+        "rsi": 15.8
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 36.9,
+      "win_scores": {
+        "3": 51.1,
+        "5": 37.8,
+        "10": 0.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.09889291989737314,
+          "mdd": -0.1724305893813931,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.075050799217115,
+          "mdd": -0.1724305893813931,
+          "years": 5.0
+        },
+        "10": {
+          "ann": 0.05999103426927688,
+          "mdd": -0.2893819603842557,
+          "years": 9.15
+        }
+      },
+      "total": 48.3,
+      "action": "减仓观望",
+      "valuation": "高估区间",
+      "pe_xs_pct": 77.8,
+      "short_hist": false
+    },
+    {
+      "code": "561060",
+      "name": "华安中证国有企业红利ETF",
+      "cat": "国企红利",
+      "role": "对照",
+      "channel": "场内",
+      "idx": "中证国有企业红利(000824)",
+      "pe": 9.11,
+      "pe_pct": 0.9336,
+      "pe_cs": 9.17,
+      "pe_peg": 9.11,
+      "pe_ttm_mx": null,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 4.1,
+      "dy_dj": null,
+      "ratio": 2.439,
+      "y10": 1.681,
+      "mom6": -1.41,
+      "rsi": 40.37,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 60.2,
+      "value_parts": {
+        "pe": 16.8,
+        "pe_pct": 1.3,
+        "dy": 13.7,
+        "ratio": 12,
+        "rsi": 16.4
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 35.2,
+      "win_scores": {
+        "3": 37.7,
+        "5": 31.1
+      },
+      "windows": {
+        "3": {
+          "ann": 0.07467974833429958,
+          "mdd": -0.13923582200018503,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.0522153032312187,
+          "mdd": -0.13923582200018503,
+          "years": 3.13
+        },
+        "10": null
+      },
+      "total": 45.2,
+      "action": "减仓观望",
+      "valuation": "高估区间",
+      "pe_xs_pct": 44.4,
+      "short_hist": false
+    },
+    {
+      "code": "090010",
+      "name": "大成中证红利指数A",
+      "cat": "中证红利",
+      "role": "对照",
+      "channel": "场外",
+      "idx": "中证红利(000922)",
+      "pe": 8.91,
+      "pe_pct": 0.7963,
+      "pe_cs": 9.02,
+      "pe_peg": 8.91,
+      "pe_ttm_mx": 8.706,
+      "pe_pct_ytd": null,
+      "pb": 0.853,
+      "dy": 4.19,
+      "dy_dj": 4.6,
+      "ratio": 2.493,
+      "y10": 1.681,
+      "mom6": -2.1,
+      "rsi": 39.64,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 64.1,
+      "value_parts": {
+        "pe": 17.1,
+        "pe_pct": 4.1,
+        "dy": 14.0,
+        "ratio": 12,
+        "rsi": 16.9
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 26.2,
+      "win_scores": {
+        "3": 22.2,
+        "5": 28.9,
+        "10": 32.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.06215013782617684,
+          "mdd": -0.1329878457982253,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.04146401577032344,
+          "mdd": -0.1329878457982253,
+          "years": 5.0
+        },
+        "10": {
+          "ann": 0.06968701819760192,
+          "mdd": -0.238851870835469,
+          "years": 9.99
+        }
+      },
+      "total": 41.4,
+      "action": "减仓观望",
+      "valuation": "偏低区间",
+      "pe_xs_pct": 11.1,
+      "short_hist": false
+    },
+    {
+      "code": "016441",
+      "name": "华夏中证红利质量ETF联接C",
+      "cat": "红利质量",
+      "role": "对照",
+      "channel": "场外",
+      "idx": "中证红利质量(931468)",
+      "pe": 16.69,
+      "pe_pct": 0.2583,
+      "pe_cs": 19.72,
+      "pe_peg": 16.69,
+      "pe_ttm_mx": 16.09,
+      "pe_pct_ytd": null,
+      "pb": null,
+      "dy": 3.3,
+      "dy_dj": null,
+      "ratio": 1.963,
+      "y10": 1.681,
+      "mom6": -6.4,
+      "rsi": 27.06,
+      "src_pe": "中证官网 peg(静态)",
+      "src_pct": "中证官网 peg·自算10年分位",
+      "src_dy": "中证官网指数估值",
+      "val_src": "中证官网 peg(静态) / 中证官网 peg·自算10年分位 / 中证官网指数估值",
+      "value_score": 58.9,
+      "value_parts": {
+        "pe": 5.1,
+        "pe_pct": 14.8,
+        "dy": 11.0,
+        "ratio": 8,
+        "rsi": 20.0
+      },
+      "imputed": [],
+      "n_value_dims": 5,
+      "perf_score": 8.3,
+      "win_scores": {
+        "3": 13.3,
+        "5": 0.0
+      },
+      "windows": {
+        "3": {
+          "ann": 0.0683333721988626,
+          "mdd": -0.2337734281229803,
+          "years": 3.0
+        },
+        "5": {
+          "ann": 0.03387308212588103,
+          "mdd": -0.26557522123893806,
+          "years": 4.1
+        },
+        "10": null
+      },
+      "total": 28.5,
+      "action": "规避",
+      "valuation": "深度低估",
+      "pe_xs_pct": 100.0,
+      "short_hist": false
+    }
+  ]
+}

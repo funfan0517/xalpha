@@ -1,0 +1,242 @@
+{
+  "generated_at": "2026-10-26 11:30",
+  "sample": [
+    "2021-10-22",
+    "2026-10-22"
+  ],
+  "fee": 0.0003,
+  "rebal": "月末决策/次日生效",
+  "windows": [
+    3,
+    5,
+    10
+  ],
+  "note": "PE/PE分位=peg真实历史; RSI=净值真实历史; 股息率/股债收益比无历史序列,股息率用最新快照为常数、股债比=快照÷10Y国债(t) 近似(标注)",
+  "rows": [
+    {
+      "dim": "pe",
+      "topn": 1,
+      "label": "PE(低者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5542,
+      "ann": 0.0922,
+      "mdd": -0.1326,
+      "sharpe": 0.76,
+      "calmar": 0.7,
+      "obj": 0.0199,
+      "edge": [
+        6.5,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "pe",
+      "topn": 2,
+      "label": "PE(低者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5351,
+      "ann": 0.0895,
+      "mdd": -0.1227,
+      "sharpe": 0.73,
+      "calmar": 0.73,
+      "obj": 0.0245,
+      "edge": [
+        6.5,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "pe_pct",
+      "topn": 1,
+      "label": "PE分位(低者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.441,
+      "ann": 0.0758,
+      "mdd": -0.2075,
+      "sharpe": 0.53,
+      "calmar": 0.37,
+      "obj": -0.0108,
+      "edge": [
+        24.8,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "pe_pct",
+      "topn": 2,
+      "label": "PE分位(低者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.3866,
+      "ann": 0.0676,
+      "mdd": -0.1605,
+      "sharpe": 0.54,
+      "calmar": 0.42,
+      "obj": -0.0009,
+      "edge": [
+        24.8,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "dy",
+      "topn": 1,
+      "label": "股息率(高者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5048,
+      "ann": 0.0852,
+      "mdd": -0.1548,
+      "sharpe": 0.63,
+      "calmar": 0.55,
+      "obj": 0.0214,
+      "edge": [
+        10.4,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "dy",
+      "topn": 2,
+      "label": "股息率(高者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5198,
+      "ann": 0.0873,
+      "mdd": -0.1416,
+      "sharpe": 0.71,
+      "calmar": 0.62,
+      "obj": 0.0259,
+      "edge": [
+        10.4,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "ratio",
+      "topn": 1,
+      "label": "股债收益比(高者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.6651,
+      "ann": 0.1074,
+      "mdd": -0.1344,
+      "sharpe": 0.82,
+      "calmar": 0.8,
+      "obj": 0.055,
+      "edge": [
+        53.4,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "ratio",
+      "topn": 2,
+      "label": "股债收益比(高者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5933,
+      "ann": 0.0977,
+      "mdd": -0.1143,
+      "sharpe": 0.85,
+      "calmar": 0.85,
+      "obj": 0.0407,
+      "edge": [
+        53.4,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "rsi",
+      "topn": 1,
+      "label": "RSI14(低者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5086,
+      "ann": 0.0857,
+      "mdd": -0.1572,
+      "sharpe": 0.67,
+      "calmar": 0.55,
+      "obj": 0.0075,
+      "edge": [
+        32.1,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "rsi",
+      "topn": 2,
+      "label": "RSI14(低者高)",
+      "kind": "single",
+      "years": 5.0,
+      "cum": 0.5672,
+      "ann": 0.094,
+      "mdd": -0.1454,
+      "sharpe": 0.76,
+      "calmar": 0.65,
+      "obj": 0.0259,
+      "edge": [
+        32.1,
+        60
+      ],
+      "n_rebal": 61
+    },
+    {
+      "dim": "combined",
+      "topn": 1,
+      "label": "combined(合并5维)",
+      "kind": "combined",
+      "years": 5.0,
+      "cum": 0.4483,
+      "ann": 0.0769,
+      "mdd": -0.1497,
+      "sharpe": 0.6,
+      "calmar": 0.51,
+      "obj": 0.0029,
+      "edge": null,
+      "n_rebal": 61
+    },
+    {
+      "dim": "combined",
+      "topn": 2,
+      "label": "combined(合并5维)",
+      "kind": "combined",
+      "years": 5.0,
+      "cum": 0.4394,
+      "ann": 0.0756,
+      "mdd": -0.1129,
+      "sharpe": 0.64,
+      "calmar": 0.67,
+      "obj": 0.0216,
+      "edge": null,
+      "n_rebal": 61
+    },
+    {
+      "dim": "all",
+      "topn": 0,
+      "label": "全池等权基准",
+      "kind": "bench",
+      "years": 5.0,
+      "cum": 0.4689,
+      "ann": 0.08,
+      "mdd": -0.1281,
+      "sharpe": 0.68,
+      "calmar": 0.62,
+      "obj": 0.0209,
+      "edge": null,
+      "n_rebal": 61
+    }
+  ]
+}

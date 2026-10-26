@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-10-26 11:29",
+  "code": "090010",
+  "name": "大成中证红利指数A",
+  "idx": "中证红利(000922)",
+  "params": {
+    "rsi_window": 14,
+    "buy": 35.0,
+    "sell": 65.0,
+    "rsi_on": "totvalue(累计净值)"
+  },
+  "sample": [
+    "2010-02-02",
+    "2026-10-22"
+  ],
+  "rsi_strategy": {
+    "years": 16.72,
+    "cum": 0.6385,
+    "ann": 0.03,
+    "mdd": -0.3679,
+    "sharpe": 0.29,
+    "calmar": 0.08
+  },
+  "buy_hold": {
+    "years": 16.72,
+    "cum": 1.8192,
+    "ann": 0.064,
+    "mdd": -0.46,
+    "sharpe": 0.43,
+    "calmar": 0.14
+  },
+  "trades": {
+    "entries": 28,
+    "exits": 28,
+    "round_trips": 28,
+    "time_in_market": 0.4818
+  },
+  "last": {
+    "date": "2026-10-22",
+    "rsi14": 39.64,
+    "position": "空仓",
+    "recommendation": "持有不动(35~65)"
+  }
+}

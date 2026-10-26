@@ -109,7 +109,7 @@ def _first_date(*vals):
 
 
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
-           note="", src="", error=""):
+           note="", src="", error="", cols=None):
     return {
         "key": key,
         "name": name,
@@ -119,6 +119,7 @@ def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
         "summary": summary,
         "stats": stats or [],
         "rows": rows,
+        "cols": cols or ["代码", "名称", "动作", "说明"],
         "note": note,
         "src": src,
         "error": error,
@@ -190,7 +191,8 @@ def parse_momentum(_cfg):
             act, label = "none", "未入选"
         rows.append(_row(
             code, s.get("name"), act, label,
-            f"动量 {float(s.get('mom120') or 0) * 100:+.2f}% · MA20 {s.get('ma20')} · "
+            f"动量 {float(s.get('mom120') or 0) * 100:+.2f}% · "
+            f"MA20 {round(float(s.get('ma20') or 0), 3)} · "
             f"收盘 {s.get('close')} · 场外 {s.get('off')}",
         ))
 
@@ -311,6 +313,7 @@ def parse_core_rotation(_cfg):
             code = CODE_RE.search(cells[1])
             tips[cells[0]] = {"code": code.group(1) if code else "", "tips": cells[4]}
 
+    weights = d.get("target_weights") or {}
     rows = []
     for a in d.get("assets") or []:
         name = a.get("name", "")
@@ -324,11 +327,11 @@ def parse_core_rotation(_cfg):
             act, label = "buy", "偏多配"
         else:
             act, label = "hold", "持有"
+        key = a.get("key", "")
         rows.append(_row(t.get("code") or a.get("off"), name, act, label,
-                         f"中枢 {a.get('key', '')} · 收盘 {a.get('bar_close')} · "
-                         f"20日 {float(a.get('d20') or 0) * 100:+.1f}% · {tip}"))
+                         f"中枢 {weights.get(key, '—')}% · 收盘 {a.get('bar_close')} · "
+                         f"20日 {float(a.get('d20') or 0):+.1f}% · {tip}"))
 
-    weights = d.get("target_weights") or {}
     summary = f"情景 {d.get('sc')} · " + " / ".join(f"{k} {v}%" for k, v in weights.items())
     return _entry(
         "core_rotation", "核心轮动", as_of, d.get("sc") or "—", "watch", summary, rows,
@@ -339,7 +342,9 @@ def parse_core_rotation(_cfg):
 
 
 def parse_dividend(_cfg):
-    path = os.path.join(_ROOT, "strategies", "dividend", "daily", "_dividend_rank.json")
+    # 路径从 strategies.json 读（V0 版本化后产物在 v0_rank/daily/，硬编码会静默读到旧路径）
+    daily = _cfg["daily"]
+    path = os.path.join(_ROOT, daily["rank_json"])
     d = json.loads(_read(path))
     as_of = d.get("as_of")
     rows = []
@@ -368,7 +373,7 @@ def parse_dividend(_cfg):
         f"前档：{head} · 规避 {n_avoid} 只", rows,
         [["池内", str(len(rows))], ["买入档", str(n_buy)], ["规避", str(n_avoid)]],
         note="业绩分 60% / 价值分 40%；历史不足 3 年的标的不参与排名（总分只由价值分构成）。",
-        src=_rel(os.path.join(_ROOT, "strategies", "dividend", "daily", "_dividend_rank.md")),
+        src=_rel(os.path.join(_ROOT, daily["rank_md"])),
     )
 
 
@@ -404,39 +409,57 @@ def parse_tech_indicators(_cfg):
     if not detail:
         raise ValueError("markdown 明细表解析为空")
 
-    rows = []
+    # 按「策略」聚合：每个指标策略一行，行内列出它自己的买入/卖出标的
+    names = ["MACD", "V3", "V6", "V7"]
+    group = {n: {"buy": [], "sell": [], "hold": [], "none": []} for n in names}
+    pool = 0
     for cells in detail:
         if len(cells) < 10:
             continue
+        pool += 1
         code, name = cells[0], cells[1]
-        acts = cells[6:10]
-        names = ["MACD", "V3", "V6", "V7"]
-        if "买入" in acts:
-            act, label = "buy", "买入"
-        elif "卖出" in acts:
-            act, label = "sell", "卖出"
-        elif all(a == "空仓" for a in acts):
-            act, label = "none", "空仓"
-        else:
-            act, label = "hold", "持有"
-        desc = " · ".join(f"{n} {a}" for n, a in zip(names, acts))
-        rows.append(_row(code, name, act, label,
-                         f"{desc} · 风格 {cells[4]} · 收盘 {cells[2]}"))
+        for strat, a in zip(names, cells[6:10]):
+            key = {"买入": "buy", "卖出": "sell", "持有": "hold"}.get(a, "none")
+            group[strat][key].append(f"{code} {name}")
 
-    n_buy = sum(1 for r in rows if r["act"] == "buy")
-    n_sell = sum(1 for r in rows if r["act"] == "sell")
-    if n_buy or n_sell:
+    rows = []
+    for strat in names:
+        g = group[strat]
+        if g["buy"]:
+            act, label = "buy", f"买入 {len(g['buy'])}"
+        elif g["sell"]:
+            act, label = "sell", f"卖出 {len(g['sell'])}"
+        else:
+            act, label = "hold", "无动作"
+        parts = []
+        if g["buy"]:
+            parts.append("买入：" + "、".join(g["buy"]))
+        if g["sell"]:
+            parts.append("卖出：" + "、".join(g["sell"]))
+        if g["hold"] and len(g["hold"]) <= 10:
+            parts.append("持有：" + "、".join(g["hold"]))
+        if not parts:
+            parts.append(f"无买卖信号（持有 {len(g['hold'])} / 空仓 {len(g['none'])}）")
+        rows.append(_row(strat, f"买 {len(g['buy'])} · 卖 {len(g['sell'])} · "
+                                f"持 {len(g['hold'])} · 空 {len(g['none'])}", act, label,
+                         "；".join(parts)))
+
+    n_buy = sum(len(group[n]["buy"]) for n in names)
+    n_sell = sum(len(group[n]["sell"]) for n in names)
+    active = [r for r in rows if r["act"] in ("buy", "sell")]
+    if active:
         badge = f"买 {n_buy} / 卖 {n_sell}"
         tone = "buy" if n_buy else "sell"
-        summary = (f"买入 {n_buy} 只、卖出 {n_sell} 只："
-                   + "；".join(f"{r['a']} `{r['c']}`" for r in rows if r["act"] in ("buy", "sell")))
+        summary = "；".join(f"{r['c']}：{r['a']}" for r in active)
     else:
-        badge, tone, summary = "无动作", "none", f"{len(rows)} 只全池无买入/卖出信号"
+        badge, tone = "无动作", "none"
+        summary = f"四策略对全池 {pool} 只均无买入/卖出信号"
     return _entry(
         "tech_indicators", "技术指标（四策略）", as_of, badge, tone, summary, rows,
-        [["全池", str(len(rows))], ["买入", str(n_buy)], ["卖出", str(n_sell)]],
-        note="解析自 _daily_recommend.md（该策略只落 markdown）；MACD/V3/V6/V7 四策略各跑一遍。",
+        [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)]],
+        note="解析自 _daily_recommend.md（该策略只落 markdown）；每行是一个指标策略对全池的操作汇总。",
         src=_rel(path),
+        cols=["策略", "动作统计", "动作", "该策略的操作明细"],
     )
 
 
@@ -580,6 +603,8 @@ td.a{white-space:nowrap;font-weight:600;font-size:12.5px}
 td.a.buy{color:var(--buy)} td.a.sell{color:var(--sell)} td.a.hold{color:var(--hold)}
 td.a.watch{color:var(--watch)} td.a.avoid{color:var(--avoid)} td.a.none{color:var(--none)}
 td.d{color:#5f6b80;font-size:12.5px}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f2f5fa;
+  border-radius:4px;padding:0 4px;font-size:12px}
 .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
 .note{padding:9px 18px 14px;font-size:12px;color:var(--muted)}
 .src{padding:0 18px 14px;font-size:11.5px;color:#a3abbd;font-family:ui-monospace,Consolas,monospace}
@@ -634,6 +659,10 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
     });
   }
+  function md(s){
+    return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
   function visibleRows(s, q){
     var rows = (s.rows || []).filter(function(r){
       var hit = !q || (r.c + ' ' + r.n + ' ' + r.a + ' ' + r.d).toLowerCase().indexOf(q) >= 0;
@@ -649,12 +678,16 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     var chips = (s.stats || []).map(function(kv){
       return '<span class="chip">' + esc(kv[0]) + ' <b>' + esc(kv[1]) + '</b></span>';
     }).join('');
-    var body = rows.length ? '<div class="tbwrap"><table><thead><tr>' +
-        '<th>代码</th><th>名称</th><th>动作</th><th class="h-d">说明</th></tr></thead><tbody>' +
+    var cols = s.cols || ['代码', '名称', '动作', '说明'];
+    var ths = cols.map(function(c, i){
+      return '<th' + (i === cols.length - 1 ? ' class="h-d"' : '') + '>' + esc(c) + '</th>';
+    }).join('');
+    var body = rows.length ? '<div class="tbwrap"><table><thead><tr>' + ths +
+        '</tr></thead><tbody>' +
         rows.map(function(r){
           return '<tr><td class="c">' + esc(r.c) + '</td><td class="n">' + esc(r.n) +
                  '</td><td class="a ' + esc(r.act) + '">' + esc(r.a) +
-                 '</td><td class="d">' + esc(r.d) + '</td></tr>';
+                 '</td><td class="d">' + md(r.d) + '</td></tr>';
         }).join('') + '</tbody></table></div>'
       : '<div class="empty">' + (s.rows && s.rows.length ? '当前筛选下无明细' : '无明细产物') + '</div>';
     var open = (q || (s.rows || []).some(function(r){ return r.act !== 'none'; })) ? ' open' : '';
@@ -662,7 +695,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     return '<div class="' + cls.trim() + '"><details' + open + '>' +
       '<summary><div class="ttl"><h2>' + esc(s.name) + '</h2>' +
       '<span class="badge ' + esc(s.tone) + '">' + esc(s.badge) + '</span></div>' +
-      '<div class="sum">' + esc(s.summary) + '</div>' +
+      '<div class="sum">' + md(s.summary) + '</div>' +
       '<div class="meta">' + (s.as_of ? ('数据日 ' + esc(s.as_of)) : '无数据') +
       (s.rows ? (' · ' + s.rows.length + ' 行') : '') + '</div></summary>' +
       (chips ? '<div class="chips">' + chips + '</div>' : '') +

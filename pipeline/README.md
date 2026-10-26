@@ -5,7 +5,7 @@
 `momentum_rotation`（全球相对动量轮动）、`ema_cross`（双均线趋势 EMA12/26·金叉死叉）、
 `right_side`（右侧买入·五票确认买点识别，全池出信号）、
 `core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select）、
-`dividend`（多标的红利基金打分）、`growth_div_rotation`（成长/红利二元轮动）、
+`dividend`（红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、`growth_div_rotation`（成长/红利二元轮动）、
 `tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）。
 `lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层/轮动**策略参照 `momentum_rotation`。
 
@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 | ema_cross | `run_daily_ema_cross.ps1` | `strategies/ema_cross/daily/_signal_report.md` |
 | right_side | `run_daily_right_side.ps1` | `strategies/right_side/daily/_right_side_report.md` |
 | core_rotation | `run_daily_core_rotation.ps1` | `strategies/core_rotation/daily/_daily_report.md` |
-| dividend | `run_daily_dividend.ps1` | `strategies/dividend/daily/_dividend_rank.md` |
+| dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
 | tech_indicators | `run_daily_tech_indicators.ps1` | `strategies/tech_indicators/daily/_daily_recommend.md` |
 

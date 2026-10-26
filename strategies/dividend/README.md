@@ -1,5 +1,10 @@
 # 红利基金打分策略（V0 · 多标的 · 手册 §4 防御底仓）
 
+> **每日操作已切换（2026-10-26）**：`run_daily_dividend.ps1` 现在跑 **V4 · RSI14 择时**
+> （`v4_rsi/daily.py`，V4 专用池 5 只 = 561060/008163/090010/008115/016441），**不再跑本文的 V0 打分**。
+> V0 的 `v0_rank/` 未删除，可手动重跑作排序/估值参考。替换依据：单标的 RSI 择时适配度
+> （`v4_rsi/daily/_v4_universe.html`）—— 只有 ΔCalmar 双窗口都为正的 5 只适合择时。
+>
 > 来源：《核心轮动投资策略手册》§4 防御底仓。
 > **版本：V0**。2026-10-26 把原打分策略整体封装进 `v0_rank/`（`rank.py` / `backtest_rank.py` /
 > `backtest/` / `daily/`），与 V1–V7 平级；跨版本共享的数据层 `pool.py` 留在本目录根。
@@ -169,14 +174,17 @@ strategies/dividend/
 | ② 数据生产 | `yield_hist.py` → `data/_div_yield_m.csv` · `data/_bt_caches/ust10y_m.csv` |
 | ② 策略数据 | `data/_dividend_pool.json` · `_fund_nav.json` · `_csindex_value.json` · `_index_peg.json` · `_mx_valuation.json` · `_valuation_snapshot.json` · `data/_csi_hist/` |
 | ③ **V0 回测** | `v0_rank/backtest_rank.py`（打分 / 窗权 walk-forward）→ `v0_rank/backtest/_rank_bt.{jsonl,json}` · `_rank_report.md` |
-| ⑤ **V0 每日** | `v0_rank/rank.py`（打分窗权权威源）→ `v0_rank/daily/_dividend_rank.{md,json}` |
+| ⑤ **V4 每日（现行）** | `v4_rsi/daily.py` → `v4_rsi/daily/_v4_signal.{md,json}`（`run_daily_dividend.ps1` 调用；5 只专用池 + RSI 70/50 择时 + 横截面 top2） |
+| ⑤ V0 每日（仅手动） | `v0_rank/rank.py`（打分窗权权威源）→ `v0_rank/daily/_dividend_rank.{md,json}`（2026-10-26 退出每日流程） |
 | ③ V1 | `v1_spread/`（单标的利差分位择时，已验证时间维度不成立）→ `v1_spread/backtest/_v1_report.md` |
 | ③ V2 | `v2_temp/`（四维估值温度 + 温度分位减仓）→ `v2_temp/backtest/_v2_report.md` · `v2_temp/daily/_v2_read.md` |
 | ③ V3–V6 | `v3_yield/`（股息率）· `v4_rsi/`（RSI14）· `v5_spread/`（股债利差）· `v6_ratio/`（股债收益比）→ 各自 `backtest/_vN_report.md` |
+| ⑤ V4 今日信号 | `v4_rsi/daily.py`（当前档位 + 持仓 + 下个决策点）→ `v4_rsi/daily/_v4_signal.md` |
+| ⑤ V4 读数图 | `v4_rsi/chart.py`（左轴点位 / 右轴分数 RSI14，双阈值线）→ `v4_rsi/daily/_v4_<code>_chart[_all].png` |
 | ③ V7 | `v7_combo/`（组合搜索 + 最终优选）→ `v7_combo/backtest/_v7_report.md` |
 | ③ 备选规则 | `pool_rule_v1.py`（利差读数卡，并行未替换）→ `daily/_pool_rule_v1.{md,json}` |
-| ③ 总对比 | `_compare_all.py`（V0–V7 全版本，**A/B 口径分组**）→ `backtest/_compare_all_report.md` |
-| ④ 专项分析 | `research/backtest_dims.py`（5 指标边际）· `research/backtest_rsi14.py`（单标的 RSI14 择时）→ `research/backtest/*` |
+| ③ 总对比 | `_compare_all.py`（V0–V7：**§一 对齐窗口全景** + §三 原生口径）→ `backtest/_compare_all_report.md` |
+| ④ 专项分析 | `research/backtest_dims.py`（5 指标边际）· `research/backtest_rsi14.py`（单标的 RSI14 择时）· `research/mood_band.py`（80/65 情绪双阈值波段，外部策略复现）→ `research/backtest/*` |
 | 启动 | `run_daily_dividend.ps1`（仓库根） |
 
 ### 版本谱系与结论（2026-10-26）
@@ -197,9 +205,15 @@ strategies/dividend/
 > 代价：V4 平均仓位仅 72%，2020/2021/2024 三年落后基准，赢的是回撤而非收益。
 >
 > **全版本横向对比**见 `backtest/_compare_all_report.md`（`_compare_all.py` 生成）：
-> A 组（V3–V7，同池/同样本/同成本）可直接排名；V0/V1/V2 口径不同，单列在 B 组，
-> **不进排名**。该报告还量化了口径差 —— 同一段窗口里「价格指数 → 全收益」就差 5pp/年，
+> **§一 是 V0–V7 全景** —— 把 V0 拉到 V3–V7 的窗口（2020-01~2026-10、82 月、基金累计净值、
+> 单边 0.03%）重算，池取 7 只与 10 只两种，13 行之间只差「信号」与「池大小」；
+> 可直接排名。V0 的原生口径（2016-09 起、10 只池）与 V1/V2 放在 §三，**不进排名**。
+> 该报告还量化了口径差 —— 同一段窗口里「价格指数 → 全收益」就差 5pp/年，
 > 比 A 组内部策略的最大差距（3.3pp）还大。
+>
+> 全景要点（细节见报告 §一/§五）：V4 RSI14 Calmar **1.44** 第一；V0 打分轮动 7 只池
+> **0.88**（同池等权 0.91）、10 只池 **0.65**（等权 0.92）—— **扩池到异质标的（标普/港股通）
+> 后业绩分判别力明显下降**，业绩分只在同类标的间可比。
 >
 > **2026-10-26 目录改名**：`spread_v1` → `v1_spread`、`temp_v2` → `v2_temp`，
 > 与 `v0_rank`/`v3_yield`…`v7_combo` 同构（`vN_<信号>`），产物文件名（`_v1_*` / `_v2_*`）不变。
@@ -210,7 +224,10 @@ strategies/dividend/
 ## 6. 运行
 
 ```powershell
-python strategies/dividend/v0_rank/rank.py --refresh      # V0 打分排序 + 推荐操作
+python strategies/dividend/v4_rsi/daily.py --refresh      # ★ 每日操作(现行): V4 RSI14 择时信号
+python strategies/dividend/v4_rsi/backtest.py             # V4 回测(5 只池) + 阈值敏感性
+python strategies/dividend/v4_rsi/universe.py             # 池筛选: 10 只红利标的的择时适配度
+python strategies/dividend/v0_rank/rank.py --refresh      # V0 打分排序 + 推荐操作(已退出每日流程)
 python strategies/dividend/v0_rank/backtest_rank.py       # V0 打分窗权 walk-forward 调优回测
 python strategies/dividend/pool_rule_v1.py                # v1.0 利差读数卡（不替换 V0）
 python strategies/dividend/v1_spread/readout.py  # v1 利差读数（单标的择时）
@@ -219,12 +236,13 @@ python strategies/dividend/v2_temp/readout.py    # v2 估值温度读数卡
 python strategies/dividend/v2_temp/backtest.py   # v2 温度验证回测
 python strategies/dividend/v3_yield/backtest.py  # V3 股息率
 python strategies/dividend/v4_rsi/backtest.py    # V4 RSI14（当前最优）
+python strategies/dividend/v4_rsi/daily.py       # V4 今日信号：档位 + 持仓 + 下个决策点
 python strategies/dividend/v5_spread/backtest.py # V5 股债利差
 python strategies/dividend/v6_ratio/backtest.py  # V6 股债收益比
 python strategies/dividend/v7_combo/search.py    # V7 组合优选 + 横向对比总表
 python strategies/dividend/research/backtest_dims.py   # 专项：5 个价值分的边际（V0 指标重要度）
 python strategies/dividend/research/backtest_rsi14.py  # 专项：单标的 RSI14 择时（结论已被 V4 覆盖）
-python strategies/dividend/_compare_all.py       # 全版本总对比（A 组同口径 + B 组不可比）
+python strategies/dividend/_compare_all.py       # V0–V7 总对比（§一 对齐窗口全景 + §三 原生口径）
 powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1
 # 或走 pipeline:
 python pipeline/run_flow.py daily --strategy dividend

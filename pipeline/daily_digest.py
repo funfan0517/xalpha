@@ -342,38 +342,50 @@ def parse_core_rotation(_cfg):
 
 
 def parse_dividend(_cfg):
-    # 路径从 strategies.json 读（V0 版本化后产物在 v0_rank/daily/，硬编码会静默读到旧路径）
+    # 2026-10-26 起每日操作是 V4 RSI14 择时（V0 打分退出流程，产物仍在 v0_rank/daily/）
     daily = _cfg["daily"]
-    path = os.path.join(_ROOT, daily["rank_json"])
+    path = os.path.join(_ROOT, daily["signal_json"])
     d = json.loads(_read(path))
     as_of = d.get("as_of")
-    rows = []
-    for r in d.get("rows") or []:
-        action = r.get("action") or ""
-        if "加大" in action or "正常逢跌加" in action:
-            act, tone = "buy", "buy"
-        elif "小额" in action:
-            act, tone = "watch", "watch"
-        elif "减仓" in action:
-            act, tone = "sell", "sell"
-        elif "规避" in action:
-            act, tone = "avoid", "avoid"
-        else:
-            act, tone = "hold", "hold"
-        rows.append(_row(r.get("code"), r.get("name"), act, action,
-                         f"总分 {r.get('total')}（业绩 {r.get('perf_score')} / 价值 {r.get('value_score')}）"
-                         f" · {r.get('valuation') or '—'} · {r.get('idx') or ''}"))
+    tier = d.get("tier") or "—"
+    mult = float(d.get("mult") or 0)
+    tone = "buy" if mult >= 0.99 else ("watch" if mult > 0.01 else "sell")
 
-    top = [r for r in rows if r["act"] == "buy"][:3]
-    head = "；".join(f"`{r['c']}` {r['a']}" for r in top) or "无买入档"
-    n_buy = sum(1 for r in rows if r["act"] == "buy")
-    n_avoid = sum(1 for r in rows if r["act"] == "avoid")
+    positions = d.get("positions") or []
+    pos = {p.get("code"): float(p.get("weight") or 0) for p in positions}
+    prev = d.get("preview") or {}
+    rsi = {p.get("code"): p.get("rsi") for p in prev.get("picks") or []}
+    pool = sorted(d.get("pool") or [], key=lambda p: rsi.get(p.get("code")) or 999)
+
+    rows = []
+    for p in pool:
+        code = p.get("code")
+        w = pos.get(code, 0.0)
+        act, label = ("hold", f"持有 {w * 100:.0f}%") if w > 0 else ("none", "空仓")
+        r = rsi.get(code)
+        rows.append(_row(code, p.get("name"), act, label,
+                         f"RSI14 {r:.1f} · 板块均值 {d.get('board_rsi', '—')} · "
+                         f"权重 {w * 100:.0f}%" if r is not None else
+                         f"权重 {w * 100:.0f}%（今日无 RSI 快照）"))
+
+    holds = "、".join(f"`{p.get('code')}` {float(p.get('weight') or 0) * 100:.0f}%"
+                     for p in positions) or "空仓"
+    preview = ""
+    if prev.get("changed"):
+        tgt = "、".join(f"`{t.get('code')}` {float(t.get('weight') or 0) * 100:.0f}%"
+                       for t in prev.get("target") or []) or "空仓"
+        preview = f" · 预览会变 → {tgt}"
     return _entry(
-        "dividend", "红利基金打分", as_of, f"买入档 {n_buy}", "buy" if n_buy else "watch",
-        f"前档：{head} · 规避 {n_avoid} 只", rows,
-        [["池内", str(len(rows))], ["买入档", str(n_buy)], ["规避", str(n_avoid)]],
-        note="业绩分 60% / 价值分 40%；历史不足 3 年的标的不参与排名（总分只由价值分构成）。",
-        src=_rel(os.path.join(_ROOT, daily["rank_md"])),
+        "dividend", "红利 V4 · RSI 择时", as_of,
+        tier.replace("（", " ").replace("）", ""), tone,
+        f"板块 RSI {d.get('board_rsi', '—')} · 持 {holds}{preview}", rows,
+        [["板块 RSI", str(d.get("board_rsi", "—"))], ["档位", tier],
+         ["持仓", f"{len(positions)} 只 · {sum(pos.values()) * 100:.0f}%"],
+         ["下次决策", str(d.get("next_decision") or "—")]],
+        note="V4 · RSI14 择时：板块(池内 5 只)RSI 均值 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只等权；"
+             "月末收盘确认、次日开盘执行 —— 月中看到的是预览，不要提前动手。"
+             "2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。",
+        src=_rel(os.path.join(_ROOT, daily["signal_md"])),
     )
 
 

@@ -264,15 +264,22 @@ def build_vote(rets: pd.DataFrame, kinds: list[str], threshold=0.50
     return q, xs
 
 
+def base_key(sims: dict) -> str:
+    """基准方案的键名（`run_variants` 的 base_label 可定制，池只数不同时标签要跟着变）。"""
+    return next(n for n in sims if n.startswith("基准"))
+
+
 def run_variants(q: pd.DataFrame, rets: pd.DataFrame, xs: pd.DataFrame = None,
                  bq=None, k=2, q_out=Q_OUT, q_half=Q_HALF,
-                 mult_override: pd.Series = None) -> dict:
+                 mult_override: pd.Series = None,
+                 base_label: str = "基准：7 只等权") -> dict:
     """单指标标准三件套 + 基准。返回 (sims, 基准权重, 仓位倍率)。
 
     q      : 自身分位贵度（时间维度）
     xs     : 横截面可比键（越小越便宜），缺省时退回 q
     q_out  : 清仓线；q_half: 减半线（RSI 用 0.70/0.50 对齐文献，其余 0.80/0.50）
     mult   : 直接给定仓位倍率（组合策略用，覆盖 bq/阈值）
+    base_label : 基准行名（标准池 7 只；V4 用自己的 5 只池，标签随之改）
     """
     ok = available(q, rets)
     bq = board_q(q, ok) if bq is None else bq
@@ -280,7 +287,7 @@ def run_variants(q: pd.DataFrame, rets: pd.DataFrame, xs: pd.DataFrame = None,
     mult = time_mult(bq, q_out, q_half) if mult_override is None else mult_override
     top = top_w(q if xs is None else xs, ok, k)
     sims = {
-        "基准：7 只等权": simulate(base_w, rets),
+        base_label: simulate(base_w, rets),
         "时间：板块贵度择时": simulate(base_w.mul(mult, axis=0), rets),
         f"横截面：最便宜 {k} 只": simulate(top, rets),
         f"横截面 top{k} + 时间择时": simulate(top.mul(mult, axis=0), rets),
@@ -291,7 +298,7 @@ def run_variants(q: pd.DataFrame, rets: pd.DataFrame, xs: pd.DataFrame = None,
 # ------------------------------------------------------------------ 稳健性
 def robustness(sims: dict) -> pd.DataFrame:
     """剔除「相对基准贡献最大」的 N 个月后，各方案还能剩多少。"""
-    base = sims["基准：7 只等权"]
+    base = sims[base_key(sims)]
     rows = []
     for name, r in sims.items():
         if name.startswith("基准"):
@@ -317,8 +324,14 @@ def fmt_pct(x, digits=1) -> str:
 
 def render_report(title: str, subtitle: list[str], q: pd.DataFrame, raw: pd.DataFrame,
                   sims: dict, meta: dict, rets: pd.DataFrame = None,
-                  xs: pd.DataFrame = None, q_out=Q_OUT, q_half=Q_HALF) -> str:
-    """标准报告骨架：规则 → 当前读数 → 回测 → 分年度 → 稳健性 → 读法。"""
+                  xs: pd.DataFrame = None, q_out=Q_OUT, q_half=Q_HALF,
+                  codes: list[str] = None, name: dict = None) -> str:
+    """标准报告骨架：规则 → 当前读数 → 回测 → 分年度 → 稳健性 → 读法。
+
+    codes / name : 报告第一节点名的池（V4 用自有的 5 只，其余用标准 7 只）
+    """
+    codes = codes or CODES
+    name = name or NAME
     L = [f"# {title}", ""]
     L += [f"> {s}" for s in subtitle]
     L.append("")
@@ -331,13 +344,13 @@ def render_report(title: str, subtitle: list[str], q: pd.DataFrame, raw: pd.Data
         order = {c: i + 1 for i, c in enumerate(row.sort_values().index)}
     L += ["## 一、当前读数", "",
           "| 标的 | 原始值 | 自身分位贵度 q | 横截面便宜度排名 |", "|---|---:|---:|---:|"]
-    for c in CODES:
+    for c in codes:
         if c not in q.columns or np.isnan(q[c].iloc[-1]):
             continue
         rv = raw[c].iloc[-1] if c in raw.columns else float("nan")
         rk = f"{order[c]}/{len(order)}" if c in order else "—"
-        L.append(f"| {NAME[c]}({c}) | {meta['unit_fmt'](rv)} | {q[c].iloc[-1]:.2f} | {rk} |")
-    L += ["", f"> 板块贵度（7 只 q 均值）**{board_q(q).iloc[-1]:.2f}**"
+        L.append(f"| {name.get(c, c)}({c}) | {meta['unit_fmt'](rv)} | {q[c].iloc[-1]:.2f} | {rk} |")
+    L += ["", f"> 板块贵度（{len(codes)} 只 q 均值）**{board_q(q).iloc[-1]:.2f}**"
               f"（阈值 {q_half:.2f} 减半 / {q_out:.2f} 清仓）。"
               "**q 用于时间维度（相对自己历史），横截面排名用原始值（跨基金可比）** —— "
               "两者不能用同一个数，否则并列会让选择退化成按列序取。", ""]
@@ -378,13 +391,13 @@ def render_report(title: str, subtitle: list[str], q: pd.DataFrame, raw: pd.Data
     for _, row in rb.iterrows():
         L.append(f"| {row['方案']} | {fmt_pct(row['剔除0'])} | {fmt_pct(row['剔除3'])} | "
                  f"{fmt_pct(row['剔除5'])} |")
-    L += ["", f"- 基准同口径：全部 {fmt_pct(stats(sims['基准：7 只等权'])['cagr'])}。", ""]
+    L += ["", f"- 基准同口径：全部 {fmt_pct(stats(sims[base_key(sims)])['cagr'])}。", ""]
     return "\n".join(L)
 
 
 def conclusion(sims: dict, note: str = "") -> list[str]:
     """自动结论：以 Calmar 排序，并标注是否只是在「降暴露」。"""
-    base = stats(sims["基准：7 只等权"])
+    base = stats(sims[base_key(sims)])
     ranked = sorted(((n, stats(r)) for n, r in sims.items() if not n.startswith("基准")),
                     key=lambda x: -x[1]["calmar"])
     best_name, best = ranked[0]
@@ -395,13 +408,13 @@ def conclusion(sims: dict, note: str = "") -> list[str]:
     else:
         L.append(f"- 最好的是 **{best_name}**：年化 {fmt_pct(best['cagr'])}、回撤 {fmt_pct(best['dd'])}、"
                  f"Calmar {best['calmar']:.2f}（基准 {base['calmar']:.2f}）。")
-        diff = (sims[best_name] - sims["基准：7 只等权"]).dropna()
+        diff = (sims[best_name] - sims[base_key(sims)]).dropna()
         top3 = diff.nlargest(3)
         L.append(f"- 但 {len(diff)} 个月里，超额集中在少数月份："
                  + "、".join(f"{ts:%Y-%m} {v * 100:+.1f}pp" for ts, v in top3.items())
                  + "；剔除这 3 个月后年化 "
                  f"{fmt_pct(stats(sims[best_name].drop(diff.nlargest(3).index))['cagr'])}"
-                 f"（基准同口径 {fmt_pct(stats(sims['基准：7 只等权'].drop(diff.nlargest(3).index))['cagr'])}）。")
+                 f"（基准同口径 {fmt_pct(stats(sims[base_key(sims)].drop(diff.nlargest(3).index))['cagr'])}）。")
     if note:
         L.append(f"- {note}")
     return L

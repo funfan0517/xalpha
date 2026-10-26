@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 """V4 · RSI14 单指标红利策略 —— 回测与报告生成（含阈值敏感性）
 
+标的池是 **V4 专用池 5 只**（`rule.POOL`，按单标的 RSI 择时适配度筛出），
+不是 V3–V7 共用的 7 只 —— 因此这里不能直接用 `S.cheapness/S.xs_key`（它们绑 S.CODES）。
+
 用法::
 
     python strategies/dividend/v4_rsi/backtest.py
@@ -18,41 +21,49 @@ sys.path.insert(0, _DIR)
 sys.path.insert(0, _STRAT)
 
 import _single_signal as S  # noqa: E402  pylint: disable=wrong-import-position
+import pool  # noqa: E402  pylint: disable=wrong-import-position
 import rule  # noqa: E402  pylint: disable=wrong-import-position
 
 GRID = ((0.70, 0.50), (0.80, 0.50), (0.60, 0.40))   # (清仓线, 减半线) = RSI 70/80/60 与 50/50/40
 
 
+def load() -> tuple:
+    """V4 池的 (贵度 q, 横截面键 xs, 原始 RSI, 月度收益)。q = RSI/100，不做分位化。"""
+    navs = pool.load_navs(codes=rule.CODES)
+    rets = S.load_rets(navs)
+    raw = S.load_signal(rule.SIGNAL, navs).reindex(rets.index)
+    return (raw / 100.0).loc[S.START:], raw.loc[S.START:], raw, rets
+
+
 def main() -> int:
-    rets = S.load_rets()
-    q = S.cheapness(rule.SIGNAL).reindex(rets.index)
-    xs = S.xs_key(rule.SIGNAL).reindex(rets.index)
-    raw = S.load_signal(rule.SIGNAL).reindex(q.index)
-    sims, _, _ = S.run_variants(q, rets, xs, k=rule.TOP_K,
-                                q_out=rule.Q_OUT, q_half=rule.Q_HALF)
+    q, xs, raw, rets = load()
+    sims, _, _ = S.run_variants(q, rets, xs, k=rule.TOP_K, q_out=rule.Q_OUT,
+                                q_half=rule.Q_HALF, base_label=rule.BASE_LABEL)
 
     text = S.render_report(rule.TITLE, rule.SUBTITLE, q, raw, sims,
                            {"unit_fmt": rule.unit_fmt}, rets=rets, xs=xs,
-                           q_out=rule.Q_OUT, q_half=rule.Q_HALF)
+                           q_out=rule.Q_OUT, q_half=rule.Q_HALF,
+                           codes=rule.CODES, name=rule.NAME)
 
     # 阈值敏感性：文献里的 70/30 与常见 80/20 都跑一遍，看结论是否依赖单点参数
     sens = ["## 附：阈值敏感性（时间维度）", "",
             "| 清仓线 / 减半线 | 年化 | 最大回撤 | Calmar | 减半月数 | 清仓月数 |",
             "|---|---:|---:|---:|---:|---:|"]
     for qo, qh in GRID:
-        sm, _, mt = S.run_variants(q, rets, xs, k=rule.TOP_K, q_out=qo, q_half=qh)
+        sm, _, mt = S.run_variants(q, rets, xs, k=rule.TOP_K, q_out=qo, q_half=qh,
+                                   base_label=rule.BASE_LABEL)
         r = sm["时间：板块贵度择时"]
         st = S.stats(r)
         sens.append(f"| RSI {qo * 100:.0f} / {qh * 100:.0f} | {S.fmt_pct(st['cagr'])} | "
                     f"{S.fmt_pct(st['dd'])} | {st['calmar']:.2f} | "
                     f"{int(((mt > 0.01) & (mt < 0.99)).sum())} | {int((mt <= 0.01).sum())} |")
-    sens += ["", f"- 基准同口径 Calmar {S.stats(sims['基准：7 只等权'])['calmar']:.2f}。", ""]
+    sens += ["", f"- 基准同口径 Calmar {S.stats(sims[S.base_key(sims)])['calmar']:.2f}。", ""]
 
     text += "\n" + "\n".join(S.conclusion(sims, rule.NOTE)) + "\n"
     text += "\n" + "\n".join(sens) + "\n"
     S.write(rule.OUT_MD, text)
 
-    base = S.stats(sims["基准：7 只等权"])
+    base = S.stats(sims[S.base_key(sims)])
     print(f"[v4] 样本 {rets.index[0]:%Y-%m}~{rets.index[-1]:%Y-%m} ({len(rets)} 月)")
     for name, r in sims.items():
         st = S.stats(r)

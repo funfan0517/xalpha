@@ -355,6 +355,20 @@
         "pool_rule": "一指数一标的: 同跟踪指数只保留 1 只(保留规则: 历史更长 > 场外C类/联接 > 规模更大)。池内 10 指数: 标普中国A股大盘红利低波动50 / 中证红利低波动100(930955) / 中证红利低波动(H30269) / 沪港深红利成长低波(931157) / 中证红利(000922) / 标普中国A股红利机会 / **红利质量(931468) / 国有企业红利(000824) / 中央企业红利(000825) / 港股通高股息投资(930914)**",
         "note": "2026-09-12 扩展为多标的红利基金池做横向打分, 并按「一指数一标的」去重(原 021551/020603/012644/512890 等同指数标的移入 RESERVE); 同日第二批扩充 8 只(因子类 红利质量/红利价值/国企红利/央企红利/高股息策略 + 港股族 港股通高股息投资/港股通央企红利/港股通高股息精选)。中证香港红利(H11140)原在计划内, 但东财查无跟踪产品 -> 以 930839 港股通高股息精选(民生加银C, 2017年成立)替代。**2026-10-22 用户指定剔除 6 只: 159905(深证红利)/022720(国新港股通央企红利)/021562(央企红利50)/024565(红利价值)/021143(港股通央企红利)/563180(高股息策略), 池内 19 -> 13 只; 同日第二批: 008164(C类) 换同指数 A 类 008163, 再剔除 012762(上证红利)/007606(沪深300红利低波)/004533(港股通高股息精选), 13 -> 10 只; 均为人为剔除, 与去重规则无关, 剩余标的均满 3 年历史**"
       },
+      "v4": {
+        "name": "V4 · RSI14 单指标红利（每日操作口径）",
+        "positioning": "**2026-10-26 起每日操作跑这个, 不再跑 V0 打分**。规则: 板块(池内 5 只)RSI14 均值 ≥70 清仓 / ≥50 减半 / 其余满仓; 横截面取 RSI 最低 2 只等权; 月末信号下月生效, 单边 0.03%",
+        "pool": "strategies/dividend/v4_rsi/rule.py::POOL（V4 专用池 5 只: 561060/008163/090010/008115/016441 —— 判据为单标的 RSI 择时 ΔCalmar 全区间与共同窗口均 ≥ +0.10, 见 v4_rsi/universe.py; 落选 005125/007760/007467/561580/018388 择时为负和）",
+        "engine": "strategies/dividend/v4_rsi/daily.py",
+        "backtest": "strategies/dividend/v4_rsi/backtest.py",
+        "universe_probe": "strategies/dividend/v4_rsi/universe.py",
+        "out_signal_md": "strategies/dividend/v4_rsi/daily/_v4_signal.md",
+        "out_signal_json": "strategies/dividend/v4_rsi/daily/_v4_signal.json",
+        "bt_report": "strategies/dividend/v4_rsi/backtest/_v4_report.md",
+        "universe_report": "strategies/dividend/v4_rsi/daily/_v4_universe.html",
+        "bt_2026_10_26": "5 只池 · 2020-01~2026-10(82 月) · 基准 5 只等权 年化 7.7%/回撤 -9.0%/Calmar 0.85; 时间择时 9.3%/-7.2%/1.28; 横截面 top2 10.0%/-10.8%/0.93; **top2+择时 11.4%/-7.9%/Calmar 1.44**(收窄池后 Calmar 与 7 只池持平、年化 +0.6pp); 平均仓位 72%",
+        "note": "池收窄的副作用: 561060(37 月)与 016441(49 月)历史短, 2020–2023 只有 3–4 只可得, 由 available() 掩码分权重, 不虚拟历史。横截面选「RSI 最低 2 只」= 选刚跌过的, 与 V0 的估值打分逻辑不同源, 两者结论不可互相替代"
+      },
       "rank": {
         "engine": "strategies/dividend/v0_rank/rank.py",
         "backtest": "strategies/dividend/v0_rank/backtest_rank.py",
@@ -391,11 +405,18 @@
       },
       "daily": {
         "runner": "run_daily_dividend.ps1",
-        "rank_md": "strategies/dividend/v0_rank/daily/_dividend_rank.md",
-        "rank_json": "strategies/dividend/v0_rank/daily/_dividend_rank.json",
+        "signal_md": "strategies/dividend/v4_rsi/daily/_v4_signal.md",
+        "signal_json": "strategies/dividend/v4_rsi/daily/_v4_signal.json",
+        "cursor": "2026-10-26 起每日操作 = V4 RSI14 择时(5 只专用池); V0 打分仅保留产物、不再每日跑",
+        "v0_legacy": {
+          "rank_md": "strategies/dividend/v0_rank/daily/_dividend_rank.md",
+          "rank_json": "strategies/dividend/v0_rank/daily/_dividend_rank.json",
+          "manual": "python strategies/dividend/v0_rank/rank.py --refresh"
+        },
         "automation": "(未创建)"
       },
-      "note": "**2026-10-26 版本化**: 本打分策略命名为 **V0** 并整体迁入 `strategies/dividend/v0_rank/`(rank.py + backtest_rank.py + backtest/ + daily/), 与 V1(v1_spread)/V2(v2_temp)/V3-V7 平级; `strategies/dividend/pool.py` 作为**跨版本共享数据层**(池/净值/估值, 被 9 个脚本 import)留在 dividend 根, 专项分析(5 指标边际、单标的 RSI14)迁入 `strategies/dividend/research/`。 2026-09-12 落地多标的红利基金横向打分(同日移除原「中证红利ETF单标的估值择时」引擎与其产物, 其规则与结论并入本策略价值分; 手册 §4 原始阈值仍由 core_rotation 保留)。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 后同日第二批扩充至 19 只, 权威源 strategies/dividend/pool.py::POOL; **2026-10-22 用户指定剔除 159905/022720/021562/024565/021143/563180 六只, 池内 19 -> 13 只; 同日第二批 008164(C类) 换同指数 A 类 008163 并剔除 012762/007606/004533, 13 -> 10 只**)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分五项各 20 分), 输出打分排序 + 操作建议。净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 删除此前的表内快照覆盖(TABLE_SNAPSHOT), 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值。真实源覆盖缺口如实保留(见 rank.valuation_sources.gap)。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/v0_rank/backtest/_rank_report.md 与 README.md。 **2026-10-26 重跑(池内 10 只, 版本化为 V0 后)**: 选择边际 3年30 -62.6 / 3年70 -66.2 / 指定 -68.5 / 10年主导 -68.7 / 等权1/3 -69.8 bp —— 全部仍为负, 3 年主导组相对最好; topN=2 各方案 obj 落在 -0.0264 ~ 0.0014, 仍低于「表内 2 只等权」基准 0.0143。"
+      "note": "**2026-10-26 每日操作切换(V0 -> V4)**: `run_daily_dividend.ps1` 改为跑 `v4_rsi/daily.py --refresh`, 每日产物 `v4_rsi/daily/_v4_signal.{md,json}`, 看板由 `daily_digest.parse_dividend` 读该 JSON。**为什么切**: 池内 10 只逐只做单标的 RSI 择时的适配度差异极大(全区间 ΔCalmar +0.92 ~ −0.05), 只有 5 只双窗口都为正(`v4_rsi/universe.py`), 而 V0 打分的选择边际在池收窄到 10 只后已全为负(-62~-70bp) —— 打分只剩「排序参考」职能, 不宜作为每日操作依据。**V0 未删除**: `v0_rank/` 与产物保留, 可手动重跑。 **2026-10-26 版本化**: 本打分策略命名为 **V0** 并整体迁入 `strategies/dividend/v0_rank/`(rank.py + backtest_rank.py + backtest/ + daily/), 与 V1(v1_spread)/V2(v2_temp)/V3-V7 平级; `strategies/dividend/pool.py` 作为**跨版本共享数据层**(池/净值/估值, 被 9 个脚本 import)留在 dividend 根, 专项分析(5 指标边际、单标的 RSI14)迁入 `strategies/dividend/research/`。 2026-09-12 落地多标的红利基金横向打分(同日移除原「中证红利ETF单标的估值择时」引擎与其产物, 其规则与结论并入本策略价值分; 手册 §4 原始阈值仍由 core_rotation 保留)。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 后同日第二批扩充至 19 只, 权威源 strategies/dividend/pool.py::POOL; **2026-10-22 用户指定剔除 159905/022720/021562/024565/021143/563180 六只, 池内 19 -> 13 只; 同日第二批 008164(C类) 换同指数 A 类 008163 并剔除 012762/007606/004533, 13 -> 10 只**)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分五项各 20 分), 输出打分排序 + 操作建议。净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 删除此前的表内快照覆盖(TABLE_SNAPSHOT), 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值。真实源覆盖缺口如实保留(见 rank.valuation_sources.gap)。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/v0_rank/backtest/_rank_report.md 与 README.md。 **2026-10-26 重跑(池内 10 只, 版本化为 V0 后)**: 选择边际 3年30 -62.6 / 3年70 -66.2 / 指定 -68.5 / 10年主导 -68.7 / 等权1/3 -69.8 bp —— 全部仍为负, 3 年主导组相对最好; topN=2 各方案 obj 落在 -0.0264 ~ 0.0014, 仍低于「表内 2 只等权」基准 0.0143。 **2026-10-26 对齐窗口复核(V0-V7 全景, 见 strategies/dividend/backtest/_compare_all_report.md §一)**: 把 V0 拉到 V3-V7 窗口(2020-01~2026-10, 82 月, 基金累计净值, 单边 0.03%)重算 —— 7 只池 Calmar 0.88(同池等权 0.91, 年化 9.1% vs 8.2% 但回撤 -10.3% vs -9.1%), 10 只池 Calmar 0.65(等权 0.92); 同窗口第一为 V4 RSI14(1.44)。**结论: 业绩分只在同类标的间可比, 扩池到标普/港股通后判别力明显下降; 打分仍作排序参考。**",
+      "pipeline_mode": "rotation"
     },
     "growth_div_rotation": {
       "name": "成长/红利风格轮动（Growth/Dividend Style Rotation · 二元切换）",

@@ -2,11 +2,12 @@
 
 把「公共标的池 → 规则化 → 回测报告 → 适配名单 → 每日操作」固化为五阶段标准流程。
 当前已注册策略：`lights`（亮灯策略·共振策略重构版·全参数化）、
-`momentum_rotation`（全球相对动量轮动）、`ema_cross`（双均线趋势 EMA12/26·金叉死叉）、
+`momentum_rotation`（全球相对动量轮动）、`ema_cross`（双均线趋势 EMA12/26·金叉死叉，**2026-10-27 移出每日操作**）、
 `right_side`（右侧买入·五票确认买点识别，全池出信号）、
-`core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select）、
+`core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select，**2026-10-27 移出每日操作**）、
 `dividend`（红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、`growth_div_rotation`（成长/红利二元轮动）、
-`tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）。
+`tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）、
+`permanent`（永久组合·8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）。
 `lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层/轮动**策略参照 `momentum_rotation`。
 
 > `lights` 是**参数化策略**：所有行为差异由 `strategies/lights/rule.py::ACTIVE` 表达，
@@ -91,6 +92,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 - **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
 - lights 信号只覆盖 A 类 8 只（`588000/515230/512200/562500/512980/512000/513180/161725`），A 类之外不做信号推送；**tech_indicators 例外**：它是 `full_pool` 模式，四个策略对全池 55 只全部出信号，不做 A/B 分级（`right_side` 同属全池出信号）。
 - 新增 runner 时：在 `pipeline/strategies.json` 的 `daily.runner` 填 `.ps1` 文件名（放仓库根，脚本内用 `$PSScriptRoot` 定位，勿写死盘符），`run_daily_all.ps1` 会自动带上它。
+- **停用某个策略的每日跑（不等于删策略）**：在该策略 `daily` 里加 `"enabled": false`。`run_daily_all.ps1` 与 `daily_digest.py` 都会跳过它（看板不出卡片），runner 与历史产物保留，仍可手动 `python pipeline/run_flow.py daily --strategy <key>`。当前停用：`ema_cross`、`core_rotation`（2026-10-27）。
 
 **跨策略汇总看板**（一页看「每天 × 每个策略」的操作）：
 
@@ -101,7 +103,7 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 ```
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
-- 解析口径：优先读结构化产物（json / jsonl）；`ema_cross`、`tech_indicators` 只落 markdown，由脚本解析其自产表格。单个策略解析失败只影响本卡片，不中断汇总。
+- 解析口径：优先读结构化产物（json / jsonl）；`ema_cross`、`tech_indicators` 只落 markdown，由脚本解析其自产表格；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
 - 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。
 

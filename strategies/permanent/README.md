@@ -97,6 +97,11 @@ python strategies\permanent\_signal.py --capital 2000000     # 按总资产换�
 
 或 `powershell -ExecutionPolicy Bypass -File run_daily_permanent.ps1`，或 `python pipeline/run_flow.py daily --strategy permanent`。
 
+**已接入每日操作（2026-10-27）**：`run_daily_all.ps1` 按 `pipeline/strategies.json` 的 `daily.runner` 自动带上本策略；
+每日产物进跨策略看板 `data/_daily_digest.html`（解析器 `pipeline/daily_digest.py::parse_permanent`，
+权重读 `_permanent_signal.json`、资产名与场外代码读 `_permanent_report.md` 的「当前最佳百分比」表）。
+看板卡片语义：**「加至 / 减至」是目标权重**，不是当日买卖指令（§8.1 第 4 条：偏离 >5pp 才调）。
+
 产物（按职能分子目录，见 `AGENTS.md §8.4`）：
 
 | 文件 | 内容 |

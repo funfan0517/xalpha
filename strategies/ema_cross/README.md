@@ -86,5 +86,7 @@ python strategies/ema_cross/_signal.py                                          
 - 震荡市是双均线的固有短板（反复金叉死叉磨损 / 过滤后错过反弹），手册建议**只对 A 类高波动标的**推送信号；
 - 定位为“择时/仓位”模块，与绝对动量（选强势标的）、马科维茨（配仓权重）组成
   **择时 → 选股 → 配仓**闭环（手册第七章），本项目其余策略可交叉验证；
-- 每日 automation 未创建（同 momentum_rotation 口径），确认 A 名单后可按 `run_daily_4d.ps1` 模板接入；
+- **2026-10-27 已移出每日操作**（`pipeline/strategies.json` 的 `daily.enabled=false`）：
+  `run_daily_all.ps1` 不再自动跑、每日看板 `data/_daily_digest.html` 不再出卡片；
+  `run_daily_ema_cross.ps1` 与历史产物保留，需要时手动 `python pipeline/run_flow.py daily --strategy ema_cross`；
 - 全部产物为机械规则回测，**不构成投资建议**，实盘前须人工复核。

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """对照: 仅均衡档 · 月度再平衡 vs 买入持有(不调仓)
 
-组合A: 均衡中枢(10/25/15/25/5/20, 旧手册中央值) 每月末再平衡
+组合A: 基准配置(债30/红利20/纳指20/金10/A500 10/科创10) 每月末再平衡
 组合B: 同一初始权重 买入持有(权重漂移, 永不调仓)
 参考: 六腿等权 × 两种执行方式
 
 口径: 月度; t末定权 -> 下月收益(无前视); 未计费; 样本 2019-09~2026-09(科创50上市后)
 用法: python strategies/core_rotation/_bt_rebal.py
-输出: strategies/core_rotation/_bt_rebal.md + strategies/core_rotation/_bt_rebal.json
+输出: strategies/core_rotation/backtest/_bt_rebal.md + _bt_rebal.json
 """
 import json
 import os
@@ -25,7 +25,7 @@ import _backtest as bt  # noqa: E402
 
 _KEYS = bt._KEYS
 _NAMES = {row["key"]: row["name"] for row in bt.rule.pool()}
-_W = {"bond": 0.10, "dividend": 0.25, "ndx": 0.15, "a500": 0.25, "kc": 0.05, "gold": 0.20}  # 旧均衡中枢
+_W = {k: bt.rule.BENCH[k] / 100.0 for k in _KEYS}  # 基准配置: 债30/红利20/纳指20/金10/A500 10/科创10
 
 
 def build_series():
@@ -92,7 +92,7 @@ def main():
     L = ["# 仅均衡档 · 月度再平衡 vs 买入持有", "",
          f"> 生成 {datetime.now():%Y-%m-%d %H:%M} · 样本 {common[0].date()} ~ {common[-1].date()} "
          f"({yrs:.1f}年, 月度, 未计费, 无前视)", "",
-         "> 均衡档权重 = 旧手册中枢 债10/红利25/纳指15/A500 25/科创5/金20 (初始100%)。",
+         "> 基准权重 = rule.BENCH 债30/红利20/纳指20/金10/A500 10/科创10 (初始100%, 指数代理口径)。",
          "> 再平衡=每期末回到固定权重; 买入持有=初始权重随市值漂移、永不调仓。", "",
          "| 组合 | 累计 | 年化 | 年化波动 | 最大回撤 |", "|---|---:|---:|---:|---:|"]
     for name, cum, ann, vol, mdd in rows:

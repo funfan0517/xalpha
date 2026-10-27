@@ -216,9 +216,10 @@
         ],
         "runner": "run_daily_ema_cross.ps1",
         "signal_report": "strategies/ema_cross/daily/_signal_report.md",
-        "automation": "(未创建)"
+        "automation": "(未创建)",
+        "enabled": false
       },
-      "note": "2026-09-08 按手册落地; 过滤参数集中在 strategies/ema_cross/rule.py(唯一权威源); A/B 名单由回测 select 生成并同步至 daily.codes; 震荡市为固有短板, 结合动量/配仓策略组合使用"
+      "note": "2026-09-08 按手册落地; 过滤参数集中在 strategies/ema_cross/rule.py(唯一权威源); A/B 名单由回测 select 生成并同步至 daily.codes; 震荡市为固有短板, 结合动量/配仓策略组合使用. **2026-10-27 移出每日操作**: daily.enabled=false —— run_daily_all.ps1 不再自动跑、每日看板不再出卡片; runner 与产物保留, 手动入口 python pipeline/run_flow.py daily --strategy ema_cross 或 run_daily_ema_cross.ps1 可用"
     },
     "right_side": {
       "name": "右侧买入（五票确认 · 右侧买点识别）",
@@ -322,8 +323,8 @@
       },
       "backtest": {
         "engine": "strategies/core_rotation/_backtest.py",
-        "data": "data/_bt_caches/*.csv (中证官网peg/收盘 + 511260/513100/518880 + chinabond 10Y 月末)",
-        "note": "组合层月度回测 2019-08~2026-09(代理口径见 README §8); 逐码回测/select 不适用"
+        "data": "data/_bt_caches/nav_*.csv (场外累计净值复权) + csi_*.csv (中证官网 peg, 仅作信号与口径对照) + bond10y_m.csv",
+        "note": "2026-10-27 口径修正: 收益源由「指数/ETF 收盘」改为「场外累计净值 totvalue(分红再投复权)」—— 旧口径漏掉红利分红与债券票息, 同窗口对比低估 0.25-0.77pp。样本因此由 2019-08~2026-09(7.1年, 靠指数代理撑长度)缩为 2022-03~2026-09(4.5年, 受 012644 成立日 2022-02-23 限制)。**2026-10-27 基准改为 rule.BENCH 债30/红利20/纳指20/金10/A500 10/科创10**(旧均衡中枢 10/25/15/25/5/20 留作对照行): 新基准 年化 9.00%/波动 8.42%/回撤 -5.9%/夏普 0.90, 旧中枢 8.85%/10.14%/-8.6%/0.74 —— 同等收益、明显更低风险。**真实结论仍负面**: 情景轮动 7.58%/-11.3% 跑输新基准 1.42pp、回撤差 5.36pp, 96% 时间锁均衡且防御档零触发 —— 择时是负贡献。逐码回测/select 不适用"
       },
       "select": {
         "out_active_md": "strategies/core_rotation/daily/_universe_core_rotation_active.md",
@@ -342,9 +343,10 @@
         ],
         "runner": "run_daily_core_rotation.ps1",
         "signal_report": "strategies/core_rotation/daily/_daily_report.md",
-        "automation": "(未创建)"
+        "automation": "(未创建)",
+        "enabled": false
       },
-      "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工"
+      "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工. **2026-10-27 移出每日操作**: daily.enabled=false —— run_daily_all.ps1 不再自动跑、每日看板不再出卡片; runner 与产物保留, 手动入口 python pipeline/run_flow.py daily --strategy core_rotation 或 run_daily_core_rotation.ps1 可用"
     },
     "permanent": {
       "name": "永久投资组合(8 项固定基准 · 每项 ±50% 浮动)",

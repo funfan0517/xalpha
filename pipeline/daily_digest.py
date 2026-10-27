@@ -108,6 +108,12 @@ def _first_date(*vals):
     return None
 
 
+def _num(s):
+    """从「**31.6%**」「+1.6pp」「×1.07」「−0.0pp」这类单元格里取第一个数字。"""
+    m = re.search(r"[-+−]?\d+(?:\.\d+)?", str(s).replace(",", ""))
+    return float(m.group(0).replace("−", "-")) if m else None
+
+
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
            note="", src="", error="", cols=None):
     return {
@@ -475,6 +481,69 @@ def parse_tech_indicators(_cfg):
     )
 
 
+def parse_permanent(_cfg):
+    """永久投资组合：8 项目标权重（基准 × ±50% 倾斜）。
+
+    json 只给权重/得分（键是 bond/divlv/... 无中文名），名称、场外代码、允许区间
+    只在自产 markdown 的「当前最佳百分比」表里 —— 所以两者合起来读。
+    """
+    json_path = os.path.join(_ROOT, "strategies", "permanent", "daily", "_permanent_signal.json")
+    md_path = os.path.join(_ROOT, "strategies", "permanent", "daily", "_permanent_report.md")
+    d = json.loads(_read(json_path))
+    table = _table(_section(_read(md_path).splitlines(), "当前最佳百分比"))
+    if not table:
+        raise ValueError("markdown 最佳百分比表解析为空")
+    as_of = d.get("as_of") or _first_date(d.get("generated"))
+
+    rows, n_buy, n_sell, worst = [], 0, 0, None
+    for cells in table:
+        if len(cells) < 9:
+            continue
+        name = cells[1]
+        code = cells[2].replace("`", "").replace(" ", "") or "—"
+        b, w, diff = _num(cells[3]), _num(cells[4]), _num(cells[6])
+        k, sc = _num(cells[7]), _num(cells[8])
+        if b is None or w is None:
+            continue
+        if diff is None:
+            act, label = "hold", f"持有 {w:.1f}%"
+        elif diff >= 0.5:
+            act, label = "buy", f"加至 {w:.1f}%"
+            n_buy += 1
+        elif diff <= -0.5:
+            act, label = "sell", f"减至 {w:.1f}%"
+            n_sell += 1
+            if worst is None or diff < worst[1]:
+                worst = (name, diff)
+        else:
+            act, label = "hold", f"维持 {w:.1f}%"
+        detail = f"基准 {b:.1f}%"
+        if diff is not None:
+            detail += f" · 偏离 {diff:+.1f}pp"
+        if k is not None:
+            detail += f" · ×{k:.2f}"
+        if sc is not None:
+            detail += f" · 得分 {sc:+.2f}"
+        rows.append(_row(name, code, act, label, detail))
+
+    short = {"bond": "债", "divlv": "红利", "ndx": "纳指", "spx": "标普",
+             "gold": "黄金", "cash": "现金", "a500": "A500", "kc": "科创"}
+    wtxt = " / ".join(f"{short.get(k, k)} {float(v):.1f}%"
+                      for k, v in (d.get("weights") or {}).items())
+    return _entry(
+        "permanent", "永久组合", as_of, f"加 {n_buy} / 减 {n_sell}", "watch",
+        f"8 项基准 ±50% 倾斜：加 {n_buy} 项、减 {n_sell} 项 · 目标 {wtxt}",
+        rows,
+        [["加仓项", str(n_buy)], ["减仓项", str(n_sell)],
+         ["最大减仓", f"{worst[0]} {worst[1]:+.1f}pp" if worst else "—"],
+         ["净值截止", as_of or "—"]],
+        note="这是**目标权重**不是当日买卖：单项偏离基准 >5pp 才动，半年检查一次。"
+             "信号用累计净值(totvalue, 分红再投复权)，QDII(270042/017641) 净值滞后 1-2 日。",
+        src=_rel(md_path),
+        cols=["资产", "场外代码", "建议", "基准/偏离/倍数/得分"],
+    )
+
+
 PARSERS = {
     "lights": parse_lights,
     "momentum_rotation": parse_momentum,
@@ -484,6 +553,7 @@ PARSERS = {
     "dividend": parse_dividend,
     "growth_div_rotation": parse_growth_div,
     "tech_indicators": parse_tech_indicators,
+    "permanent": parse_permanent,
 }
 
 
@@ -493,6 +563,9 @@ def collect():
     out = {}
     for key, meta in cfg.items():
         name = meta.get("name", key).split("（")[0]
+        if (meta.get("daily") or {}).get("enabled") is False:
+            print(f"[digest] {key:22s} 已停用(daily.enabled=false)，跳过")
+            continue
         fn = PARSERS.get(key)
         if fn is None:
             out[key] = _entry(key, name, None, "未支持", "none",

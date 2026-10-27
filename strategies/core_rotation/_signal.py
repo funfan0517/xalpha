@@ -13,7 +13,7 @@
 持仓(可选, data/_core_holdings.json): weights -> 月度再平衡偏差
 
 用法: python strategies/core_rotation/_signal.py
-输出: strategies/core_rotation/_daily_report.md + strategies/core_rotation/_core_daily.json
+输出: strategies/core_rotation/daily/_daily_report.md + strategies/core_rotation/daily/_core_daily.json
 """
 import io
 import json

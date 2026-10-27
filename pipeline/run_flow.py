@@ -148,6 +148,9 @@ def cmd_daily(args):
         act = os.path.join(ROOT, st["select"]["out_active_json"])
         if not os.path.exists(act):
             sys.exit("缺少分级名单，请先: python pipeline/run_flow.py select")
+    if (st.get("daily") or {}).get("enabled") is False:
+        print("[!] 该策略已移出每日操作(daily.enabled=false)：run_daily_all.ps1 与每日看板不再包含它，"
+              "本次为手动执行一次。")
     print(f"调用 daily runner: {st['daily']['runner']} (A={st['daily'].get('codes', [])})")
     p = subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File",
                         os.path.join(ROOT, st["daily"]["runner"])], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")

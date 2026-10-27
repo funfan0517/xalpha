@@ -11,5 +11,5 @@ python -W ignore strategies\core_rotation\_signal.py
 if ($LASTEXITCODE -ne 0) { throw "core rotation signal failed" }
 
 Write-Host ""
-Write-Host "Done. Report: strategies\core_rotation\_daily_report.md ; Snapshot: data\_core_daily.json"
-Write-Host "[i] 场内代理信号盘中(14:xx)运行时, 尾盘价格可能变化; 场外申赎按当日15:00前提交口径以基金公司为准."
+Write-Host "Done. Report: strategies\core_rotation\daily\_daily_report.md ; Snapshot: strategies\core_rotation\daily\_core_daily.json"
+Write-Host "[i] Intraday proxy signals (run at 14:xx) may move with the closing auction; OTC orders before 15:00 use that day's NAV per fund company."

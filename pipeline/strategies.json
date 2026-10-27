@@ -346,6 +346,56 @@
       },
       "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工"
     },
+    "permanent": {
+      "name": "永久投资组合(8 项固定基准 · 每项 ±50% 浮动)",
+      "source_methodology": "strategies/permanent/README.md",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "本策略不做场内信号, 全部走场外净值; 组合层无逐码名单",
+        "note": "8 项: 短中长期国债 30(012265/001512/003377 三等分) / 红利低波 20(008163) / 纳指100 10(270042) / 标普500 10(017641) / 黄金 10(000216) / 货币基金 10(自选货基) / 中证A500 5(023299) / 科创50 5(011609)。合计 100"
+      },
+      "rules": [
+        "每项得分 score∈(-1,1) = tanh(SCORE_GAIN × [0.55×趋势 + 0.45×12月动量]); 趋势=close/MA200-1 截断±10%, 动量=250日收益 截断±20%",
+        "目标倍数 k = 1 + 0.5×score ∈[0.5,1.5] —— 即用户要求的「每项上下浮动 50%」, 硬边界不可突破",
+        "w = base×k → 归一化 → water-filling 投影回 [0.5×base, 1.5×base], 保证任何信号下都不破边界",
+        "现金腿无价格序列(货基净值恒 1), score = -0.40 × 权益组平均得分(风险高时加现金); 回测按年化 1.40% 常数计",
+        "刻意不用组内 z-score: 会把债券/货基的天然低波误判成看好、顶在上限; 也回答不了「每项配多少」这种绝对问题",
+        "刻意不用估值分位做权重驱动: 8 项仅 4 项有免费可回测的估值序列(标普 Forward PE / 黄金实际利率无历史源), 估值只作人工复核项"
+      ],
+      "thresholds": {
+        "tilt": 0.5,
+        "score_gain": 1.0,
+        "w_trend": 0.55,
+        "w_mom": 0.45,
+        "trend_full": 0.1,
+        "mom_full": 0.2,
+        "ma_win": 200,
+        "mom_win": 250,
+        "cash_beta": 0.4,
+        "cash_annual": 0.014,
+        "cash_outside": false,
+        "rebal_freq": "月度(偏差>2pp 才调, 见 README §6)"
+      },
+      "backtest": {
+        "engine": "strategies/permanent/_backtest.py",
+        "data": "场外净值(012265/001512/003377/008163/270042/000216/011609) + SH000510(A500代理) + SH513500(标普代理); 缓存 strategies/permanent/data/",
+        "note": "组合层月度回测 2021-05~2026-10(65 个月); 倾斜 vs 静态基准 vs 等权 vs 买入持有, 隔离倾斜本身的贡献"
+      },
+      "select": {
+        "out_active_md": "strategies/permanent/daily/_universe_permanent_active.md",
+        "out_active_json": "strategies/permanent/daily/_universe_permanent_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "固定 8 项(由用户设定直接定档, 非回测 select, 不做 A/B 分级)"
+      },
+      "daily": {
+        "codes": [],
+        "runner": "run_daily_permanent.ps1",
+        "signal_report": "strategies/permanent/daily/_permanent_report.md",
+        "automation": "(未创建)"
+      },
+      "note": "2026-10-26 集成, 10-27 修正净值口径 + 补基准占比研究。**定位**: 组合层固定基准 + 受约束倾斜, 输出「当前每项的最佳百分比」。**关键取舍**: ①8 项基准合计 100(30/20/10/10/10/10/5/5), 无归一化歧义; CASH_OUTSIDE 保留备用口径(货基移出组合独立归一化); ②倾斜幅度被 ±50% 硬边界锁死, 回测中 8 项无一触及边界(实际偏离多在 ±3pp), 说明规则不会做出激进择时; ③回测诚实结论: 倾斜 7.49% vs 静态 7.38%(+0.11pp/年), 夏普 1.07 vs 1.06, 回撤 -7.4% vs -7.3% —— 增益几乎为零且样本仅 65 个月; **静态基准夏普 1.06 已远超 8 项等权 0.65, 说明基准怎么定远比倾斜怎么算重要**(定法见 README §7 + research/_alloc_report.md); SCORE_GAIN 0.5->2.0 夏普仅 1.07->1.08, 按最优点调参即过拟合, 故保持 1.0。**已修的坑**: 场外净值必须用 totvalue(累计/复权)而非 netvalue —— 008163 红利低波累计 +78.3% 但单位净值仅 +7.2%, 用未复权净值会把每次分红当下跌, 持续误判跌破 MA200, 把真实年化 8.6% 压成 1.3% 并把倾斜方向由加翻成减。**数据边界**: A500(023299 成立 2025-03)与标普(017641 成立 2023-04)历史不足, 信号仍用场外真实净值(够 250 日), 回测用指数/ETF 代理。",
+      "pipeline_mode": "rotation"
+    },
     "dividend": {
       "name": "红利基金打分(多标的 · 手册 §4 防御底仓)",
       "source_methodology": "doc/核心轮动投资策略手册.md §4（§4 防御底仓在多只红利基金上的横向打分实现）",

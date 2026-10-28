@@ -1,55 +1,54 @@
-{"code": "563360", "style": "中枢", "strategy": "MACD", "ann": 0.0551, "sharpe": 0.491}
-{"code": "588000", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1479, "sharpe": 0.762}
-{"code": "515080", "style": "防御", "strategy": "BOLL", "ann": 0.139, "sharpe": 1.396}
-{"code": "518880", "style": "避险", "strategy": "买入持有", "ann": 0.1221, "sharpe": 0.792}
-{"code": "513100", "style": "中枢", "strategy": "MACD", "ann": 0.0885, "sharpe": 0.615}
-{"code": "513500", "style": "中枢", "strategy": "MACD", "ann": 0.0868, "sharpe": 0.704}
-{"code": "513180", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1093, "sharpe": 0.783}
-{"code": "515880", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0362, "sharpe": 0.213}
-{"code": "512480", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0829, "sharpe": 0.399}
-{"code": "159819", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0922, "sharpe": 0.563}
-{"code": "562500", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0805, "sharpe": 0.664}
-{"code": "512010", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0345, "sharpe": 0.31}
-{"code": "159992", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0427, "sharpe": -0.336}
-{"code": "159928", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0238, "sharpe": 0.226}
-{"code": "159698", "style": "防御", "strategy": "BOLL", "ann": -0.0782, "sharpe": -0.545}
-{"code": "512800", "style": "防御", "strategy": "BOLL", "ann": 0.037, "sharpe": 0.349}
-{"code": "512000", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0502, "sharpe": 0.346}
-{"code": "512660", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0211, "sharpe": 0.162}
-{"code": "516160", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.038, "sharpe": 0.377}
-{"code": "159326", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0574, "sharpe": 0.348}
+{"code": "563360", "style": "中枢", "strategy": "MACD", "ann": 0.0533, "sharpe": 0.486}
+{"code": "588000", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.146, "sharpe": 0.756}
+{"code": "515080", "style": "防御", "strategy": "BOLL", "ann": 0.1401, "sharpe": 1.395}
+{"code": "518880", "style": "避险", "strategy": "买入持有", "ann": 0.1166, "sharpe": 0.756}
+{"code": "513100", "style": "中枢", "strategy": "MACD", "ann": 0.0893, "sharpe": 0.62}
+{"code": "513500", "style": "中枢", "strategy": "MACD", "ann": 0.0836, "sharpe": 0.678}
+{"code": "513180", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1077, "sharpe": 0.777}
+{"code": "515880", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0358, "sharpe": 0.212}
+{"code": "512480", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.082, "sharpe": 0.397}
+{"code": "159819", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.091, "sharpe": 0.559}
+{"code": "562500", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0792, "sharpe": 0.658}
+{"code": "512010", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0343, "sharpe": 0.309}
+{"code": "159992", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0422, "sharpe": -0.334}
+{"code": "159928", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0237, "sharpe": 0.225}
+{"code": "159698", "style": "防御", "strategy": "BOLL", "ann": -0.0764, "sharpe": -0.539}
+{"code": "512800", "style": "防御", "strategy": "BOLL", "ann": 0.0368, "sharpe": 0.347}
+{"code": "512000", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0498, "sharpe": 0.344}
+{"code": "512660", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0209, "sharpe": 0.161}
+{"code": "516160", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0375, "sharpe": 0.375}
+{"code": "159326", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0552, "sharpe": 0.341}
 {"code": "515790", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.001, "sharpe": -0.007}
-{"code": "512400", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0593, "sharpe": 0.355}
-{"code": "159869", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0582, "sharpe": 0.368}
-{"code": "159870", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0284, "sharpe": -0.321}
-{"code": "515230", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0774, "sharpe": 0.466}
-{"code": "515220", "style": "防御", "strategy": "BOLL", "ann": 0.296, "sharpe": 1.927}
-{"code": "512980", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0933, "sharpe": 0.612}
-{"code": "159732", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.026, "sharpe": 0.152}
-{"code": "159201", "style": "防御", "strategy": "BOLL", "ann": -0.085, "sharpe": -0.896}
-{"code": "510300", "style": "中枢", "strategy": "MACD", "ann": 0.023, "sharpe": 0.156}
-{"code": "512200", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0064, "sharpe": 0.047}
-{"code": "515810", "style": "中枢", "strategy": "MACD", "ann": 0.0528, "sharpe": 0.39}
-{"code": "513030", "style": "中枢", "strategy": "MACD", "ann": 0.0408, "sharpe": 0.321}
-{"code": "513880", "style": "中枢", "strategy": "MACD", "ann": 0.0794, "sharpe": 0.562}
-{"code": "501025", "style": "防御", "strategy": "BOLL", "ann": 0.0878, "sharpe": 0.739}
-{"code": "161725", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0381, "sharpe": 0.419}
-{"code": "161226", "style": "避险", "strategy": "买入持有", "ann": 0.0668, "sharpe": 0.224}
-{"code": "511260", "style": "避险", "strategy": "买入持有", "ann": 0.042, "sharpe": 1.597}
-{"code": "159781", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1051, "sharpe": 0.878}
-{"code": "159949", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0779, "sharpe": 0.644}
-{"code": "159915", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0863, "sharpe": 0.708}
-{"code": "510500", "style": "中枢", "strategy": "MACD", "ann": 0.0891, "sharpe": 0.524}
-{"code": "512100", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0724, "sharpe": 0.693}
-{"code": "563300", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1168, "sharpe": 0.786}
+{"code": "512400", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0588, "sharpe": 0.354}
+{"code": "159869", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0574, "sharpe": 0.365}
+{"code": "159870", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.028, "sharpe": -0.319}
+{"code": "515230", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0763, "sharpe": 0.462}
+{"code": "515220", "style": "防御", "strategy": "BOLL", "ann": 0.2936, "sharpe": 1.922}
+{"code": "512980", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0925, "sharpe": 0.609}
+{"code": "159732", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0256, "sharpe": 0.151}
+{"code": "159201", "style": "防御", "strategy": "BOLL", "ann": -0.074, "sharpe": -0.752}
+{"code": "510300", "style": "中枢", "strategy": "MACD", "ann": 0.0229, "sharpe": 0.156}
+{"code": "512200", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0063, "sharpe": 0.046}
+{"code": "515810", "style": "中枢", "strategy": "MACD", "ann": 0.052, "sharpe": 0.386}
+{"code": "513030", "style": "中枢", "strategy": "MACD", "ann": 0.0397, "sharpe": 0.314}
+{"code": "513880", "style": "中枢", "strategy": "MACD", "ann": 0.0788, "sharpe": 0.553}
+{"code": "501025", "style": "防御", "strategy": "BOLL", "ann": 0.0874, "sharpe": 0.737}
+{"code": "161725", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0376, "sharpe": 0.416}
+{"code": "161226", "style": "避险", "strategy": "买入持有", "ann": 0.0507, "sharpe": 0.171}
+{"code": "159781", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1036, "sharpe": 0.871}
+{"code": "159949", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0773, "sharpe": 0.642}
+{"code": "159915", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0858, "sharpe": 0.706}
+{"code": "510500", "style": "中枢", "strategy": "MACD", "ann": 0.089, "sharpe": 0.525}
+{"code": "512100", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0719, "sharpe": 0.69}
+{"code": "563300", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.1141, "sharpe": 0.777}
 {"code": "510210", "style": "中枢", "strategy": "MACD", "ann": -0.0004, "sharpe": -0.002}
-{"code": "510050", "style": "中枢", "strategy": "MACD", "ann": -0.0088, "sharpe": -0.063}
+{"code": "510050", "style": "中枢", "strategy": "MACD", "ann": -0.0088, "sharpe": -0.062}
 {"code": "159920", "style": "中枢", "strategy": "MACD", "ann": -0.0116, "sharpe": -0.085}
-{"code": "516970", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0247, "sharpe": -0.26}
-{"code": "512070", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0264, "sharpe": 0.203}
-{"code": "159996", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0481, "sharpe": 0.449}
-{"code": "159566", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.2671, "sharpe": 1.512}
-{"code": "159611", "style": "防御", "strategy": "BOLL", "ann": 0.1189, "sharpe": 1.029}
-{"code": "159218", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.5057, "sharpe": 2.05}
-{"code": "516780", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0757, "sharpe": 0.396}
-{"code": "159865", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0595, "sharpe": -0.727}
+{"code": "516970", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0244, "sharpe": -0.258}
+{"code": "512070", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0263, "sharpe": 0.202}
+{"code": "159996", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0475, "sharpe": 0.446}
+{"code": "159566", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.2585, "sharpe": 1.485}
+{"code": "159611", "style": "防御", "strategy": "BOLL", "ann": 0.1162, "sharpe": 1.001}
+{"code": "159218", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.4698, "sharpe": 1.962}
+{"code": "516780", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": 0.0747, "sharpe": 0.393}
+{"code": "159865", "style": "进攻", "strategy": "v3 MACD+BOLL", "ann": -0.0588, "sharpe": -0.722}

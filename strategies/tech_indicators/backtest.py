@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """技术指标五大策略（MA / VOL / MACD / KDJ / BOLL）· 全池回测。
 
-标的池：data/_indicators_hist.json 覆盖的 55 只场内 ETF。
+标的池：data/_universe.md 前四类的 54 只场内 ETF（见 _pool.py）。
 行情源：data/_indicators_hist.json（MA/MACD/KDJ/BOLL/VOL） + data/_long_klines.json（市价收盘价）。
 
 **策略本体不在本文件**：五条单指标规则分别落在 `v11_ma/` / `v12_vol/` / `v13_macd/` /
@@ -40,9 +40,12 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 if os.path.join(_ROOT, "data") not in sys.path:
     sys.path.insert(0, os.path.join(_ROOT, "data"))
+if _HERE not in sys.path:                       # 供 _pool 同目录导入
+    sys.path.insert(0, _HERE)
 
 from pipeline.bt_stats import trade_stats, section_lines, pct  # noqa: E402
 import _refresh_data  # noqa: E402  公用行情刷新器(data/)
+import _pool  # noqa: E402  家族标的池（data/_universe.md 前四类）
 
 DATA = os.path.join(_ROOT, "data")
 OUTDIR = os.path.join(_HERE, "backtest")
@@ -66,7 +69,11 @@ def _arr(x):
 
 
 def load():
-    """读取指标库与行情库；执行前先确保本地行情为最新（公用刷新器）。"""
+    """读取指标库与行情库；执行前先确保本地行情为最新（公用刷新器）。
+
+    标的池按 `_pool.py` 过滤 —— 只保留 `data/_universe.md` **前四类**的场内标的
+    （2026-10-28 起；此前是内池全部 55 只，多出来的 `511260 十年国债ETF` 属第六类·债券）。
+    """
     try:
         _refresh_data.ensure_fresh()
     except Exception as e:  # noqa
@@ -74,6 +81,12 @@ def load():
     ind = json.load(open(os.path.join(DATA, "_indicators_hist.json"), encoding="utf-8"))
     ind.pop("_meta", None)
     lk = json.load(open(os.path.join(DATA, "_long_klines.json"), encoding="utf-8"))
+    allow = _pool.allowed_codes()
+    dropped = sorted(set(ind) - allow)
+    ind = {k: v for k, v in ind.items() if k in allow}
+    if dropped:
+        print(f"[池] 前四类过滤：剔除 {len(dropped)} 只（{' '.join(dropped)}），"
+              f"剩 {len(ind)} 只")
     return ind, lk
 
 
@@ -240,7 +253,7 @@ def main():
 
     L = [
         "# 技术指标五大策略 · 全池回测",
-        f"> 55 只场内 ETF · 各自全历史（第 61 个交易日起）· 多头/空仓 0-1 · "
+        f"> {len(results['MA'])} 只场内 ETF（_universe.md 前四类）· 各自全历史（第 61 个交易日起）· 多头/空仓 0-1 · "
         f"信号当日收盘成交 · 未计佣金滑点 · 无风险利率 0",
         "",
         "## 策略规则",
@@ -253,7 +266,7 @@ def main():
 
     L += [
         "",
-        "## 全池汇总（中位数 · 55 只）",
+        f"## 全池汇总（中位数 · {len(results['MA'])} 只）",
         "",
         "| 策略 | 中位年化 | 中位最大回撤 | 中位夏普 | 中位曝光 | 跑赢买入持有 | 回撤更小 | 总交易 | 合计胜率 |",
         "|---|---|---|---|---|---|---|---|---|",

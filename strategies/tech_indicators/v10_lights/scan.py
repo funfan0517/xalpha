@@ -100,7 +100,7 @@ def load_grades():
     """分级名单已作废（2026-10-28 并入 tech_indicators 变种 v10 时保留的空实现）。
 
     历史原因: 本策略曾按回测 A/B 分级只推 A 类 8 只标的, 名单存 `daily/_lights_active.json`。
-    并入家族后池统一为 55 只全池、不做 A/B 分级, 该名单不再驱动任何信号,
+    并入家族后池统一为全池（_universe.md 前四类）、不做 A/B 分级, 该名单不再驱动任何信号,
     故这里返回空映射, 报告里「分级」列显示 `—`。文件保留仅作历史参考。
     """
     return {}, None
@@ -308,7 +308,7 @@ def main():
     if grade_at:
         print(f"  分级来源: {os.path.basename(ACT_JSON)} @ {grade_at}")
     else:
-        print("  分级: 已作废（并入 tech_indicators 变种 v10 后池为全池 55 只, 不再做 A/B 分级）")
+        print("  分级: 已作废（并入 tech_indicators 变种 v10 后池统一为全池, 不再做 A/B 分级）")
     print(f"  明细 -> {OUT}")
 
 

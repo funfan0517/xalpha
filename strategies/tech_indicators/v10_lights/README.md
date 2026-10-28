@@ -1,8 +1,8 @@
 # 亮灯策略（Lights）· 技术指标家族变种 **v10**
 
 > **2026-10-28 并入 `strategies/tech_indicators/` 作为变种 v10**（原独立策略 `strategies/lights/`）。
-> 标的池与家族统一：**全池 55 只场内 ETF**（`KEEP_CATS = None`）。原「A 类 8 只分级名单」已作废
-> —— 池扩到 55 只后 A/B 分级不再驱动信号，`daily/_lights_active.{md,json}` 仅作历史参考。
+> 标的池与家族统一：**前四类 54 只场内 ETF**（`_universe.md` 一~四类，见 `../_pool.py`；`KEEP_CATS = None`）。
+> 原「A 类 8 只分级名单」已作废 —— 池放开后 A/B 分级不再驱动信号，`daily/_lights_active.{md,json}` 仅作历史参考。
 > 每日由 `run_daily_tech_indicators.ps1` 第 3-4 步跑本目录的 `scan.py` → `_scan_report.py`，
 > 结果作为 `V10` 列进入家族 6 策略汇总表。
 

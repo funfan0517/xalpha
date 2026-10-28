@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """技术指标策略 · 「不同基金是否适合不同策略」分析。
 
-对 55 只 ETF，逐只跑全部策略（基线5 + v1~v5 + 打分制 + 买入持有），看最优策略是否随
+对 全池 ETF，逐只跑全部策略（基线5 + v1~v5 + 打分制 + 买入持有），看最优策略是否随
 基金风格（避险/防御/中枢/进攻，取自 data/_universe.md）分化。
 
 产物（相对本文件）：_fund_fit_report.md、_fund_fit_heatmap.png。模拟结果，非投资建议。
@@ -115,15 +115,15 @@ def main():
     # 3) 逐基金最优策略
     L = [
         "# 技术指标策略 · 「不同基金是否适合不同策略」分析",
-        "> 55 只 ETF · 逐只跑全部策略（含买入持有）· 各自全历史 · 未计费用 · 无风险利率 0。",
+        "> 全池 ETF · 逐只跑全部策略（含买入持有）· 各自全历史 · 未计费用 · 无风险利率 0。",
         "",
         "## 结论速览",
         "",
-        f"- 优化目标取**夏普**时，55 只里被不同策略胜出的有 "
+        f"- 优化目标取**夏普**时，全池里被不同策略胜出的有 "
         f"**{sum(1 for v in win_sharpe.values() if v > 0)} 种策略** → 最优策略**确实因基金而异**。",
         f"- 「买入持有」在 **{win_sharpe[BH]} 只**上是夏普最优；策略胜出的有 **{55 - win_sharpe[BH]} 只**。",
         "",
-        "## 各策略获胜次数（55 只中）",
+        "## 各策略获胜次数（全池中）",
         "",
         "| 策略 | 夏普最优次数 | 年化最优次数 | 夏普跑赢买入持有 |",
         "|---|---|---|---|",
@@ -183,7 +183,7 @@ def _heatmap(codes, data, meta, style_of, path):
     ax.set_xticklabels(LABELS, rotation=40, ha="right", fontsize=9)
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels([f"{c} {(meta.get(c, {}).get('name') or '')[:8]}[{style_of[c]}]" for c in order], fontsize=7)
-    ax.set_title("55 只 ETF × 策略 · 夏普（绿=优 / 红=差）", fontsize=12)
+    ax.set_title("全池 ETF × 策略 · 夏普（绿=优 / 红=差）", fontsize=12)
     fig.colorbar(im, ax=ax, shrink=0.5, label="Sharpe")
     fig.tight_layout()
     fig.savefig(path, dpi=110)

@@ -21,12 +21,16 @@ if _ROOT not in sys.path:
 if os.path.join(_ROOT, "data") not in sys.path:
     sys.path.insert(0, os.path.join(_ROOT, "data"))
 
-from pipeline import universe  # noqa: E402
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # strategies/tech_indicators
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+import _pool  # noqa: E402  家族唯一池定义（_universe.md 前四类）
 
 LK = os.path.join(_ROOT, "data", "_long_klines.json")
 IND = os.path.join(_ROOT, "data", "_indicators_hist.json")
 
-POOL = universe.inner_rows()                       # [{idx, code, cat, theme, off_name, inner_name}]
+# 2026-10-28：与家族统一 —— 池只取 _universe.md 前四类的场内标的（唯一实现在 ../_pool.py）
+POOL = _pool.rows()                                # [{idx, code, cat, theme, off_name, inner_name}]
 CODES = [r["code"] for r in POOL]
 CATS = {r["code"]: r["cat"] for r in POOL}
 NAMES = {r["code"]: r["inner_name"] for r in POOL}

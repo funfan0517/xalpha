@@ -19,7 +19,10 @@ import xalpha as xa
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
-from pipeline import universe  # noqa: E402
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # strategies/tech_indicators
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+import _pool  # noqa: E402  家族唯一池定义（_universe.md 前四类）
 
 START = "2015-01-01"          # 抓取起点（提前给指标 warm-up）
 SAMPLE_FROM = "2016-09-01"    # 样本窗口起点（最长十年口径）
@@ -28,8 +31,8 @@ CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "_light
 
 _FIELDS = ("open", "high", "low", "close", "volume")
 
-# 唯一池: data/_universe.md 中「有场内对应」的行
-ALL_POOL = universe.inner_rows()
+# 唯一池: data/_universe.md 中「有场内对应」且属于**前四类**的行（唯一实现见 ../_pool.py）
+ALL_POOL = _pool.rows()
 
 # ---- 标的池口径 ----
 # 2026-09-10 收窄: 只留 A 股行业（按类别审计, 只有行业 +2.6% 正超额; 宽基 -1.2% /
@@ -41,7 +44,8 @@ ALL_POOL = universe.inner_rows()
 #   /161226(白银)/518880(黄金)。其余无场内代码的行(008163/007760 等) 本就不在内池。
 #   故调整 KEEP_CATS 为以下三类, 池子 23 -> 31 只; 下游一切按 POOL 驱动, 无需改别处。
 # 2026-10-28 并入 tech_indicators 家族成为变种 v10: **标的池与家族统一**（data/_indicators_hist.json
-#   ∩ data/_long_klines.json 的全部 55 只场内 ETF），故 KEEP_CATS 置 None 恢复全池。
+#   ∩ data/_long_klines.json 的全池场内 ETF），故 KEEP_CATS 置 None 恢复全池。
+# 2026-10-28 池口径再收窄: 全家族统一为 _universe.md **前四类**（54 只, 见 ../_pool.py）。
 #   往下游一切仍按 POOL 驱动, 无需改别处。
 KEEP_CATS = None
 

@@ -35,7 +35,6 @@
 {"code": "501025", "strategy": "MACD", "ann": 0.0751, "dd": -0.2493, "sharpe": 0.627, "exposure": 0.489, "n_trades": 82, "win_rate": 0.4024, "bh_ann": 0.0777, "bh_dd": -0.3694}
 {"code": "161725", "strategy": "MACD", "ann": -0.0118, "dd": -0.3924, "sharpe": -0.061, "exposure": 0.479, "n_trades": 51, "win_rate": 0.3137, "bh_ann": -0.149, "bh_dd": -0.681}
 {"code": "161226", "strategy": "MACD", "ann": 0.0679, "dd": -0.5611, "sharpe": 0.304, "exposure": 0.526, "n_trades": 99, "win_rate": 0.3434, "bh_ann": 0.0507, "bh_dd": -0.704}
-{"code": "511260", "strategy": "MACD", "ann": 0.0209, "dd": -0.0451, "sharpe": 1.058, "exposure": 0.53, "n_trades": 84, "win_rate": 0.5357, "bh_ann": 0.0423, "bh_dd": -0.0462}
 {"code": "159781", "strategy": "MACD", "ann": 0.0788, "dd": -0.348, "sharpe": 0.327, "exposure": 0.493, "n_trades": 48, "win_rate": 0.3125, "bh_ann": -0.0121, "bh_dd": -0.5549}
 {"code": "159949", "strategy": "MACD", "ann": 0.0618, "dd": -0.3968, "sharpe": 0.275, "exposure": 0.502, "n_trades": 99, "win_rate": 0.303, "bh_ann": 0.0266, "bh_dd": -0.5899}
 {"code": "159915", "strategy": "MACD", "ann": 0.1019, "dd": -0.3962, "sharpe": 0.43, "exposure": 0.508, "n_trades": 99, "win_rate": 0.3636, "bh_ann": 0.0075, "bh_dd": -0.6958}

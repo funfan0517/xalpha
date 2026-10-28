@@ -136,7 +136,7 @@ def build_md(good, bad, ready, watch, veto, ref, d):
     L.append("")
 
     if ref:
-        L += ["## 四、回测参照（同一套规则，55 只全历史中位数）", "",
+        L += ["## 四、回测参照（同一套规则，全池全历史中位数）", "",
               "| 中位年化 | 中位最大回撤 | 买入持有年化 | 买入持有回撤 | 持仓占比 | 单笔胜率 | 择时边际 |",
               "|---|---|---|---|---|---|---|",
               f"| {pct(ref['ann'], 2)} | {pct(ref['mdd'], 2)} | {pct(ref['base_ann'], 2)} | "
@@ -429,7 +429,7 @@ def build_html(good, bad, ready, watch, veto, ref, d):
   </section>
 
   <footer>
-    {'回测参照（55 只全历史中位数）：年化 ' + f"{ref['ann']:+.2%}" + ' · 最大回撤 ' + f"{ref['mdd']:.2%}"
+    {'回测参照（全池全历史中位数）：年化 ' + f"{ref['ann']:+.2%}" + ' · 最大回撤 ' + f"{ref['mdd']:.2%}"
      + ' · 买入持有 ' + f"{ref['base_ann']:+.2%}" + ' / ' + f"{ref['base_mdd']:.2%}"
      + ' · 持仓 ' + f"{ref['pos'] * 100:.1f}%" + ' · 择时边际 ' + f"{ref['edge'] * 1e4:+.1f}bp" if ref else ''}
     <br>信号按当日收盘判定、次日收盘执行；机械规则输出，<b>非投资建议</b>。

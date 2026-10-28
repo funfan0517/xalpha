@@ -1,7 +1,7 @@
 # 右侧买入（Right-Side Entry · 五票确认）· 技术指标家族变种 **v9**
 
 > **2026-10-28 并入 `strategies/tech_indicators/` 作为变种 v9**（原独立策略 `strategies/right_side/`）。
-> 标的池与家族统一：**全池 55 只场内 ETF**（`data/_long_klines.json` ∩ `data/_indicators_hist.json`）。
+> 标的池与家族统一：**前四类 54 只场内 ETF**（`data/_universe.md` 一~四类 ∩ `data/_long_klines.json` ∩ `data/_indicators_hist.json`，见 `../_pool.py`）。
 > 每日不再单独注册 runner/看板卡片，由 `run_daily_tech_indicators.ps1` 第 1-2 步跑本目录的
 > `scan.py` → `_scan_report.py`，结果作为 `V9` 列进入家族 6 策略汇总表。
 > 本目录的 `rule.py` / `data.py` / `engine` 仍在包根（被 `scan.py`/`backtest.py` 直接 import，勿移动）。
@@ -40,7 +40,7 @@
 
 执行口径：当日收盘判定 → **次日收盘**成交（十年库只有收盘价，全程无未来数据）；单边 0.03%；0/1 满仓。
 
-## 3. 结果（55 只场内 ETF · 2016-09 起 · 中位数）
+## 3. 结果（54 只场内 ETF · 2016-09 起 · 中位数）
 
 | 指标 | 右侧买入 | 买入持有 |
 |---|---|---|

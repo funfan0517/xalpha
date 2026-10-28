@@ -1,6 +1,23 @@
 # tech_indicators · 技术指标五大策略回测
 
-对 `data/_indicators_hist.json` 覆盖的 55 只场内 ETF，分别按 **MA / VOL / MACD / KDJ / BOLL** 五个指标策略做全历史回测。
+对 `data/_universe.md` **前四类**（宽基/另类 · 全球QDII · A股行业 · 策略/商品）中有场内
+对应、且 `data/_indicators_hist.json` 有数据的 **54 只场内 ETF**，分别按 **MA / VOL / MACD / KDJ / BOLL** 五个指标策略做全历史回测。
+
+## 标的池（v1~v15 统一，唯一来源 `data/_universe.md`）
+
+| 类 | 名称 | 场内只数 |
+|---|---|---|
+| 一 | 宽基指数 / 另类 | 12 |
+| 二 | 全球 / 跨境 QDII | 7 |
+| 三 | A 股行业主题 | 31 |
+| 四 | 策略因子 / 商品 | 4 |
+| **合计** | | **54** |
+
+- **不纳入**第五类「主动/量化」（无场内代理）与第六类「债券」（`511260 十年国债ETF`，风险属性与权益择时不同源）。
+- 池的唯一实现是 `_pool.py`（引擎 `backtest.py::load()` 与 v9/v10 的 `data.py` 都走它）；
+  **改池子只改 `data/_universe.md`**，代码里不放硬编码代码。
+- 2026-10-28 之前是内池全部 55 只（含债券那 1 只），当日改为前四类。
+- 各变种 README 里的结论数字是**该变种定稿时**那次回测的结果；池口径/数据更新后，以各自 backtest/_*_report.md（以及 _comparison_report.md）的最新数字为准。
 
 > 2026-10-28 起，这五个单指标策略的**规则本体已各自迁入变种目录**（`v11_ma/` ~ `v15_boll/`
 > 的 `rule.py`）；本目录的 `backtest.py` 退化为**引擎 + 按名分发**（`signal()` / `build_signals()`）。
@@ -47,7 +64,7 @@
 > **v11~v15 是「单指标基线」变种**：五个变种共用 runner `_baseline_bt.py`，各自
 > `backtest.py` 只做「载入引擎 → 传入本变种 signal → 出报告」；规则本体在各自 `rule.py`，
 > 引擎不再持有任何指标逻辑（`build_signals()` 改为按名分发），全局只有一份实现。
-> **v8（仅 MA20 穿越）已于 2026-10-28 迁出本家族** —— 其标的池本就不是「全池 55 只」而是几只宽基腿，
+> **v8（仅 MA20 穿越）已于 2026-10-28 迁出本家族** —— 其标的池本就不是「全池」而是几只宽基腿，
 > 现归入组合层策略 `vol_legs` 作为第一个变种：`strategies/vol_legs/v1_ma20/`（六腿、场外复权净值口径，
 > 每日随 `run_daily_vol_legs.ps1` 第 2 步运行）。因此本目录的横截面对比（`compare.py`）不再包含 v8 一行。
 
@@ -71,7 +88,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_tech_indicators.ps1
 拆开看则是 5 步：`v9_right_side/scan.py` → `v9_right_side/_scan_report.py` → `v10_lights/scan.py` → `v10_lights/_scan_report.py` → `daily/_daily_recommend.py`。
 
 - **先刷新行情**：`data/_refresh_data.py` 拉最新日线并重算指标；刷新失败的标的会被标 `❌`，陈旧数据标 `⚠️ 陈旧(日期)`，不作为最新信号。
-- 基于最新一根 K 线，对 55 只场内 ETF 输出六个策略的当日动作（买入 0→1 / 卖出 1→0 / 持有 / 空仓；v9 的「观察/否决」与 v10 的「建仓」另计「其他」列），并给出 6 策略共振名单。
+- 基于最新一根 K 线，对 54 只场内 ETF（前四类）输出六个策略的当日动作（买入 0→1 / 卖出 1→0 / 持有 / 空仓；v9 的「观察/否决」与 v10 的「建仓」另计「其他」列），并给出 6 策略共振名单。
 - 六个策略的增删只改 `_daily_recommend.py` 顶部的 `STRATS` 一处（**并同步 `pipeline/strategies.json` 的 `daily.strategies`**，看板解析器按它动态取列）；MACD/V3/V6/V7 复用各变种自己的实现，v9/v10 读各自 `daily/*_scan_out.jsonl`，不重复维护。
 - 产物：`daily/_daily_recommend.md`。
 

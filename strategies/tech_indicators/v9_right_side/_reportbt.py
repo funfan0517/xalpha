@@ -119,7 +119,7 @@ def main():
          f" · 平均超额 {pct(agg(good, 'st_ann') - agg(good, 'base_ann'))}"
          f" · 中位回撤改善 {pct(med(good, 'st_mdd') - med(good, 'base_mdd'))}", ""]
 
-    L += ["## 一眼看完（中位数，55 只）", "",
+    L += ["## 一眼看完（中位数，全池）", "",
           "| 指标 | 右侧买入 | 买入持有 | 差异 |", "|---|---|---|---|",
           f"| 年化 | {pct(med(good, 'st_ann'), 2)} | {pct(med(good, 'base_ann'), 2)} | "
           f"{pct(med(good, 'st_ann') - med(good, 'base_ann'), 2)} |",

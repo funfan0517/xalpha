@@ -84,6 +84,23 @@ def inner_rows(rows=None):
     return out
 
 
+# 2026-10-28：技术指标家族（strategies/tech_indicators 的 v1~v15）只在前四类里回测/扫描。
+#   第五类「主动/量化」没有场内代理（0 只），第六类「债券」风险属性与权益择时不同源（1 只 511260），
+#   两类都不参与技术指标择时。
+INNER_CATS = (1, 2, 3, 4)
+
+
+def inner_rows_cats(prefixes=INNER_CATS, rows=None):
+    """只取编号首位属于 prefixes 的场内映射行（默认一~四类）。"""
+    keep = {str(p) for p in prefixes}
+    return [r for r in inner_rows(rows) if str(r["idx"])[0] in keep]
+
+
+def inner_codes_cats(prefixes=INNER_CATS, rows=None):
+    """只取编号首位属于 prefixes 的场内代码列表（md 行序）。"""
+    return [r["code"] for r in inner_rows_cats(prefixes, rows)]
+
+
 def offshore_codes(rows=None):
     return [r["off_code"] for r in (rows or parse())]
 

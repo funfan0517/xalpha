@@ -29,7 +29,7 @@
 | 2 rules | `pipeline/strategies.json` | 打印规则化定义（灯评分/阈值/回测口径） | 可读规则表（策略参数唯一权威源） |
 | 3 backtest | 场内内池标的日线 | 状态机择时 vs 买入持有（最长十年 2016-09 起） | `strategies/tech_indicators/v10_lights/backtest/_lights_bt.jsonl` → `backtest/_bt_report.md` |
 | 4 select | 上一步 jsonl | 按回测分级 A/B/不适合 | `v10_lights/daily/_lights_active.md` + `.json`（**2026-10-28 起作废**，不再驱动信号） |
-| 5 daily | 全池 55 只 | 抓当日(含盘中实时 bar)评分 | `v10_lights/daily/_signal_report.md`、`v10_lights/daily/_signal_dashboard.html` |
+| 5 daily | 全池 54 只（前四类） | 抓当日(含盘中实时 bar)评分 | `v10_lights/daily/_signal_report.md`、`v10_lights/daily/_signal_dashboard.html` |
 
 > 分层：`data/`=池与数据；`strategies/<name>/`=策略实现与报告（tech_indicators 家族、vol_legs、dividend 等）；`pipeline/`=流程编排层。
 
@@ -100,14 +100,14 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | **2 波动类资产 · 仓位带 + 逐腿上下车** | 管辖 40pp（A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10）；主策略回答「仓位带怎么摆、今天动多少 pp」，变种回答「每条腿何时下车」 | `vol_legs`、`v1_ma20` |
 | **3 风格轮动 · 成长/红利二元切换** | 成长(创业板/科创50) ÷ 红利(中证红利) 的比值 R 过缓冲带 + 250 日分位，决定整仓切换 | `growth_div_rotation` |
 | **4 稳健红利 · V4 RSI14 择时** | 红利底仓（5 只专用池）的进退节奏：板块 RSI14 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只 | `dividend` |
-| **5 技术指标 · 全池 55 只（6 策略并列）** | MACD / V3 / V6 / V7 / V9 右侧 / V10 亮灯 同时对全池每只出信号，看共振 | `tech_indicators` |
+| **5 技术指标 · 全池 54 只（前四类 · 6 策略并列）** | MACD / V3 / V6 / V7 / V9 右侧 / V10 亮灯 同时对全池每只出信号，看共振 | `tech_indicators` |
 
 - 新增策略必须填 `daily.block`（取值 `core` / `vol` / `style` / `dividend` / `tech`）。漏填不会丢卡片 —— 看板会把它归入末尾的「其他（未认领板块）」，`run_daily_all.ps1` 也会照跑（排在最后）。
 - 板块是**呈现与执行顺序**，不是新的策略边界：同一板块内的策略可以互相引用（如 `v1_ma20` 的腿由 `vol_legs/rule.py::LEGS` 派生），但各自产物与解析器独立。
 
 - 每个策略的 runner 都先刷新行情再出信号；缺少数据的标的会在产物里显式标注（陈旧 / 刷新失败 / 盘中未收盘 bar）。
 - **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
-- `tech_indicators` 的 6 个策略对**全池 55 只**全部出信号，不做 A/B 分级；其中 v9/v10 为状态机型变种，由各自 `scan.py` 先落盘、汇总脚本只读产物（不重复抓数、不搞两套口径）。v10 的原 A 类 8 只分级名单已作废（池扩到 55 只后无意义），文件保留仅作历史参考。
+- `tech_indicators` 的 6 个策略对**全池 54 只（`_universe.md` 前四类）**全部出信号，不做 A/B 分级；其中 v9/v10 为状态机型变种，由各自 `scan.py` 先落盘、汇总脚本只读产物（不重复抓数、不搞两套口径）。v10 的原 A 类 8 只分级名单已作废（池扩到 55 只后无意义），文件保留仅作历史参考。
 - 新增 runner 时：在 `pipeline/strategies.json` 的 `daily.runner` 填 `.ps1` 文件名（放仓库根，脚本内用 `$PSScriptRoot` 定位，勿写死盘符），`run_daily_all.ps1` 会自动带上它。
 - **停用某个策略的每日跑（不等于删策略）**：在该策略 `daily` 里加 `"enabled": false`。`run_daily_all.ps1` 与 `daily_digest.py` 都会跳过它（看板不出卡片），runner 与历史产物保留，仍可手动 `python pipeline/run_flow.py daily --strategy <key>`。当前无停用策略。
 

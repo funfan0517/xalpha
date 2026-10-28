@@ -574,6 +574,56 @@
       },
       "note": "2026-09-28 接入 pipeline: 每日操作固定为 MACD/V3/V6/V7 四策略各跑一遍, 唯一入口 strategies/tech_indicators/daily/_daily_recommend.py（先刷新行情 data/_refresh_data.py, 再基于最新一根 K 线出动作: 买入/卖出/持有/空仓 + 四策略共振名单, 陈旧/失败数据标注）。pipeline_mode=full_pool 表示全池出信号、不做逐码分级。V6 于 2026-09-28 由 7 票改为 4 票（去掉「价触及/跌破 BOLL 下轨」票, 该项与「价>MA20且>MA60」天然互斥导致曝光仅 9%）, 阈值由参数网格取最优 4/2。",
       "pipeline_mode": "full_pool"
+    },
+    "v8_ma20": {
+      "name": "技术指标变种8 · MA20 穿越（固定 4 只标的池）",
+      "source_methodology": "strategies/tech_indicators/v8_ma20/README.md（规则与池的权威源: strategies/tech_indicators/v8_ma20/backtest.py::build_signal / ::POOL）",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "inner_mapping": "strategies/tech_indicators/v8_ma20/backtest.py::POOL —— 588000 科创50 / 513180 恒生科技 / 563360 中证A500 / 518880 黄金",
+        "data": "data/_long_klines.json (收盘) + data/_indicators_hist.json (MA20), 刷新走 data/_refresh_data.py",
+        "note": "固定 4 只标的池(2026-10-28 由全池 55 只收窄后加入黄金), 池定义只改 POOL 一处 —— 回测/每日扫描/逐只详报三处自动派生; 全出信号, 不做 A/B 分级"
+      },
+      "rules": [
+        "买入: 收盘上穿 MA20(今收 > 今日 MA20 且 昨收 <= 昨日 MA20)",
+        "卖出: 收盘下穿 MA20(今收 < 今日 MA20 且 昨收 >= 昨日 MA20)",
+        "其余时间维持原仓位(0/1 满仓/空仓), 不设止损止盈、不减仓加仓",
+        "无 MA60 牛熊过滤(与基线 MA 的唯一差别); 每日对池内 4 只全部出信号, 不做 A/B 分级",
+        "执行: 信号当日收盘成交(回测口径, 未计佣金滑点); 实盘建议次日开盘"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/tech_indicators/v8_ma20/backtest.py::MA_WIN / ::POOL",
+        "ma_win": 20,
+        "ma60_filter": false,
+        "fee": 0.0,
+        "trade_at": "信号当日收盘(回测口径); 实盘建议次日开盘"
+      },
+      "backtest": {
+        "engine": "strategies/tech_indicators/v8_ma20/backtest.py",
+        "raw_out": "strategies/tech_indicators/v8_ma20/backtest/_v8_ma20_results.jsonl",
+        "report": "strategies/tech_indicators/v8_ma20/backtest/_v8_ma20_report.md",
+        "window": "各标的全历史(第 61 个交易日起, 与基线同窗口); 一次跑完 POOL, 不接受 --codes 分批"
+      },
+      "select": {
+        "out_active_md": "strategies/tech_indicators/v8_ma20/daily/_v8_ma20_active.md",
+        "out_active_json": "strategies/tech_indicators/v8_ma20/daily/_v8_ma20_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "不做 A/B 分级: 固定 4 只池全部出信号(分级产物未生成, pipeline_mode=full_pool 使 daily 跳过闸门)"
+      },
+      "daily": {
+        "codes": [
+          "588000",
+          "513180",
+          "563360",
+          "518880"
+        ],
+        "runner": "run_daily_v8_ma20.ps1",
+        "signal_report": "strategies/tech_indicators/v8_ma20/daily/_v8_ma20_daily.md",
+        "signal_json": "strategies/tech_indicators/v8_ma20/daily/_v8_ma20_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-10-28 纳入每日操作: 唯一入口 strategies/tech_indicators/v8_ma20/daily/_daily_scan.py(先刷新行情 data/_refresh_data.py, 再基于最新一根 K 线给池内 4 只出动作: 买入/卖出/持有/空仓, 并附最近 20 个交易日的信号流水; 陈旧/失败数据标注)。**为什么独立成策略而非并入 tech_indicators 的四策略表**: 池不同(4 只 vs 全池 55 只) —— 混进同一张表会让人误以为 V8 对全池有效, 且 daily_digest 的 tech_indicators 卡片按 4 列解析。**回测口径(2026-10-28, 裸规则无 MA60)**: 2/4 只年化跑赢买入持有、4/4 只回撤更小 —— 科创50 +15.92% vs -1.45%(回撤 -24.1% vs -59.6%)、恒生科技 -4.23% vs -9.39%、中证A500 +8.69% vs +8.93%(回撤砍半)、黄金 +6.34% vs +11.71%(夏普 0.53 vs 0.76, 风险调整后负贡献); 池内合计 346 笔, 平均每年 14 笔往返, 单边 0.03% 即约 -0.85pp/年(回测未计入)。定位是「降回撤」工具而非「增收益」工具。",
+      "pipeline_mode": "full_pool"
     }
   }
 }

@@ -19,6 +19,25 @@
 - 未计佣金 / 滑点；无风险利率按 0 计；年化按 252 交易日；
 - 单笔统计口径统一走 `pipeline/bt_stats.py`。
 
+## 变种目录（v1~v8）
+
+| 变种 | 目录 | 一句话规则 |
+|---|---|---|
+| v1 | `v1_kdj_ma10/` | KDJ 超卖金叉后窗口内站稳 MA10 买入 · 跌破 MA10 卖出 |
+| v2 | `v2_macd_kdj/` | 零轴上 + 缩量回踩 + KDJ 金叉买入 |
+| v3 | `v3_macd_boll/` | 零轴上 + 布林开口放大 + 上穿上轨买入 · 死叉或下穿中轨卖出 |
+| v4 | `v4_boll_kdj_macd/` | 布林近下轨 + MACD 金叉 + KDJ 超卖拐头 |
+| v5 | `v5_regime_switch/` | 趋势行情用 v3 / 震荡行情用 v4 自动切换 |
+| v6 | `v6_score_wf/` | 4 项看多票数打分，票数 ≥4 买 / ≤2 卖 |
+| v7 | `v7_style_route/` | 按标的风格自动路由到 BOLL / MACD / v3 / 买入持有 |
+| v8 | `v8_ma20/` | **仅 MA20 穿越：上穿买入 · 下穿卖出（无 MA60 过滤）· 标的池 = 科创50 / 恒生科技 / 中证A500 / 黄金** |
+
+> 本家族的每日操作仍是固定四策略（MACD / V3 / V6 / V7）；其余变种为手动入口。
+> **例外：v8 已于 2026-10-28 作为独立策略 `v8_ma20` 纳入每日操作**（`run_daily_v8_ma20.ps1`，`run_daily_all.ps1` 自动带上），
+> 因为它自带每日扫描与独立标的池，混进四策略表会被误读为「对全池有效」。v8 的两个额外入口：
+> `python strategies/tech_indicators/v8_ma20/daily/_daily_scan.py`（产物 `v8_ma20/daily/_v8_ma20_daily.md`）、
+> `python strategies/tech_indicators/v8_ma20/research/backtest.py`（产物 `v8_ma20/research/_v8_focus_report.md`）。
+
 ## 运行
 
 ```powershell

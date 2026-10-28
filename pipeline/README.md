@@ -7,6 +7,7 @@
 `core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select，**2026-10-27 移出每日操作**）、
 `dividend`（红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、`growth_div_rotation`（成长/红利二元轮动）、
 `tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）、
+`v8_ma20`（技术指标**变种8 · MA20 穿越**，固定 4 只标的池 科创50/恒生科技/中证A500/黄金，全池出信号，不走 backtest/select）、
 `permanent`（永久组合·8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）。
 `lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层/轮动**策略参照 `momentum_rotation`。
 
@@ -87,6 +88,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 | dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
 | tech_indicators | `run_daily_tech_indicators.ps1` | `strategies/tech_indicators/daily/_daily_recommend.md` |
+| v8_ma20 | `run_daily_v8_ma20.ps1` | `strategies/tech_indicators/v8_ma20/daily/_v8_ma20_daily.md` |
 
 - 每个策略的 runner 都先刷新行情再出信号；缺少数据的标的会在产物里显式标注（陈旧 / 刷新失败 / 盘中未收盘 bar）。
 - **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
@@ -103,7 +105,7 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 ```
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
-- 解析口径：优先读结构化产物（json / jsonl）；`ema_cross`、`tech_indicators` 只落 markdown，由脚本解析其自产表格；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
+- 解析口径：优先读结构化产物（json / jsonl）；`ema_cross`、`tech_indicators` 只落 markdown，由脚本解析其自产表格；`v8_ma20` 读 `_v8_ma20_daily.json`（`latest_date` / `summary` / `actions`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
 - 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。
 
@@ -143,6 +145,7 @@ python pipeline/run_flow.py scaffold --name <strategy_name>
 > - **组合层/轮动型**（`momentum_rotation`、`core_rotation`、`growth_div_rotation`，`pipeline_mode = "rotation"`）：回测是**整个组合的净值**（横截面选标的 + 权重分配 + 调仓），逐标的 A/B 分级不适用。**直接运行 `strategies/<name>/backtest.py`**，不走 `run_flow backtest/select`；`daily` 闸门按 `rotation` 跳过。
 > - **全池固定策略集型**（`tech_indicators`，`pipeline_mode = "full_pool"`）：回测是**一次跑完全池 × 全家族**（`strategies/tech_indicators/compare.py`，不接受 `--codes` 分批），每日对全池每只标的都出信号、不逐码筛选标的（阈值只由回测网格取优）。`daily` 闸门按 `full_pool` 跳过。
 > - **逐标的全池型**（`right_side`，`pipeline_mode = "full_pool"`）：**逐码回测、接受 `--codes` 分批**（同逐标的型），但每日对全池每只标都出信号、不做 A/B 筛选 —— 买点判定是绝对阈值（五票全过），不该被分级名单过滤掉。`select` 仍可跑，产物只作横向比较参考。
+> - **固定小池型**（`v8_ma20`，`pipeline_mode = "full_pool"`）：标的池在 `strategies/tech_indicators/v8_ma20/backtest.py::POOL` 硬编码 4 只、一次跑完，不接受 `--codes` 分批；每日对池内 4 只全出信号、不做 A/B 分级，`daily` 闸门按 `full_pool` 跳过。**为什么独立成策略而不并入 `tech_indicators` 的四策略表**：池不同（4 只 vs 全池 55 只），混进同一张表会被误读为「V8 对全池有效」，且该卡片按固定 4 列解析。
 
 ## 6. 已知边界与同步点
 

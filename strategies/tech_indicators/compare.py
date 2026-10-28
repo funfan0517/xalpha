@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """技术指标策略 · 全家族横向对比（同一引擎统一重算，口径一致）。
 
-纳入：基线 5 单指标（MA/VOL/MACD/KDJ/BOLL）+ 变种 v1~v7，全部在同一引擎、
+纳入：基线 5 单指标（MA/VOL/MACD/KDJ/BOLL）+ 变种 v1~v8，全部在同一引擎、
 同一窗口（各自全历史、第 61 交易日起）、同一口径下逐基金回测，取全池中位数对照。
 
 产物（相对本文件）：
@@ -38,7 +38,7 @@ def _load(path, name):
 base = _load(os.path.join(_HERE, "backtest.py"), "cmp_base")
 V = {n: _load(os.path.join(_HERE, n, "backtest.py"), "cmp_" + n)
      for n in ["v1_kdj_ma10", "v2_macd_kdj", "v3_macd_boll",
-               "v4_boll_kdj_macd", "v5_regime_switch", "v6_score_wf"]}
+               "v4_boll_kdj_macd", "v5_regime_switch", "v6_score_wf", "v8_ma20"]}
 
 
 def _load_style():
@@ -76,6 +76,8 @@ def _route_sig(code, close, r, bsigs):
 # (标签, 基础键 or 变种信号函数, 风格, 一句话)
 STRATS = [
     ("MA", "MA", "趋势", "20日生命线+60日牛熊过滤"),
+    ("v8 MA20穿越", V["v8_ma20"].build_signal, "趋势",
+     "仅 MA20 上穿买入/下穿卖出（无 MA60 过滤，详情见 v8_ma20/）"),
     ("VOL", "VOL", "量价", "放量上涨持有"),
     ("MACD", "MACD", "趋势", "零轴上方金叉/死叉（基线最强）"),
     ("KDJ", "KDJ", "反转", "超卖金叉/超买死叉"),

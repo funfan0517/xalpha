@@ -481,6 +481,60 @@ def parse_tech_indicators(_cfg):
     )
 
 
+def parse_v8_ma20(_cfg):
+    base_dir = os.path.join(_ROOT, "strategies", "tech_indicators", "v8_ma20", "daily")
+    json_path = os.path.join(base_dir, "_v8_ma20_daily.json")
+    md_path = os.path.join(base_dir, "_v8_ma20_daily.md")
+    if not os.path.exists(json_path):
+        raise ValueError("产物缺失：请先跑 run_daily_v8_ma20.ps1")
+    data = json.loads(_read(json_path))
+    acts = data.get("actions") or []
+    if not acts:
+        raise ValueError("产物无标的记录")
+    summ = data.get("summary") or {}
+    tone_map = {"买入": "buy", "卖出": "sell", "持有": "hold", "空仓": "none"}
+    buys = [x for x in acts if x.get("action") == "买入"]
+    sells = [x for x in acts if x.get("action") == "卖出"]
+    stale = [x for x in acts if str(x.get("fresh") or "").startswith(("⚠️", "❌"))]
+
+    rows = []
+    for x in acts:
+        act = x.get("action") or "空仓"
+        dist = x.get("dist")
+        pos = "持仓" if x.get("pos") else "空仓"
+        detail = "距MA20 {:+.2%} · 收盘 {:.3f} · MA20 {:.3f} · 当前{} · {}".format(
+            float(dist or 0), float(x.get("close") or 0), float(x.get("ma20") or 0),
+            pos, x.get("fresh") or "")
+        rows.append(_row(x.get("code"), x.get("theme"), tone_map.get(act, "none"), act, detail))
+
+    def _txt(items):
+        return "、".join(f"`{x['code']}` {x.get('theme', '')}" for x in items)
+
+    if buys or sells:
+        parts = []
+        if buys:
+            parts.append(f"买入 {_txt(buys)}")
+        if sells:
+            parts.append(f"卖出 {_txt(sells)}")
+        summary = " · ".join(parts)
+        badge = f"买 {len(buys)} 卖 {len(sells)}"
+        tone = "buy" if buys else "sell"
+    else:
+        summary = "池内无穿越信号 —— 维持原仓位（" + _txt(acts) + "）"
+        badge, tone = "无动作", "none"
+
+    return _entry(
+        "v8_ma20", "技术指标变种8 · MA20 穿越", data.get("latest_date"), badge, tone,
+        summary, rows,
+        [["标的池", str(summ.get("n", len(acts)))], ["买入", str(len(buys))],
+         ["卖出", str(len(sells))], ["空仓", str(summ.get("empty", 0))],
+         ["陈旧/失败", str(len(stale))]],
+        note="池固定 4 只（`v8_ma20/backtest.py::POOL`，增删只改那一处）；裸规则无 MA60 过滤；"
+             "信号用当日收盘，实盘建议次日开盘执行；回测未计佣金滑点。",
+        src=_rel(md_path),
+    )
+
+
 def parse_permanent(_cfg):
     """永久投资组合：8 项目标权重（基准 × ±50% 倾斜）。
 
@@ -553,6 +607,7 @@ PARSERS = {
     "dividend": parse_dividend,
     "growth_div_rotation": parse_growth_div,
     "tech_indicators": parse_tech_indicators,
+    "v8_ma20": parse_v8_ma20,
     "permanent": parse_permanent,
 }
 

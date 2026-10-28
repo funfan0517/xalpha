@@ -1,7 +1,7 @@
 # lights 策略执行标的池（自动生成）2026-09-18 10:19
 
-> 来源: 策略回测 strategies/lights/backtest/_lights_bt.jsonl · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)
-> 输出: 本文件 + strategies/lights/daily/_lights_active.json · 仅供流程参考，非投资建议
+> 来源: 策略回测 strategies/tech_indicators/v10_lights/backtest/_lights_bt.jsonl · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)
+> 输出: 本文件 + strategies/tech_indicators/v10_lights/daily/_lights_active.json · 仅供流程参考，非投资建议
 
 ## A 类 · 核心（用该策略主推）
 

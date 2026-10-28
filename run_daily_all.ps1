@@ -3,7 +3,7 @@
 # 跳过 daily.enabled=false 的策略（已移出每日操作，但仍可手动跑各自的 runner）。
 # 单个策略失败不中断后续（与本仓库其它 runner 的 fail-fast 行为不同：这里是「全量跑一遍再汇总」）。
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_all.ps1
-#       powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_indicators   # 只跑指定策略
+#       powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators,vol_legs   # 只跑指定策略
 param(
     [string[]]$Only = @()
 )
@@ -13,7 +13,7 @@ Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
 
 # -File 调用时 "a,b" 会作为单个字符串传入，这里补一次拆分，
-# 否则 README 里的 `-Only lights,tech_indicators` 实际匹配到 0 个策略。
+# 否则 README 里的 `-Only tech_indicators,vol_legs` 实际匹配到 0 个策略。
 if ($Only.Count -gt 0) {
     $Only = @($Only | ForEach-Object { "$_" -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 }

@@ -1,7 +1,7 @@
 {
   "strategy": "right_side",
   "generated_at": "2026-10-18 13:04",
-  "source": "strategies/right_side/backtest/_right_side_bt.jsonl",
+  "source": "strategies/tech_indicators/v9_right_side/backtest/_right_side_bt.jsonl",
   "A": [
     {
       "code": "516780",

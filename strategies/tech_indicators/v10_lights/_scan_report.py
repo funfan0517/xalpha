@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """亮灯策略 · 每日操作报告（渲染 scan.py 的产物）。
 
-输入: strategies/lights/_lights_scan_out.jsonl（scan.py 产出, 每标的一行完整指标明细）
-      strategies/lights/_lights_state.json（可选, 调仓日历）
-输出: strategies/lights/_signal_report.md
-      strategies/lights/_signal_visual.png
-      strategies/lights/_signal_dashboard.html
+输入: strategies/tech_indicators/v10_lights/research/_lights_scan_out.jsonl（scan.py 产出, 每标的一行完整指标明细）
+      strategies/tech_indicators/v10_lights/research/_lights_state.json（可选, 调仓日历）
+输出: strategies/tech_indicators/v10_lights/research/_signal_report.md
+      strategies/tech_indicators/v10_lights/research/_signal_visual.png
+      strategies/tech_indicators/v10_lights/research/_signal_dashboard.html
 
 版式沿用仓库既有报告惯例: H1 + `>` 口径块 + 分节表格（末行 **全部**）+
 内嵌 base64 PNG 的 HTML 看板 + 生成时间脚注。
@@ -23,7 +23,7 @@ import numpy as np  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -42,7 +42,7 @@ plt.rcParams["axes.unicode_minus"] = False
 
 def load():
     if not os.path.exists(IN):
-        sys.exit(f"缺少扫描产物 {IN}; 先跑 python strategies/lights/scan.py")
+        sys.exit(f"缺少扫描产物 {IN}; 先跑 python strategies/tech_indicators/v10_lights/scan.py")
     raw = open(IN, "rb").read()
     text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8")
     good, bad = [], []

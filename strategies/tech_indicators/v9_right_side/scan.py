@@ -10,11 +10,11 @@
 每只标的附带：五票逐条的**实际值 vs 阈值**、结构止损位与距现价距离、250 日回撤、效率比，
 供 `_scan_report.py` 渲染每日操作报告。
 
-输出: strategies/right_side/daily/_right_side_scan_out.jsonl（每标的一行）
+输出: strategies/tech_indicators/v9_right_side/daily/_right_side_scan_out.jsonl（每标的一行）
 用法:
-  python strategies/right_side/scan.py                # 全池扫描（含行情刷新）
-  python strategies/right_side/scan.py --cache        # 不刷新，只用本地库
-  python strategies/right_side/scan.py 512800,515080  # 只扫指定标的
+  python strategies/tech_indicators/v9_right_side/scan.py                # 全池扫描（含行情刷新）
+  python strategies/tech_indicators/v9_right_side/scan.py --cache        # 不刷新，只用本地库
+  python strategies/tech_indicators/v9_right_side/scan.py 512800,515080  # 只扫指定标的
 """
 import json
 import os
@@ -25,7 +25,7 @@ import pandas as pd
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)

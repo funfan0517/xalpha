@@ -3,6 +3,8 @@
 # 口径: 信号 + 记账 + 执行 **全部用场外基金复权净值**(rule.SIGNAL_MODE="otc")
 # 盘后运行: 刷新场外净值(023299/270042/017641/011609/012805/000216) -> 复算六腿状态
 #          (回撤阶梯/趋势闸门/季度再平衡) -> 输出「下一交易日该下单的那一笔」
+# 第 2 步: V1 变种(strategies\vol_legs\v1_ma20\daily\_daily_scan.py) —— 六腿逐一判定
+#          净值 vs MA20 的穿越(逐腿进出时点), 与第 1 步的组合层仓位带互不替代
 # 参数权威源 strategies/vol_legs/rule.py::CFG; 口径说明 strategies/vol_legs/README.md
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_vol_legs.ps1
 #        已有存量持仓时校准起点: ... -File run_daily_vol_legs.ps1 --hold a500=10,ndx=5,spx=5,kc50=5,hkt=5,gold=10
@@ -14,15 +16,22 @@ $env:PYTHONIOENCODING = "utf-8"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-Write-Host "[1/1] Recomputing 6-leg actions on OTC NAV (A500 5 / NDX 10 / SPX 10 / STAR50 2.5 / HSTECH 2.5 / Gold 10)..."
+Write-Host "[1/2] Recomputing 6-leg actions on OTC NAV (A500 5 / NDX 10 / SPX 10 / STAR50 2.5 / HSTECH 2.5 / Gold 10)..."
 python -W ignore strategies\vol_legs\scan.py --force @args
 if ($LASTEXITCODE -ne 0) { throw "vol_legs scan failed" }
+
+# V1 变种(MA20 穿越): 逐腿进出时点, 不接管组合层仓位带; 复用第 1 步刚刷新的场外净值缓存
+Write-Host ""
+Write-Host "[2/2] Recomputing V1 variant (MA20 cross, per-leg in/out) ..."
+python -W ignore strategies\vol_legs\v1_ma20\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { throw "v1_ma20 daily scan failed" }
 
 Write-Host ""
 Write-Host "Done."
 Write-Host "  Report  : strategies\vol_legs\daily\_vol_legs_report.md"
 Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
+Write-Host "  V1 MA20 : strategies\vol_legs\v1_ma20\daily\_v1_ma20_daily.md (+ .json)"
 Write-Host "  Note    : signal on NAV at close, place the order BEFORE 15:00 next trading day to get"
 Write-Host "            that day's NAV. QDII NAV prints T+1~T+2 -- do not cancel inside the window."
 Write-Host "  Note    : all six legs trade OTC share classes only (never chase on-exchange premium);"

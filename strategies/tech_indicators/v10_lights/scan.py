@@ -9,13 +9,13 @@
   - 门槛/灯/评分/决策全部调用 rule.py 的同一套函数;
   - 额外并列本地 mx 快照的**真实**主力净额占比 / 换手率 / 量比供交叉验证（不参与计分）。
 
-输出: strategies/lights/_lights_scan_out.jsonl（每标的一行）
-      strategies/lights/_lights_state.json（调仓日历状态, --commit 推进）
+输出: strategies/tech_indicators/v10_lights/research/_lights_scan_out.jsonl（每标的一行）
+      strategies/tech_indicators/v10_lights/research/_lights_state.json（调仓日历状态, --commit 推进）
 用法:
-  python strategies/lights/scan.py                  # 全池扫描（联网刷新当日数据）
-  python strategies/lights/scan.py --cache          # 用本地缓存（不联网）
-  python strategies/lights/scan.py --commit         # 扫描并把今天记为最近一次调仓
-  python strategies/lights/scan.py 512800,515080    # 只扫指定标的
+  python strategies/tech_indicators/v10_lights/scan.py                  # 全池扫描（联网刷新当日数据）
+  python strategies/tech_indicators/v10_lights/scan.py --cache          # 用本地缓存（不联网）
+  python strategies/tech_indicators/v10_lights/scan.py --commit         # 扫描并把今天记为最近一次调仓
+  python strategies/tech_indicators/v10_lights/scan.py 512800,515080    # 只扫指定标的
 """
 import json
 import os
@@ -28,7 +28,7 @@ import pandas as pd
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -97,19 +97,13 @@ def load_snapshot():
 
 
 def load_grades():
-    """select 阶段产物 -> ({code: 'A'|'B'|'不适合'}, 生成时间)。"""
-    if not os.path.exists(ACT_JSON):
-        return {}, None
-    try:
-        d = json.load(open(ACT_JSON, encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}, None
-    g = {}
-    for tag, key in (("A", "A"), ("B", "B"), ("不适合", "not_suitable")):
-        for r in d.get(key) or []:
-            if r.get("code"):
-                g[r["code"]] = tag
-    return g, d.get("generated_at")
+    """分级名单已作废（2026-10-28 并入 tech_indicators 变种 v10 时保留的空实现）。
+
+    历史原因: 本策略曾按回测 A/B 分级只推 A 类 8 只标的, 名单存 `daily/_lights_active.json`。
+    并入家族后池统一为 55 只全池、不做 A/B 分级, 该名单不再驱动任何信号,
+    故这里返回空映射, 报告里「分级」列显示 `—`。文件保留仅作历史参考。
+    """
+    return {}, None
 
 
 def state_load():
@@ -310,8 +304,11 @@ def main():
           f" | 数据日 {good[0]['date'] if good else '—'}"
           f"{'（盘中未收盘 bar）' if refresh else '（本地缓存）'} | 快照 {snap_time}")
     print(f"  门槛全过 {sum(1 for r in good if r['gate_pass'])} 只 | 目标建仓 {len(buys)} 只："
-          + (" ".join(f"{r['inner']}({r['grade']},分{r['score']:g})" for r in buys) or "（空仓）"))
-    print(f"  分级来源: {os.path.basename(ACT_JSON)} @ {grade_at or '未生成(先跑 select)'}")
+          + (" ".join(f"{r['inner']}(分级{r['grade']},分{r['score']:g})" for r in buys) or "（空仓）"))
+    if grade_at:
+        print(f"  分级来源: {os.path.basename(ACT_JSON)} @ {grade_at}")
+    else:
+        print("  分级: 已作废（并入 tech_indicators 变种 v10 后池为全池 55 只, 不再做 A/B 分级）")
     print(f"  明细 -> {OUT}")
 
 

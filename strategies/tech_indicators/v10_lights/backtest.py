@@ -6,7 +6,7 @@
 样本: SAMPLE_FROM(2016-09-01) 起, 窗口内样本 >= cfg.min_bars(120) 交易日。
 
 输出: 每标的一行 JSON（schema 兼容 pipeline/flow_select.py 与 pipeline/bt_stats）。
-用法: python strategies/lights/backtest.py [--preset NAME] [--out PATH] [code1,code2,...]
+用法: python strategies/tech_indicators/v10_lights/backtest.py [--preset NAME] [--out PATH] [code1,code2,...]
       --preset 缺省 = c7（生效配置）。
 """
 import json
@@ -18,7 +18,7 @@ import pandas as pd
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)

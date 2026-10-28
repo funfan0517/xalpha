@@ -9,8 +9,7 @@
   data.py      标的池与行情面板（唯一池 data/_universe.md，本地缓存）
   backtest.py  回测入口      _reportbt.py    回测报告
   scan.py      每日信号扫描  _scan_report.py 每日操作报告
-  _sync_meta.py  把 pipeline/strategies.json 的参数镜像块从 ACTIVE 同步
-
+  
 约定:
   * 因子函数同时支持 **单标的 Series** 与 **全池面板 DataFrame**（列=标的）,
     同一定义两处可用、结果一致。

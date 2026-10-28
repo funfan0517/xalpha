@@ -7,9 +7,9 @@
   - 每只标的用自己的交易日序列（停牌日丢弃，不 ffill）；
   - 样本 SAMPLE_FROM(2016-09-01) 起，窗口内样本 >= MIN_BARS(250) 交易日。
 
-输出：`strategies/right_side/backtest/_right_side_bt.jsonl`（每标的一行，schema 兼容
+输出：`strategies/tech_indicators/v9_right_side/backtest/_right_side_bt.jsonl`（每标的一行，schema 兼容
 `pipeline/flow_select.py` 与 `pipeline/bt_stats`）。
-用法：python strategies/right_side/backtest.py [--out PATH] [code1,code2,...]
+用法：python strategies/tech_indicators/v9_right_side/backtest.py [--out PATH] [code1,code2,...]
 """
 import json
 import os
@@ -20,7 +20,7 @@ import pandas as pd
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)

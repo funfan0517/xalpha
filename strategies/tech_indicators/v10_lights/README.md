@@ -1,4 +1,10 @@
-# 亮灯策略（Lights）
+# 亮灯策略（Lights）· 技术指标家族变种 **v10**
+
+> **2026-10-28 并入 `strategies/tech_indicators/` 作为变种 v10**（原独立策略 `strategies/lights/`）。
+> 标的池与家族统一：**全池 55 只场内 ETF**（`KEEP_CATS = None`）。原「A 类 8 只分级名单」已作废
+> —— 池扩到 55 只后 A/B 分级不再驱动信号，`daily/_lights_active.{md,json}` 仅作历史参考。
+> 每日由 `run_daily_tech_indicators.ps1` 第 3-4 步跑本目录的 `scan.py` → `_scan_report.py`，
+> 结果作为 `V10` 列进入家族 6 策略汇总表。
 
 > 2026-09-10 重构落地。参数权威源是 `rule.py::ACTIVE`（生效配置 label = **c7**），
 > 所有行为差异都由参数表达，不存在第二份实现。
@@ -10,7 +16,7 @@
 
 | 用途 | 产出 | 回答的问题 |
 |---|---|---|
-| 回测分级（`backtest` → `select`） | `strategies/lights/daily/_lights_active.{md,json}` 的 A/B/不适合名单 | 这套规则用在这只标的上**长期**是否有效 |
+| 回测分级（`backtest` → `select`） | `strategies/tech_indicators/v10_lights/daily/_lights_active.{md,json}` 的 A/B/不适合名单 | 这套规则用在这只标的上**长期**是否有效 |
 | 每日扫描（`scan` → `_scan_report`） | `daily/_signal_report.md` / `.png` / `.html` | **今天**哪些基金亮了几盏灯、为什么没达标 |
 
 标准流程（`pipeline/run_flow.py`）：
@@ -18,14 +24,14 @@
 ```
 universe → rules → backtest → select → daily
                     ↑            ↑
-            strategies/lights/backtest.py   strategies/lights/_lights_bt.jsonl
+            strategies/tech_indicators/v10_lights/backtest.py   strategies/tech_indicators/v10_lights/backtest/_lights_bt.jsonl
 ```
 
 ## 2. 模型：五层，全部参数化
 
 差异只在参数，不在代码。参数权威源是 **`rule.py::ACTIVE`**（可执行、可 `--set` 覆盖）；
-`pipeline/strategies.json[lights].thresholds` 是它的**镜像**，改参数后跑
-`python strategies/lights/_sync_meta.py` 同步。
+并入家族后 `pipeline/strategies.json` **不再保留它的参数镜像块**（原 `_sync_meta.py` 已删除），
+`rule.py::ACTIVE` 是唯一权威源。
 
 ### L1 门槛层 —— 6 条硬门槛（AND）
 
@@ -92,7 +98,7 @@ universe → rules → backtest → select → daily
 单笔（4385 笔）：胜率 **46.1%**，平均盈利 +2.91% / 平均亏损 −1.85%，
 盈亏比 **1.58**，单笔期望 **+0.34%**。
 
-> ⚠ **c7 的参数是在 23 只 A 股行业池上选出的**（参数搜索目标 = 年化 × 择时边际，经分段 walk-forward 确认，见 `strategies/_tune_report.md`），
+> ⚠ **c7 的参数是在 23 只 A 股行业池上选出的**（参数搜索目标 = 年化 × 择时边际，经分段 walk-forward 确认，见 `strategies/tech_indicators/v10_lights/research/_tune_report.md`），
 > 2026-09-18 扩池到 47 只后**没有重新调参**。扩进来的宽基 / 海外 / 商品本就是审计里的负贡献类别
 > （宽基 −1.2% / 全球QDII −8.5% / 策略商品 −8.5%），故全池口径被摊薄：年化 +6.9% → **+4.8%**、超额 +3.4% → **−0.3%**、
 > 择时边际 +14.0bp → **+5.0bp**。分类看 **A股行业仍是唯一正超额（+0.5%）**，宽基 +0.1%、策略/商品 −7.7%。
@@ -101,7 +107,7 @@ universe → rules → backtest → select → daily
 > ⚠ 这是**低胜率、高赔率**画像 —— 靠赔率赚钱，不靠胜率。想提胜率只有「加止盈」一条路，
 > 而实测**胜率与期望严格对立**：止盈 3% → 胜率 53.1% / 期望 +0.202% / 超额 −0.2%；
 > 止盈 1% → 胜率 65.6% / 期望 **−0.215%** / 超额 −6.9%；止盈 0.5% → 胜率 71.0% / 期望 −0.421%。
-> 复现：`python strategies/lights/_sector_tune.py`。
+> 复现：`python strategies/tech_indicators/v10_lights/research/_sector_tune.py`。
 
 ### 灯的定位与消融图谱（2026-09-11）
 
@@ -120,7 +126,7 @@ universe → rules → backtest → select → daily
 判据用**目标增量**（= 真实目标 − 关掉该灯的目标），不能用边际增量 —— 边际对持仓变化
 不敏感，会漏掉「边际不变但暴露/年化变化」的贡献（`heat` 就是这样：关掉它边际仍是
 15.8bp，但目标 0.972 → 0.941）。方法为**置换对照**（打乱该灯取值顺序，保留分数水平、
-只摧毁时间信息）。复现：`python strategies/lights/_ablate.py`。
+只摧毁时间信息）。复现：`python strategies/tech_indicators/v10_lights/research/_ablate.py`。
 
 > ⚠ `trend`/`momentum` 在 `enter_required` 里，一旦失效全池无法交易 —— 既没有可测的
 > 失效对照，其置换对照也**被污染**（置换会打散 `>=1` 的天数、直接抹掉入场机会），
@@ -140,7 +146,7 @@ universe → rules → backtest → select → daily
 | 长动量 `ret20>0` | 0.564 | 0.786 |
 
 共线性最低（0.266）的中期趋势代理只到 0.731，MACD 领先 **+0.246**。
-复现：`python strategies/lights/_macd_indep.py`。
+复现：`python strategies/tech_indicators/v10_lights/research/_macd_indep.py`。
 （早先一版用 `c>MA20` 做代理，结果与「恒为 1」逐位相同 —— 那是代理与其它灯共线
 导致的**假结论**，已废弃。）
 
@@ -290,30 +296,27 @@ universe → rules → backtest → select → daily
 
 ```powershell
 # 每日信号（全池，联网刷新当日数据；--cache 可用本地缓存）
-.\run_daily_lights.ps1
-python strategies\lights\scan.py  &&  python strategies\lights\_scan_report.py
+.\run_daily_tech_indicators.ps1
+python strategies\tech_indicators\v10_lights\scan.py  &&  python strategies\tech_indicators\v10_lights\_scan_report.py
 
 # 回测与报告
-python strategies\lights\backtest.py                        # 生效配置 C7
-python strategies\lights\backtest.py --out strategies\lights\backtest\x.jsonl   # 换输出路径
-python strategies\lights\_reportbt.py                       # 渲染 md/png/html
-python strategies\lights\backtest.py --set enter_min=4,slip_k_bp=6   # 单次试验任意参数
+python strategies\tech_indicators\v10_lights\backtest.py                        # 生效配置 C7
+python strategies\tech_indicators\v10_lights\backtest.py --out strategies\tech_indicators\v10_lights\backtest\x.jsonl   # 换输出路径
+python strategies\tech_indicators\v10_lights\_reportbt.py                       # 渲染 md/png/html
+python strategies\tech_indicators\v10_lights\backtest.py --set enter_min=4,slip_k_bp=6   # 单次试验任意参数
 
-# 走 pipeline
-python pipeline\run_flow.py rules    --strategy lights
-python pipeline\run_flow.py backtest --strategy lights --report
-python pipeline\run_flow.py select   --strategy lights      # -> strategies/lights/daily/_lights_active.{md,json}
+# 走 pipeline：已不适用（2026-10-28 起不再是独立注册策略），入口统一为家族 runner
+#   .\run_daily_tech_indicators.ps1   -> v9 scan/report + v10 scan/report + 6 策略汇总表
 
-# 调参 / 验证 / 同步
-python strategies\_tune.py --oos        # 单变量扫描 + 组合候选 + 样本外
-python strategies\_walkforward.py       # 分段 walk-forward
-python strategies\lights\_sync_meta.py  # json 镜像 <- rule.ACTIVE
+# 调参 / 验证（2026-10-28 随 lights 一起迁入 research/）
+python strategies\tech_indicators\v10_lights\research\_tune.py --oos        # 单变量扫描 + 组合候选 + 样本外
+python strategies\tech_indicators\v10_lights\research\_walkforward.py       # 分段 walk-forward
 ```
 
 ## 7. 文件结构
 
 ```
-strategies/lights/
+strategies/tech_indicators/v10_lights/
 ├── ① 规则（包根 · 供 import —— 不要移动）
 │   ├── rule.py          ★ 参数权威源（ACTIVE=C7）+ 灯/门槛/事件注册表 + 三份预设
 │   ├── factors.py       因子库（唯一实现，Series 与面板通用）
@@ -324,12 +327,12 @@ strategies/lights/
 │   ├── _reportbt.py     回测报告生成（md + png + html）
 │   ├── scan.py          每日信号扫描
 │   ├── _scan_report.py  每日操作报告（门槛逐条实际值 vs 阈值 + 各维灯得分与触发依据）
-│   └── _sync_meta.py    strategies.json 镜像块同步
 ├── backtest/           ③ 回测产物与报告
 │   ├── _lights_bt.jsonl
 │   └── _bt_report.md · _bt_visual.png · _bt_dashboard.html
 ├── daily/              ⑤ 每日推荐操作报告
-│   ├── _lights_scan_out.jsonl · _lights_active.{md,json}
+│   ├── _lights_scan_out.jsonl
+│   ├── _lights_active.{md,json}   （作废：原 A/B 分级，仅留档）
 │   └── _signal_report.md · _signal_visual.png · _signal_dashboard.html
 ├── data/               ② 策略数据 / 缓存
 │   └── _lights_klines.json

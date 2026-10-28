@@ -138,75 +138,6 @@ def _row(code, name, act, label, detail=""):
 
 
 # ---------------------------------------------------------------- 各策略解析
-def parse_lights(_cfg):
-    path = os.path.join(_ROOT, "strategies", "lights", "daily", "_lights_scan_out.jsonl")
-    raw = [r for r in _rows_of_jsonl(path) if r.get("ok")] if os.path.exists(path) else []
-    if not raw:
-        raise ValueError("产物缺失或全池失败")
-    as_of = _first_date(*[r.get("date") for r in raw])
-    gate_ok = [r for r in raw if r.get("gate_pass")]
-    targets = [r for r in raw if float(r.get("target") or 0) > 0]
-
-    rows = []
-    for r in raw:
-        tgt = float(r.get("target") or 0)
-        if tgt > 0:
-            row = _row(r.get("inner"), r.get("theme"), "buy", "建仓/持有",
-                       f"得分 {r.get('score')} · {r.get('why', '')}")
-        elif r.get("gate_pass"):
-            row = _row(r.get("inner"), r.get("theme"), "watch", "门槛过但不建仓",
-                       f"得分 {r.get('score')} · {r.get('why', '')}")
-        else:
-            row = _row(r.get("inner"), r.get("theme"), "none", "目标空仓",
-                       f"未过：{'、'.join(r.get('failed') or []) or '灯未达标'}")
-        rows.append(row)
-
-    tgt_txt = "、".join(f"`{r['inner']}` {r.get('theme', '')}" for r in targets) or "（空仓）"
-    return _entry(
-        "lights", "亮灯策略", as_of,
-        f"建仓 {len(targets)}" if targets else "空仓",
-        "buy" if targets else "none",
-        f"门槛全过 {len(gate_ok)}/{len(raw)} · 目标建仓 {len(targets)} 只：{tgt_txt}",
-        rows,
-        [["全池", str(len(raw))], ["门槛全过", str(len(gate_ok))],
-         ["目标建仓", str(len(targets))]],
-        note="盘中运行时用未收盘 bar，量能类灯会随尾盘变化；分级来自 _lights_active.json 快照。",
-        src=_rel(os.path.join(_ROOT, "strategies", "lights", "daily", "_signal_report.md")),
-    )
-def parse_right_side(_cfg):
-    path = os.path.join(_ROOT, "strategies", "right_side", "daily", "_right_side_scan_out.jsonl")
-    raw = [r for r in _rows_of_jsonl(path) if r.get("ok")] if os.path.exists(path) else []
-    if not raw:
-        raise ValueError("产物缺失或全池失败")
-    as_of = _first_date(*[r.get("date") for r in raw])
-
-    tone_map = {"READY": "buy", "WATCH": "watch", "VETO": "avoid", "NO": "none"}
-    label_map = {"READY": "买点", "WATCH": "差一票", "VETO": "被否决", "NO": "未达标"}
-    rows = []
-    for r in raw:
-        st = str(r.get("status") or "NO")
-        miss = "、".join(r.get("missing") or [])
-        detail = r.get("action") or ""
-        if miss and st != "NO":
-            detail = f"{detail} · 缺：{miss}"
-        rows.append(_row(r.get("inner"), r.get("theme"), tone_map.get(st, "none"),
-                         label_map.get(st, st), detail))
-
-    ready = [r for r in rows if r["act"] == "buy"]
-    watch = [r for r in rows if r["act"] == "watch"]
-    if ready:
-        summary = "右侧买点：" + "、".join(f"`{r['c']}` {r['n']}" for r in ready)
-        badge, tone = f"买点 {len(ready)}", "buy"
-    else:
-        summary = "无标的五票全过 —— 空仓等待" + (
-            "；观察：" + "、".join(f"`{r['c']}` {r['n']}" for r in watch) if watch else "")
-        badge, tone = "空仓", "none"
-    return _entry(
-        "right_side", "右侧买入", as_of, badge, tone, summary, rows,
-        [["全池", str(len(rows))], ["买点", str(len(ready))], ["差一票", str(len(watch))]],
-        note="收盘前运行会自动退到上一交易日（不拿盘中未完成 bar 判信号）。",
-        src=_rel(os.path.join(_ROOT, "strategies", "right_side", "daily", "_right_side_report.md")),
-    )
 def parse_dividend(_cfg):
     # 2026-10-26 起每日操作是 V4 RSI14 择时（V0 打分退出流程，产物仍在 v0_rank/daily/）
     daily = _cfg["daily"]
@@ -288,17 +219,24 @@ def parse_tech_indicators(_cfg):
         raise ValueError("markdown 明细表解析为空")
 
     # 按「策略」聚合：每个指标策略一行，行内列出它自己的买入/卖出标的
-    names = ["MACD", "V3", "V6", "V7"]
-    group = {n: {"buy": [], "sell": [], "hold": [], "none": []} for n in names}
+    # ★ 策略清单与列宽都从 strategies.json 的 daily.strategies 取（增删策略只改那里，
+    #   这里不再硬编码列数 —— 早先写死 cells[6:10] 会静默丢掉第 5 个及以后的策略列）。
+    names = [str(x) for x in ((_cfg.get("daily") or {}).get("strategies") or [])]
+    if not names:
+        raise ValueError("strategies.json 的 daily.strategies 为空")
+    ncol = len(names)
+    group = {n: {"buy": [], "sell": [], "hold": [], "none": [], "watch": [], "avoid": []}
+             for n in names}
+    amap = {"买入": "buy", "卖出": "sell", "持有": "hold",
+            "观察": "watch", "否决": "avoid", "空仓": "none"}
     pool = 0
     for cells in detail:
-        if len(cells) < 10:
+        if len(cells) < 6 + ncol:
             continue
         pool += 1
         code, name = cells[0], cells[1]
-        for strat, a in zip(names, cells[6:10]):
-            key = {"买入": "buy", "卖出": "sell", "持有": "hold"}.get(a, "none")
-            group[strat][key].append(f"{code} {name}")
+        for strat, a in zip(names, cells[6:6 + ncol]):
+            group[strat][amap.get(a, "none")].append(f"{code} {name}")
 
     rows = []
     for strat in names:
@@ -314,6 +252,10 @@ def parse_tech_indicators(_cfg):
             parts.append("买入：" + "、".join(g["buy"]))
         if g["sell"]:
             parts.append("卖出：" + "、".join(g["sell"]))
+        if g["watch"]:
+            parts.append("观察（差一票）：" + "、".join(g["watch"]))
+        if g["avoid"]:
+            parts.append("否决：" + "、".join(g["avoid"]))
         if g["hold"] and len(g["hold"]) <= 10:
             parts.append("持有：" + "、".join(g["hold"]))
         if not parts:
@@ -331,44 +273,45 @@ def parse_tech_indicators(_cfg):
         summary = "；".join(f"{r['c']}：{r['a']}" for r in active)
     else:
         badge, tone = "无动作", "none"
-        summary = f"四策略对全池 {pool} 只均无买入/卖出信号"
+        summary = f"{ncol} 策略对全池 {pool} 只均无买入/卖出信号"
     return _entry(
-        "tech_indicators", "技术指标（四策略）", as_of, badge, tone, summary, rows,
-        [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)]],
+        "tech_indicators", f"技术指标（{ncol} 策略）", as_of, badge, tone, summary, rows,
+        [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)],
+         ["策略", str(ncol)]],
         note="解析自 _daily_recommend.md（该策略只落 markdown）；每行是一个指标策略对全池的操作汇总。",
         src=_rel(path),
         cols=["策略", "动作统计", "动作", "该策略的操作明细"],
     )
 
 
-def parse_v8_ma20(_cfg):
-    base_dir = os.path.join(_ROOT, "strategies", "tech_indicators", "v8_ma20", "daily")
-    json_path = os.path.join(base_dir, "_v8_ma20_daily.json")
-    md_path = os.path.join(base_dir, "_v8_ma20_daily.md")
+def parse_v1_ma20(_cfg):
+    base_dir = os.path.join(_ROOT, "strategies", "vol_legs", "v1_ma20", "daily")
+    json_path = os.path.join(base_dir, "_v1_ma20_daily.json")
+    md_path = os.path.join(base_dir, "_v1_ma20_daily.md")
     if not os.path.exists(json_path):
-        raise ValueError("产物缺失：请先跑 run_daily_v8_ma20.ps1")
+        raise ValueError("产物缺失：请先跑 run_daily_vol_legs.ps1（第 2 步）")
     data = json.loads(_read(json_path))
-    acts = data.get("actions") or []
-    if not acts:
-        raise ValueError("产物无标的记录")
+    legs = data.get("legs") or []
+    if not legs:
+        raise ValueError("产物无腿记录")
     summ = data.get("summary") or {}
+    rule = data.get("rule") or {}
     tone_map = {"买入": "buy", "卖出": "sell", "持有": "hold", "空仓": "none"}
-    buys = [x for x in acts if x.get("action") == "买入"]
-    sells = [x for x in acts if x.get("action") == "卖出"]
-    stale = [x for x in acts if str(x.get("fresh") or "").startswith(("⚠️", "❌"))]
+    buys = [x for x in legs if x.get("action") == "买入"]
+    sells = [x for x in legs if x.get("action") == "卖出"]
+    stale = [x for x in legs if str(x.get("fresh") or "").startswith(("⚠️", "❌"))]
 
     rows = []
-    for x in acts:
+    for x in legs:
         act = x.get("action") or "空仓"
-        dist = x.get("dist")
         pos = "持仓" if x.get("pos") else "空仓"
-        detail = "距MA20 {:+.2%} · 收盘 {:.3f} · MA20 {:.3f} · 当前{} · {}".format(
-            float(dist or 0), float(x.get("close") or 0), float(x.get("ma20") or 0),
-            pos, x.get("fresh") or "")
-        rows.append(_row(x.get("code"), x.get("theme"), tone_map.get(act, "none"), act, detail))
+        detail = "距MA20 {:+.2%} · 复权净值 {:.4f} · MA20 {:.4f} · 当前{} · 带 {:g}pp · {}".format(
+            float(x.get("dist") or 0), float(x.get("nav") or 0), float(x.get("ma20") or 0),
+            pos, float(x.get("band") or 0), x.get("fresh") or "")
+        rows.append(_row(x.get("exec"), x.get("name"), tone_map.get(act, "none"), act, detail))
 
     def _txt(items):
-        return "、".join(f"`{x['code']}` {x.get('theme', '')}" for x in items)
+        return "、".join(f"{x.get('name', '')}(`{x.get('exec', '')}`)" for x in items)
 
     if buys or sells:
         parts = []
@@ -380,18 +323,22 @@ def parse_v8_ma20(_cfg):
         badge = f"买 {len(buys)} 卖 {len(sells)}"
         tone = "buy" if buys else "sell"
     else:
-        summary = "池内无穿越信号 —— 维持原仓位（" + _txt(acts) + "）"
+        summary = "六腿无穿越信号 —— 维持原仓位（" + _txt(legs) + "）"
         badge, tone = "无动作", "none"
 
     return _entry(
-        "v8_ma20", "技术指标变种8 · MA20 穿越", data.get("latest_date"), badge, tone,
+        "v1_ma20", "波动资产 V1 变种 · 六腿 MA20 穿越", data.get("as_of"), badge, tone,
         summary, rows,
-        [["标的池", str(summ.get("n", len(acts)))], ["买入", str(len(buys))],
-         ["卖出", str(len(sells))], ["空仓", str(summ.get("empty", 0))],
-         ["陈旧/失败", str(len(stale))]],
-        note="池固定 4 只（`v8_ma20/backtest.py::POOL`，增删只改那一处）；裸规则无 MA60 过滤；"
-             "信号用当日收盘，实盘建议次日开盘执行；回测未计佣金滑点。",
+        [["六腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
+         ["卖出", str(len(sells))], ["持有", str(summ.get("hold", 0))],
+         ["空仓", str(summ.get("empty", 0))], ["陈旧/失败", str(len(stale))]],
+        note=f"池 = 主策略六腿（`rule.LEGS`，增删腿只改那一处）；"
+             f"场外复权净值 {rule.get('buy', '上穿MA20')} 买 / {rule.get('sell', '下穿MA20')} 卖，"
+             f"{rule.get('trade_at', 'T+1 净值')} 成交。**成本是决定性变量**：逐腿 13~16 笔/年，"
+             "按 A 类真实费率扣费后组合年化 8.10% → 1.42%（C 类销售服务费未计）。"
+             "本变种只管逐腿进出时点，组合层仓位带仍由主策略管。",
         src=_rel(md_path),
+        cols=["场外代码", "腿", "动作", "关键值"],
     )
 
 
@@ -519,8 +466,8 @@ def parse_vol_legs(_cfg):
         badge, tone, summary, rows, chips,
         note="§0 口径：收盘后计算、次日下单（场外 15:00 前提交才拿当日净值）—— 这里显示的是"
              "**下一交易日**该成交的那一笔。"
-             f"六腿仓位带共 {d.get('sleeve_pp'):g}pp（A500 10 / 纳指100 5 / 标普500 5 / "
-             "科创50 5 / 恒生科技 5 / 黄金 10），1 份 = 2pp（美股 1pp）。"
+             f"六腿仓位带共 {d.get('sleeve_pp'):g}pp（A500 5 / 纳指100 10 / 标普500 10 / "
+             "科创50 2.5 / 恒生科技 2.5 / 黄金 10），1 份 = 带的 20%（A500 1pp、美股/黄金 2pp）。"
              "**信号与记账口径均为场外基金复权净值**（含汇率与分红再投，不含场内溢价）；"
              "估值闸门为 null（或美股人工分位）时按 §1「规则不执行」处理"
              + (f"；当前 QDII 额度关闭：{'/'.join(qdii)}（档位顺延）" if qdii else "")
@@ -531,12 +478,10 @@ def parse_vol_legs(_cfg):
 
 
 PARSERS = {
-    "lights": parse_lights,
-    "right_side": parse_right_side,
     "dividend": parse_dividend,
     "growth_div_rotation": parse_growth_div,
     "tech_indicators": parse_tech_indicators,
-    "v8_ma20": parse_v8_ma20,
+    "v1_ma20": parse_v1_ma20,
     "permanent": parse_permanent,
     "vol_legs": parse_vol_legs,
 }

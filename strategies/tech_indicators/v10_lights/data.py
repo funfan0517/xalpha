@@ -16,7 +16,7 @@ import pandas as pd
 
 import xalpha as xa
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 from pipeline import universe  # noqa: E402
@@ -40,8 +40,10 @@ ALL_POOL = universe.inner_rows()
 #   宽基/另类 563360/588000/510300/515810 + 策略商品 515080(红利)/159201(自由现金流)
 #   /161226(白银)/518880(黄金)。其余无场内代码的行(008163/007760 等) 本就不在内池。
 #   故调整 KEEP_CATS 为以下三类, 池子 23 -> 31 只; 下游一切按 POOL 驱动, 无需改别处。
-# 恢复全池: 把 KEEP_CATS 设为 None。
-KEEP_CATS = ("A股行业", "宽基/另类", "策略/商品")
+# 2026-10-28 并入 tech_indicators 家族成为变种 v10: **标的池与家族统一**（data/_indicators_hist.json
+#   ∩ data/_long_klines.json 的全部 55 只场内 ETF），故 KEEP_CATS 置 None 恢复全池。
+#   往下游一切仍按 POOL 驱动, 无需改别处。
+KEEP_CATS = None
 
 POOL = [r for r in ALL_POOL if KEEP_CATS is None or r["cat"] in KEEP_CATS]
 CATS = {r["code"]: r["cat"] for r in POOL}

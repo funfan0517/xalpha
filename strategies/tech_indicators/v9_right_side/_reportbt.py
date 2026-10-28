@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """右侧买入策略 · 回测报告（渲染 backtest.py 的产物）。
 
-输入: strategies/right_side/backtest/_right_side_bt.jsonl（--in 可指定其它产物）
-输出: strategies/right_side/backtest/_bt_report.md
-      strategies/right_side/backtest/_bt_visual.png
+输入: strategies/tech_indicators/v9_right_side/backtest/_right_side_bt.jsonl（--in 可指定其它产物）
+输出: strategies/tech_indicators/v9_right_side/backtest/_bt_report.md
+      strategies/tech_indicators/v9_right_side/backtest/_bt_visual.png
 
 版式沿用仓库既有回测报告惯例：H1 + `>` 口径块 + 分类汇总（末行 **全部**）+ 逐只明细
 + 五票命中率 + 离场原因 + 全体单笔统计（`pipeline.bt_stats`）+ 上下双子图。
@@ -20,7 +20,7 @@ import numpy as np  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -43,7 +43,7 @@ def pct(x, dp=1):
 
 def load(path):
     if not os.path.exists(path):
-        sys.exit(f"缺少回测产物 {path}; 先跑 python strategies/right_side/backtest.py")
+        sys.exit(f"缺少回测产物 {path}; 先跑 python strategies/tech_indicators/v9_right_side/backtest.py")
     raw = open(path, "rb").read()
     text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8")
     good, bad = [], []

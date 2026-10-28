@@ -44,7 +44,7 @@ def cmd_phases(args):
     print("阶段流程:")
     for i, s in enumerate(sub, 1):
         print(f"  {i}. {s}")
-    print("用法: python pipeline/run_flow.py <phase> [--strategy lights] [选项]")
+    print("用法: python pipeline/run_flow.py <phase> [--strategy dividend] [选项]")
 
 
 def cmd_universe(args):
@@ -214,7 +214,7 @@ def cmd_scaffold(args):
             "    df['date'] = pd.to_datetime(df['date'])\n"
             "    return df.sort_values('date').reset_index(drop=True)\n\n\n"
             "def score(df):\n"
-            "    raise NotImplementedError('按策略文档实现逐行评分(见 strategies/lights/rule.py 的评分口径)')\n"
+            "    raise NotImplementedError('按策略文档实现逐行评分(见 strategies/tech_indicators/v10_lights/rule.py 的评分口径)')\n"
         ),
         "backtest.py": (
             "# 回测骨架：完成后引擎逐行输出 JSON，schema 需含\n"
@@ -222,7 +222,7 @@ def cmd_scaffold(args):
             "# 单笔统计统一复用 pipeline/bt_stats: 引擎收集 trades=[{code,entry_date,exit_date,bars,ret}],\n"
             "# 输出 t_stats=bt_stats.trade_stats(trades)+trade_log; 报告默认含 bt_stats.section_lines\n"
             "def run_backtest(df):\n"
-            "    raise NotImplementedError('实现状态机回测，参考 strategies/lights/backtest.py')\n"
+            "    raise NotImplementedError('实现状态机回测，参考 strategies/tech_indicators/v10_lights/backtest.py')\n"
         ),
     }
     for fn, content in files.items():

@@ -1,7 +1,7 @@
 {
   "strategy": "lights",
   "generated_at": "2026-09-18 10:19",
-  "source": "strategies/lights/backtest/_lights_bt.jsonl",
+  "source": "strategies/tech_indicators/v10_lights/backtest/_lights_bt.jsonl",
   "A": [
     {
       "code": "588000",

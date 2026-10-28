@@ -22,8 +22,8 @@ L5 执行层 execution  : rebal 调仓节律 + trail_stop 回撤止损 + max_hol
 ----------------------------------------------------------------------
 `ACTIVE = active_config()` 是**唯一的参数权威源**（label = "c7"）。它由参数搜索
 （目标 = 策略年化 × 择时边际）选出、并经分段 walk-forward 交叉确认后采纳，
-证据见 strategies/_tune_report.md 与 strategies/_walkforward_report.md。
-改参数只改这里，然后跑 `strategies/lights/_sync_meta.py` 同步 pipeline/strategies.json 的镜像块。
+证据见 strategies/tech_indicators/v10_lights/research/_tune_report.md 与 strategies/tech_indicators/v10_lights/research/_walkforward_report.md。
+改参数只改这里。并入 tech_indicators 变种 v10 后，pipeline/strategies.json 已不再保存参数镜像块（原 `_sync_meta.py` 已删除），本文件是唯一权威源。
 
 ----------------------------------------------------------------------
 历史口径的三处修正（当前实现均已修正, 留档备查）
@@ -49,9 +49,9 @@ for _p in (_STRAT, _DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from lights import data as _data    # noqa: E402
-from lights import engine as _eng   # noqa: E402
-from lights import factors as fx    # noqa: E402
+from v10_lights import data as _data    # noqa: E402
+from v10_lights import engine as _eng   # noqa: E402
+from v10_lights import factors as fx    # noqa: E402
 
 POOL = _data.POOL
 CATS = _data.CATS
@@ -357,7 +357,7 @@ def base_config(**kw):
     c = Config(
         # ---- 灯层: {维度: (定义名, 权重或 None=不启用)} ----
         # ⚠ 灯的分数**只作用于离场**（`exit_max`），不作用于买点 —— 实测把分数
-        #    均值从 2.08 改到 4.08，enter 序列逐位不变（见 strategies/lights/_ablate_report.md）。
+        #    均值从 2.08 改到 4.08，enter 序列逐位不变（见 strategies/tech_indicators/v10_lights/research/_ablate_report.md）。
         #    买点实际由 `gate_pass & enter_required` 决定。
         lights={
             "trend": ("ma_short_adx", 1),
@@ -396,7 +396,7 @@ def base_config(**kw):
         weekly_order=WEEKLY_ORDER_DEFAULT,
         # ---- 决策层 ----
         # enter_min 刻意取**非约束值**: 实测 enter_min=1/2/3 的入场序列逐位相同
-        #   （入场率都是 15.1%），要 >=4 才开始起作用（见 strategies/lights/_probe.py）。
+        #   （入场率都是 15.1%），要 >=4 才开始起作用（见 strategies/tech_indicators/v10_lights/research/_probe.py）。
         #   生效的买点条件是 `gate_pass & enter_required` 本身。
         #   写成 0.0 是为了让「它不设约束」显式可见, 而不是留一个看似有意义的 3.0,
         #   让人调 3->1 得到「毫无变化」后误判这个旋钮坏了。
@@ -438,7 +438,7 @@ def active_config(**overrides):
     """★ 生效配置（label = "c7"）。
 
     `base_config()` 的默认值**就是**本配置 —— 由参数搜索（目标 = 策略年化 × 择时边际,
-    见 strategies/_tune_report.md）选出、并经分段 walk-forward（_walkforward_report.md）
+    见 strategies/tech_indicators/v10_lights/research/_tune_report.md）选出、并经分段 walk-forward（_walkforward_report.md）
     交叉确认后采纳。所以本函数只负责打标签; 要试别的参数直接
     `active_config(enter_min=4)` 或 `backtest.py --set enter_min=4`。
 
@@ -446,7 +446,7 @@ def active_config(**overrides):
       1. `enter_required` 由 {trend>=1} 加严为 {trend>=1, momentum>=1}
          —— 只砍 0.5pp 暴露换 +2.5bp 边际, 年化不变
       2. `sustain` 权重 1 -> 2 —— 日线 MACD 是五盏灯里唯一「关掉就有明显损失」的软灯
-         （消融实测目标增量 +0.346、年化 +1.20pp, 见 strategies/lights/_ablate_report.md）
+         （消融实测目标增量 +0.346、年化 +1.20pp, 见 strategies/tech_indicators/v10_lights/research/_ablate_report.md）
       3. `heat` 由纯涨幅带 `ret5_band` 改为量价灯 `ret5_vr5` —— 实测更优
       4. `ret3_max` 0.12 -> 0.15、`cap_abs_max` 6 -> 5 —— 放宽短端上限、收紧资金极端脉冲
 
@@ -454,7 +454,7 @@ def active_config(**overrides):
       进出场测试**的口径, 与这里「在完整配置里的增量」不是一回事, 并列会严重误导。
       在完整配置下 MACD 的净边际增量只有约 +2.6bp/日。
 
-    --- 2026-09-11 消融驱动的三处改动（依据 strategies/lights/_ablate_report.md）---
+    --- 2026-09-11 消融驱动的三处改动（依据 strategies/tech_indicators/v10_lights/research/_ablate_report.md）---
       A. **停用 `capital` 灯**: 目标增量 -0.004（关掉后 0.976 > 基线 0.972）, 零贡献。
       B. **`enter_min` 3.0 -> 0.0（显式非约束）**: 实测 1/2/3 入场序列逐位相同,
          要 >=4 才起作用 —— 生效买点是 `gate_pass & enter_required`, enter_min 是死参数。
@@ -463,7 +463,7 @@ def active_config(**overrides):
          sustain(MACD) = 主力离场滤网（真有效）; heat = 离场小贡献; capital = 已停用。
 
     实测(池子 = 23 只 A 股行业 ETF): 年化 +6.2% / 边际 +15.8bp / 目标 0.972;
-          样本外(2023-01 起) 见 strategies/_walkforward_report.md。
+          样本外(2023-01 起) 见 strategies/tech_indicators/v10_lights/research/_walkforward_report.md。
     ⚠ 样本外也被用于挑选候选, 存在选择偏差; 缓解方式是取"成片的稳健区域"而非单点 argmax。
       另外把流动性门槛降到 0 目标更高但不可交易（滑点模型下转负）, 已排除。
     """

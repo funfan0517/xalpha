@@ -9,8 +9,8 @@
 判读：如果「每折选出来的最优」在下一段上并不比「固定 C7」好，说明调参收益主要来自
 样本内拟合；反之则说明选参过程本身是稳的。
 
-输出: strategies/_walkforward_report.md
-用法: python strategies/_walkforward.py [--k 4]
+输出: strategies/tech_indicators/v10_lights/research/_walkforward_report.md
+用法: python strategies/tech_indicators/v10_lights/research/_walkforward.py [--k 4]
 """
 import os
 import sys
@@ -22,7 +22,7 @@ import pandas as pd
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_DIR)
-for p in (_ROOT, _DIR, os.path.join(_DIR, "lights")):
+for p in (_ROOT, _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -141,7 +141,7 @@ def main():
         L.append("")
 
     L += ["", f"> 生成 {pd.Timestamp.now():%Y-%m-%d %H:%M} · 运行 {time.time() - t0:.0f}s · "
-              f"候选集见 strategies/_tune.py::candidates()", ""]
+              f"候选集见 strategies/tech_indicators/v10_lights/research/_tune.py::candidates()", ""]
     open(OUT, "w", encoding="utf-8").write("\n".join(L))
     print("\n".join(L[-14:]))
     print(f"\n-> {OUT}  ({time.time() - t0:.0f}s)")

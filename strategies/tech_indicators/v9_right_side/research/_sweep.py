@@ -4,7 +4,7 @@
 不追求「最优收益」，而是看**哪个变体在收益/回撤/择时边际三者上都不垫底** ——
 右侧策略的价值在于「少接飞刀」, 而不是最大化收益, 因此以中位回撤与择时边际为主判据。
 
-用法: python strategies/right_side/research/_sweep.py
+用法: python strategies/tech_indicators/v9_right_side/research/_sweep.py
 产物: 本目录 _sweep_report.md
 """
 import os
@@ -15,7 +15,7 @@ import numpy as np
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _PKG = os.path.dirname(_DIR)
-_ROOT = os.path.dirname(os.path.dirname(_PKG))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_PKG)))
 for p in (_ROOT, os.path.dirname(_PKG), _PKG):
     if p not in sys.path:
         sys.path.insert(0, p)

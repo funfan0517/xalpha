@@ -1,4 +1,10 @@
-# 右侧买入（Right-Side Entry · 五票确认）
+# 右侧买入（Right-Side Entry · 五票确认）· 技术指标家族变种 **v9**
+
+> **2026-10-28 并入 `strategies/tech_indicators/` 作为变种 v9**（原独立策略 `strategies/right_side/`）。
+> 标的池与家族统一：**全池 55 只场内 ETF**（`data/_long_klines.json` ∩ `data/_indicators_hist.json`）。
+> 每日不再单独注册 runner/看板卡片，由 `run_daily_tech_indicators.ps1` 第 1-2 步跑本目录的
+> `scan.py` → `_scan_report.py`，结果作为 `V9` 列进入家族 6 策略汇总表。
+> 本目录的 `rule.py` / `data.py` / `engine` 仍在包根（被 `scan.py`/`backtest.py` 直接 import，勿移动）。
 
 回答一个问题：**基金池里哪些标的现在达到了右侧买入点？**
 
@@ -69,7 +75,7 @@
 ## 4. 目录结构
 
 ```
-strategies/right_side/
+strategies/tech_indicators/v9_right_side/
   rule.py            # 参数权威源 + 五票因子 + 信号 + 0/1 状态机引擎
   data.py            # 只读公用十年库（收盘 + 成交量），刷新走 data/_refresh_data.py
   backtest.py        # 逐标的回测（入口，留根）
@@ -84,24 +90,23 @@ strategies/right_side/
 ## 5. 运行
 
 ```powershell
-# 全流程（回测 -> 报告 -> 分级 -> 扫描）
-python strategies/right_side/backtest.py
-python strategies/right_side/_reportbt.py
-python pipeline/run_flow.py select --strategy right_side
-python strategies/right_side/scan.py
-python strategies/right_side/_scan_report.py
+# 全流程（回测 -> 报告 -> 分级(作废) -> 扫描）—— 分级名单并入家族后不再驱动信号
+python strategies/tech_indicators/v9_right_side/backtest.py
+python strategies/tech_indicators/v9_right_side/_reportbt.py
+# select 走 pipeline 已不适用（策略不再单独注册）；分级产物保留仅作横向比较参考
+python strategies/tech_indicators/v9_right_side/scan.py
+python strategies/tech_indicators/v9_right_side/_scan_report.py
 
-# 每日一键（也可由 run_flow.py daily --strategy right_side 调用）
-powershell -ExecutionPolicy Bypass -File run_daily_right_side.ps1
-powershell -ExecutionPolicy Bypass -File run_daily_right_side.ps1 -Open   # 跑完自动打开 HTML 看板
+# 每日一键（家族 runner 的第 1-2 步就是本变种）
+powershell -ExecutionPolicy Bypass -File run_daily_tech_indicators.ps1
 
 # 参数敏感性（改了 rule.py 的阈值后建议重跑）
-python strategies/right_side/research/_sweep.py
+python strategies/tech_indicators/v9_right_side/research/_sweep.py
 ```
 
 `scan.py --cache` 不刷新行情；`scan.py 510300,512800` 只扫指定标的。
 `backtest.py 510300,512800` 是**按代码 upsert**（保留其他标的的行，便于分批回测）；
-只有 `run_flow backtest --fresh` 会清空重建。
+只有 `--fresh`（或先删产物文件）才会清空重建。
 
 ## 6. 产物
 
@@ -112,7 +117,7 @@ python strategies/right_side/research/_sweep.py
 - `daily/_right_side_dashboard.html` —— **每日看板（主入口）**：KPI 卡片 + 买点/观察卡片 + 可排序筛选的全池矩阵。
   自包含单文件（CSS/JS 内联、无 CDN、不联网），双击即开，也可直接发给别人。
 - `daily/_right_side_report.md` —— 同一份内容的文本版（供 pipeline / diff / 纯文本场景）
-- `daily/_right_side_active.{md,json}` —— select 产出的 A/B 分级（横向比较参考，不参与买点判定）
+- `daily/_right_side_active.{md,json}` —— 历史 select 产出的 A/B 分级（横向比较参考，不参与买点判定；并入家族后不再更新）
 
 ## 7. 边界与已知局限
 

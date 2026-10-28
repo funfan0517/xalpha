@@ -121,4 +121,4 @@
 > 每段重新选参优于固定 C7 的段数: **2/3**。若明显不足半数, 说明单变量扫描给出的「最优」主要来自样本内拟合, 应以固定 C7 为准（它本来就是从稳健区域里选的）。
 
 
-> 生成 2026-09-10 18:54 · 运行 8s · 候选集见 strategies/_tune.py::candidates()
+> 生成 2026-09-10 18:54 · 运行 8s · 候选集见 strategies/tech_indicators/v10_lights/research/_tune.py::candidates()

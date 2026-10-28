@@ -15,7 +15,7 @@ from datetime import datetime
 
 import pandas as pd
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 if os.path.join(_ROOT, "data") not in sys.path:

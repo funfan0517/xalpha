@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """右侧买入策略 · 每日扫描报告（Markdown + HTML 看板）。
 
-输入: strategies/right_side/daily/_right_side_scan_out.jsonl
-输出: strategies/right_side/daily/_right_side_report.md       （文本版，供 pipeline / diff）
-      strategies/right_side/daily/_right_side_dashboard.html   （**自包含**看板：无 CDN、无外链，
+输入: strategies/tech_indicators/v9_right_side/daily/_right_side_scan_out.jsonl
+输出: strategies/tech_indicators/v9_right_side/daily/_right_side_report.md       （文本版，供 pipeline / diff）
+      strategies/tech_indicators/v9_right_side/daily/_right_side_dashboard.html   （**自包含**看板：无 CDN、无外链，
                                                                双击即开，可离线/发给别人）
 
 分工：Python 只出数据（payload → JSON），排序/筛选/渲染交给内联 JS/CSS（见 AGENTS §5）。
-用法: python strategies/right_side/_scan_report.py
+用法: python strategies/tech_indicators/v9_right_side/_scan_report.py
 """
 import json
 import os
@@ -18,7 +18,7 @@ import numpy as np
 
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))
 for p in (_ROOT, os.path.dirname(_DIR), _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -39,7 +39,7 @@ def pct(x, dp=1):
 
 def load(path):
     if not os.path.exists(path):
-        sys.exit(f"缺少扫描产物 {path}; 先跑 python strategies/right_side/scan.py")
+        sys.exit(f"缺少扫描产物 {path}; 先跑 python strategies/tech_indicators/v9_right_side/scan.py")
     raw = open(path, "rb").read()
     text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8")
     good, bad = [], []

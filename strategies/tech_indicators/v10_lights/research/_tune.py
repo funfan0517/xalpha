@@ -10,11 +10,11 @@
     改到因子参数的变体（窗口/标定系数/周线口径）触发一次重算。
   * 进程内跑完全部变体, 不重复启动、不重复读盘。
 
-输出: strategies/_tune_report.md
+输出: strategies/tech_indicators/v10_lights/research/_tune_report.md
 用法:
-  python strategies/_tune.py                 # 全量单变量扫描（基线 = c7）
-  python strategies/_tune.py --group 门槛     # 只扫某一组
-  python strategies/_tune.py --oos           # 额外做样本外确认
+  python strategies/tech_indicators/v10_lights/research/_tune.py                 # 全量单变量扫描（基线 = c7）
+  python strategies/tech_indicators/v10_lights/research/_tune.py --group 门槛     # 只扫某一组
+  python strategies/tech_indicators/v10_lights/research/_tune.py --oos           # 额外做样本外确认
 """
 import json
 import os
@@ -27,7 +27,7 @@ import pandas as pd
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_DIR)
-for p in (_ROOT, _DIR, os.path.join(_DIR, "lights")):
+for p in (_ROOT, _DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
 

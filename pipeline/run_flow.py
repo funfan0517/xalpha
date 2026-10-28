@@ -58,13 +58,26 @@ def cmd_universe(args):
     act_json = os.path.join(ROOT, st["select"]["out_active_json"])
     if os.path.exists(act_json):
         aj = json.load(open(act_json, encoding="utf-8"))
-        a_codes = [x["code"] for x in aj["A"]]
-        b_codes = [x["code"] for x in aj["B"]]
         print(f"公共池(场外): {os.path.basename(md)} ~{n_off} 行")
-        from pipeline import universe
-        print(f"场内内池(唯一池派生): {len(universe.inner_rows())} 只")
-        print(f"分级名单(生成 {aj['generated_at']}): A={len(a_codes)} B={len(b_codes)}")
-        print(f"A 每日执行: {a_codes}")
+        if "A" not in aj:
+            # 组合层策略(permanent / vol_legs)的名单是 §0 直接定档的固定腿, 不做 A/B 分级
+            import datetime
+            items = aj.get("items") or aj.get("legs") or []
+            gen = aj.get("as_of") or datetime.date.today().isoformat()
+            print(f"固定腿名单(生成 {gen}): {len(items)} 项 —— 组合层策略, 不做 A/B 分级")
+            for it in items:
+                name = it.get("name") or it.get("key")
+                band = it.get("band")
+                codes = it.get("codes") or ([it["exec"]] if it.get("exec") else [])
+                print(f"  - {name}" + (f" {band}pp" if band is not None else "")
+                      + (f": {codes}" if codes else ""))
+        else:
+            a_codes = [x["code"] for x in aj["A"]]
+            b_codes = [x["code"] for x in aj["B"]]
+            from pipeline import universe
+            print(f"场内内池(唯一池派生): {len(universe.inner_rows())} 只")
+            print(f"分级名单(生成 {aj['generated_at']}): A={len(a_codes)} B={len(b_codes)}")
+            print(f"A 每日执行: {a_codes}")
     else:
         gate(False, f"缺少分级名单 {act_json}，请先运行 select")
 

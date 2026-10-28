@@ -1,0 +1,61 @@
+{
+  "strategy": "波动资产操作规则 v1.3",
+  "as_of": "2026-10-27",
+  "sleeve_pp": 40.0,
+  "legs": [
+    {
+      "key": "a500",
+      "name": "中证A500",
+      "role": "核心腿",
+      "band": 5.0,
+      "signal": "563360",
+      "exec": "023299",
+      "exec_name": "汇添富中证A500指数增强C"
+    },
+    {
+      "key": "ndx",
+      "name": "纳指100",
+      "role": "核心腿",
+      "band": 10.0,
+      "signal": ".NDX",
+      "exec": "270042",
+      "exec_name": "广发纳斯达克100ETF联接(QDII)A"
+    },
+    {
+      "key": "spx",
+      "name": "标普500",
+      "role": "核心腿",
+      "band": 10.0,
+      "signal": ".INX",
+      "exec": "017641",
+      "exec_name": "摩根标普500指数(QDII)人民币A"
+    },
+    {
+      "key": "kc50",
+      "name": "科创50",
+      "role": "进攻腿",
+      "band": 2.5,
+      "signal": "588000",
+      "exec": "011609",
+      "exec_name": "易方达上证科创板50ETF联接C"
+    },
+    {
+      "key": "hkt",
+      "name": "恒生科技",
+      "role": "进攻腿",
+      "band": 2.5,
+      "signal": "513180",
+      "exec": "012805",
+      "exec_name": "广发恒生科技ETF联接QDII-C"
+    },
+    {
+      "key": "gold",
+      "name": "黄金",
+      "role": "避险腿",
+      "band": 10.0,
+      "signal": "518880",
+      "exec": "000216",
+      "exec_name": "华安黄金ETF联接A"
+    }
+  ]
+}

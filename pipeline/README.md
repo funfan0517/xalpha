@@ -8,7 +8,8 @@
 `dividend`（红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、`growth_div_rotation`（成长/红利二元轮动）、
 `tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）、
 `v8_ma20`（技术指标**变种8 · MA20 穿越**，固定 4 只标的池 科创50/恒生科技/中证A500/黄金，全池出信号，不走 backtest/select）、
-`permanent`（永久组合·8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）。
+`permanent`（永久组合·8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）、
+`vol_legs`（波动资产操作规则·A500/纳指100/标普500/科创50/恒生科技/黄金六腿仓位带 + 回撤阶梯 + 季度再平衡，组合层，不走 backtest/select）。
 `lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层/轮动**策略参照 `momentum_rotation`。
 
 > `lights` 是**参数化策略**：所有行为差异由 `strategies/lights/rule.py::ACTIVE` 表达，
@@ -89,6 +90,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
 | tech_indicators | `run_daily_tech_indicators.ps1` | `strategies/tech_indicators/daily/_daily_recommend.md` |
 | v8_ma20 | `run_daily_v8_ma20.ps1` | `strategies/tech_indicators/v8_ma20/daily/_v8_ma20_daily.md` |
+| vol_legs | `run_daily_vol_legs.ps1` | `strategies/vol_legs/daily/_vol_legs_report.md` |
 
 - 每个策略的 runner 都先刷新行情再出信号；缺少数据的标的会在产物里显式标注（陈旧 / 刷新失败 / 盘中未收盘 bar）。
 - **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。

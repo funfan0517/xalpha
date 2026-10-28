@@ -398,6 +398,101 @@
       "note": "2026-10-26 集成, 10-27 修正净值口径 + 补基准占比研究。**定位**: 组合层固定基准 + 受约束倾斜, 输出「当前每项的最佳百分比」。**关键取舍**: ①8 项基准合计 100(30/20/10/10/10/10/5/5), 无归一化歧义; CASH_OUTSIDE 保留备用口径(货基移出组合独立归一化); ②倾斜幅度被 ±50% 硬边界锁死, 回测中 8 项无一触及边界(实际偏离多在 ±3pp), 说明规则不会做出激进择时; ③回测诚实结论: 倾斜 7.49% vs 静态 7.38%(+0.11pp/年), 夏普 1.07 vs 1.06, 回撤 -7.4% vs -7.3% —— 增益几乎为零且样本仅 65 个月; **静态基准夏普 1.06 已远超 8 项等权 0.65, 说明基准怎么定远比倾斜怎么算重要**(定法见 README §7 + research/_alloc_report.md); SCORE_GAIN 0.5->2.0 夏普仅 1.07->1.08, 按最优点调参即过拟合, 故保持 1.0。**已修的坑**: 场外净值必须用 totvalue(累计/复权)而非 netvalue —— 008163 红利低波累计 +78.3% 但单位净值仅 +7.2%, 用未复权净值会把每次分红当下跌, 持续误判跌破 MA200, 把真实年化 8.6% 压成 1.3% 并把倾斜方向由加翻成减。**数据边界**: A500(023299 成立 2025-03)与标普(017641 成立 2023-04)历史不足, 信号仍用场外真实净值(够 250 日), 回测用指数/ETF 代理。",
       "pipeline_mode": "rotation"
     },
+    "vol_legs": {
+      "name": "波动资产操作规则(A500/纳指100/标普500/科创50/恒生科技/黄金 · 仓位带+回撤阶梯)",
+      "source_methodology": "E:/jijin/波动资产操作规则.md v1.1(2026-10-28, 新增 §6 纳指100/标普500) · 实现 v1.3(目标带 A500 5/纳指10/标普10/科创50 2.5/恒生科技 2.5/黄金 10 = 40pp; 信号/记账/回测/执行统一到场外复权净值, rule.SIGNAL_MODE=\"otc\") · 参数权威源 strategies/vol_legs/rule.py::CFG",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "data": "data/_otc_nav.json(主口径: 六腿场外复权净值 023299/270042/017641/011609/012805/000216, 桥接 000051/050025) + data/_long_klines.json(场内信号: 563360/588000/513180/518880) + data/_us_index_klines.json(美股信号 .NDX/.INX) + data/_a500_pe_hist.csv + data/_bt_caches/bond10y_m.csv + data/_bt_caches/ust10y_m.csv",
+        "note": "固定 6 腿(§0 战略目标, v1.3 权重): 核心腿 25pp = A500 5pp(563360→场外 023299) + 纳指100 10pp(.NDX→270042) + 标普500 10pp(.INX→017641); 进攻腿 5pp = 科创50 2.5pp(588000→011609) + 恒生科技 2.5pp(513180→012805); 避险腿 10pp = 黄金 10pp(518880→000216)。管辖额度合计 40pp; 其余 60pp(红利 20 / 国债 30 / 货币基金 10)不在本策略内 —— 大类仍为 权益 50 / 债 30 / 金 10 / 现金 10。主口径(otc)下信号=执行, 全部用该腿场外复权净值; A500(023299, 2025-03 成立)与标普(017641, 2023-04 成立)前段用同类老基金 000051/050025 桥接补齐 250 日窗口(rule.OTC_USE_PROXY_HISTORY)。exchange 口径(v1.1)下 A500 信号用 510300 链接(rule.A500_USE_PROXY_HISTORY)、美股腿用美元指数 .NDX/.INX, 指数源不可用时降级到 513100/513500 人民币代理并在报告标注"
+      },
+      "rules": [
+        "§2 A500: 启动闸门(ERP 分位 ≥70 激活 / <30 暂停) → 回撤阶梯(dd ≥8/16/24% → 1/1.5/2 份, 1 份 = 1pp, 满梯 4.5pp ≈ 5pp 带) → RSI14<40 或从<40 回升的首日执行 → 同一自然月最多 1 档; close 创 52 周新高 → 阶梯计数归零",
+        "§3 科创50: close ≥ MA250 持有区(可加至带顶 2.5pp); < MA250 满 5 日减至半仓 1.25pp; 满 20 日清至观察仓 0.5pp; 年线下方禁止摊平(唯一例外 PB 分位 ≥90% 时 1/4 仓 0.625pp 试错一次)",
+        "§4 恒生科技: 趋势闸门同科创50; FOMC 决议日 ±5 交易日禁加仓; 10Y TIPS 实际利率连续 3 月上行则暂停一切加仓; ERP 分位 ≥70 且在年线上可加 / <20 禁新增",
+        "§5 黄金: 宽松版闸门(跌破 MA250 只停加仓不清仓, 满 60 日目标带 10→5); dd ≥10/15/20% 且 close≥MA250 → 1/1.5/2 份; 创 52 周新高阶梯归零; FOMC 窗口不加仓; 季度超 10+5pp 必卖回",
+        "§6 纳指100/标普500(v1.1 新增): 信号口径随 rule.SIGNAL_MODE(默认 otc = 该腿场外 QDII 复权净值; exchange = 美元指数 .NDX/.INX, 避免人民币净值掺入汇率因子) 算 close/MA250/high52w/dd/erp/rsi14; 启动闸门(ERP 分位 = 1/PE(TTM) − 10Y美债, ≥70 激活 / <30 暂停) → 回撤阶梯(纳指 dd ≥10/20/30%, 标普 ≥8/16/24% → 1/1.5/2 份, 1 份 = 2pp, 满梯 9pp ≈ 10pp 带) → RSI14<40 或从<40 回升首日 → 同月最多 1 档; 创 52 周新高归零; FOMC ±5 交易日禁新仓; QDII 只走场外 A 类(270042/017641), 额度关闭/限大额时该档顺延、禁止换场内追溢价、禁止换产品顶替; 信号日提交 T+2 确认, 时滞内不改单不撤单",
+        "§7 季度再平衡: 任一腿偏离目标带 > min(5pp, 带×50%) → 回到带位(A500 2.5pp / 科创50·恒生科技 1.25pp / 美股·黄金 5pp, 见 rule.rebalance_pp()); 默认只减持超配, 补仓由阶梯/趋势闸门授权(rule.REBAL_BUY_BACK); 信号与再平衡反向时取绝对值较小者",
+        "§1 null 条款: 估值/事件输入缺失时对应规则**不执行**(不否决、不估算补位), 每日报告逐条列出 null 与原因",
+        "执行: 收盘后计算、次日收盘成交; 单边成本申购 0.10% / 赎回 0.5%(持有 7 天内 1.5%); 不加杠杆"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/vol_legs/rule.py::CFG(§9 参数表镜像 + v1.3 权重重标) + ::REBAL_BUY_BACK/::NULL_GATE_BLOCKS",
+        "unit_pp": {"a500": 1.0, "ndx": 2.0, "spx": 2.0, "gold": 2.0},
+        "unit_note": "1 份 = 带的 20%(满梯 4.5 份 = 带的 90%)。文档 §9 的 unit_pct_equity(全局 2.0/美股 1.0)是按旧权重 A500 10pp、美股各 5pp 标定的; v1.3 目标带改为 5/10/10 后按同一比例重标",
+        "sleeve_pp": 40,
+        "ndx": {
+          "erp_gate_on": 70,
+          "erp_gate_off": 30,
+          "ladder_dd": [
+            10,
+            20,
+            30
+          ],
+          "ladder_units": [
+            1,
+            1.5,
+            2
+          ],
+          "unit_pct_equity": 1.0,
+          "max_tranche_per_month": 1,
+          "max_premium_pct": 2,
+          "channel": "offshore_a_only"
+        },
+        "spx": {
+          "erp_gate_on": 70,
+          "erp_gate_off": 30,
+          "ladder_dd": [
+            8,
+            16,
+            24
+          ],
+          "ladder_units": [
+            1,
+            1.5,
+            2
+          ],
+          "unit_pct_equity": 1.0,
+          "max_tranche_per_month": 1,
+          "max_premium_pct": 2,
+          "channel": "offshore_a_only"
+        },
+        "a500": {"erp_gate_on": 70, "erp_gate_off": 30, "ladder_dd": [8, 16, 24],
+                 "ladder_units": [1, 1.5, 2], "max_tranche_per_month": 1},
+        "kc50": {"ma_gate": 250, "half_in_days": 5, "clear_after_days": 20, "pb_panic": 90,
+                 "pb_add_min": 80, "pb_no_add_below": 20},
+        "hkt": {"ma_gate": 250, "tips_pause_months": 3, "erp_gate_on": 70, "erp_gate_off": 20,
+                "fomc_blackout_days": 5},
+        "gold": {"ma_gate": 250, "degrade_after_days": 60, "ladder_dd": [10, 15, 20],
+                 "ladder_units": [1, 1.5, 2], "band_normal": 10, "band_degraded": 5,
+                 "wgrc_fuse_quarters": 2},
+        "rebalance": {"freq": "quarterly", "band_pp": 5, "band_frac": 0.5, "buy_back": false,
+                      "tol_note": "阈值 = min(band_pp, 目标带 × band_frac) → A500 2.5pp / 科创50·恒生科技 1.25pp / 美股·黄金 5pp"},
+        "rsi": {"period": 14, "trigger_below": 40},
+        "hard_filter": {"min_size_yi": 2, "max_premium_pct": 2, "min_turnover_wan": 1000,
+                        "max_tracking_err_pct": 2}
+      },
+      "backtest": {
+        "engine": "strategies/vol_legs/backtest.py",
+        "data": "data/_otc_nav.json(主口径) + data/_long_klines.json + data/_us_index_klines.json + data/_a500_pe_hist.csv + data/_bt_caches/bond10y_m.csv + data/_bt_caches/ust10y_m.csv",
+        "note": "组合层六档对比(空仓起步 / 带内满仓起步 / 美股闸门不设限 / 静态带 / 买入持有 / 等权) × 两种口径(场外净值 otc / 场内ETF+美元指数 exchange) + 单腿全周期(A500 2010-07 起、纳指100 2013-09 起、标普500 2013-08 起, 均含 250 日窗口预热) + A500 ERP 闸门敏感性; 全部走 engine.run() 与每日操作同一代码路径。--mode both/otc/exchange, --quick 跳过敏感性"
+      },
+      "select": {
+        "out_active_md": "strategies/vol_legs/daily/_universe_vol_legs_active.md",
+        "out_active_json": "strategies/vol_legs/daily/_universe_vol_legs_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "固定 6 腿(由 §0 战略目标直接定档, 非回测 select, 不做 A/B 分级)"
+      },
+      "daily": {
+        "codes": [],
+        "runner": "run_daily_vol_legs.ps1",
+        "signal_report": "strategies/vol_legs/daily/_vol_legs_report.md",
+        "signal_json": "strategies/vol_legs/daily/_vol_legs_signal.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-10-28 落地 v1.0(四腿), 同日按文档 v1.1 扩到六腿(新增 §6 纳指100/标普500); v1.2 四层口径统一到场外复权净值; v1.3 按确认的目标带改为 A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10 = 40pp(其余 60pp = 红利 20 / 国债 30 / 货币基金 10), 份数按「满梯≈带」重标(A500 1pp、美股/黄金 2pp)。**定位**: 组合层「仓位带是主锚, 信号只决定何时动多少」的六腿操作规则, 输出每日「该不该动手 + 动多少 pp」, 不是选基工具。**四处文档口径的取法**(详见 strategies/vol_legs/README.md §3.1): ①「1 份 = 权益账户 2%」在 v1.3 权重下**字面成立**(权益账户 = 总资产 50%, 2% 权益 = 1pp 总资产 → A500 带 5pp、满梯 4.5pp); 美股/黄金带 10pp → 1 份 = 2pp(权益的 4%), 份数一律取「带的 20%」= CFG.unit_pp; ②空仓起步、由阶梯填满带(否则阶梯加仓会顶穿带); ③null 闸门 = 不生效而非否决; ④美股 ERP 分位人工月度复核(本地无 NDX/SPX 的 TTM PE 月度库), 当前按 §6「当前状态读数」填 0.05(erp 为负 → 暂停新增), 因此美股腿当前只减不加。**回测诚实结论**(场外净值口径, 2022-08~2026-10, 4.0 年; 详见 strategies/vol_legs/backtest/_vol_legs_bt.md): 空仓起步 2.73%/年、回撤 -6.2%、夏普 0.25(平均只投入 10.6/40pp, 现金拖累 —— 美股 20pp 被 ERP 闸门锁死 + A500 带减半); **带内满仓起步**(实盘用法) 14.39%/年、回撤 -9.2%、夏普 1.32 vs 静态带 14.50%/-9.5%/1.31 —— 与静态带基本打平(年化 -0.11pp), 规则买的是「回撤略小 + 超配自动兑现 + 下跌有加仓路径」, 不是超额收益(买入持有 14.88% 最高)。**美股闸门的机会成本**: 放开闸门 9.34%/年 vs 按当前读数 2.73%/年(v1.3 美股权重翻倍后, 该成本从 3.3pp 放大到 6.6pp)。**单腿全周期**(场外净值): A500 阶梯 5.66%/-30.9%/夏普 0.30 vs 一次性满仓 5.42%/-43.4%/0.20(双赢, 靠 2.5pp 再平衡阈值兜底); 纳指100 阶梯 9.25%/-23.4%/0.66 vs 满仓 17.31%/-29.5%/0.79(让渡收益换回撤); 标普500 7.86%/-27.4%/0.59 vs 12.70%/-30.5%/0.70。**场外 vs 场内口径**: 除「美股闸门不设限」(-1.77pp, 该档美股腿真持仓 20pp)与「六腿等权」(-0.30pp)外, 场外年化普遍高 +0.2~1.0pp(分红再投 + 真实净值)。**已知风险**: 再平衡阈值 = min(5pp, 带×50%), 带宽改小时必须同看阈值(A500 带 5pp 时全靠这 2.5pp 兜底, 改回绝对 5pp 则阶梯填满后退化成满仓、单腿回撤回到 -43%); 恒生科技的年线闸门是「跌破 5 日减半、收复即加满」的非对称设计, 样本内围绕 MA250 反复穿越产生多次往返(2025-12-30 卖、12-31 买), 累计手续费 0.19pp / 换手 18pp 每年; A500 ERP 与科创 PB / 恒生 ERP / TIPS / WGRC 仍为 null。数据边界: 组合层只能从 2022-08 起算(012805 恒生科技联接 2021-08 成立 + 250 日窗口); 场外净值库 data/_otc_nav.json 由 data.py 增量刷新, 023299(2025-03)/017641(2023-04)成立晚, 前段用 000051/050025 桥接(OTC_USE_PROXY_HISTORY=false 则组合层从 2026-04 起算); 美股指数库 data/_us_index_klines.json 自 2010(每日增量刷新, 失败则降级到 513100/513500 人民币代理并在报告标注)。",
+      "pipeline_mode": "rotation"
+    },
     "dividend": {
       "name": "红利基金打分(多标的 · 手册 §4 防御底仓)",
       "source_methodology": "doc/核心轮动投资策略手册.md §4（§4 防御底仓在多只红利基金上的横向打分实现）",

@@ -1,0 +1,669 @@
+{
+  "strategy": "波动资产操作规则 v1.3",
+  "as_of": "2026-10-27",
+  "generated": "2026-10-28 15:21",
+  "since": "2022-08-24",
+  "capital": null,
+  "base": "band",
+  "sleeve_pp": 40.0,
+  "unit_pp": 1.0,
+  "theory": {
+    "legs": {
+      "a500": {
+        "key": "a500",
+        "name": "中证A500",
+        "band": 5.0,
+        "target_pp": 5.0,
+        "diff_pp": -0.46,
+        "pos_pp": 4.54,
+        "note": "阶梯已建 5.42 份 × 1pp; 启动闸门 null(不设限)"
+      },
+      "ndx": {
+        "key": "ndx",
+        "name": "纳指100",
+        "band": 10.0,
+        "target_pp": 10.0,
+        "diff_pp": 3.23,
+        "pos_pp": 13.23,
+        "note": "阶梯已建 5.00 份 × 2pp; 启动闸门 off(只停新增, 存量不动)"
+      },
+      "spx": {
+        "key": "spx",
+        "name": "标普500",
+        "band": 10.0,
+        "target_pp": 10.0,
+        "diff_pp": 0.81,
+        "pos_pp": 10.81,
+        "note": "阶梯已建 5.00 份 × 2pp; 启动闸门 off(只停新增, 存量不动)"
+      },
+      "kc50": {
+        "key": "kc50",
+        "name": "科创50",
+        "band": 2.5,
+        "target_pp": 1.25,
+        "diff_pp": -0.11,
+        "pos_pp": 1.14,
+        "note": "年线下 15 日 → 半仓/观察仓"
+      },
+      "hkt": {
+        "key": "hkt",
+        "name": "恒生科技",
+        "band": 2.5,
+        "target_pp": 0.5,
+        "diff_pp": -0.12,
+        "pos_pp": 0.38,
+        "note": "年线下 176 日 → 半仓/观察仓"
+      },
+      "gold": {
+        "key": "gold",
+        "name": "黄金",
+        "band": 10.0,
+        "target_pp": 10.0,
+        "diff_pp": -0.8,
+        "pos_pp": 9.2,
+        "note": "阶梯已建 5.33 份 × 2pp; 年线下只停加仓"
+      }
+    },
+    "total_pp": 36.75,
+    "band_pp": 40.0,
+    "pos_pp": 39.3,
+    "sleeve_pct": 0.9187
+  },
+  "invested_pp": 39.3,
+  "cash_pp": 29.17,
+  "nav_pp": 68.48,
+  "legs": {
+    "a500": {
+      "name": "中证A500",
+      "signal": "563360",
+      "signal_name": "A500ETF华泰柏瑞",
+      "exec": "023299",
+      "exec_name": "汇添富中证A500指数增强C",
+      "band": 5.0,
+      "close": 1.2781,
+      "ma": 1.4298236,
+      "high52w": 1.6133,
+      "dev": -0.10611350938675235,
+      "dd": 0.20777288786958403,
+      "rsi": 23.802475051699275,
+      "rsi_prev": 26.93292252165837,
+      "zone": "年线下方",
+      "below_days": 17.0,
+      "ready": true,
+      "pos_pp": 4.54,
+      "as_of": "2026-10-27",
+      "action": "hold",
+      "action_label": "持有 4.5pp",
+      "rule": "无触发",
+      "detail": "维持当前仓位",
+      "trigger": "第3档 dd≥24%(还需再跌 4.1%)"
+    },
+    "ndx": {
+      "name": "纳指100",
+      "signal": ".NDX",
+      "signal_name": "纳斯达克100指数(美元)",
+      "exec": "270042",
+      "exec_name": "广发纳斯达克100ETF联接(QDII)A",
+      "band": 10.0,
+      "close": 8.2731,
+      "ma": 7.9764456,
+      "high52w": 8.8627,
+      "dev": 0.03719130235151358,
+      "dd": 0.06652600223408223,
+      "rsi": 42.10358458839952,
+      "rsi_prev": 37.221163040137185,
+      "zone": "年线上方",
+      "below_days": 0.0,
+      "ready": true,
+      "pos_pp": 13.23,
+      "as_of": "2026-10-26",
+      "action": "hold",
+      "action_label": "持有 13.2pp",
+      "rule": "无触发",
+      "detail": "维持当前仓位",
+      "trigger": "第1档 dd≥10%(还需再跌 3.6%) · **但启动闸门 off(暂停新增)**"
+    },
+    "spx": {
+      "name": "标普500",
+      "signal": ".INX",
+      "signal_name": "标普500指数(美元)",
+      "exec": "017641",
+      "exec_name": "摩根标普500指数(QDII)人民币A",
+      "band": 10.0,
+      "close": 1.6913,
+      "ma": 1.6186588,
+      "high52w": 1.7312,
+      "dev": 0.04487740096924697,
+      "dd": 0.023047597042513912,
+      "rsi": 45.99152515251049,
+      "rsi_prev": 41.448102568015685,
+      "zone": "年线上方",
+      "below_days": 0.0,
+      "ready": true,
+      "pos_pp": 10.81,
+      "as_of": "2026-10-26",
+      "action": "hold",
+      "action_label": "持有 10.8pp",
+      "rule": "无触发",
+      "detail": "维持当前仓位",
+      "trigger": "第1档 dd≥8%(还需再跌 5.8%) · **但启动闸门 off(暂停新增)**"
+    },
+    "kc50": {
+      "name": "科创50",
+      "signal": "588000",
+      "signal_name": "科创50ETF华夏",
+      "exec": "011609",
+      "exec_name": "易方达上证科创板50ETF联接C",
+      "band": 2.5,
+      "close": 0.981,
+      "ma": 1.183632,
+      "high52w": 1.666,
+      "dev": -0.1711951011800965,
+      "dd": 0.4111644657863145,
+      "rsi": 24.894198014495245,
+      "rsi_prev": 29.43450763752115,
+      "zone": "年线下方",
+      "below_days": 15.0,
+      "ready": true,
+      "pos_pp": 1.14,
+      "as_of": "2026-10-27",
+      "action": "hold",
+      "action_label": "持有 1.1pp",
+      "rule": "无触发",
+      "detail": "维持当前仓位",
+      "trigger": "已减半; 年线下第 15 日, 5 日后清至观察仓"
+    },
+    "hkt": {
+      "name": "恒生科技",
+      "signal": "513180",
+      "signal_name": "恒生科技ETF华夏",
+      "exec": "012805",
+      "exec_name": "广发恒生科技ETF联接QDII-C",
+      "band": 2.5,
+      "close": 0.6053,
+      "ma": 0.8195916,
+      "high52w": 1.0297,
+      "dev": -0.2614614400635634,
+      "dd": 0.4121588812275421,
+      "rsi": 26.710874191644294,
+      "rsi_prev": 28.905130887386434,
+      "zone": "年线下方",
+      "below_days": 176.0,
+      "ready": true,
+      "pos_pp": 0.38,
+      "as_of": "2026-10-27",
+      "action": "hold",
+      "action_label": "持有 0.4pp",
+      "rule": "无触发",
+      "detail": "维持当前仓位",
+      "trigger": "剩余 0.4pp(<观察仓 0.5pp); 年线下第 176 日, 收复年线才加仓"
+    },
+    "gold": {
+      "name": "黄金",
+      "signal": "518880",
+      "signal_name": "黄金ETF华安",
+      "exec": "000216",
+      "exec_name": "华安黄金ETF联接A",
+      "band": 10.0,
+      "close": 2.9734,
+      "ma": 3.4026636,
+      "high52w": 4.2992,
+      "dev": -0.12615516855677422,
+      "dd": 0.3083829549683662,
+      "rsi": 27.34373285986308,
+      "rsi_prev": 27.606813500962602,
+      "zone": "年线下方",
+      "below_days": 36.0,
+      "ready": true,
+      "pos_pp": 9.2,
+      "as_of": "2026-10-27",
+      "action": "hold",
+      "action_label": "持有 9.2pp",
+      "rule": "无触发",
+      "detail": "维持当前仓位",
+      "trigger": "阶梯已填满(受仓位带上限约束)"
+    }
+  },
+  "actions": [],
+  "ladder": {
+    "a500": {
+      "unit_pp": 1.0,
+      "band": 5.0,
+      "units": 5.419,
+      "built_pp": 5.0,
+      "tiers_done": [
+        true,
+        true,
+        false
+      ],
+      "armed_tier": null,
+      "month_tranche": 1,
+      "degraded": null
+    },
+    "ndx": {
+      "unit_pp": 2.0,
+      "band": 10.0,
+      "units": 5.0,
+      "built_pp": 10.0,
+      "tiers_done": [
+        false,
+        false,
+        false
+      ],
+      "armed_tier": null,
+      "month_tranche": 0,
+      "degraded": null
+    },
+    "spx": {
+      "unit_pp": 2.0,
+      "band": 10.0,
+      "units": 5.0,
+      "built_pp": 10.0,
+      "tiers_done": [
+        false,
+        false,
+        false
+      ],
+      "armed_tier": null,
+      "month_tranche": 0,
+      "degraded": null
+    },
+    "gold": {
+      "unit_pp": 2.0,
+      "band": 10.0,
+      "units": 5.332,
+      "built_pp": 10.0,
+      "tiers_done": [
+        true,
+        true,
+        true
+      ],
+      "armed_tier": null,
+      "month_tranche": null,
+      "degraded": false
+    }
+  },
+  "rebalance": {
+    "next_check": "2026-12-31",
+    "band_pp": 5.0,
+    "band_frac": 0.5,
+    "tol_pp": {
+      "a500": 2.5,
+      "ndx": 5.0,
+      "spx": 5.0,
+      "kc50": 1.25,
+      "hkt": 1.25,
+      "gold": 5.0
+    },
+    "buy_back": false,
+    "target": {
+      "a500": 5.0,
+      "ndx": 10.0,
+      "spx": 10.0,
+      "kc50": 1.25,
+      "hkt": 0.5,
+      "gold": 10.0
+    },
+    "dev": {
+      "a500": -0.46,
+      "ndx": 3.23,
+      "spx": 0.81,
+      "kc50": -0.11,
+      "hkt": -0.12,
+      "gold": -0.8
+    }
+  },
+  "valuation": {
+    "a500_erp": 5.11,
+    "a500_erp_pct": null,
+    "a500_erp_months": 25,
+    "a500_erp_gate": null,
+    "ndx_erp_pct": 0.05,
+    "ndx_erp_gate": "off",
+    "spx_erp_pct": 0.05,
+    "spx_erp_gate": "off",
+    "qdii_limit_closed": [],
+    "kc50_pb_pct": null,
+    "hkt_erp_pct": null,
+    "tips_fuse": null,
+    "wgrc_fuse": null,
+    "fomc_days": 0,
+    "us_erp": {
+      "ust10y": 5.13,
+      "ust10y_asof": "2026-10-31",
+      "ndx_fwd_pe": 20.12,
+      "ndx_fwd_pe_asof": "2026-10-23",
+      "ndx_ey": 4.970178926441352
+    }
+  },
+  "sources": {
+    "a500": "场外 `023299` 汇添富中证A500指数增强C(复权净值) · 前段用 `000051` 华夏沪深300ETF联接A(本基金 2025-03-27 起)桥接 250 日窗口",
+    "ndx": "场外 `270042` 广发纳斯达克100ETF联接(QDII)A(复权净值)",
+    "spx": "场外 `017641` 摩根标普500指数(QDII)人民币A(复权净值) · 前段用 `050025` 博时标普500ETF联接A(本基金 2023-04-06 起)桥接 250 日窗口",
+    "kc50": "场外 `011609` 易方达上证科创板50ETF联接C(复权净值)",
+    "hkt": "场外 `012805` 广发恒生科技ETF联接QDII-C(复权净值)",
+    "gold": "场外 `000216` 华安黄金ETF联接A(复权净值)"
+  },
+  "log": [
+    {
+      "date": "2023-03-24",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 0.562,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2023-04-26",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 0.504,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-05-16",
+      "leg": "kc50",
+      "kind": "sell",
+      "amount_pp": 1.174,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-05-22",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 0.776,
+      "rule": "趋势闸门清仓(跌破 MA250 满 20 日)",
+      "detail": "已连续 20 个交易日在年线下方"
+    },
+    {
+      "date": "2023-05-31",
+      "leg": "kc50",
+      "kind": "buy",
+      "amount_pp": 1.217,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2023-06-13",
+      "leg": "kc50",
+      "kind": "sell",
+      "amount_pp": 1.214,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-06-14",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.974,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2023-06-19",
+      "leg": "kc50",
+      "kind": "buy",
+      "amount_pp": 0.458,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2023-06-30",
+      "leg": "kc50",
+      "kind": "sell",
+      "amount_pp": 0.4,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-07-21",
+      "leg": "kc50",
+      "kind": "sell",
+      "amount_pp": 0.692,
+      "rule": "趋势闸门清仓(跌破 MA250 满 20 日)",
+      "detail": "已连续 20 个交易日在年线下方"
+    },
+    {
+      "date": "2023-10-10",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.139,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-10-13",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.249,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2023-10-20",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.119,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-11-07",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.125,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2023-12-01",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.097,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2023-12-22",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 0.662,
+      "rule": "趋势闸门清仓(跌破 MA250 满 20 日)",
+      "detail": "已连续 20 个交易日在年线下方"
+    },
+    {
+      "date": "2024-05-07",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.951,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2024-06-05",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.19,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2024-06-06",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.24,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2024-06-17",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.18,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2024-06-20",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.231,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2024-06-27",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.138,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2024-07-01",
+      "leg": "ndx",
+      "kind": "sell",
+      "amount_pp": 5.211,
+      "rule": "季度再平衡(偏离 >5pp)",
+      "detail": "当前 15.1pp vs 目标带 10.0pp, 偏离 +5.1pp"
+    },
+    {
+      "date": "2024-07-15",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.221,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2024-07-22",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.209,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2024-08-12",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 0.694,
+      "rule": "趋势闸门清仓(跌破 MA250 满 20 日)",
+      "detail": "已连续 20 个交易日在年线下方"
+    },
+    {
+      "date": "2024-09-20",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.967,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2024-10-08",
+      "leg": "kc50",
+      "kind": "buy",
+      "amount_pp": 1.97,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2025-01-02",
+      "leg": "gold",
+      "kind": "sell",
+      "amount_pp": 5.562,
+      "rule": "季度再平衡(偏离 >5pp)",
+      "detail": "当前 15.4pp vs 目标带 10.0pp, 偏离 +5.4pp"
+    },
+    {
+      "date": "2025-10-09",
+      "leg": "spx",
+      "kind": "sell",
+      "amount_pp": 5.499,
+      "rule": "季度再平衡(偏离 >5pp)",
+      "detail": "当前 15.4pp vs 目标带 10.0pp, 偏离 +5.4pp"
+    },
+    {
+      "date": "2025-10-09",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.689,
+      "rule": "季度再平衡(偏离 >1.25pp)",
+      "detail": "当前 4.2pp vs 目标带 2.5pp, 偏离 +1.7pp"
+    },
+    {
+      "date": "2025-12-30",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 0.892,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2025-12-31",
+      "leg": "hkt",
+      "kind": "buy",
+      "amount_pp": 1.265,
+      "rule": "趋势闸门恢复(close ≥ MA250)",
+      "detail": "站上年线, 加至带顶 2.5pp · 趋势闸门放行"
+    },
+    {
+      "date": "2026-01-05",
+      "leg": "gold",
+      "kind": "sell",
+      "amount_pp": 5.837,
+      "rule": "季度再平衡(偏离 >5pp)",
+      "detail": "当前 15.6pp vs 目标带 10.0pp, 偏离 +5.6pp"
+    },
+    {
+      "date": "2026-02-06",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 1.146,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    },
+    {
+      "date": "2026-03-09",
+      "leg": "hkt",
+      "kind": "sell",
+      "amount_pp": 0.649,
+      "rule": "趋势闸门清仓(跌破 MA250 满 20 日)",
+      "detail": "已连续 20 个交易日在年线下方"
+    },
+    {
+      "date": "2026-03-24",
+      "leg": "gold",
+      "kind": "buy",
+      "amount_pp": 0.665,
+      "rule": "黄金回撤阶梯第3档(dd≥20%)",
+      "detail": "dd 25.1% · 年线上方 · 阶梯第3档 2份"
+    },
+    {
+      "date": "2026-04-01",
+      "leg": "a500",
+      "kind": "sell",
+      "amount_pp": 2.76,
+      "rule": "季度再平衡(偏离 >2.5pp)",
+      "detail": "当前 7.6pp vs 目标带 5.0pp, 偏离 +2.6pp"
+    },
+    {
+      "date": "2026-07-01",
+      "leg": "kc50",
+      "kind": "sell",
+      "amount_pp": 2.629,
+      "rule": "季度再平衡(偏离 >1.25pp)",
+      "detail": "当前 5.3pp vs 目标带 2.5pp, 偏离 +2.8pp"
+    },
+    {
+      "date": "2026-10-14",
+      "leg": "kc50",
+      "kind": "sell",
+      "amount_pp": 0.401,
+      "rule": "趋势闸门减半(跌破 MA250 满 5 日)",
+      "detail": "已连续 5 个交易日在年线下方"
+    }
+  ]
+}

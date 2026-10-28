@@ -1,7 +1,7 @@
 {
   "strategy": "dividend/v4_rsi",
-  "as_of": "2026-10-26",
-  "today": "2026-10-27",
+  "as_of": "2026-10-27",
+  "today": "2026-10-28",
   "signal_date": "2026-09-30",
   "hold_month": "2026-10",
   "board_rsi": 50.1,
@@ -21,46 +21,46 @@
   ],
   "next_decision": "2026-10-30",
   "preview": {
-    "board_rsi": 49.6,
-    "tier": "满仓（100%）",
-    "mult": 1.0,
+    "board_rsi": 50.2,
+    "tier": "减半（50%）",
+    "mult": 0.5,
     "picks": [
       {
         "code": "016441",
         "name": "华夏中证红利质量ETF联接C",
-        "rsi": 40.2
-      },
-      {
-        "code": "090010",
-        "name": "大成中证红利指数A",
-        "rsi": 45.7
+        "rsi": 34.7
       },
       {
         "code": "561060",
         "name": "华安中证国有企业红利ETF",
-        "rsi": 46.0
+        "rsi": 48.5
+      },
+      {
+        "code": "090010",
+        "name": "大成中证红利指数A",
+        "rsi": 48.6
       },
       {
         "code": "008115",
         "name": "天弘中证红利低波100C",
-        "rsi": 55.7
+        "rsi": 56.4
       },
       {
         "code": "008163",
         "name": "南方标普红利低波50A",
-        "rsi": 60.1
+        "rsi": 62.6
       }
     ],
     "target": [
       {
-        "code": "090010",
-        "name": "大成中证红利指数A",
-        "weight": 0.5
+        "code": "561060",
+        "name": "华安中证国有企业红利ETF",
+        "weight": 0.25
       },
       {
         "code": "016441",
         "name": "华夏中证红利质量ETF联接C",
-        "weight": 0.5
+        "weight": 0.25
       }
     ],
     "changed": true,

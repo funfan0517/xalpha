@@ -598,6 +598,78 @@ def parse_permanent(_cfg):
     )
 
 
+def parse_vol_legs(_cfg):
+    """波动资产操作规则：4 腿(仓位带) + 阶梯状态。
+
+    产物 `_vol_legs_signal.json` 已按腿组织(legs/actions/ladder/rebalance)，直接映射成表格行；
+    动作 = 次日收盘待执行的挂单(§0 收盘后计算、次日执行)，空动作表示「不动」。
+    """
+    base = os.path.join(_ROOT, "strategies", "vol_legs", "daily")
+    json_path = os.path.join(base, "_vol_legs_signal.json")
+    md_path = os.path.join(base, "_vol_legs_report.md")
+    if not os.path.exists(json_path):
+        raise ValueError("产物缺失：请先跑 run_daily_vol_legs.ps1")
+    d = json.loads(_read(json_path))
+    legs = d.get("legs") or {}
+    if not legs:
+        raise ValueError("产物无腿记录")
+
+    act_map = {"buy": "buy", "sell": "sell", "hold": "hold", "none": "none"}
+    rows = []
+    for key, x in legs.items():
+        dd = x.get("dd")
+        detail = "MA250 偏离 {:+.1%} · 回撤 {} · RSI14 {:.1f} · {} · 仓位 {:.1f}/{:.0f}pp".format(
+            float(x.get("dev") or 0),
+            "—" if dd is None else f"{-dd:.1%}",
+            float(x.get("rsi") or 0), x.get("zone") or "—",
+            float(x.get("pos_pp") or 0), float(x.get("band") or 0))
+        if x.get("action") in ("buy", "sell"):
+            detail = f"{x.get('rule', '')} · {x.get('detail', '')} | " + detail
+        rows.append(_row(x.get("exec"), x.get("name"),
+                         act_map.get(x.get("action") or "none", "none"),
+                         x.get("action_label") or "", detail))
+
+    acts = d.get("actions") or []
+    buys = [a for a in acts if a.get("kind") == "buy"]
+    sells = [a for a in acts if a.get("kind") == "sell"]
+    if acts:
+        badge = f"买 {len(buys)} / 卖 {len(sells)}"
+        tone = "buy" if buys else "sell"
+        summary = "；".join(f"{a.get('label')} {a.get('name')}" for a in acts)
+        summary += f" · 投入 {d.get('invested_pp')}/{d.get('sleeve_pp')}pp"
+    else:
+        badge, tone = "无动作", "none"
+        summary = (f"六腿均未触发阈值 · 投入 {d.get('invested_pp'):g}/{d.get('sleeve_pp'):g}pp · "
+                   f"现金 {d.get('cash_pp'):g}pp")
+
+    lad = d.get("ladder") or {}
+    a5 = lad.get("a500") or {}
+    gd = lad.get("gold") or {}
+    reb = d.get("rebalance") or {}
+    val = d.get("valuation") or {}
+    chips = [["投入", f"{d.get('invested_pp'):g}/{d.get('sleeve_pp'):g}pp"],
+             ["A500 阶梯", f"{float(a5.get('units') or 0):.2f} 份"],
+             ["黄金阶梯", f"{float(gd.get('units') or 0):.2f} 份"],
+             ["再平衡核对", str(reb.get("next_check") or "—")],
+             ["ERP 闸门", "null" if not val.get("a500_erp_gate") else str(val.get("a500_erp_gate"))],
+             ["美股闸门", str(val.get("ndx_erp_gate") or "null")]]
+    qdii = val.get("qdii_limit_closed") or []
+    return _entry(
+        "vol_legs", "波动资产(A500/纳指/标普/科创/恒科/黄金)", d.get("as_of"),
+        badge, tone, summary, rows, chips,
+        note="§0 口径：收盘后计算、次日下单（场外 15:00 前提交才拿当日净值）—— 这里显示的是"
+             "**下一交易日**该成交的那一笔。"
+             f"六腿仓位带共 {d.get('sleeve_pp'):g}pp（A500 10 / 纳指100 5 / 标普500 5 / "
+             "科创50 5 / 恒生科技 5 / 黄金 10），1 份 = 2pp（美股 1pp）。"
+             "**信号与记账口径均为场外基金复权净值**（含汇率与分红再投，不含场内溢价）；"
+             "估值闸门为 null（或美股人工分位）时按 §1「规则不执行」处理"
+             + (f"；当前 QDII 额度关闭：{'/'.join(qdii)}（档位顺延）" if qdii else "")
+             + "。详见报告第五、六节。",
+        src=_rel(md_path),
+        cols=["场外代码", "资产", "动作", "关键值"],
+    )
+
+
 PARSERS = {
     "lights": parse_lights,
     "momentum_rotation": parse_momentum,
@@ -609,6 +681,7 @@ PARSERS = {
     "tech_indicators": parse_tech_indicators,
     "v8_ma20": parse_v8_ma20,
     "permanent": parse_permanent,
+    "vol_legs": parse_vol_legs,
 }
 
 

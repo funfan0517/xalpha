@@ -6,8 +6,8 @@
 （代码 / 名称 / 动作 / 说明），按运行日归档到 ``data/_daily_digest.json``，
 并渲染 ``data/_daily_digest.html``（单文件、无外链，双击可看）。
 
-产物格式优先读结构化文件（json / jsonl）；``ema_cross`` 与 ``tech_indicators``
-目前只落 markdown，则解析其自产表格（格式由本仓库脚本生成，稳定且简单）。
+产物格式优先读结构化文件（json / jsonl）；``tech_indicators`` 目前只落 markdown，
+则解析其自产表格（格式由本仓库脚本生成，稳定且简单）。
 任一策略解析失败只影响它自己——卡片标「解析失败」，不中断其它策略。
 
 用法::
@@ -173,102 +173,6 @@ def parse_lights(_cfg):
         note="盘中运行时用未收盘 bar，量能类灯会随尾盘变化；分级来自 _lights_active.json 快照。",
         src=_rel(os.path.join(_ROOT, "strategies", "lights", "daily", "_signal_report.md")),
     )
-
-
-def parse_momentum(_cfg):
-    path = os.path.join(_ROOT, "strategies", "momentum_rotation", "daily", "_mom_signal.json")
-    d = json.loads(_read(path))
-    as_of = d.get("as_of")
-    tgt = [str(x) for x in (d.get("target_if_rebalance_today") or [])]
-    hold = [str(x) for x in (d.get("holdings") or [])]
-    rebal = bool(d.get("is_rebalance_day"))
-
-    rows = []
-    for s in d.get("snapshot") or []:
-        code = str(s.get("proxy"))
-        in_t, in_h = code in tgt, code in hold
-        if in_t and in_h:
-            act, label = "hold", "持有 · 在目标内"
-        elif in_t:
-            act, label = "buy", "新入选"
-        elif in_h:
-            act, label = "hold", "持有 · 预演剔除"
-        else:
-            act, label = "none", "未入选"
-        rows.append(_row(
-            code, s.get("name"), act, label,
-            f"动量 {float(s.get('mom120') or 0) * 100:+.2f}% · "
-            f"MA20 {round(float(s.get('ma20') or 0), 3)} · "
-            f"收盘 {s.get('close')} · 场外 {s.get('off')}",
-        ))
-
-    if rebal:
-        parts = []
-        for a in d.get("actions") or []:
-            parts.append(f"{a.get('action', '')} {a.get('code', '')}")
-        summary = "调仓日：" + ("；".join(parts) if parts else "维持现有持仓")
-        badge, tone = "调仓", "buy"
-    else:
-        summary = (f"非调仓日，无需操作 · 持仓 {('、'.join('`' + h + '`' for h in hold)) or '空仓'} · "
-                   f"距下次调仓 {d.get('next_rebalance_in_trading_days')} 个交易日")
-        if tgt and set(tgt) != set(hold):
-            summary += f" · 预演目标 {('、'.join('`' + t + '`' for t in tgt))}"
-        badge, tone = "不动", "hold"
-
-    return _entry(
-        "momentum_rotation", "全球动量轮动", as_of, badge, tone, summary, rows,
-        [["当前持仓", "、".join(hold) or "空仓"],
-         ["预演目标", "、".join(tgt) or "空仓"],
-         ["距调仓", f"{d.get('next_rebalance_in_trading_days')} 日"]],
-        note="信号用场内代理日线，执行走场外主仓；10 交易日再平衡。",
-        src=_rel(os.path.join(_ROOT, "strategies", "momentum_rotation", "daily", "_signal_report.md")),
-    )
-
-
-def parse_ema_cross(_cfg):
-    path = os.path.join(_ROOT, "strategies", "ema_cross", "daily", "_signal_report.md")
-    table = _table(_read(path).splitlines())
-    if not table:
-        raise ValueError("markdown 表格解析为空")
-
-    rows, as_of = [], None
-    for cells in table:
-        if len(cells) < 7:
-            continue
-        head, close = cells[0], cells[1]
-        m = CODE_RE.search(head)
-        code = m.group(1) if m else head
-        name = head.split("`")[0].strip()
-        as_of = as_of or _first_date(close)
-        sig, action, state = cells[5], cells[6], cells[4]
-        if "金叉" in sig:
-            act, label = "buy", "买入"
-        elif "死叉" in sig:
-            act, label = "sell", "卖出"
-        elif state.startswith("持仓"):
-            act, label = "hold", "持有"
-        else:
-            act, label = "none", "空仓"
-        rows.append(_row(code, name, act, label,
-                         f"{sig if sig != '—' else '无信号'} · {cells[3]} · {state}"))
-
-    buys = [r for r in rows if r["act"] == "buy"]
-    sells = [r for r in rows if r["act"] == "sell"]
-    if buys or sells:
-        badge, tone = f"买 {len(buys)} / 卖 {len(sells)}", "buy" if buys else "sell"
-        summary = "新信号：" + "；".join(f"{r['a']} {r['c']}" for r in buys + sells)
-    else:
-        badge, tone = "无信号", "hold"
-        summary = f"{len(rows)} 只 A 类全部无新信号（{sum(1 for r in rows if r['act'] == 'hold')} 只持仓、其余空仓）"
-    return _entry(
-        "ema_cross", "双均线趋势", as_of, badge, tone, summary, rows,
-        [["扫描", str(len(rows))], ["持仓", str(sum(1 for r in rows if r["act"] == "hold"))],
-         ["空仓", str(sum(1 for r in rows if r["act"] == "none"))]],
-        note="解析自 _signal_report.md（该策略只落 markdown）。",
-        src=_rel(path),
-    )
-
-
 def parse_right_side(_cfg):
     path = os.path.join(_ROOT, "strategies", "right_side", "daily", "_right_side_scan_out.jsonl")
     raw = [r for r in _rows_of_jsonl(path) if r.get("ok")] if os.path.exists(path) else []
@@ -303,50 +207,6 @@ def parse_right_side(_cfg):
         note="收盘前运行会自动退到上一交易日（不拿盘中未完成 bar 判信号）。",
         src=_rel(os.path.join(_ROOT, "strategies", "right_side", "daily", "_right_side_report.md")),
     )
-
-
-def parse_core_rotation(_cfg):
-    json_path = os.path.join(_ROOT, "strategies", "core_rotation", "daily", "_core_daily.json")
-    md_path = os.path.join(_ROOT, "strategies", "core_rotation", "daily", "_daily_report.md")
-    d = json.loads(_read(json_path))
-    lines = _read(md_path).splitlines()
-    as_of = _first_date(*(a.get("bar_date") for a in d.get("assets") or []), d.get("generated_at"))
-
-    # md 的「六类目标配置」表：资产 / 场外主仓 / 区间 / 中枢 / 操作要点
-    tips = {}
-    for cells in _table(_section(lines, "情景判定")):
-        if len(cells) >= 5:
-            code = CODE_RE.search(cells[1])
-            tips[cells[0]] = {"code": code.group(1) if code else "", "tips": cells[4]}
-
-    weights = d.get("target_weights") or {}
-    rows = []
-    for a in d.get("assets") or []:
-        name = a.get("name", "")
-        t = tips.get(name, {})
-        tip = t.get("tips") or ""
-        if "完全规避" in tip:
-            act, label = "avoid", "规避"
-        elif "停加" in tip or "减" in tip:
-            act, label = "watch", "停加/减"
-        elif "偏多" in tip:
-            act, label = "buy", "偏多配"
-        else:
-            act, label = "hold", "持有"
-        key = a.get("key", "")
-        rows.append(_row(t.get("code") or a.get("off"), name, act, label,
-                         f"中枢 {weights.get(key, '—')}% · 收盘 {a.get('bar_close')} · "
-                         f"20日 {float(a.get('d20') or 0):+.1f}% · {tip}"))
-
-    summary = f"情景 {d.get('sc')} · " + " / ".join(f"{k} {v}%" for k, v in weights.items())
-    return _entry(
-        "core_rotation", "核心轮动", as_of, d.get("sc") or "—", "watch", summary, rows,
-        [[k, f"{v}%"] for k, v in weights.items()],
-        note=d.get("sc_note", ""),
-        src=_rel(md_path),
-    )
-
-
 def parse_dividend(_cfg):
     # 2026-10-26 起每日操作是 V4 RSI14 择时（V0 打分退出流程，产物仍在 v0_rank/daily/）
     daily = _cfg["daily"]
@@ -672,10 +532,7 @@ def parse_vol_legs(_cfg):
 
 PARSERS = {
     "lights": parse_lights,
-    "momentum_rotation": parse_momentum,
-    "ema_cross": parse_ema_cross,
     "right_side": parse_right_side,
-    "core_rotation": parse_core_rotation,
     "dividend": parse_dividend,
     "growth_div_rotation": parse_growth_div,
     "tech_indicators": parse_tech_indicators,

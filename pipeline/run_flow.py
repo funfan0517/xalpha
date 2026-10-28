@@ -101,7 +101,7 @@ def cmd_backtest(args):
     if args.report:
         if "report" not in st.get("backtest", {}):
             sys.exit(f"策略 {args.strategy} 未配置 backtest.report —— 组合层策略"
-                     f"（如 core_rotation）不走逐码回测报告，此命令不适用")
+                     f"（如 vol_legs）不走逐码回测报告，此命令不适用")
         rep = os.path.join(ROOT, st["backtest"]["report"])
         # 报告生成器与「引擎」同目录（引擎留在策略包根），而不是与报告产物同目录 ——
         # 产物已按职能移入 backtest/ 子目录，若按产物目录推断会找不到生成器。

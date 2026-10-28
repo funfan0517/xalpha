@@ -73,7 +73,7 @@ CSV_CACHE = os.path.join(DATA_DIR, "_csindex_value.json")
 VAL_CACHE = os.path.join(DATA_DIR, "_valuation_snapshot.json")
 MX_CACHE = os.path.join(DATA_DIR, "_mx_valuation.json")
 POOL_JSON = os.path.join(DATA_DIR, "_dividend_pool.json")
-# 10Y 国债（中债月末）—— 与 core_rotation / data.py 共用的**数据类**缓存，按 AGENTS §8 留在仓库 data/
+# 10Y 国债（中债月末）—— 跨策略**数据类**缓存，按 AGENTS §8 留在仓库 data/
 BOND_10Y_CACHE = os.path.join(_ROOT, "data", "_bt_caches", "bond10y_m.csv")
 Y10_FALLBACK = 1.68           # 读不到缓存时的缺省值（2026-09 实测 ≈1.68%）
 
@@ -477,7 +477,7 @@ def valuation(refresh=False):
 
 
 def y10_latest(cache=BOND_10Y_CACHE, fallback=Y10_FALLBACK):
-    """10Y 国债收益率(%) —— 复用与 core_rotation/data.py 共用的中债月末缓存（数据类）。
+    """10Y 国债收益率(%) —— 复用跨策略共用的中债月末缓存（数据类）。
 
     股债收益比 = 指数股息率(%) ÷ 10Y国债(%)，故需要这个分母；读不到则用 fallback 并在
     stderr 提示（不静默假装成功）。

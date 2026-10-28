@@ -52,7 +52,7 @@ sys.path.insert(0, _DIR)
 import pool  # noqa: E402  pylint: disable=wrong-import-position
 import yielddata  # noqa: E402  pylint: disable=wrong-import-position
 
-HIST_DIR = os.path.join(_ROOT, "data", "_bt_caches")          # 与 yielddata / core_rotation 共用
+HIST_DIR = os.path.join(_ROOT, "data", "_bt_caches")          # 与 yielddata 共用
 OUT_MD = os.path.join(_DIR, "daily", "_v1_read.md")
 OUT_JSON = os.path.join(_DIR, "daily", "_v1_read.json")
 

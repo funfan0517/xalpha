@@ -50,7 +50,7 @@ When generating HTML reports or dashboards (e.g., QDII prediction pages):
 | 文件性质 | 落位 | 判据 | 现存例子 |
 |---|---|---|---|
 | **数据类** | `data/` | 原始/参考数据、外部注入的快照、人工维护的输入、行情库、外部数据缓存。**判据是「别的策略将来可能也会用」** | `_universe.md`（主标的池）、`_long_klines.json`（十年行情库）、`_a500_pe_hist.csv`、`_ndx_fwd_pe_hist.csv`、`_mx_valuation_latest.json`（外部 agent 回填）、`_core_valuation.json`（人工每周维护）、`_bt_caches/` |
-| **策略类** | `strategies/<策略名>/` | ①**策略本体**：`rule.py`（参数权威源）、`factors.py`、`engine.py`、`data.py`、`backtest.py`、`scan.py`；②该策略的**产物**：回测产物 `_*_bt.jsonl`、分级名单 `_*_active.{md,json}`、扫描产物 `_*_scan_out.jsonl`、行情缓存 `_*_klines.json`、报告与图 `_*_report.md` / `.png` / `.html`；③该策略的**专项分析**：脚本 + 同名报告 | `strategies/lights/`、`strategies/core_rotation/`、`strategies/ema_cross/`、`strategies/momentum_rotation/` |
+| **策略类** | `strategies/<策略名>/` | ①**策略本体**：`rule.py`（参数权威源）、`factors.py`、`engine.py`、`data.py`、`backtest.py`、`scan.py`；②该策略的**产物**：回测产物 `_*_bt.jsonl`、分级名单 `_*_active.{md,json}`、扫描产物 `_*_scan_out.jsonl`、行情缓存 `_*_klines.json`、报告与图 `_*_report.md` / `.png` / `.html`；③该策略的**专项分析**：脚本 + 同名报告 | `strategies/lights/`、`strategies/vol_legs/`、`strategies/dividend/` |
 | **跨策略共享工具** | `strategies/` 根目录 | 被多个策略或分析脚本复用的工具 | `_tune.py`（参数搜索）、`_walkforward.py`（分段验证）、`_merge_verify.py`（产物逐字段比对）、`_probe_data.py`（数据源探针） |
 
 > **反直觉但重要**：外部写入或人工维护的文件（如 `_mx_valuation_latest.json`、`_core_valuation.json`）属于**数据类**，留在 `data/`。移动它们会**静默打断仓库外的自动化流程 / 人的使用习惯**，而且失败时没有明显报错（只是读到旧文件）。

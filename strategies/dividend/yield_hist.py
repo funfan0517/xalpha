@@ -20,7 +20,7 @@
 --------------------------
 * ``data/_div_yield_m.csv``        date, index_code, dy, method(real/proxy), src_index
 * ``data/_bt_caches/ust10y_m.csv`` date, close
-* ``data/_bt_caches/csi_{code}.csv`` 指数日线缓存（date, close, peg），与 core_rotation 共用
+* ``data/_bt_caches/csi_{code}.csv`` 指数日线缓存（date, close, peg）
 
 用法::
 

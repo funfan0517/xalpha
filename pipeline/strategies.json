@@ -102,125 +102,6 @@
       },
       "note": "2026-09-10 重构: 共振策略收敛为**单一参数化实现**（原多份实现与其 runner 已删除, git 可回滚）。参数权威源是 strategies/lights/rule.py::ACTIVE（label=c7）—— 由参数搜索（目标 = 策略年化 × 择时边际）选出、并经分段 walk-forward 交叉确认后采纳; 本 json 的 thresholds 块是它的**镜像**, 改参数只改 rule.py, 然后跑 strategies/lights/_sync_meta.py 同步。**标的池同日收窄到 A 股行业 ETF（23 只, 开关 strategies/lights/data.py::KEEP_CATS）** —— 按类别审计（同一配置跑全池 38 只）只有行业类产生正超额(+2.6%), 宽基 -1.2% / 全球QDII -8.5% / 策略商品 -8.5% / 债券 -4.1%; QDII(标普/纳指/日经)与商品(黄金/白银)是长期单边上涨资产, 任何降暴露的择时都是负贡献, 属该策略固有属性而非参数问题。收窄后择时边际 +12.2bp -> +15.8bp。当前生效: 基准年化 +3.5% vs 策略 +6.2%, 超额 +3.4%, 回撤 -52.8% vs -21.9%, 持仓 14.8%, 择时边际 +14.0bp(16/23 为正), 跑赢 16/23, 分级 A=12/B=4。**（2026-09-18 唯一池当日两轮扩池到内池 47 只后重跑(最终): 年化 +4.8% / 超额 -0.3% / 回撤 -47.0% vs -20.9% / 持仓 15.6% / 择时边际 +5.0bp(27/47 为正) / 跑赢 21/47 / 分级 A=16/B=5; 参数未重调, 扩池持续摊薄超额, 详见 strategies/lights/README.md §3）**注意画像: 单笔胜率仅 46.2%(1985 笔), 是**低胜率高赔率**(盈亏比 1.67, 单笔期望 +0.497%), 靠赔率而非胜率赚钱; 止盈参数 take_profit 已内置但默认关闭 —— 实测胜率与期望严格对立(止盈 3% -> 胜率 53.1%/期望 +0.202%/超额 -0.2%; 止盈 1% -> 胜率 65.6%/期望 -0.215%), 调高胜率是拿收益换的。调参入口: python strategies/lights/backtest.py --set key=value。已知边界: 资金/换手走量价代理; 滑点默认未计入(单边 0.03% 佣金已含); 灯定义内部阈值硬编码, 仅门槛层与决策层可调; 止损/持仓上限均未启用(实测从未触发)。**2026-09-11 消融驱动的改动(依据 strategies/lights/_ablate_report.md, _macd_report.md)**: (1) **停用 capital 灯** —— 目标增量 -0.004、零贡献(cap3 因子仍被 cap_abs_max 门槛与 indicators_ready 使用, 未删因子); (2) **enter_min 3.0 -> 0.0(显式非约束)** —— 实测 1/2/3 入场序列逐位相同、要 >=4 才起作用, 生效买点是 gate_pass & enter_required; (3) **写清灯的定位** —— 分数只进离场判据(exit_max)、对买点零影响; 五灯分工: trend/momentum = 入场硬开关(在 enter_required 里, 失效即全池停摆)、sustain(MACD) = 主力离场滤网(目标增量 +0.346 / 年化 +1.20pp, 五灯之首)、heat = 离场小贡献(+0.032)、capital = 已停用。修 P4: factors.wilder 原先因 ewm 无 NaN 期加 dx.fillna(0) 使 ADX warm-up 保护失效(leading NaN 0 日), 已加 min_periods=n 并去掉 dx 的 fillna, ADX 现需约 2n 根成形(26 日), 回测逐位不变。另: indicators_ready 门槛实质冗余(age 要求 250 根 bar, 它只挡 26 天)。MACD 独立性已验证: 用不共线代理(c>MA60 / MA20>MA60 / ret20>0)替换 sustain 灯后目标仅 0.719~0.786, MACD 0.976 领先 +0.190~+0.246, 不是趋势的重复表达; 早先基于共线代理(c>MA20)的假结论已废弃。待确认未改动: 去掉零轴过滤(只留 DIF>DEA)后目标 0.976 -> 0.989, 属单点差异, 需分段/walk-forward 确认。详见 strategies/lights/README.md。"
     },
-    "momentum_rotation": {
-      "name": "全球相对动量ETF轮动(六类资产, 唯一保留)",
-      "source_methodology": "strategies/momentum_rotation/README.md (来自 tradingagents fund_analysis_rotation 方法论)",
-      "universe": {
-        "offshore_pool": "data/_universe.md",
-        "inner_mapping": "data/_universe.md (场外行=执行6标的; 场内对应列=信号代理, 由 rule.pool() 按场外代码派生)",
-        "data": "data/_long_klines.json (xueqiu 2015+)",
-        "note": "2026-09-11 收窄为六类资产「一类一标的」(与 core_rotation 同一套): 执行 003377/012644/270042/023299/011609/000216, 信号 511260/515080/513100/563360/588000/518880; 旧「唯一池全部场内标的」口径废弃"
-      },
-      "rules": [
-        "每10交易日再平衡; 当日收盘算信号/收盘换仓, 当日收益归旧仓(无前视)",
-        "momentum = close[t]/close[t-120]-1 降序",
-        "选动量排名前2名中 close>=MA20 的标的等权持有(合格不足2只按实际只数)",
-        "一只都不合格(全破位/历史不足140交易日) -> 空仓现金",
-        "成本: 卖出<=7交易日1.5%, 7日外0%"
-      ],
-      "thresholds": {
-        "lookback": 120,
-        "ma": 20,
-        "rebal_days": 10,
-        "min_hist": 140,
-        "hold_n": 2,
-        "holding": "topN_equal",
-        "short_days": 7,
-        "fee_short": 0.015,
-        "fee_long": 0.0
-      },
-      "backtest": {
-        "engine": "strategies/momentum_rotation/backtest.py",
-        "data": "data/_long_klines.json",
-        "raw_out": "strategies/momentum_rotation/backtest/_mom_out.json",
-        "report": "strategies/momentum_rotation/backtest/report.md",
-        "window": "2015-01-05 ~ 至今(十年)"
-      },
-      "select": {
-        "out_active_md": "strategies/momentum_rotation/daily/_universe_momentum_rotation_active.md",
-        "out_active_json": "strategies/momentum_rotation/daily/_universe_momentum_rotation_active.json",
-        "min_sample_years": 0.0,
-        "criteria": "固定六类(由 rule.pool() 资产映射直接定档, 非逐标的回测 select)"
-      },
-      "daily": {
-        "codes": [
-          "511260",
-          "515080",
-          "513100",
-          "563360",
-          "588000",
-          "518880"
-        ],
-        "runner": "run_daily_momentum_rotation.ps1",
-        "signal_report": "strategies/momentum_rotation/daily/_signal_report.md",
-        "signal_json": "strategies/momentum_rotation/daily/_mom_signal.json",
-        "note": "2026-09-11 接入 scan.py: 决策点复算器, 口径与 backtest.run_strategy 逐行同构, 只读本地十年库不联网; 输出「今日是否调仓日 + 目标持仓 + 换仓动作 + 动量均线榜」。2026-09-16 补 run_daily_momentum_rotation.ps1 (fetch.py 刷新库 → scan.py), 接入 pipeline 每日入口(run_flow.py daily)。automation 未建"
-      },
-      "note": "2026-09-11 两处改动: ①标的池由「唯一池全部场内标的」收窄为六类资产(与 core_rotation 同一套, 一类一标的: 场外执行/场内信号); ②调仓频率 21->10 交易日、持仓由「单仓」改为「动量前2名中≥MA20 等权」。依据 research/_pool6_report.md + _topn_report.md + _rebal_report.md: 10 日在 7 日赎回红线之外(惩罚费 0 次), 分散 2 只降低集中度风险。实测全期年化 +12.09%->+12.65%、回撤 -36.71%->-16.53%、夏普 0.68->0.93(基准等权 +13.21%/-12.86%/1.29)。仍略逊于等权持有基准的年化, 但风险调整后大幅拉近。",
-      "pipeline_mode": "rotation"
-    },
-    "ema_cross": {
-      "name": "双均线趋势(EMA12/26 金叉死叉·趋势/阈值/锁仓过滤)",
-      "source_methodology": "C:/Users/hp/Downloads/双均线趋势策略 · 完整落地规则手册（实盘_回测通用版）.md",
-      "universe": {
-        "offshore_pool": "data/_universe.md",
-        "inner_mapping": "data/_universe.md (场内对应列=内池, 由 pipeline/universe.py 派生)",
-        "note": "唯一池 _universe.md: 场外 71 只 + 场内内池 52 只 (2026-09-18 新增 15 只标的后); 纯趋势择时, 逐场内标的状态机"
-      },
-      "rules": [
-        "快线 EMA12 / 慢线 EMA26(经典参数, 禁止频繁修改)",
-        "金叉(昨 fast<=slow 且 今 fast>slow) 且 两线差距>=0.3%(阈值) 且 close>EMA26(趋势过滤) -> 次日开盘全仓买入",
-        "死叉(昨 fast>=slow 且 今 fast<slow) 且 两线差距>=0.3% -> 次日开盘全部清仓",
-        "无信号 -> 维持原有仓位, 不手动止盈/止损/加减仓",
-        "锁仓: 两次实际交易间隔 <5 交易日 -> 忽略第二次信号, 防震荡反复打脸",
-        "成本: 单边 0.03%(ETF 佣金) · 交易时点: 信号次日开盘(回测/实盘一致, 无前视)"
-      ],
-      "thresholds": {
-        "ema_fast": 12,
-        "ema_slow": 26,
-        "trend_filter": true,
-        "cross_thresh": 0.003,
-        "lock_bars": 5,
-        "fee": 0.0003,
-        "trade_at": "信号次日开盘"
-      },
-      "backtest": {
-        "engine": "strategies/ema_cross/backtest.py",
-        "start": "2015-01-01",
-        "window_from": "2016-09-01",
-        "span": "2016-09 ~ 2026-09 (最长十年, 上市晚者按实有)",
-        "raw_out": "strategies/ema_cross/backtest/_ema_cross_bt.jsonl",
-        "report": "strategies/ema_cross/backtest/_bt_report.md"
-      },
-      "select": {
-        "out_active_md": "strategies/ema_cross/daily/_universe_ema_cross_active.md",
-        "out_active_json": "strategies/ema_cross/daily/_universe_ema_cross_active.json",
-        "min_sample_years": 3.0,
-        "criteria": "A=策略年化>0 且 超额(策略-基准)>0; B=超额>0 且 策略年化<=0(防守)"
-      },
-      "daily": {
-        "codes": [
-          "563300",
-          "159781",
-          "159949",
-          "161226",
-          "515230",
-          "562500",
-          "159915",
-          "512980",
-          "510500",
-          "512100",
-          "513180",
-          "515790",
-          "512000"
-        ],
-        "runner": "run_daily_ema_cross.ps1",
-        "signal_report": "strategies/ema_cross/daily/_signal_report.md",
-        "automation": "(未创建)",
-        "enabled": false
-      },
-      "note": "2026-09-08 按手册落地; 过滤参数集中在 strategies/ema_cross/rule.py(唯一权威源); A/B 名单由回测 select 生成并同步至 daily.codes; 震荡市为固有短板, 结合动量/配仓策略组合使用. **2026-10-27 移出每日操作**: daily.enabled=false —— run_daily_all.ps1 不再自动跑、每日看板不再出卡片; runner 与产物保留, 手动入口 python pipeline/run_flow.py daily --strategy ema_cross 或 run_daily_ema_cross.ps1 可用"
-    },
     "right_side": {
       "name": "右侧买入（五票确认 · 右侧买点识别）",
       "source_methodology": "strategies/right_side/rule.py（参数权威源）—— 由「怎么判断右侧买入点而不是抄底到半山腰」的方法论落地：判据从「价格位置」换成「状态转移」",
@@ -288,65 +169,6 @@
       },
       "note": "2026-10-18 落地。**定位**: 择时叠加层/买点识别器, 不是收益增强器 —— 55 只中位年化 +1.3% vs 买入持有 +3.9%, 但中位回撤 -16.8% vs -46.0%、择时边际 +8.3bp(34/55 为正)、单笔盈亏比 2.59/利润因子 2.07。**5 票 vs 4 票的取舍**(research/_sweep_report.md): 4 票把持仓从 9.3% 抬到 18.1%、年化几乎不变, 但中位回撤从 -16.8% 劣化到 -25.2%、单笔胜率 44.3%->38.6%、边际 8.3bp->3.1bp —— 多出来的那一票买到的正是「半山腰」。**主要约束票**: 结构翻越(历史满足率 7.1%)与量能确认(7.0%), 故买点频率约 1% 的交易日(每只每年 ~2.5 个), 全池日均 0~1 只触发, 属设计目标。**口径边界**: 十年库只有收盘价, 执行按次日收盘(比次日开盘更保守); 0/1 满仓不分层; 未计滑点。**不做的事**: 不在 4 票时提前埋伏(那等于左侧), 不因「跌得多/估值低/触下轨」买入。",
       "pipeline_mode": "full_pool"
-    },
-    "core_rotation": {
-      "name": "核心轮动(六类资产动态配置·场外6标的)",
-      "source_methodology": "doc/核心轮动投资策略手册.md",
-      "universe": {
-        "offshore_pool": "data/_universe.md",
-        "inner_mapping": "data/_universe.md (场外行=执行6标的; 场内对应列=信号代理, 由 pipeline/universe.py 派生)",
-        "note": "一类一标的(无第7只): 003377/012644/270042/023299/011609/000216; 代理 511260/515080/513100/563360/588000/518880"
-      },
-      "rules": [
-        "情景判定(三维): 股债收益比=中证红利股息率/10Y国债; 防御/低估=比>2.5 且 红利PE分位<30%; 成长/牛市=比<1.5 或 成长占优(创业板连5日跑赢红利&两市>2.3万亿); 其余均衡震荡; 矛盾留更防御档",
-        "中长债: 10Y>3%买入至上限 / 2.5-3%偏多 / 2-2.5%中性持有 / 1.5-2%压至下限 / <1.5%卖出至5%以下",
-        "中证红利: 股息率>4.5%买入 / 3.5-4.5%持有 / <3.5%卖出; PE分位<30%买 / 30-70%持 / >70%停加",
-        "纳指100: Forward PE 分位 <30%买 / 30-70%持 / 70-85%微降 / >85%卖出",
-        "中证A500: PE 分位 <30%买 / 30-50%偏多 / 50-70%持 / 70-85%微降 / >85%卖出",
-        "科创50: 科创PE比(科创PE/红利PE) <3买入 / 3-5持 / 5-6减 / >6禁超配(<=35%) / >7完全规避",
-        "黄金: 月涨幅>10%暂停加仓; 短期回调>8%触发减仓检查",
-        "月度再平衡: 持仓偏离情景中枢>±5pp 才调; 六类合计=100%, 单类<=40%"
-      ],
-      "thresholds": {
-        "ratio_def": 2.5,
-        "ratio_eq_lo": 1.5,
-        "ratio_eq_hi": 2.5,
-        "red_pe_def": 0.3,
-        "red_pe_eq_lo": 0.3,
-        "red_pe_eq_hi": 0.7,
-        "gold_monthly_cap": 10.0,
-        "kc_cap": 35.0,
-        "single_cap": 40.0,
-        "rebal_tol_pp": 5.0,
-        "fee": 0.0015,
-        "trade_at": "场外按当日净值申赎(T日15:00前)"
-      },
-      "backtest": {
-        "engine": "strategies/core_rotation/_backtest.py",
-        "data": "data/_bt_caches/nav_*.csv (场外累计净值复权) + csi_*.csv (中证官网 peg, 仅作信号与口径对照) + bond10y_m.csv",
-        "note": "2026-10-27 口径修正: 收益源由「指数/ETF 收盘」改为「场外累计净值 totvalue(分红再投复权)」—— 旧口径漏掉红利分红与债券票息, 同窗口对比低估 0.25-0.77pp。样本因此由 2019-08~2026-09(7.1年, 靠指数代理撑长度)缩为 2022-03~2026-09(4.5年, 受 012644 成立日 2022-02-23 限制)。**2026-10-27 基准改为 rule.BENCH 债30/红利20/纳指20/金10/A500 10/科创10**(旧均衡中枢 10/25/15/25/5/20 留作对照行): 新基准 年化 9.00%/波动 8.42%/回撤 -5.9%/夏普 0.90, 旧中枢 8.85%/10.14%/-8.6%/0.74 —— 同等收益、明显更低风险。**真实结论仍负面**: 情景轮动 7.58%/-11.3% 跑输新基准 1.42pp、回撤差 5.36pp, 96% 时间锁均衡且防御档零触发 —— 择时是负贡献。逐码回测/select 不适用"
-      },
-      "select": {
-        "out_active_md": "strategies/core_rotation/daily/_universe_core_rotation_active.md",
-        "out_active_json": "strategies/core_rotation/daily/_universe_core_rotation_active.json",
-        "min_sample_years": 0.0,
-        "criteria": "固定6类(由策略手册直接定档, 非回测 select)"
-      },
-      "daily": {
-        "codes": [
-          "511260",
-          "515080",
-          "513100",
-          "563360",
-          "588000",
-          "518880"
-        ],
-        "runner": "run_daily_core_rotation.ps1",
-        "signal_report": "strategies/core_rotation/daily/_daily_report.md",
-        "automation": "(未创建)",
-        "enabled": false
-      },
-      "note": "2026-09-09 集成: 自动抓价格/净值/10Y; 估值分位全自动=蛋卷(红利/科创)+中证官网(A500发布以来)+historyofmarket(纳指Forward10年); mx-ds-mcp 提供 PE(TTM) 快照交叉验证; 仅 DXY/实际利率/开关可选人工. **2026-10-27 移出每日操作**: daily.enabled=false —— run_daily_all.ps1 不再自动跑、每日看板不再出卡片; runner 与产物保留, 手动入口 python pipeline/run_flow.py daily --strategy core_rotation 或 run_daily_core_rotation.ps1 可用"
     },
     "permanent": {
       "name": "永久投资组合(8 项固定基准 · 每项 ±50% 浮动)",
@@ -563,7 +385,7 @@
         },
         "automation": "(未创建)"
       },
-      "note": "**2026-10-26 每日操作切换(V0 -> V4)**: `run_daily_dividend.ps1` 改为跑 `v4_rsi/daily.py --refresh`, 每日产物 `v4_rsi/daily/_v4_signal.{md,json}`, 看板由 `daily_digest.parse_dividend` 读该 JSON。**为什么切**: 池内 10 只逐只做单标的 RSI 择时的适配度差异极大(全区间 ΔCalmar +0.92 ~ −0.05), 只有 5 只双窗口都为正(`v4_rsi/universe.py`), 而 V0 打分的选择边际在池收窄到 10 只后已全为负(-62~-70bp) —— 打分只剩「排序参考」职能, 不宜作为每日操作依据。**V0 未删除**: `v0_rank/` 与产物保留, 可手动重跑。 **2026-10-26 版本化**: 本打分策略命名为 **V0** 并整体迁入 `strategies/dividend/v0_rank/`(rank.py + backtest_rank.py + backtest/ + daily/), 与 V1(v1_spread)/V2(v2_temp)/V3-V7 平级; `strategies/dividend/pool.py` 作为**跨版本共享数据层**(池/净值/估值, 被 9 个脚本 import)留在 dividend 根, 专项分析(5 指标边际、单标的 RSI14)迁入 `strategies/dividend/research/`。 2026-09-12 落地多标的红利基金横向打分(同日移除原「中证红利ETF单标的估值择时」引擎与其产物, 其规则与结论并入本策略价值分; 手册 §4 原始阈值仍由 core_rotation 保留)。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 后同日第二批扩充至 19 只, 权威源 strategies/dividend/pool.py::POOL; **2026-10-22 用户指定剔除 159905/022720/021562/024565/021143/563180 六只, 池内 19 -> 13 只; 同日第二批 008164(C类) 换同指数 A 类 008163 并剔除 012762/007606/004533, 13 -> 10 只**)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分五项各 20 分), 输出打分排序 + 操作建议。净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 删除此前的表内快照覆盖(TABLE_SNAPSHOT), 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值。真实源覆盖缺口如实保留(见 rank.valuation_sources.gap)。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/v0_rank/backtest/_rank_report.md 与 README.md。 **2026-10-26 重跑(池内 10 只, 版本化为 V0 后)**: 选择边际 3年30 -62.6 / 3年70 -66.2 / 指定 -68.5 / 10年主导 -68.7 / 等权1/3 -69.8 bp —— 全部仍为负, 3 年主导组相对最好; topN=2 各方案 obj 落在 -0.0264 ~ 0.0014, 仍低于「表内 2 只等权」基准 0.0143。 **2026-10-26 对齐窗口复核(V0-V7 全景, 见 strategies/dividend/backtest/_compare_all_report.md §一)**: 把 V0 拉到 V3-V7 窗口(2020-01~2026-10, 82 月, 基金累计净值, 单边 0.03%)重算 —— 7 只池 Calmar 0.88(同池等权 0.91, 年化 9.1% vs 8.2% 但回撤 -10.3% vs -9.1%), 10 只池 Calmar 0.65(等权 0.92); 同窗口第一为 V4 RSI14(1.44)。**结论: 业绩分只在同类标的间可比, 扩池到标普/港股通后判别力明显下降; 打分仍作排序参考。**",
+      "note": "**2026-10-26 每日操作切换(V0 -> V4)**: `run_daily_dividend.ps1` 改为跑 `v4_rsi/daily.py --refresh`, 每日产物 `v4_rsi/daily/_v4_signal.{md,json}`, 看板由 `daily_digest.parse_dividend` 读该 JSON。**为什么切**: 池内 10 只逐只做单标的 RSI 择时的适配度差异极大(全区间 ΔCalmar +0.92 ~ −0.05), 只有 5 只双窗口都为正(`v4_rsi/universe.py`), 而 V0 打分的选择边际在池收窄到 10 只后已全为负(-62~-70bp) —— 打分只剩「排序参考」职能, 不宜作为每日操作依据。**V0 未删除**: `v0_rank/` 与产物保留, 可手动重跑。 **2026-10-26 版本化**: 本打分策略命名为 **V0** 并整体迁入 `strategies/dividend/v0_rank/`(rank.py + backtest_rank.py + backtest/ + daily/), 与 V1(v1_spread)/V2(v2_temp)/V3-V7 平级; `strategies/dividend/pool.py` 作为**跨版本共享数据层**(池/净值/估值, 被 9 个脚本 import)留在 dividend 根, 专项分析(5 指标边际、单标的 RSI14)迁入 `strategies/dividend/research/`。 2026-09-12 落地多标的红利基金横向打分(同日移除原「中证红利ETF单标的估值择时」引擎与其产物, 其规则与结论并入本策略价值分)。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 后同日第二批扩充至 19 只, 权威源 strategies/dividend/pool.py::POOL; **2026-10-22 用户指定剔除 159905/022720/021562/024565/021143/563180 六只, 池内 19 -> 13 只; 同日第二批 008164(C类) 换同指数 A 类 008163 并剔除 012762/007606/004533, 13 -> 10 只**)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分五项各 20 分), 输出打分排序 + 操作建议。净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 删除此前的表内快照覆盖(TABLE_SNAPSHOT), 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值。真实源覆盖缺口如实保留(见 rank.valuation_sources.gap)。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/v0_rank/backtest/_rank_report.md 与 README.md。 **2026-10-26 重跑(池内 10 只, 版本化为 V0 后)**: 选择边际 3年30 -62.6 / 3年70 -66.2 / 指定 -68.5 / 10年主导 -68.7 / 等权1/3 -69.8 bp —— 全部仍为负, 3 年主导组相对最好; topN=2 各方案 obj 落在 -0.0264 ~ 0.0014, 仍低于「表内 2 只等权」基准 0.0143。 **2026-10-26 对齐窗口复核(V0-V7 全景, 见 strategies/dividend/backtest/_compare_all_report.md §一)**: 把 V0 拉到 V3-V7 窗口(2020-01~2026-10, 82 月, 基金累计净值, 单边 0.03%)重算 —— 7 只池 Calmar 0.88(同池等权 0.91, 年化 9.1% vs 8.2% 但回撤 -10.3% vs -9.1%), 10 只池 Calmar 0.65(等权 0.92); 同窗口第一为 V4 RSI14(1.44)。**结论: 业绩分只在同类标的间可比, 扩池到标普/港股通后判别力明显下降; 打分仍作排序参考。**",
       "pipeline_mode": "rotation"
     },
     "growth_div_rotation": {

@@ -355,8 +355,7 @@ strategies/                    ← 跨策略共享工具（各策略本体在各
 ├── _walkforward.py / _walkforward_report.md 分段 walk-forward 验证
 ├── _merge_verify.py                         回测产物逐字段比对（A/B 对照用）
 ├── _probe_data.py                           数据源口径探针
-├── lights/                                  亮灯策略（本体 + 专项分析，见上）
-└── ema_cross/ · momentum_rotation/ · core_rotation/
+└── lights/                                  亮灯策略（本体 + 专项分析，见上）
 ```
 
 ## 8. 调参历程

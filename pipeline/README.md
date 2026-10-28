@@ -2,15 +2,13 @@
 
 把「公共标的池 → 规则化 → 回测报告 → 适配名单 → 每日操作」固化为五阶段标准流程。
 当前已注册策略：`lights`（亮灯策略·共振策略重构版·全参数化）、
-`momentum_rotation`（全球相对动量轮动）、`ema_cross`（双均线趋势 EMA12/26·金叉死叉，**2026-10-27 移出每日操作**）、
 `right_side`（右侧买入·五票确认买点识别，全池出信号）、
-`core_rotation`（六类资产动态配置·场外6标的，组合层，不走 backtest/select，**2026-10-27 移出每日操作**）、
 `dividend`（红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、`growth_div_rotation`（成长/红利二元轮动）、
 `tech_indicators`（技术指标家族·每日固定四策略 MACD/V3/V6/V7，全池出信号，不走 backtest/select）、
 `v8_ma20`（技术指标**变种8 · MA20 穿越**，固定 4 只标的池 科创50/恒生科技/中证A500/黄金，全池出信号，不走 backtest/select）、
 `permanent`（永久组合·8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）、
 `vol_legs`（波动资产操作规则·A500/纳指100/标普500/科创50/恒生科技/黄金六腿仓位带 + 回撤阶梯 + 季度再平衡，组合层，不走 backtest/select）。
-`lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层/轮动**策略参照 `momentum_rotation`。
+`lights` 可作为**逐标的**新增策略的模板（其参数模型见 `strategies/lights/rule.py`）；**组合层**策略参照 `vol_legs`，**轮动**策略参照 `growth_div_rotation`。
 
 > `lights` 是**参数化策略**：所有行为差异由 `strategies/lights/rule.py::ACTIVE` 表达，
 > 调参入口 `backtest.py --set key=value`；改完跑 `strategies/lights/_sync_meta.py`
@@ -31,7 +29,7 @@
 | 4 select | `strategies/lights/_lights_bt.jsonl` | 按回测分级 A/B/不适合 | `strategies/lights/_lights_active.md` + `.json` |
 | 5 daily | 分级名单 A | 抓当日(含盘中实时 bar)评分 | `strategies/lights/_signal_report.md`、`strategies/lights/_signal_dashboard.html` |
 
-> 分层：`data/`=池与数据；`strategies/<name>/`=策略实现与报告（lights、momentum_rotation）；`pipeline/`=流程编排层。
+> 分层：`data/`=池与数据；`strategies/<name>/`=策略实现与报告（lights、vol_legs、dividend 等）；`pipeline/`=流程编排层。
 
 ### 标的池唯一维护（Single Source of Truth）
 
@@ -41,7 +39,7 @@
 - **编号按类别留空分段**（2026-09-18 起）：宽基/另类 `1xx`、全球/跨境 QDII `2xx`、A 股行业 `3xx`、策略/商品 `4xx`、主动/量化 `5xx`、债券 `6xx`。**新增标的一律追加到所属段末尾**，因此不会再触发全表重编号、也就不会连带改 `doc/核心轮动投资策略手册.md` 与各策略 README 里的 `#N` 引用。编号只是标识（`inner_rows()['idx']`），**不参与排序** —— 顺序由 md 行序决定；
 - `pipeline/universe.py` 负责解析：`inner_rows()/inner_codes()` 派生「有场内对应」的内池（当前 55 只），供亮灯回测/每日扫描使用；`offshore_rows()` 给出全部场外清单；
 - 无场内对应的行（主动/债券/QDII 细分等）**只作为场外清单**，不进入场内信号回测与每日推荐；
-- 改完 `_universe.md` 后：`python pipeline/universe.py` 自查解析 → 新增场内代码需 `strategies/momentum_rotation/fetch.py <新代码>` 补十年库 → 再按阶段重跑 backtest / select / daily。
+- 改完 `_universe.md` 后：`python pipeline/universe.py` 自查解析 → 新增场内代码需跑 `python data/_refresh_data.py` 补十年库（`data/_long_klines.json`） → 再按阶段重跑 backtest / select / daily。
 
 ### 回测报告统一口径（单笔交易统计）
 
@@ -51,7 +49,7 @@
 - `trade_stats(trades)` 统一产出：交易笔数 / 胜率=盈利笔数÷总笔数 / 平均盈利 / 平均亏损 / 盈亏比=平均盈利÷|平均亏损| / 利润因子=总盈利÷|总亏损| / 最佳、最差单笔；
 - 报告用 `section_lines(ts)` 渲染默认 md 节，格式与 A 动量报告一致。
 
-已接入：`strategies/momentum_rotation/backtest.py`（本地十年库，直接可用）；`strategies/lights/backtest.py` 每只标的输出 `t_stats` + `trade_log`，`strategies/lights/_reportbt.py` 汇总出「全体单笔合并统计」。**新增策略按 §5 脚手架生成的 `backtest.py` 应复用上述模块**，在引擎里收集单笔后调用 `bt_stats.section_lines(bt_stats.trade_stats(trades))`。
+已接入：`strategies/lights/backtest.py` 每只标的输出 `t_stats` + `trade_log`，`strategies/lights/_reportbt.py` 汇总出「全体单笔合并统计」。**新增策略按 §5 脚手架生成的 `backtest.py` 应复用上述模块**，在引擎里收集单笔后调用 `bt_stats.section_lines(bt_stats.trade_stats(trades))`。
 
 ## 2. 使用命令（均在**仓库根**下）
 
@@ -82,10 +80,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 | 策略 | 每日 runner | 产物（`daily.signal_report`） |
 |---|---|---|
 | lights | `run_daily_lights.ps1` | `strategies/lights/daily/_signal_report.md` |
-| momentum_rotation | `run_daily_momentum_rotation.ps1` | `strategies/momentum_rotation/daily/_signal_report.md` |
-| ema_cross | `run_daily_ema_cross.ps1` | `strategies/ema_cross/daily/_signal_report.md` |
 | right_side | `run_daily_right_side.ps1` | `strategies/right_side/daily/_right_side_report.md` |
-| core_rotation | `run_daily_core_rotation.ps1` | `strategies/core_rotation/daily/_daily_report.md` |
 | dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
 | tech_indicators | `run_daily_tech_indicators.ps1` | `strategies/tech_indicators/daily/_daily_recommend.md` |
@@ -96,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only lights,tech_ind
 - **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
 - lights 信号只覆盖 A 类 8 只（`588000/515230/512200/562500/512980/512000/513180/161725`），A 类之外不做信号推送；**tech_indicators 例外**：它是 `full_pool` 模式，四个策略对全池 55 只全部出信号，不做 A/B 分级（`right_side` 同属全池出信号）。
 - 新增 runner 时：在 `pipeline/strategies.json` 的 `daily.runner` 填 `.ps1` 文件名（放仓库根，脚本内用 `$PSScriptRoot` 定位，勿写死盘符），`run_daily_all.ps1` 会自动带上它。
-- **停用某个策略的每日跑（不等于删策略）**：在该策略 `daily` 里加 `"enabled": false`。`run_daily_all.ps1` 与 `daily_digest.py` 都会跳过它（看板不出卡片），runner 与历史产物保留，仍可手动 `python pipeline/run_flow.py daily --strategy <key>`。当前停用：`ema_cross`、`core_rotation`（2026-10-27）。
+- **停用某个策略的每日跑（不等于删策略）**：在该策略 `daily` 里加 `"enabled": false`。`run_daily_all.ps1` 与 `daily_digest.py` 都会跳过它（看板不出卡片），runner 与历史产物保留，仍可手动 `python pipeline/run_flow.py daily --strategy <key>`。当前无停用策略。
 
 **跨策略汇总看板**（一页看「每天 × 每个策略」的操作）：
 
@@ -107,7 +102,7 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 ```
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
-- 解析口径：优先读结构化产物（json / jsonl）；`ema_cross`、`tech_indicators` 只落 markdown，由脚本解析其自产表格；`v8_ma20` 读 `_v8_ma20_daily.json`（`latest_date` / `summary` / `actions`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
+- 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格；`v8_ma20` 读 `_v8_ma20_daily.json`（`latest_date` / `summary` / `actions`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
 - 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。
 
@@ -143,8 +138,8 @@ python pipeline/run_flow.py scaffold --name <strategy_name>
 
 > **三类策略的流程差异**（重要）：
 >
-> - **逐标的型**（`lights`、`ema_cross`、`dividend`）：每只标的一次独立回测 → `flow_select.py` 按 A/B/不适合分级 → `daily` 只推 A 名单。走 `run_flow backtest/select`。`daily` 闸门要求存在分级名单。
-> - **组合层/轮动型**（`momentum_rotation`、`core_rotation`、`growth_div_rotation`，`pipeline_mode = "rotation"`）：回测是**整个组合的净值**（横截面选标的 + 权重分配 + 调仓），逐标的 A/B 分级不适用。**直接运行 `strategies/<name>/backtest.py`**，不走 `run_flow backtest/select`；`daily` 闸门按 `rotation` 跳过。
+> - **逐标的型**（`lights`、`dividend`）：每只标的一次独立回测 → `flow_select.py` 按 A/B/不适合分级 → `daily` 只推 A 名单。走 `run_flow backtest/select`。`daily` 闸门要求存在分级名单。
+> - **组合层/轮动型**（`growth_div_rotation`、`permanent`、`vol_legs`，`pipeline_mode = "rotation"`）：回测是**整个组合的净值**（横截面选标的 + 权重分配 + 调仓），逐标的 A/B 分级不适用。**直接运行 `strategies/<name>/backtest.py`**，不走 `run_flow backtest/select`；`daily` 闸门按 `rotation` 跳过。
 > - **全池固定策略集型**（`tech_indicators`，`pipeline_mode = "full_pool"`）：回测是**一次跑完全池 × 全家族**（`strategies/tech_indicators/compare.py`，不接受 `--codes` 分批），每日对全池每只标的都出信号、不逐码筛选标的（阈值只由回测网格取优）。`daily` 闸门按 `full_pool` 跳过。
 > - **逐标的全池型**（`right_side`，`pipeline_mode = "full_pool"`）：**逐码回测、接受 `--codes` 分批**（同逐标的型），但每日对全池每只标都出信号、不做 A/B 筛选 —— 买点判定是绝对阈值（五票全过），不该被分级名单过滤掉。`select` 仍可跑，产物只作横向比较参考。
 > - **固定小池型**（`v8_ma20`，`pipeline_mode = "full_pool"`）：标的池在 `strategies/tech_indicators/v8_ma20/backtest.py::POOL` 硬编码 4 只、一次跑完，不接受 `--codes` 分批；每日对池内 4 只全出信号、不做 A/B 分级，`daily` 闸门按 `full_pool` 跳过。**为什么独立成策略而不并入 `tech_indicators` 的四策略表**：池不同（4 只 vs 全池 55 只），混进同一张表会被误读为「V8 对全池有效」，且该卡片按固定 4 列解析。

@@ -1,4 +1,41 @@
 {
+  "blocks": [
+    {
+      "no": 1,
+      "key": "core",
+      "title": "总策略 · 永久投资组合",
+      "desc": "先定总盘子：8 项基准（债 30 / 红利 20 / 纳指100 10 / 标普500 10 / 黄金 10 / 现金 10 / 中证A500 5 / 科创50 5）按单项 ±50% 倾斜，输出「每项该配多少」。后面四个板块都在这一套额度内做动作。",
+      "note": "输出的是目标权重，不是当日买卖；单项偏离基准 >5pp 才动，半年检查一次。"
+    },
+    {
+      "no": 2,
+      "key": "vol",
+      "title": "波动类资产 · 仓位带 + 逐腿上下车",
+      "desc": "管辖 40pp：A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10。主策略回答「仓位带怎么摆、今天该动多少 pp」，变种 v1_ma20 回答「每条腿什么时候下车、什么时候再上车」。",
+      "note": "主策略 = 组合层仓位带（含回撤阶梯 / 趋势闸门 / 季度再平衡）；v1_ma20 = 逐腿 MA20 进出时点。两者可叠加，不可互相替代。"
+    },
+    {
+      "no": 3,
+      "key": "style",
+      "title": "风格轮动 · 成长 / 红利二元切换",
+      "desc": "成长（创业板指 / 科创50）与红利（中证红利）的比值 R 过缓冲带 + 250 日分位双信号，决定整仓在成长与红利/现金之间切换。",
+      "note": "二元整仓切换，信号用指数收盘、次日开盘执行；中间地带不交易，防来回打脸。"
+    },
+    {
+      "no": 4,
+      "key": "dividend",
+      "title": "稳健红利 · V4 RSI14 择时",
+      "desc": "红利专用池 5 只：板块 RSI14 均值 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只等权 —— 负责红利底仓的进退节奏。",
+      "note": "月末收盘确认、下月生效；月中看到的是预览，不要提前动手。V0 打分已退出每日流程，产物保留可手动重跑。"
+    },
+    {
+      "no": 5,
+      "key": "tech",
+      "title": "技术指标 · 全池 55 只（6 策略并列）",
+      "desc": "对全池 55 只场内 ETF（以各行业风险类资产为主）同时跑 MACD / V3(MACD+BOLL) / V6(4 票打分) / V7(风格路由) / V9(右侧买入) / V10(亮灯)，输出每只标的在各策略下的动作与共振名单。",
+      "note": "全池出信号、不做 A/B 分级；同一只标的被越多策略同时点名，信号越值得看。"
+    }
+  ],
   "strategies": {
     "permanent": {
       "name": "永久投资组合(8 项固定基准 · 每项 ±50% 浮动)",
@@ -42,6 +79,7 @@
         "criteria": "固定 8 项(由用户设定直接定档, 非回测 select, 不做 A/B 分级)"
       },
       "daily": {
+        "block": "core",
         "codes": [],
         "runner": "run_daily_permanent.ps1",
         "signal_report": "strategies/permanent/daily/_permanent_report.md",
@@ -136,6 +174,7 @@
         "criteria": "固定 6 腿(由 §0 战略目标直接定档, 非回测 select, 不做 A/B 分级)"
       },
       "daily": {
+        "block": "vol",
         "codes": [],
         "runner": "run_daily_vol_legs.ps1",
         "signal_report": "strategies/vol_legs/daily/_vol_legs_report.md",
@@ -183,6 +222,7 @@
         "criteria": "不做 A/B 分级: 池由 rule.LEGS 固定, 六腿全部出信号（pipeline_mode=full_pool 使 daily 跳过闸门）"
       },
       "daily": {
+        "block": "vol",
         "codes": [],
         "runner": "",
         "runner_note": "不单列 runner: 本变种是 vol_legs 的第 2 步(写在 run_daily_vol_legs.ps1 里), 若在这里再填同一个 .ps1, run_daily_all 会把 vol_legs 跑两遍。留空则 run_daily_all 跳过本策略、但 daily_digest 仍出卡片",
@@ -252,6 +292,7 @@
         }
       },
       "daily": {
+        "block": "dividend",
         "runner": "run_daily_dividend.ps1",
         "signal_md": "strategies/dividend/v4_rsi/daily/_v4_signal.md",
         "signal_json": "strategies/dividend/v4_rsi/daily/_v4_signal.json",
@@ -311,6 +352,7 @@
         "criteria": "二元轮动, 非逐码 select: 整策略作为单标的 GD_ROT 评级(A=策略年化>0且超额>0; B=超额>0但年化≤0)"
       },
       "daily": {
+        "block": "style",
         "codes": [],
         "runner": "run_daily_growth_div_rotation.ps1",
         "signal_report": "strategies/growth_div_rotation/daily/_signal_report.md",
@@ -358,6 +400,7 @@
         "criteria": "不做 A/B 分级: 六个策略对全池 55 只全部出信号（阈值由回测网格取优, 不逐码筛选标的）"
       },
       "daily": {
+        "block": "tech",
         "codes": [],
         "strategies": [
           "MACD",

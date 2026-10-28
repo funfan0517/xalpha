@@ -1,5 +1,5 @@
 ﻿# 全部大策略 · 每日操作一键执行 - 双击运行
-# 读取 pipeline/strategies.json 中所有已注册策略的 daily.runner，按注册顺序依次执行，最后汇总成功/失败。
+# 读取 pipeline/strategies.json 中所有已注册策略的 daily.runner，按每日操作板块(daily.block -> blocks 序号)顺序执行，最后汇总成功/失败。
 # 跳过 daily.enabled=false 的策略（已移出每日操作，但仍可手动跑各自的 runner）。
 # 单个策略失败不中断后续（与本仓库其它 runner 的 fail-fast 行为不同：这里是「全量跑一遍再汇总」）。
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_all.ps1
@@ -23,7 +23,18 @@ if (-not (Test-Path $cfgPath)) { throw "找不到 $cfgPath" }
 $cfg = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
 $ok = @(); $fail = @(); $skip = @()
-$names = @($cfg.strategies.PSObject.Properties.Name)
+# 执行顺序 = 每日操作板块顺序（strategies.json 的 blocks），而非策略在 json 里的书写顺序。
+# 板块内保持注册顺序；未认领 daily.block 的策略排在最后，避免新增策略被漏跑。
+$allNames = @($cfg.strategies.PSObject.Properties.Name)
+$ordered = New-Object System.Collections.ArrayList
+foreach ($b in @($cfg.blocks)) {
+    if ($null -eq $b) { continue }
+    foreach ($n in $allNames) {
+        if ("$($cfg.strategies.$n.daily.block)" -eq "$($b.key)") { [void]$ordered.Add($n) }
+    }
+}
+foreach ($n in $allNames) { if ($ordered -notcontains $n) { [void]$ordered.Add($n) } }
+$names = @($ordered)
 if ($Only.Count -gt 0) { $names = @($names | Where-Object { $Only -contains $_ }) }
 
 Write-Host "每日操作 · 共 $($names.Count) 个策略: $($names -join ', ')"

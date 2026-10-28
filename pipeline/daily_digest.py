@@ -6,6 +6,10 @@
 （代码 / 名称 / 动作 / 说明），按运行日归档到 ``data/_daily_digest.json``，
 并渲染 ``data/_daily_digest.html``（单文件、无外链，双击可看）。
 
+看板按 ``strategies.json`` 顶层 ``blocks`` 分节（每日操作板块 1→5：总策略 → 波动类 →
+风格轮动 → 稳健红利 → 技术指标），策略通过自己的 ``daily.block`` 认领板块；
+未认领的归入末尾「其他」。板块定义里不存策略清单，加策略只改那一处 ``daily.block``。
+
 产物格式优先读结构化文件（json / jsonl）；``tech_indicators`` 目前只落 markdown，
 则解析其自产表格（格式由本仓库脚本生成，稳定且简单）。
 任一策略解析失败只影响它自己——卡片标「解析失败」，不中断其它策略。
@@ -112,6 +116,29 @@ def _num(s):
     """从「**31.6%**」「+1.6pp」「×1.07」「−0.0pp」这类单元格里取第一个数字。"""
     m = re.search(r"[-+−]?\d+(?:\.\d+)?", str(s).replace(",", ""))
     return float(m.group(0).replace("−", "-")) if m else None
+
+
+def _blocks(doc):
+    """每日操作的板块定义（顺序即看板分节顺序）。
+
+    ``pipeline/strategies.json`` 顶层的 ``blocks`` 只声明板块本身（序号 / 标题 / 说明），
+    每个策略在 ``daily.block`` 里认领板块 key —— 归属关系由策略侧声明，避免板块里
+    再维护一份策略清单导致两边不同步。未认领板块的策略统一归入「其他」。
+    """
+    cfg = doc.get("strategies") or {}
+    out = []
+    for i, b in enumerate(doc.get("blocks") or [], 1):
+        key = b.get("key")
+        out.append({
+            "no": b.get("no", i),
+            "key": key,
+            "title": b.get("title") or key,
+            "desc": b.get("desc") or "",
+            "note": b.get("note") or "",
+            "keys": [k for k, m in cfg.items()
+                     if ((m.get("daily") or {}).get("block") or "") == key],
+        })
+    return out
 
 
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
@@ -238,6 +265,8 @@ def parse_tech_indicators(_cfg):
         for strat, a in zip(names, cells[6:6 + ncol]):
             group[strat][amap.get(a, "none")].append(f"{code} {name}")
 
+    # 行标签：MACD/V3/V6/V7 保持原样，两个状态机变种补上人话后缀（解析仍用原名匹配表头）
+    disp = {"V9": "V9 右侧", "V10": "V10 亮灯"}
     rows = []
     for strat in names:
         g = group[strat]
@@ -260,7 +289,7 @@ def parse_tech_indicators(_cfg):
             parts.append("持有：" + "、".join(g["hold"]))
         if not parts:
             parts.append(f"无买卖信号（持有 {len(g['hold'])} / 空仓 {len(g['none'])}）")
-        rows.append(_row(strat, f"买 {len(g['buy'])} · 卖 {len(g['sell'])} · "
+        rows.append(_row(disp.get(strat, strat), f"买 {len(g['buy'])} · 卖 {len(g['sell'])} · "
                                 f"持 {len(g['hold'])} · 空 {len(g['none'])}", act, label,
                          "；".join(parts)))
 
@@ -489,9 +518,15 @@ PARSERS = {
 
 # ---------------------------------------------------------------- 归档
 def collect():
-    cfg = json.loads(_read(CFG))["strategies"]
+    doc = json.loads(_read(CFG))
+    cfg = doc["strategies"]
+    # 按板块顺序解析（板块内保持 json 注册顺序），看板与归档的卡片顺序因此稳定
+    blocks = _blocks(doc)
+    order = [k for b in blocks for k in b["keys"]]
+    order += [k for k in cfg if k not in order]
     out = {}
-    for key, meta in cfg.items():
+    for key in order:
+        meta = cfg[key]
         name = meta.get("name", key).split("（")[0]
         if (meta.get("daily") or {}).get("enabled") is False:
             print(f"[digest] {key:22s} 已停用(daily.enabled=false)，跳过")
@@ -534,7 +569,11 @@ def archive(entries, day):
 
 def render(db):
     dates = sorted(db.get("runs") or {})
+    # 板块定义每次渲染都从 strategies.json 读：老归档（entry 里没有板块字段）也能按
+    # 当前归属重新分节，不必重建历史库。
+    blocks = _blocks(json.loads(_read(CFG)))
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "dates": dates,
+               "blocks": blocks,
                "runs": {d: db["runs"][d] for d in dates}}
     data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     html = _HTML_TMPL.replace("__DATA__", data)
@@ -584,6 +623,15 @@ main{max-width:1440px;margin:0 auto;padding:20px 22px 60px}
 .kpi b{display:block;font-size:22px;line-height:1.25;font-variant-numeric:tabular-nums}
 .kpi span{font-size:12px;color:var(--muted)}
 .grid{display:grid;gap:14px}
+.block{margin-bottom:26px}
+.bhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 2px 8px}
+.bhead h3{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px}
+.bno{font-size:12px;font-weight:700;color:#fff;border-radius:8px;padding:2px 9px;
+  background:linear-gradient(135deg,#3a63f3,#7b3ff2);white-space:nowrap}
+.bstat{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap}
+.bstat b{color:var(--ink);font-variant-numeric:tabular-nums}
+.bdesc{margin:0 2px 12px;font-size:12.5px;color:#5f6b80;max-width:1180px}
+.bnote{margin:10px 2px 0;font-size:12px;color:#a3abbd;max-width:1180px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
   box-shadow:0 1px 2px rgba(20,35,70,.04)}
 .card>details>summary{list-style:none;cursor:pointer;padding:15px 18px;display:flex;gap:12px;
@@ -725,19 +773,60 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     });
     return n;
   }
+  function blockStats(run, ks){
+    var o = {buy:0, sell:0, watch:0};
+    ks.forEach(function(k){
+      (run.strategies[k].rows || []).forEach(function(r){
+        if(o.hasOwnProperty(r.act)) o[r.act]++;
+      });
+    });
+    return o;
+  }
+  function blockHTML(run, b, ks, q){
+    var cards = ks.map(function(k){ return card(k, run.strategies[k], q); }).join('');
+    var s = blockStats(run, ks);
+    var head = '<div class="bhead"><span class="bno">板块 ' + esc(b.no) + '</span>' +
+      '<h3>' + esc(b.title) + '</h3>' +
+      '<span class="bstat">买 <b>' + s.buy + '</b> · 卖 <b>' + s.sell +
+      '</b> · 观察 <b>' + s.watch + '</b> · ' + ks.length + ' 个策略</span></div>';
+    return '<section class="block">' + head +
+      (b.desc ? '<p class="bdesc">' + md(b.desc) + '</p>' : '') +
+      '<div class="grid">' + cards + '</div>' +
+      (b.note ? '<p class="bnote">' + md(b.note) + '</p>' : '') +
+      '</section>';
+  }
   function render(){
     var run = D.runs[cur]; if(!run) return;
     var q = qBox.value.trim().toLowerCase();
     var keys = Object.keys(run.strategies);
-    sub.textContent = '数据日 ' + cur + ' · 生成 ' + (run.run_at || '') + ' · 共 ' + keys.length +
-      ' 个策略 · 已归档 ' + D.dates.length + ' 天';
+    // 板块顺序以 strategies.json 的 blocks 为准；未认领板块的策略归入「其他」，
+    // 这样新增策略忘了填 daily.block 时不会静默消失。
+    var blocks = (D.blocks && D.blocks.length)
+      ? D.blocks : [{no:1, title:'全部策略', desc:'', note:'', keys:keys}];
+    var used = {};
+    var html = '';
+    var nBlock = 0;
+    blocks.forEach(function(b){
+      var ks = (b.keys || []).filter(function(k){ return run.strategies[k]; });
+      ks.forEach(function(k){ used[k] = 1; });
+      if(!ks.length) return;
+      nBlock++;
+      html += blockHTML(run, b, ks, q);
+    });
+    var rest = keys.filter(function(k){ return !used[k]; });
+    if(rest.length){
+      html += blockHTML(run, {no:'+', title:'其他（未认领板块）', desc:'', note:''}, rest, q);
+    }
+    sub.textContent = '数据日 ' + cur + ' · 生成 ' + (run.run_at || '') + ' · ' + nBlock +
+      ' 个板块 / ' + keys.length + ' 个策略 · 已归档 ' + D.dates.length + ' 天';
     kpis.innerHTML =
+      '<div class="kpi"><b>' + nBlock + '</b><span>板块</span></div>' +
       '<div class="kpi"><b>' + keys.length + '</b><span>策略</span></div>' +
       '<div class="kpi"><b style="color:var(--buy)">' + cnt(run, 'buy') + '</b><span>买入 / 建仓</span></div>' +
       '<div class="kpi"><b style="color:var(--sell)">' + cnt(run, 'sell') + '</b><span>卖出 / 清仓</span></div>' +
       '<div class="kpi"><b style="color:var(--watch)">' + cnt(run, 'watch') + '</b><span>观察 / 差一步</span></div>' +
       '<div class="kpi"><b style="color:var(--avoid)">' + cnt(run, 'avoid') + '</b><span>规避</span></div>';
-    app.innerHTML = keys.map(function(k){ return card(k, run.strategies[k], q); }).join('');
+    app.innerHTML = html;
   }
   dateSel.addEventListener('change', function(){ cur = dateSel.value; render(); });
   qBox.addEventListener('input', render);

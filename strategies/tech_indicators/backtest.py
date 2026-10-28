@@ -4,6 +4,11 @@
 标的池：data/_indicators_hist.json 覆盖的 55 只场内 ETF。
 行情源：data/_indicators_hist.json（MA/MACD/KDJ/BOLL/VOL） + data/_long_klines.json（市价收盘价）。
 
+**策略本体不在本文件**：五条单指标规则分别落在 `v11_ma/` / `v12_vol/` / `v13_macd/` /
+`v14_kdj/` / `v15_boll/` 的 `rule.py`（各变种的 `backtest.py` 可单独跑并出各自报告）。
+本文件只做三件事：**按名分发规则**（`signal()` / `build_signals()`）、**回测与统计**、
+以及五大策略并排对照报告。
+
 口径：
 - 目标仓位 0/1（多头/空仓），信号当日收盘成交，收盘价对收盘价计收益；
 - 信号仅用当日及之前的指标（无未来函数）；
@@ -72,77 +77,40 @@ def load():
     return ind, lk
 
 
+# ★ 五个单指标策略的**规则本体已迁到各自变种目录**（v11~v15 的 rule.py）。
+#   本引擎只做「按名分发 + 回测/统计」：这样 MA/VOL/MACD/KDJ/BOLL 各有一个变种目录承载，
+#   而其它变种、compare.py、每日建议仍复用同一份实现（不会出现两套规则）。
+BASELINE = {"MA": "v11_ma", "VOL": "v12_vol", "MACD": "v13_macd",
+            "KDJ": "v14_kdj", "BOLL": "v15_boll"}
+_rules = {}
+
+
+def _rule(key):
+    """按名载入基线规则模块（登记到 sys.modules，保证全局只有一份实现）。"""
+    m = _rules.get(key)
+    if m is not None:
+        return m
+    d = BASELINE[key]
+    name = "_ti_rule_" + d
+    m = sys.modules.get(name)
+    if m is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(name, os.path.join(_HERE, d, "rule.py"))
+        m = importlib.util.module_from_spec(spec)
+        sys.modules[name] = m
+        spec.loader.exec_module(m)
+    _rules[key] = m
+    return m
+
+
+def signal(key, close, r):
+    """单个基线策略的目标仓位序列（0/1，逐日因果）。"""
+    return _rule(key).signal(close, r)
+
+
 def build_signals(close, r):
-    """按 5 条规则生成目标仓位序列（0/1，逐日因果）。"""
-    n = len(close)
-    ma20, ma60 = _arr(r["MA20"]), _arr(r["MA60"])
-    dif, dea = _arr(r["DIF"]), _arr(r["DEA"])
-    k, d = _arr(r["K"]), _arr(r["D"])
-    upper, lower = _arr(r["BOLL_UPPER"]), _arr(r["BOLL_LOWER"])
-    vol = _arr(r["volume"])
-    vol_ma5 = pd.Series(vol).rolling(5).mean().to_numpy()
-    sigs = {s: np.zeros(n, dtype=int) for s in STRAT}
-
-    p = 0
-    for t in range(1, n):
-        if np.isnan(ma20[t]) or np.isnan(ma60[t]) or np.isnan(ma20[t - 1]):
-            sigs["MA"][t] = p
-            continue
-        if p == 0 and close[t] > ma20[t] and close[t - 1] <= ma20[t - 1] and close[t] > ma60[t]:
-            p = 1
-        elif p == 1 and close[t] < ma20[t] and close[t - 1] >= ma20[t - 1]:
-            p = 0
-        sigs["MA"][t] = p
-
-    p = 0
-    for t in range(1, n):
-        if np.isnan(vol[t]) or np.isnan(vol_ma5[t]):
-            sigs["VOL"][t] = p
-            continue
-        up = close[t] > close[t - 1]
-        dn = close[t] < close[t - 1]
-        vup = vol[t] > vol_ma5[t]
-        if p == 0 and up and vup:
-            p = 1
-        elif p == 1 and ((dn and vup) or (up and not vup)):
-            p = 0
-        sigs["VOL"][t] = p
-
-    p = 0
-    for t in range(1, n):
-        golden = dif[t] > dea[t] and dif[t - 1] <= dea[t - 1]
-        death = dif[t] < dea[t] and dif[t - 1] >= dea[t - 1]
-        if p == 0 and golden:
-            p = 1
-        elif p == 1 and death:
-            p = 0
-        sigs["MACD"][t] = p
-
-    p = 0
-    for t in range(1, n):
-        if np.isnan(k[t]) or np.isnan(d[t]) or np.isnan(k[t - 1]) or np.isnan(d[t - 1]):
-            sigs["KDJ"][t] = p
-            continue
-        golden = k[t] > d[t] and k[t - 1] <= d[t - 1]
-        death = k[t] < d[t] and k[t - 1] >= d[t - 1]
-        if p == 0 and golden and k[t] < 20:
-            p = 1
-        elif p == 1 and death and k[t] > 80:
-            p = 0
-        sigs["KDJ"][t] = p
-
-    p = 0
-    for t in range(n):
-        if np.isnan(upper[t]) or np.isnan(lower[t]):
-            sigs["BOLL"][t] = p
-            continue
-        if p == 0 and close[t] <= lower[t]:
-            p = 1
-        elif p == 1 and close[t] >= upper[t]:
-            p = 0
-        sigs["BOLL"][t] = p
-
-    return sigs
+    """按 5 条规则生成目标仓位序列（0/1，逐日因果）—— 实现见 v11~v15 的 rule.py。"""
+    return {s: _rule(s).signal(close, r) for s in STRAT}
 
 
 def _metrics(eq, trades):

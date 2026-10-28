@@ -2,6 +2,10 @@
 
 对 `data/_indicators_hist.json` 覆盖的 55 只场内 ETF，分别按 **MA / VOL / MACD / KDJ / BOLL** 五个指标策略做全历史回测。
 
+> 2026-10-28 起，这五个单指标策略的**规则本体已各自迁入变种目录**（`v11_ma/` ~ `v15_boll/`
+> 的 `rule.py`）；本目录的 `backtest.py` 退化为**引擎 + 按名分发**（`signal()` / `build_signals()`）。
+> 下表的规则描述与那五个 `rule.py` 一一对应，改规则改 `rule.py`，不要改引擎。
+
 ## 策略规则（多头 / 空仓 0-1）
 
 | 策略 | 买入 | 卖出 |
@@ -19,7 +23,7 @@
 - 未计佣金 / 滑点；无风险利率按 0 计；年化按 252 交易日；
 - 单笔统计口径统一走 `pipeline/bt_stats.py`。
 
-## 变种目录（v1~v7 · v9 / v10）
+## 变种目录（v1~v7 · v9~v15）
 
 | 变种 | 目录 | 一句话规则 |
 |---|---|---|
@@ -32,9 +36,17 @@
 | v7 | `v7_style_route/` | 按标的风格自动路由到 BOLL / MACD / v3 / 买入持有 |
 | **v9** | `v9_right_side/` | 五票全过（结构止跌 · 结构翻越 · 均线转向 · 零轴上多头 · 放量上涨）= 右侧买点（原 `right_side` 策略） |
 | **v10** | `v10_lights/` | 门槛层 6 条 + 7 维灯加权评分 ≥ enter_min 且必备灯达标 = 建仓（原 `lights` 亮灯策略） |
+| **v11** | `v11_ma/` | 收盘上穿 MA20 且价 > MA60 买入 · 下穿 MA20 卖出（单指标基线 **MA**） |
+| **v12** | `v12_vol/` | 放量上涨买入 · 放量下跌或缩量上涨卖出（单指标基线 **VOL**） |
+| **v13** | `v13_macd/` | DIF 金叉买入 · 死叉卖出（单指标基线 **MACD**，每日表 `MACD` 列） |
+| **v14** | `v14_kdj/` | K 上穿 D 且 K<20 买入 · K 下穿 D 且 K>80 卖出（单指标基线 **KDJ**） |
+| **v15** | `v15_boll/` | 触及/跌破下轨买入 · 触及/升破上轨卖出（单指标基线 **BOLL**） |
 
 > 本家族的每日操作是固定 **6 策略（MACD / V3 / V6 / V7 / V9 / V10）**；v1~v6 为手动入口。
 > **v9 / v10 是「状态机型」变种**：自带 `rule.py` / `engine.py` / `scan.py` / 分级报告，需要 OHLCV 与门槛判定，**不进入 `compare.py` 的单信号横截面表**（那套引擎按 `(close, 指标)` 重算，口径不可比）；它们的信号由各自 `scan.py` 先落盘、每日汇总脚本只读产物。
+> **v11~v15 是「单指标基线」变种**：五个变种共用 runner `_baseline_bt.py`，各自
+> `backtest.py` 只做「载入引擎 → 传入本变种 signal → 出报告」；规则本体在各自 `rule.py`，
+> 引擎不再持有任何指标逻辑（`build_signals()` 改为按名分发），全局只有一份实现。
 > **v8（仅 MA20 穿越）已于 2026-10-28 迁出本家族** —— 其标的池本就不是「全池 55 只」而是几只宽基腿，
 > 现归入组合层策略 `vol_legs` 作为第一个变种：`strategies/vol_legs/v1_ma20/`（六腿、场外复权净值口径，
 > 每日随 `run_daily_vol_legs.ps1` 第 2 步运行）。因此本目录的横截面对比（`compare.py`）不再包含 v8 一行。
@@ -42,7 +54,9 @@
 ## 运行
 
 ```powershell
-python strategies/tech_indicators/backtest.py
+python strategies/tech_indicators/backtest.py        # 五大基线并排对照（根报告）
+python strategies/tech_indicators/v11_ma/backtest.py # 任一单指标变种单独跑（v11~v15 同构）
+python strategies/tech_indicators/compare.py         # 全家族横截面（基线五 + v1~v7）
 ```
 
 ## 每日操作（固定 6 策略）

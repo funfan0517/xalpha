@@ -1,12 +1,13 @@
 # 策略流程框架（Pipeline）
 
 把「公共标的池 → 规则化 → 回测报告 → 适配名单 → 每日操作」固化为五阶段标准流程。
-当前已注册策略：
-`dividend`（红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、`growth_div_rotation`（成长/红利二元轮动）、
-`tech_indicators`（技术指标家族·每日固定 **6 策略 MACD/V3/V6/V7/V9/V10**，全池出信号，不走 backtest/select；v9 = 原 `right_side` 右侧买入、v10 = 原 `lights` 亮灯，2026-10-28 作为变种并入）、
-`permanent`（永久组合·8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）、
-`vol_legs`（波动资产操作规则·A500/纳指100/标普500/科创50/恒生科技/黄金六腿仓位带 + 回撤阶梯 + 季度再平衡，组合层，不走 backtest/select）、
-`v1_ma20`（`vol_legs` 的第一个变种·六腿 **MA20 穿越**逐腿进出时点，随 `run_daily_vol_legs.ps1` 第 2 步运行，全腿出信号，不走 backtest/select）。
+当前已注册策略（**按每日操作板块 1→5 排列**，板块定义见 §3）：
+`permanent`（**板块1 总策略**·永久组合 8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）、
+`vol_legs`（**板块2** 波动资产操作规则·A500/纳指100/标普500/科创50/恒生科技/黄金六腿仓位带 + 回撤阶梯 + 季度再平衡，组合层，不走 backtest/select）、
+`v1_ma20`（**板块2 变种**·六腿 **MA20 穿越**逐腿进出时点，随 `run_daily_vol_legs.ps1` 第 2 步运行，全腿出信号，不走 backtest/select）、
+`growth_div_rotation`（**板块3** 成长/红利二元轮动）、
+`dividend`（**板块4** 红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、
+`tech_indicators`（**板块5** 技术指标家族·每日固定 **6 策略 MACD/V3/V6/V7/V9/V10**，全池出信号，不走 backtest/select；v9 = 原 `right_side` 右侧买入、v10 = 原 `lights` 亮灯，2026-10-28 作为变种并入）。
 `strategies/tech_indicators/v10_lights/`（原 `lights`）可作为**逐标的**新增策略的模板（参数模型见其 `rule.py`）；v9/v10 展示了「状态机型」（自带 rule/engine/scan + 分级报告）如何挂进家族。**组合层**策略参照 `vol_legs`，**轮动**策略参照 `growth_div_rotation`。
 
 > 变种 v10（原 `lights`）是**参数化策略**：所有行为差异由
@@ -76,15 +77,33 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1
 powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators,vol_legs   # 只跑指定策略
 ```
 
-`run_daily_all.ps1` 读取本 json 中所有已注册策略的 `daily.runner`，按注册顺序依次执行，**单策略失败不中断**，最后汇总成功/失败/跳过。也可逐个走 pipeline：`python pipeline/run_flow.py daily --strategy <name>`（会做前置闸门检查：非 `rotation`/`full_pool` 模式必须先有分级名单）。
+`run_daily_all.ps1` 读取本 json 中所有已注册策略的 `daily.runner`，**按每日操作板块顺序**（`daily.block` 对应 `blocks` 的序号）依次执行，**单策略失败不中断**，最后汇总成功/失败/跳过。也可逐个走 pipeline：`python pipeline/run_flow.py daily --strategy <name>`（会做前置闸门检查：非 `rotation`/`full_pool` 模式必须先有分级名单）。
 
-| 策略 | 每日 runner | 产物（`daily.signal_report`） |
+| 板块 | 策略 | 每日 runner | 产物（`daily.signal_report`） |
+|---|---|---|---|
+| 1 | permanent | `run_daily_permanent.ps1` | `strategies/permanent/daily/_permanent_report.md` |
+| 2 | vol_legs | `run_daily_vol_legs.ps1` | `strategies/vol_legs/daily/_vol_legs_report.md` |
+| 2 | v1_ma20 | （空，由 `run_daily_vol_legs.ps1` 第 2 步带上） | `strategies/vol_legs/v1_ma20/daily/_v1_ma20_daily.md` |
+| 3 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
+| 4 | dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
+| 5 | tech_indicators | `run_daily_tech_indicators.ps1`（**一条命令跑全家族**：v9 scan+报告 → v10 scan+报告 → 6 策略汇总表） | `strategies/tech_indicators/daily/_daily_recommend.md` |
+
+### 每日操作板块（看板与执行顺序）
+
+`strategies.json` 顶层 `blocks` 声明板块的**序号 / 标题 / 说明**，每个策略在自己的 `daily.block` 里认领板块 key。
+板块里**不维护策略清单** —— 归属由策略侧声明，因此加策略只需填一个字段，不会出现「板块列表与策略表不同步」。
+`run_daily_all.ps1` 按板块顺序执行，`daily_digest.py` 按板块分节渲染。
+
+| 板块 | 定位 | 策略 key |
 |---|---|---|
-| dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
-| growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/daily/_signal_report.md` |
-| tech_indicators | `run_daily_tech_indicators.ps1`（**一条命令跑全家族**：v9 scan+报告 → v10 scan+报告 → 6 策略汇总表） | `strategies/tech_indicators/daily/_daily_recommend.md` |
-| vol_legs | `run_daily_vol_legs.ps1` | `strategies/vol_legs/daily/_vol_legs_report.md` |
-| v1_ma20 | （空，由 `run_daily_vol_legs.ps1` 第 2 步带上） | `strategies/vol_legs/v1_ma20/daily/_v1_ma20_daily.md` |
+| **1 总策略 · 永久投资组合** | 先定总盘子：8 项基准（债 30 / 红利 20 / 纳指100 10 / 标普500 10 / 黄金 10 / 现金 10 / A500 5 / 科创50 5）按单项 ±50% 倾斜，输出「每项配多少」；后续板块都在这套额度内做动作 | `permanent` |
+| **2 波动类资产 · 仓位带 + 逐腿上下车** | 管辖 40pp（A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10）；主策略回答「仓位带怎么摆、今天动多少 pp」，变种回答「每条腿何时下车」 | `vol_legs`、`v1_ma20` |
+| **3 风格轮动 · 成长/红利二元切换** | 成长(创业板/科创50) ÷ 红利(中证红利) 的比值 R 过缓冲带 + 250 日分位，决定整仓切换 | `growth_div_rotation` |
+| **4 稳健红利 · V4 RSI14 择时** | 红利底仓（5 只专用池）的进退节奏：板块 RSI14 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只 | `dividend` |
+| **5 技术指标 · 全池 55 只（6 策略并列）** | MACD / V3 / V6 / V7 / V9 右侧 / V10 亮灯 同时对全池每只出信号，看共振 | `tech_indicators` |
+
+- 新增策略必须填 `daily.block`（取值 `core` / `vol` / `style` / `dividend` / `tech`）。漏填不会丢卡片 —— 看板会把它归入末尾的「其他（未认领板块）」，`run_daily_all.ps1` 也会照跑（排在最后）。
+- 板块是**呈现与执行顺序**，不是新的策略边界：同一板块内的策略可以互相引用（如 `v1_ma20` 的腿由 `vol_legs/rule.py::LEGS` 派生），但各自产物与解析器独立。
 
 - 每个策略的 runner 都先刷新行情再出信号；缺少数据的标的会在产物里显式标注（陈旧 / 刷新失败 / 盘中未收盘 bar）。
 - **定时任务**：已注册定时任务「亮灯策略每日信号」，工作日 **14:05** 执行（盘中实时 bar，15:00 前场外申赎仍按当日净值）。
@@ -101,6 +120,7 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 ```
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
+- 看板按 **每日操作板块 1→5** 分节（见上文「每日操作板块」），每节标题旁给出该板块的买/卖/观察计数与策略数；老归档无需重建 —— 板块定义每次渲染都从 `strategies.json` 读，按策略 key 重新归组。
 - 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格（**列宽按 `daily.strategies` 动态取**，增删策略只改 json）；`v1_ma20` 读 `_v1_ma20_daily.json`（`as_of` / `summary` / `legs`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
 - 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。

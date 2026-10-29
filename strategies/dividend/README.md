@@ -175,6 +175,7 @@ strategies/dividend/
   v1_spread/ V1 · v2_temp/ V2 · v3_yield/ · v4_rsi/ · v5_spread/ · v6_ratio/ · v7_combo/
   v8_rsi12/            V8 · RSI12（12 日 + 80/20 口径）—— V4 的参数孪生，未接每日流程
   v9_temp5/            V9 · 五因子估值温度（35/20/16/15/14 · PB 合成）+ HTML 看板，未接每日流程
+  v10_resonance/       V10 · 三重共振状态机（回撤×均线×股息率，买入后持有到结构退出），未接每日流程
   research/            ④ 专项分析（不属于任何版本）
     backtest_dims.py（5 指标边际） · backtest_rsi14.py（单标的 RSI14）
     backtest/_dims_* · _rsi14_090010*
@@ -195,9 +196,11 @@ strategies/dividend/
 | ③ **V8** | `v8_rsi12/`（RSI12 = 12 日 + 80/50，与 V4 **同池**的参数孪生）→ `v8_rsi12/backtest/_v8_report.md`（含参数族 / 窗口×清仓线网格 / 窗口敏感性分解） |
 | ⑤ V8 今日信号（手动对照） | `v8_rsi12/daily.py` → `v8_rsi12/daily/_v8_signal.{md,json}`（**不进每日流程**，JSON 结构与 V4 对齐，便于并排比较） |
 | ③ **V9** | `v9_temp5/`（外部《红利族基金估值温度》体系落到 10 只池：`rule.py` 参数权威源 + `data.py` 指数日频/10Y 国债日频 + `factors.py` 五因子 10 年分位）→ `v9_temp5/backtest/_v9_report.md`（含 PB≡PE 实测 / 分位阈值×绝对档网格 / 横截面 IC / 逐年与剔除检验） |
-| ⑤ V9 每日读数与看板 | `v9_temp5/daily.py` → `daily/_v9_signal.{md,json}`；`v9_temp5/dashboard.py` → `daily/_v9_temp.html`（**不进每日流程**；只出档位与额度参考，**不出仓位倍率**） |
+| ⑤ V9 每日读数与看板 | `v9_temp5/daily.py` → `daily/_v9_signal.{md,json}`；`v9_temp5/charts.py` → `daily/charts/*.png`（逐标的近一年净值+温度）；`v9_temp5/dashboard.py` → `daily/_v9_temp.html`（卡片内嵌上述小图）。**不进每日流程**；只出档位与额度参考，**不出仓位倍率** |
+| ③ **V10** | `v10_resonance/`（**状态机**：买点三条件共振 → 持有 → 收复前高/满250日/止损 退出；`rule.py` 参数权威源 + `data.py` 价格与全收益指数日频 + `factors.py` 滚动前高与反推股息率 + `engine.py` 状态机）→ `backtest/_v10_report.md`（含事件表 / 卖点与止损对照 / 参数敏感性 / W1·W2 双窗口 / 对照标的 H30269）；`chart.py` → `daily/_v10_000922_chart.png`（净值 + 股息率双线图，标注每个操作点）；`research/_sell_lab_report.md`（卖点是否合理：逐笔后验 + 离场规则家族对比） |
+| ⑤ V10 每日状态机读数 | `v10_resonance/daily.py` → `daily/_v10_signal.{md,json}`（**不进每日流程**；只出状态、三条买点条件、三条卖线、分批计划） |
 | ⑤ V4 今日信号 | `v4_rsi/daily.py`（当前档位 + 持仓 + 下个决策点）→ `v4_rsi/daily/_v4_signal.md` |
-| ⑤ V4 读数图 | `v4_rsi/chart.py`（左轴点位 / 右轴分数 RSI14，双阈值线）→ `v4_rsi/daily/_v4_<code>_chart[_all].png` |
+| ⑤ V4 读数图 + 看板 | `v4_rsi/chart.py`（逐标的：左轴累计净值 / 右轴 RSI14，背景按满仓/减半/清仓三档着色并标注操作；默认池内 5 只近一年，`--all` 全样本、`--basis index` 改指数点位）→ `v4_rsi/daily/_v4_<code>_chart[_all][_index].png`；`v4_rsi/dashboard.py` → `daily/_v4_dashboard.html`（卡片式看板，内嵌上述小图） |
 | ③ V7 | `v7_combo/`（组合搜索 + 最终优选）→ `v7_combo/backtest/_v7_report.md` |
 | ③ 备选规则 | `pool_rule_v1.py`（利差读数卡，并行未替换）→ `daily/_pool_rule_v1.{md,json}` |
 | ③ 总对比 | `_compare_all.py`（V0–V8：**§一 对齐窗口全景** + §三 原生口径）→ `backtest/_compare_all_report.md`。**V9 未并入**：它的信号是「面板型温度」，与 `_single_signal` 的 q/xs 双信号结构不同构；V9 的横比看它自己报告的 §三（同窗口同基准） |
@@ -218,12 +221,21 @@ strategies/dividend/
 | V7 `v7_combo` | 8 个组合候选优选 | 同上 | ❌ 组合全部落在 0.87–1.05，**没跑赢纯 RSI** |
 | V8 `v8_rsi12` | RSI12 参数孪生（12 日 + 80/50，与 V4 同池同横截面） | 同上 | ❌ Calmar **0.98** vs V4 1.44；差距来自**窗口**（12→13 日跳 +0.42），清仓线 70–90 几乎不动 |
 | **V9 `v9_temp5`** | **五因子估值温度**（外部体系：利差 35/PE 20/PB 16/乖离 15/位置 14，PB=PE×ROE 合成） | 2020-02~2026-09 | ⚠ **只作体检表**：基准 10 只等权 Calmar 1.03；横截面 top2 0.72（选品为负）、时间分位减仓 1.03（无增量）、top2+时间 1.07 但年化让渡 1.9pp。**另发现 PB 分位 ≡ PE 分位**（合成口径下「五因子」实为 PE 36%），实测差 0.000000 |
+| **V10 `v10_resonance`** | **三重共振状态机**（回撤≥10% × 破年线/三年线 × 股息率≥4.5%；收复前高/满250日/止损退出；单仓≤30%、分三批） | 2008-01~2026-10（首笔建仓 2014-05） | ⚠ **回撤保护有效、收益不稳定**：`dy≥4.5%` 共振 8 次、平仓 5 笔全正、平均 +17.2%；满仓版 Calmar 0.29 vs 买入持有 0.05，但换成「首笔建仓日起算」年化 6.63% vs 11.71%。**「满 250 日卖出」把平均每笔从 +35.2% 砍到 +17.2%**，止损在样本内 0 次触发；30% 上限下平均仓位仅 6%（机会资金，不是主仓） |
 
 > **V9 的定位（2026-10-28 新增）：体检表，不是第九个择时器。** 它把外部《红利族基金估值温度》
 > 体系（五因子 35/20/16/15/14、PB=PE×ROE 合成）原样落到 10 只池上，回测显示横截面选品为负贡献
 > （top2 Calmar 0.72 vs 基准 1.03）、时间维度分位减仓无增量（1.03 vs 1.03，且阈值越严越差）。
 > 它真正的产出是两条口径结论：①**PB 分位 ≡ PE 分位**（常数 ROE ⇒ 五因子实为 PE 36%）；
 > ②**绝对档位不能当跨期阈值**（65/75 几乎从不触发）。详见 `v9_temp5/RULES.md`。
+>
+> **V10 的定位（2026-10-29 新增）：唯一一条「有进有出」的完整规则，但它不是主仓。**
+> 它是**状态机**（买点三条件共振 → 持有 → 收复前高/满 250 日/止损 退出），不是打分也不是月度重排 ——
+> 所以与 V0–V9 不同构，`_compare_all.py` 不并入它（V10 的口径是「单标的全收益 + 30% 上限」，
+> 与组合等权口径不可直接排名）。三条实测结论：①**回撤保护有效**（满仓版 −15.0% vs 买入持有 −71.7%）、
+> ②**收益不稳定**（换成首笔建仓日起算，年化 6.63% vs 11.71%）、③**「满 250 日」卖点是最贵的条款**
+> （平均每笔 +35.2% → +17.2%）。30% 上限下平均仓位只有 6%，正确定位是**已有底仓之上的机会资金**。
+> 详见 `v10_resonance/RULES.md`。
 >
 > **最终优选：V4（RSI14），不是组合、也不是 12 日口径。** 原因是估值类三项在 2020–2026 已失效
 > （利率单边下行把分位顶死），掺进组合只是稀释有效信号；而 12 日窗口的 RSI12 明显更差。
@@ -259,13 +271,20 @@ strategies/dividend/
 ```powershell
 python strategies/dividend/v4_rsi/daily.py --refresh      # ★ 每日操作(现行): V4 RSI14 择时信号
 python strategies/dividend/v4_rsi/backtest.py             # V4 回测(5 只池) + 阈值敏感性
+python strategies/dividend/v4_rsi/chart.py                # V4 逐标的累计净值+RSI图(近一年, 5 只)
+python strategies/dividend/v4_rsi/dashboard.py            # V4 卡片式看板(内嵌上图) → daily/_v4_dashboard.html
 python strategies/dividend/v4_rsi/universe.py             # 池筛选: 10 只红利标的的择时适配度
 python strategies/dividend/v8_rsi12/backtest.py           # V8 对照(12 日 + 80/20): 参数族 + 窗口网格
 python strategies/dividend/v8_rsi12/daily.py              # V8 今日信号(手动对照, 不进每日流程)
 python strategies/dividend/v9_temp5/data.py               # V9 数据探针(中证日频/10Y 国债/新浪代理)
 python strategies/dividend/v9_temp5/backtest.py           # V9 五因子温度回测 → backtest/_v9_report.md
 python strategies/dividend/v9_temp5/daily.py              # V9 今日温度读数 + 额度清单
-python strategies/dividend/v9_temp5/dashboard.py          # V9 HTML 看板 → daily/_v9_temp.html
+python strategies/dividend/v9_temp5/charts.py             # V9 逐标的近一年净值+温度小图 → daily/charts/*.png
+python strategies/dividend/v9_temp5/dashboard.py          # V9 HTML 看板（内嵌小图） → daily/_v9_temp.html
+python strategies/dividend/v10_resonance/data.py          # V10 数据探针(价格+全收益指数, 含官方股息率校验)
+python strategies/dividend/v10_resonance/backtest.py      # V10 三重共振回测 → backtest/_v10_report.md
+python strategies/dividend/v10_resonance/daily.py         # V10 今日状态机读数(三条买点/三条卖线)
+python strategies/dividend/v10_resonance/chart.py         # V10 净值+股息率双线图(标注每个操作点) → daily/_v10_000922_chart.png
 python strategies/dividend/v0_rank/rank.py --refresh      # V0 打分排序 + 推荐操作(已退出每日流程)
 python strategies/dividend/v0_rank/backtest_rank.py       # V0 打分窗权 walk-forward 调优回测
 python strategies/dividend/pool_rule_v1.py                # v1.0 利差读数卡（不替换 V0）

@@ -10,16 +10,20 @@
 |---|---|---|
 | 年线乖离 dev | `close / MA250 − 1` | 逐日滚动 MA250 的 dev |
 | 价格位置 pos | `(close − 52周低) / (52周高 − 52周低) × 100` | 逐日滚动 250 根 high/low |
-| PE | 当日 PE（缺口最多前填 20 个交易日） | 近 10 年（3650 日历日）全部日频观测 |
+| PE | 当日 PE（缺口最多前填 20 个交易日） | 近 2 年（730 日历日）全部日频观测 |
 | PB | `PE × ROE 中枢`（合成；警告见下） | 同 PE |
-| 股债收益差 spread | `100 / PE − 10Y`（pp） | 同 PE，**反号**计入 |
+| 股债收益差 spread | `股息率 − 10Y`（pp；无股息率历史时退回 `100/PE − 10Y`） | 同 PE，**反号**计入 |
 
-分位一律 `100 × count(w ≤ v) / len(w)`（含等于，规则 §4.2），最少 500 个观测。
+分位一律 `100 × count(w ≤ v) / len(w)`（含等于，规则 §4.2），最少 `rule.PCT_MIN_N`（300）个观测。
 温度 = `Σ w_k · sub_k / Σ w_k`，权重见 `rule.W`。
 
 ⚠ **PB 合成 = PE × 常数 → PB 分位 ≡ PE 分位**。这不是近似，是恒等式：
 常数缩放不改变秩。所以外部规则的「五因子」在数学上是 **PE 36%（20+16）+ 利差 35% +
 乖离 15% + 位置 14%**。`backtest.py` 会实测这个等式并给出「去掉 PB、四维归一」的对照。
+
+⚠ 但**真实 PB 并不等价**：`ROE_t = PB_t / PE_t` 实测有 9%~11% 的变异系数且系统性下行，
+真实 PB 分位与 PE 分位相差 7~11 分（相关 0.90~0.96）。合成口径丢掉了这部分信息，
+详见 `research/_pb_real_check.md`。恒等式成立的是「合成 PB 与 PE」，不是「PB 与 PE」。
 
 无估值标的（两个标普系列）→ **价格温度** `0.5×dev + 0.5×pos`，标 `†`，不参与排名与横截面。
 
@@ -53,8 +57,9 @@ def _bond_for(f: dict, index: pd.DatetimeIndex, cn: pd.Series, us: pd.Series | N
     return bond.reindex(grid).ffill().reindex(index)
 
 
-def fund_daily(f: dict, cn: pd.Series, us: pd.Series | None, refresh: bool = False) -> pd.DataFrame:
-    """单只标的日频面板 -> DataFrame(index=date, close/high/low/pe/dev/pos/pb/spread/y10)。"""
+def fund_daily(f: dict, cn: pd.Series, us: pd.Series | None, refresh: bool = False,
+               dy_map: dict | None = None) -> pd.DataFrame:
+    """单只标的日频面板 -> DataFrame(index=date, close/high/low/pe/dev/pos/pb/dy/spread/y10)。"""
     if f["has_valuation"]:
         raw = data.load_index(f["index"], refresh=refresh)
     else:
@@ -91,10 +96,19 @@ def fund_daily(f: dict, cn: pd.Series, us: pd.Series | None, refresh: bool = Fal
         d["pe"] = pe.ffill(limit=PE_FFILL)
         d["pb"] = d["pe"] * f["roe"]
         d["y10"] = _bond_for(f, d.index, cn, us)
-        d["spread"] = 100.0 / d["pe"] - d["y10"]
+        ent = (dy_map or {}).get(f["index"])
+        if rule.SPREAD_KIND == "dy" and ent is not None and len(ent["dy"]):
+            dy = ent["dy"]
+            # 月度股息率 -> 日频（收盘已知，前填不回填，无前视）
+            d["dy"] = dy.reindex(d.index.union(dy.index)).ffill().reindex(d.index)
+            d["spread"] = d["dy"] - d["y10"]
+        else:
+            d["dy"] = np.nan
+            d["spread"] = 100.0 / d["pe"] - d["y10"]
     else:
         d["pe"] = np.nan
         d["pb"] = np.nan
+        d["dy"] = np.nan
         d["spread"] = np.nan
     return d
 
@@ -184,15 +198,18 @@ def build(weights: dict | None = None, refresh: bool = False) -> dict[str, dict]
     """-> {fund代码: {daily, monthly, fund}}；monthly 为月末温度面板。"""
     cn = data.load_bond_cn(refresh=refresh)
     us = data.load_bond_us()
+    dy_map = data.load_div_yield() if rule.SPREAD_KIND == "dy" else {}
     out = {}
     for f in rule.FUNDS:
-        daily = fund_daily(f, cn, us, refresh=refresh)
+        daily = fund_daily(f, cn, us, refresh=refresh, dy_map=dy_map)
         if daily.empty:
             print(f"[v9:warn] {f['code']} 无价格数据，跳过", file=sys.stderr)
             continue
         me = month_ends(daily.index)
         monthly = temp_at(daily, me, weights=weights, has_valuation=f["has_valuation"])
-        out[f["code"]] = {"daily": daily, "monthly": monthly, "fund": f}
+        ent = dy_map.get(f["index"]) if f["has_valuation"] else None
+        dy_src = (ent["method"] if ent else ("ey" if f["has_valuation"] else None))
+        out[f["code"]] = {"daily": daily, "monthly": monthly, "fund": f, "dy_src": dy_src}
     return out
 
 

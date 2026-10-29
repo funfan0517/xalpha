@@ -1,23 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""V4 读数图：指数点位（左轴）+ 分数（右轴，RSI14）
+"""V4 · 逐标的「累计净值 + RSI14」走势图
 
-V4 的「分数」就是 **RSI14 本身**（0–100 的绝对刻度，`q = RSI/100`），所以这一张图
-就是策略的原始输入：左轴看点位，右轴看分数，两条阈值线对应规则档位 ——
-**分数 ≥70 清仓、≥50 减半**。月末的圆点是 V4 真正做决策的时点（日频 RSI 只用于读图）。
+每只池内标的输出一张 PNG（左轴累计净值、右轴 RSI14），背景按 RSI 档位着色并标注对应操作：
+**RSI < 50 满仓 / 50–70 减半 / ≥70 清仓**（`rule.Q_HALF` / `rule.Q_OUT`）。
 
-标的取池内代码（默认 `008115` 天弘中证红利低波100C → 指数 `930955`）：
-点位与分数默认都用**指数日线**（图上自洽）；`--basis nav` 改用**基金累计净值**，
-即 V4 回测的官方口径。
+口径（同 V4 回测）：
+* 累计净值取 `pool.load_navs` 的 `totvalue`（含分红再投），RSI14 用 Wilder 口径；
+* **档位本是按「板块 RSI 均值」判定**，图上是把单只自己的 RSI 套用同一组阈值，仅作读图参考，
+  真实仓位请以 `daily.py` 的板块均值为准；
+* 月末圆点是 V4 真正做决策的时点（日频 RSI 只用于读图）。
 
-产物（AGENTS §8.4 ⑤）：`v4_rsi/daily/_v4_<code>_chart[_all].png`
+产物：`v4_rsi/daily/_v4_<code>_chart[_all][_index].png`
 
 用法::
 
-    python strategies/dividend/v4_rsi/chart.py                     # 008115 · 近一年
-    python strategies/dividend/v4_rsi/chart.py --code 090010
-    python strategies/dividend/v4_rsi/chart.py --all               # 全样本
-    python strategies/dividend/v4_rsi/chart.py --basis nav         # 用基金累计净值算分数
+    python strategies/dividend/v4_rsi/chart.py                # 池内 5 只 · 近一年
+    python strategies/dividend/v4_rsi/chart.py --all          # 全样本
+    python strategies/dividend/v4_rsi/chart.py --code 090010  # 只画一只
+    python strategies/dividend/v4_rsi/chart.py --basis index  # 左轴改指数点位
+    python strategies/dividend/v4_rsi/chart.py --refresh      # 先抓最新净值
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ matplotlib.use("Agg")
 import matplotlib.dates as mdates  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
+from matplotlib.patches import Patch  # noqa: E402
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _STRAT = os.path.dirname(_DIR)
@@ -45,11 +48,19 @@ import rule as V4  # noqa: E402  pylint: disable=wrong-import-position
 
 CACHE = os.path.join(S.ROOT, "data", "_bt_caches")
 OUT_DIR = os.path.join(_DIR, "daily")
+WINDOW_DAYS = 250          # 近一年（约 250 个交易日）
 
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-BLUE, RED, AMBER = "#1f4e79", "#c0504d", "#e8a33d"
+BLUE, RED, AMBER, GREEN = "#1f4e79", "#c0504d", "#e8a33d", "#5c8a4a"
+
+# RSI 档位：满仓 / 减半 / 清仓（低 RSI = 便宜 = 满仓）
+BANDS = [
+    (0.0, V4.Q_HALF * 100, "满仓 100%（<50）", "#e4efe0", GREEN),
+    (V4.Q_HALF * 100, V4.Q_OUT * 100, "减半 50%（50–70）", "#fbeccf", AMBER),
+    (V4.Q_OUT * 100, 100.0, "清仓 0%（≥70）", "#f7dcd9", RED),
+]
 
 
 def _index_series(code: str) -> tuple[pd.Series, str]:
@@ -68,86 +79,107 @@ def _nav_series(code: str) -> pd.Series:
     return pool.load_navs(codes=[code])[code].dropna()
 
 
-def plot(code: str = "008115", full: bool = False, basis: str = "index") -> str:
-    px, idx = _index_series(code)
-    name = next(d["name"] for d in pool.POOL if d["code"] == code)
+def _tier(rsi: float) -> str:
+    if rsi >= V4.Q_OUT * 100:
+        return "清仓"
+    if rsi >= V4.Q_HALF * 100:
+        return "减半"
+    return "满仓"
 
-    if basis == "nav":
-        score_src = _nav_series(code)
-        basis_txt = "基金累计净值"
+
+def plot(code: str, nav: pd.Series | None = None, full: bool = False,
+         basis: str = "nav") -> str:
+    name = V4.NAME.get(code, code)
+    if basis == "index":
+        src, idx = _index_series(code)
+        left_label = f"指数点位（{idx}）"
     else:
-        score_src = px
-        basis_txt = f"指数 {idx}"
+        src = (nav if nav is not None else _nav_series(code)).dropna()
+        left_label = "累计净值（含分红再投）"
 
-    score = S.rsi_series(score_src, V4.WINDOW)
-    start = px.index[0] if full else px.index[-250]
-    p, sc = px.loc[start:], score.loc[start:]
+    score = S.rsi_series(src, V4.WINDOW)
+    start = src.index[0] if full else src.index[-WINDOW_DAYS]
+    p, sc = src.loc[start:], score.loc[start:]
 
-    fig, ax1 = plt.subplots(figsize=(14, 6.2), dpi=150)
+    fig, ax1 = plt.subplots(figsize=(5.6, 2.85), dpi=175)
     ax2 = ax1.twinx()
-    ax1.plot(p.index, p.to_numpy(), color=BLUE, lw=1.6, label=f"点位（{idx}）")
-    # 全样本 12 年日频分数会糊成一片，改画月末值（正好是 V4 的决策口径）
+
+    # 档位背景 + 操作图例
+    band_handles = []
+    for lo, hi, lab, face, edge in BANDS:
+        ax2.axhspan(lo, hi, color=face, alpha=0.9, zorder=0, ec="none")
+        band_handles.append(Patch(facecolor=face, edgecolor=edge, label=lab))
+    ax2.axhline(V4.Q_OUT * 100, color=RED, ls="--", lw=1.0, alpha=0.75)
+    ax2.axhline(V4.Q_HALF * 100, color=AMBER, ls="--", lw=1.0, alpha=0.75)
+
+    # 累计净值（左轴）
+    ax1.plot(p.index, p.to_numpy(), color=BLUE, lw=1.4, label="累计净值", zorder=6)
+    # RSI（右轴）—— 全样本日频会糊成一片，改画月末值（正好是 V4 决策口径）
     sc_plot = sc.resample("ME").last().dropna() if full else sc
-    ax2.plot(sc_plot.index, sc_plot.to_numpy(), color=RED, lw=1.7,
-             label=f"分数（RSI{V4.WINDOW}{'·月末' if full else ''}）")
+    ax2.plot(sc_plot.index, sc_plot.to_numpy(), color=RED, lw=1.2, alpha=0.92,
+             label=f"RSI{V4.WINDOW}{'·月末' if full else ''}", zorder=5)
 
-    # 规则档位：≥70 清仓、50–70 减半
-    ax2.axhspan(V4.Q_OUT * 100, 100, color=RED, alpha=0.06)
-    ax2.axhspan(V4.Q_HALF * 100, V4.Q_OUT * 100, color=AMBER, alpha=0.06)
-    ax2.axhline(V4.Q_OUT * 100, color=RED, ls="--", lw=1.1, alpha=0.75)
-    ax2.axhline(V4.Q_HALF * 100, color=AMBER, ls="--", lw=1.1, alpha=0.75)
-    ax2.set_ylim(0, 100)
-
-    # 月末决策点（V4 只在月末看信号）
+    # 月末决策点
     me = sc_plot if full else sc.resample("ME").last().dropna()
-    ax2.scatter(me.index, me.to_numpy(), s=16, color=RED, zorder=5, alpha=0.85,
-                label=None if full else "月末决策点")
+    ax2.scatter(me.index, me.to_numpy(), s=14, color=RED, zorder=5, alpha=0.8,
+                edgecolor="white", linewidth=0.4)
 
-    last_d, last_p, last_s = sc.index[-1], float(p.iloc[-1]), float(sc.iloc[-1])
-    ax1.scatter([last_d], [last_p], s=46, facecolor="white", edgecolor=BLUE, zorder=6)
-    ax2.scatter([last_d], [last_s], s=46, facecolor="white", edgecolor=RED, zorder=6)
-    tier = ("清仓" if last_s >= V4.Q_OUT * 100
-            else "减半" if last_s >= V4.Q_HALF * 100 else "满仓")
-    dx, ha = (-9, "right") if full else (9, "left")
-    ax1.annotate(f"{last_p:,.0f}", (last_d, last_p), textcoords="offset points",
-                 xytext=(dx, 4), color=BLUE, fontsize=10, ha=ha, fontweight="bold")
+    # 末值标注
+    last_d = sc.index[-1]
+    last_p = float(p.iloc[-1])
+    last_s = float(sc.iloc[-1])
+    tier = _tier(last_s)
+    ax1.scatter([last_d], [last_p], s=40, facecolor="white", edgecolor=BLUE, zorder=7)
+    ax2.scatter([last_d], [last_s], s=40, facecolor="white", edgecolor=RED, zorder=7)
+    ax1.annotate(f"{last_p:.4f}", (last_d, last_p), textcoords="offset points",
+                 xytext=(6, 3), color=BLUE, fontsize=7, fontweight="bold")
     ax2.annotate(f"{last_s:.1f}", (last_d, last_s), textcoords="offset points",
-                 xytext=(dx, -14), color=RED, fontsize=10, ha=ha, fontweight="bold")
+                 xytext=(6, -10), color=RED, fontsize=7, fontweight="bold")
 
-    ax1.set_ylabel(f"指数点位（{idx}）", color=BLUE, fontsize=11)
-    ax2.set_ylabel(f"分数（RSI{V4.WINDOW}）", color=RED, fontsize=11)
-    ax1.tick_params(axis="y", colors=BLUE)
-    ax2.tick_params(axis="y", colors=RED)
-    ax1.grid(True, axis="x", ls=":", color="#cccccc", alpha=0.7)
+    ax1.set_ylabel(left_label, color=BLUE, fontsize=7.5)
+    ax2.set_ylabel(f"RSI{V4.WINDOW}（0–100）", color=RED, fontsize=7.5)
+    ax1.tick_params(axis="y", colors=BLUE, labelsize=6.8)
+    ax2.tick_params(axis="y", colors=RED, labelsize=6.8)
+    ax2.set_ylim(0, 100)
+    ax1.grid(axis="x", ls=":", color="#cccccc", alpha=0.7)
+    ax1.set_axisbelow(True)
+    for sp in ("top",):
+        ax1.spines[sp].set_visible(False)
+        ax2.spines[sp].set_visible(False)
+
     if full:
         ax1.xaxis.set_major_locator(mdates.YearLocator())
         ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     else:
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
-        ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
-    ax1.tick_params(axis="x", labelsize=9)
-    # 右侧留白，避免末点标注被裁掉
-    ax1.set_xlim(p.index[0], p.index[-1] + pd.Timedelta(days=18))
+        ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%y-%m"))
+    ax1.tick_params(axis="x", labelsize=6.5)
+    # 右侧留白，避免末值标注被裁掉
+    ax1.set_xlim(p.index[0], p.index[-1] + pd.Timedelta(days=40 if full else 16))
 
-    ax1.set_title(f"{name}（{code} → {idx}）· 点位与 V4 分数（{basis_txt}算 RSI{V4.WINDOW}）\n"
-                  f"截至 {last_d:%Y-%m-%d}：点位 {last_p:,.0f}｜分数 {last_s:.1f} → "
-                  f"{tier}（≥{int(V4.Q_OUT * 100)} 清仓 / ≥{int(V4.Q_HALF * 100)} 减半）",
-                  fontsize=12.5, pad=12)
+    span_txt = "全样本" if full else "近一年"
+    ax1.set_title(f"{name}（{code}）· 净值与 RSI{V4.WINDOW} · {span_txt}\n"
+                  f"RSI {last_s:.1f} → 单只档位「{tier}」"
+                  f"（板块均值 ≥{int(V4.Q_OUT * 100)} 清仓 / ≥{int(V4.Q_HALF * 100)} 减半）",
+                  fontsize=8, fontweight="bold", pad=6, loc="left")
 
+    # 线图例左上，档位图例右侧外
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
-    ax1.legend(h1 + h2, l1 + l2, loc="upper center", bbox_to_anchor=(0.5, -0.09),
-               fontsize=9.5, ncol=3, frameon=False)
-    box = dict(facecolor="white", alpha=0.85, edgecolor="none", pad=1.6)
-    for lbl, y in ((f"清仓线 {int(V4.Q_OUT * 100)}", V4.Q_OUT * 100),
-                   (f"减半线 {int(V4.Q_HALF * 100)}", V4.Q_HALF * 100)):
-        ax2.text(p.index[3], y - 3.4, lbl, color=RED if y >= 60 else AMBER,
-                 fontsize=8.5, ha="left", alpha=0.95, bbox=box)
+    ax1.legend(h1 + h2, l1 + l2, loc="upper left", fontsize=6, framealpha=0.9, handlelength=1.2)
+    ax2.legend(handles=band_handles, loc="center left", bbox_to_anchor=(1.08, 0.5),
+               fontsize=5.6, title="RSI 档位 / 操作", title_fontsize=6, framealpha=0.92,
+               handlelength=1.0, borderpad=0.5, labelspacing=0.35)
 
-    fig.tight_layout()
+    # 让左轴压在右轴背景之上，避免色带冲淡净值线
+    ax1.set_zorder(ax2.get_zorder() + 1)
+    ax1.patch.set_visible(False)
+
+    fig.subplots_adjust(left=0.10, right=0.73, top=0.83, bottom=0.15)
     os.makedirs(OUT_DIR, exist_ok=True)
-    out = os.path.join(OUT_DIR, f"_v4_{code}_chart{'_all' if full else ''}.png")
-    fig.savefig(out, bbox_inches="tight")
+    suffix = "" if basis == "nav" else f"_{basis}"
+    out = os.path.join(OUT_DIR, f"_v4_{code}_chart{'_all' if full else ''}{suffix}.png")
+    fig.savefig(out, facecolor="#fbf8f1")
     plt.close(fig)
     return out
 
@@ -156,14 +188,20 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     args = sys.argv[1:]
-    code = args[args.index("--code") + 1] if "--code" in args else "008115"
-    basis = args[args.index("--basis") + 1] if "--basis" in args else "index"
-    outs = [plot(code, full=False, basis=basis)]
-    if "--all" in args:
-        outs.append(plot(code, full=True, basis=basis))
-    for o in outs:
-        print(f"[chart] {os.path.relpath(o, _DIR)}")
-    return 0
+    full = "--all" in args
+    refresh = "--refresh" in args
+    basis = args[args.index("--basis") + 1] if "--basis" in args else "nav"
+    codes = [args[args.index("--code") + 1]] if "--code" in args else list(V4.CODES)
+
+    navs = pool.load_navs(codes=V4.CODES, refresh=refresh) if basis == "nav" else None
+    n = 0
+    for code in codes:
+        nav = navs[code].dropna() if navs is not None and code in navs else None
+        out = plot(code, nav=nav, full=full, basis=basis)
+        n += 1
+        print(f"[chart] {code} {V4.NAME.get(code, code):<14s} -> {os.path.relpath(out, _DIR)}")
+    print(f"[chart] 共 {n} 张 · 目录 {os.path.relpath(OUT_DIR, _DIR)}")
+    return 0 if n else 1
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ import data  # noqa: E402  pylint: disable=wrong-import-position
 import factors  # noqa: E402  pylint: disable=wrong-import-position
 import rule  # noqa: E402  pylint: disable=wrong-import-position
 
-CHAIN = "指数 PE/OHLC + 10Y 国债 → 五因子 10 年分位 → 温度 → 档位动作（不调仓位）"
+CHAIN = "指数 PE/OHLC + 股息率 + 10Y 国债 → 五因子近 2 年分位 → 温度 → 档位动作（不调仓位）"
 
 
 def _dd52(daily: pd.DataFrame, asof: pd.Timestamp):
@@ -86,6 +86,7 @@ def collect(refresh: bool = False) -> dict:
             "pos": None if pd.isna(r["pos"]) else round(float(r["pos"]), 1),
             "dd52": None if dd52 is None else round(dd52, 2),
             "dy": dy,
+            "dy_src": p.get("dy_src"),
             "sub": {k: (None if r.get(f"sub_{k}") is None or pd.isna(r.get(f"sub_{k}"))
                         else round(float(r[f"sub_{k}"]), 1)) for k in rule.FACTORS},
             "asof": r["asof"].strftime("%Y-%m-%d"),
@@ -214,18 +215,23 @@ def render(d: dict) -> str:
     L += ["- 上述清单**不改变目标仓位**；仓位节奏请用 `v4_rsi/daily.py`（RSI14 择时）或 `v0_rank/rank.py`（打分）。", ""]
 
     L += ["## 四、口径与边界（必读）", "",
-          "1. **PB 是合成口径**：`PB = PE × ROE 中枢`，常数 ROE 意味着 **PB 分位 ≡ PE 分位**，"
+          "1. **股债收益差 = 股息率 − 10Y**（不再是 100/PE）：股息率取 `data/_div_yield_m.csv`（月度）——"
+          "000922 / H30269 为真实序列（全收益指数 − 价格指数），"
+          "930955 / 931157 / 931468 / 000824 / 000825 为 000922 变化率代理 + 各自官网快照校准；"
+          "930914 港股无股息率历史，退回 `100/PE − 10Y`。",
+          "2. **PB 是合成口径**：`PB = PE × ROE 中枢`，常数 ROE 意味着 **PB 分位 ≡ PE 分位**，"
           f"所以「五因子」实际是 **PE {(rule.W['pe'] + rule.W['pb']) * 100:.0f}% + 利差 35% + "
-          "乖离 15% + 位置 14%**（回测实测分位差 0.000000）。要 PB 独立，需补指数 PB 历史序列。",
-          "2. **温度算在跟踪指数上**（规则 R0-2）：基金有费率与跟踪误差，估值只有指数口径。",
-          "3. **两个标普系列无估值**（008163 / 005125）：中证官网、蛋卷、东财指数库三源皆无条目，"
+          "乖离 15% + 位置 14%**。要 PB 独立，需补指数 PB 历史序列（目前只有 000922 一个快照点）。",
+          "3. **温度算在跟踪指数上**（规则 R0-2）：基金有费率与跟踪误差，估值只有指数口径。",
+          "4. **两个标普系列无估值**（008163 / 005125）：中证官网、蛋卷、东财指数库三源皆无条目，"
           "只算价格温度并标 †，不进排名、不进横截面。价格用 501029（主，2017→）；562060 实测与 501029 "
           "全期日收益 corr≈0.44（仅近 250 日 0.89），长期背离，仅作回退、不替换。",
-          "4. **港股 018388 用 10Y 美债锚**（其余用 10Y 中债）：用中债锚会让它的利差分位长期贴顶、"
+          "5. **港股 018388 用 10Y 美债锚**（其余用 10Y 中债）：用中债锚会让它的利差分位长期贴顶、"
           "系统性显得最便宜，横截面比较会失真。",
-          f"5. **回测结论**：{_bt_line(d.get('bt') or {})}",
-          "6. 数据分位窗口「近 10 年」，不足 10 年用全历史（931468 自 2020-05、930955 自 2017-05、"
-          "931157 自 2019-04、930914 自 2016-11），需 ≥500 个日频观测才给分位。", "",
+          f"6. **回测结论**：{_bt_line(d.get('bt') or {})}",
+          "7. 数据分位窗口「近 2 年（730 日历日）」，需 ≥300 个日频观测才给分位；不足 2 年用全历史。",
+          "8. **股息率代理说明**：5 只 proxy 的股息率形状基本等同中证红利，其「利差分位」与 000922 "
+          "高度相关，不宜当作彼此独立的信号。", "",
           "> 仅为个人研究记录，不构成投资建议；市场有风险，投资需谨慎。", ""]
     return "\n".join(L)
 
@@ -244,7 +250,7 @@ def payload(d: dict) -> dict:
         "generated": d["generated"],
         "board_temp": d["board_temp"],
         "board_pct": d["board_pct"],
-        "version": "V9 · 五因子估值温度（35/20/16/15/14 · PB 合成）",
+        "version": "V9 · 五因子估值温度（35/20/16/15/14 · 股息率利差 · 近2年 · PB 合成）",
         "positioning": "体检表：只输出档位与额度参考，不输出仓位倍率、不做横截面选品",
         "weights": d["weights"],
         "flags": d["flags"],

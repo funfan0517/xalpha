@@ -1,0 +1,120 @@
+{
+ "strategy": "dividend/v10_resonance",
+ "as_of": "2026-10-28",
+ "generated": "2026-10-29 16:01",
+ "version": "V10 · 红利三重共振（回撤 × 均线 × 股息率）",
+ "positioning": "状态机择时：仓位 0–100%，信号稀少、多数时间空仓（不是主仓策略）",
+ "state": "holding",
+ "state_cn": "持仓中",
+ "primary": {
+  "index": "000922",
+  "name": "中证红利",
+  "close": 5499.33,
+  "peak": 5976.53,
+  "dd": 0.07984566295157891,
+  "dy": 0.045816899354071294,
+  "dy_official": 4.19,
+  "below_ma": true,
+  "expo": 0.7
+ },
+ "conditions": [
+  {
+   "key": "dd",
+   "label": "回撤 ≥ 10%",
+   "value": 0.07984566295157891,
+   "threshold": 0.1,
+   "ok": false,
+   "hint": "前高 5977 → 触发价 ≤ 5379"
+  },
+  {
+   "key": "ma",
+   "label": "收盘 ≤ 年线(250) 或 三年线(750)",
+   "value": null,
+   "threshold": null,
+   "ok": true,
+   "hint": "年线 5596 / 三年线 5421 / 收盘 5499"
+  },
+  {
+   "key": "dy",
+   "label": "股息率 ≥ 4.5%",
+   "value": 0.045816899354071294,
+   "threshold": 0.045,
+   "ok": true,
+   "hint": "已超 +0.08pp"
+  }
+ ],
+ "tranches": [
+  {
+   "stage": 1,
+   "trigger": "三条件共振（dy≥4.5%）",
+   "w": 0.4
+  },
+  {
+   "stage": 2,
+   "trigger": "dy≥5.0%（强买）",
+   "w": 0.3
+  },
+  {
+   "stage": 3,
+   "trigger": "dy≥6.0% 或 回撤≥25%",
+   "w": 0.3
+  }
+ ],
+ "holding": {
+  "entry_date": "2026-06-22",
+  "entry_price": 5373.33,
+  "days_held": 86,
+  "stage": 2,
+  "peak_lock": 5976.53,
+  "ttl_due": "2027-06-15（预估）",
+  "ttl_days_left": 164,
+  "stop_price": 4836.0,
+  "to_peak": 0.0868,
+  "ret_so_far": 0.0483,
+  "next_add": 0.06
+ },
+ "peers": [
+  {
+   "index": "000922",
+   "name": "中证红利",
+   "close": 5499.33,
+   "ma250": 5596.11,
+   "ma750": 5420.5,
+   "peak": 5976.53,
+   "dd": 0.0798,
+   "dy": 0.0458,
+   "dy_official": 4.19,
+   "below_ma": true,
+   "asof": "2026-10-28",
+   "stale": false
+  },
+  {
+   "index": "H30269",
+   "name": "中证红利低波动",
+   "close": 11136.15,
+   "ma250": 11141.22,
+   "ma750": 10833.22,
+   "peak": 11946.95,
+   "dd": 0.0679,
+   "dy": 0.0534,
+   "dy_official": 4.27,
+   "below_ma": true,
+   "asof": "2026-10-28",
+   "stale": false
+  }
+ ],
+ "stale": {},
+ "backtest": {
+  "window": "2008-01-02~2026-10-28",
+  "days": 4573,
+  "first_entry": "2014-05-26",
+  "trades": 6,
+  "win": 5,
+  "avg_ret": 0.160651,
+  "base_calmar": 0.257167,
+  "full_calmar": 0.314197,
+  "bench_calmar": 0.04881,
+  "summary": "strategies/dividend/v10_resonance/backtest/_v10_bt_summary.json",
+  "report": "strategies/dividend/v10_resonance/backtest/_v10_report.md"
+ }
+}

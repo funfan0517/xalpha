@@ -64,6 +64,10 @@
   .fval { width: 24px; text-align: right; font-size: 11px; color: #8a7860;
            font-variant-numeric: tabular-nums; }
   .advice { margin-top: 12px; padding: 8px 10px; border-radius: 8px; font-size: 12px; color: #5c4a33; }
+  .chartwrap { margin-top: 12px; }
+  .chart { width: 100%; height: auto; display: block; border: 1px solid #eee3cf;
+            border-radius: 8px; background: #fff; }
+  .chartwrap.muted { font-size: 11px; color: #b0a08a; padding: 10px 2px; }
   .foot { margin-top: 18px; background: #fffdf7; border: 1px solid #e6dcc8; border-radius: 14px;
            padding: 16px 22px; font-size: 11.5px; color: #8a7860; line-height: 1.95; }
   .foot b { color: #5c4a33; }
@@ -81,20 +85,20 @@
     <div class="eyebrow">V9 · 红利五因子估值温度</div>
     <h1>红利族估值温度看板</h1>
     <div class="meta">
-      数据截止 <b>2026-10-28</b> · 生成于 2026-10-29 09:31 · 池 10 只
+      数据截止 <b>2026-10-28</b> · 生成于 2026-10-29 16:00 · 池 10 只
       （8 只有估值口径 / 2 只仅价格温度）<br>
       温度 = 股债收益差 35% + PE 20% + PB 16% + 年线乖离 15% + 价格位置 14%
-      （各取近 10 年日频分位，0 = 冰点，100 = 过热）<br>
+      （各取<b>近 2 年</b>日频分位，0 = 冰点，100 = 过热）<br>
       数据滞后标的：无
     </div>
-    <div class="oneline"><b>一句话</b>：有估值口径的 8 只平均温度 <b>61.4</b>（自身历史分位 <b>79%</b>）；最冷 <b>红利质量 18.7</b>、最热 <b>央企红利 81.0</b> —— 过热，分批减仓。</div>
-    <div class="chips"><div class="chip"><b>2</b><i>过热 ≥75</i></div><div class="chip"><b>2</b><i>偏热 65–75</i></div><div class="chip"><b>3</b><i>中性 40–65</i></div><div class="chip"><b>1</b><i>偏冷 <40</i></div></div>
+    <div class="oneline"><b>一句话</b>：有估值口径的 8 只平均温度 <b>67.3</b>（自身历史分位 <b>84%</b>）；最冷 <b>红利质量 56.5</b>、最热 <b>央企红利 76.3</b> —— 过热，分批减仓。</div>
+    <div class="chips"><div class="chip"><b>2</b><i>过热 ≥75</i></div><div class="chip"><b>3</b><i>偏热 65–75</i></div><div class="chip"><b>3</b><i>中性 40–65</i></div><div class="chip"><b>0</b><i>偏冷 <40</i></div></div>
   </div>
 
   <div class="rankbox">
     <div class="sect">温度排位<small>越冷越靠前 · † 为估值数据缺失标的，不参与排名 ·
       子分一律「越高越热」（股债收益差 = 100 − 利差分位，利差越宽越冷）</small></div>
-    <div class="rank"><span class="rno">1</span><span class="rname">红利质量<i>016441</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:18.7%;background:#3c6fa8"></div></div></div><span class="rval" style="color:#3c6fa8">18.7</span><span class="rtag" style="color:#3c6fa8;border-color:#3c6fa8">冰点</span></div><div class="rank"><span class="rno">2</span><span class="rname">沪港深红利低波<i>007760</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:54.9%;background:#d9a13b"></div></div></div><span class="rval" style="color:#d9a13b">54.9</span><span class="rtag" style="color:#d9a13b;border-color:#d9a13b">中性</span></div><div class="rank"><span class="rno">3</span><span class="rname">中证红利<i>090010</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:60.3%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">60.3</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">中性偏热</span></div><div class="rank"><span class="rno">4</span><span class="rname">红利低波100<i>008115</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:62.8%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">62.8</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">中性偏热</span></div><div class="rank"><span class="rno">5</span><span class="rname">红利低波<i>007467</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:66.1%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">66.1</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">偏热</span></div><div class="rank"><span class="rno">6</span><span class="rname">国企红利<i>561060</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:70.2%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">70.2</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">偏热</span></div><div class="rank"><span class="rno">7</span><span class="rname">港股通高股息<i>018388</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:77.3%;background:#cf4b25"></div></div></div><span class="rval" style="color:#cf4b25">77.3</span><span class="rtag" style="color:#cf4b25;border-color:#cf4b25">过热</span></div><div class="rank"><span class="rno">8</span><span class="rname">央企红利<i>561580</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:81.0%;background:#cf4b25"></div></div></div><span class="rval" style="color:#cf4b25">81.0</span><span class="rtag" style="color:#cf4b25;border-color:#cf4b25">过热</span></div><div class="rank partial-row"><span class="rno">†</span><span class="rname">红利机会<i>005125</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:15.0%;background:#b9ac96"></div></div></div><span class="rval" style="color:#b9ac96">15.0</span><span class="rtag" style="color:#b9ac96;border-color:#b9ac96">价格温度</span></div><div class="rank partial-row"><span class="rno">†</span><span class="rname">标普红利低波50<i>008163</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:63.7%;background:#b9ac96"></div></div></div><span class="rval" style="color:#b9ac96">63.7</span><span class="rtag" style="color:#b9ac96;border-color:#b9ac96">价格温度</span></div>
+    <div class="rank"><span class="rno">1</span><span class="rname">红利质量<i>016441</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:56.5%;background:#d9a13b"></div></div></div><span class="rval" style="color:#d9a13b">56.5</span><span class="rtag" style="color:#d9a13b;border-color:#d9a13b">中性偏热</span></div><div class="rank"><span class="rno">2</span><span class="rname">港股通高股息<i>018388</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:60.8%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">60.8</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">中性偏热</span></div><div class="rank"><span class="rno">3</span><span class="rname">红利低波<i>007467</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:63.2%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">63.2</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">中性偏热</span></div><div class="rank"><span class="rno">4</span><span class="rname">沪港深红利低波<i>007760</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:65.2%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">65.2</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">偏热</span></div><div class="rank"><span class="rno">5</span><span class="rname">红利低波100<i>008115</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:67.0%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">67.0</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">偏热</span></div><div class="rank"><span class="rno">6</span><span class="rname">中证红利<i>090010</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:74.8%;background:#e07b27"></div></div></div><span class="rval" style="color:#e07b27">74.8</span><span class="rtag" style="color:#e07b27;border-color:#e07b27">偏热</span></div><div class="rank"><span class="rno">7</span><span class="rname">国企红利<i>561060</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:75.0%;background:#cf4b25"></div></div></div><span class="rval" style="color:#cf4b25">75.0</span><span class="rtag" style="color:#cf4b25;border-color:#cf4b25">偏热</span></div><div class="rank"><span class="rno">8</span><span class="rname">央企红利<i>561580</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:76.3%;background:#cf4b25"></div></div></div><span class="rval" style="color:#cf4b25">76.3</span><span class="rtag" style="color:#cf4b25;border-color:#cf4b25">过热</span></div><div class="rank partial-row"><span class="rno">†</span><span class="rname">红利机会<i>005125</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:7.0%;background:#b9ac96"></div></div></div><span class="rval" style="color:#b9ac96">7.0</span><span class="rtag" style="color:#b9ac96;border-color:#b9ac96">价格温度</span></div><div class="rank partial-row"><span class="rno">†</span><span class="rname">标普红利低波50<i>008163</i></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:76.9%;background:#b9ac96"></div></div></div><span class="rval" style="color:#b9ac96">76.9</span><span class="rtag" style="color:#b9ac96;border-color:#b9ac96">价格温度</span></div>
   </div>
 
   <div class="grid">
@@ -104,155 +108,26 @@
             <div class="cname">红利质量 <span class="cfund">016441</span></div>
             <div class="ccode">931468 · 跟踪 中证红利质量</div>
           </div>
-          <div class="tempbox" style="color:#3c6fa8">
-            <span class="tnum">18.7</span><span class="tunit">/100</span>
+          <div class="tempbox" style="color:#d9a13b">
+            <span class="tnum">56.5</span><span class="tunit">/100</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:18.7%;background:#3c6fa8"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:56.5%;background:#d9a13b"></div></div></div>
         <div class="kv">
           <div><b>30252.76</b><i>点位</i></div>
           <div><b>16.92</b><i>PE</i></div>
           <div><b>3.30%</b><i>股息率</i></div>
-          <div><b>4.28pp</b><i>股债差</i></div>
+          <div><b>1.75pp</b><i>股债差</i></div>
           <div><b>-8.38%</b><i>年线乖离</i></div>
           <div><b>12.1</b><i>位置分位</i></div>
           <div><b>-15.78%</b><i>52周回撤</i></div>
-          <div><b>28</b><i>PE 分位</i></div>
+          <div><b>66</b><i>PE 分位</i></div>
         </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:17.7%;background:#3c6fa8"></div></div><span class="fval">18</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:28.3%;background:#3c6fa8"></div></div><span class="fval">28</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:28.3%;background:#3c6fa8"></div></div><span class="fval">28</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:10.1%;background:#3c6fa8"></div></div><span class="fval">10</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:5.4%;background:#3c6fa8"></div></div><span class="fval">5</span></div></div>
-        <div class="advice" style="background:#e8f0f8">
-          <b>冰点</b> · 便宜区域，可分批加仓
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="cname">沪港深红利低波 <span class="cfund">007760</span></div>
-            <div class="ccode">931157 · 跟踪 沪港深红利成长低波</div>
-          </div>
-          <div class="tempbox" style="color:#d9a13b">
-            <span class="tnum">54.9</span><span class="tunit">/100</span>
-          </div>
-        </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:54.9%;background:#d9a13b"></div></div></div>
-        <div class="kv">
-          <div><b>7158.49</b><i>点位</i></div>
-          <div><b>9.08</b><i>PE</i></div>
-          <div><b>4.73%</b><i>股息率</i></div>
-          <div><b>9.38pp</b><i>股债差</i></div>
-          <div><b>-2.98%</b><i>年线乖离</i></div>
-          <div><b>41.8</b><i>位置分位</i></div>
-          <div><b>-8.66%</b><i>52周回撤</i></div>
-          <div><b>79</b><i>PE 分位</i></div>
-        </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:57.8%;background:#d9a13b"></div></div><span class="fval">58</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:79.3%;background:#d9a13b"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:79.3%;background:#d9a13b"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:17.6%;background:#d9a13b"></div></div><span class="fval">18</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:24.8%;background:#d9a13b"></div></div><span class="fval">25</span></div></div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:93.0%;background:#d9a13b"></div></div><span class="fval">93</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:65.8%;background:#d9a13b"></div></div><span class="fval">66</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:65.8%;background:#d9a13b"></div></div><span class="fval">66</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:0.6%;background:#d9a13b"></div></div><span class="fval">1</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:1.6%;background:#d9a13b"></div></div><span class="fval">2</span></div></div>
         <div class="advice" style="background:#fbf2dd">
-          <b>中性</b> · 持有 / 正常定投
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="cname">中证红利 <span class="cfund">090010</span></div>
-            <div class="ccode">000922 · 跟踪 中证红利</div>
-          </div>
-          <div class="tempbox" style="color:#e07b27">
-            <span class="tnum">60.3</span><span class="tunit">/100</span>
-          </div>
-        </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:60.3%;background:#e07b27"></div></div></div>
-        <div class="kv">
-          <div><b>5499.33</b><i>点位</i></div>
-          <div><b>8.99</b><i>PE</i></div>
-          <div><b>4.19%</b><i>股息率</i></div>
-          <div><b>9.49pp</b><i>股债差</i></div>
-          <div><b>-1.73%</b><i>年线乖离</i></div>
-          <div><b>49.0</b><i>位置分位</i></div>
-          <div><b>-8.70%</b><i>52周回撤</i></div>
-          <div><b>82</b><i>PE 分位</i></div>
-        </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:62.0%;background:#e07b27"></div></div><span class="fval">62</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:81.7%;background:#e07b27"></div></div><span class="fval">82</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:81.7%;background:#e07b27"></div></div><span class="fval">82</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:24.3%;background:#e07b27"></div></div><span class="fval">24</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:39.7%;background:#e07b27"></div></div><span class="fval">40</span></div></div>
-        <div class="advice" style="background:#fbe8d6">
           <b>中性偏热</b> · 不再新增，持有观望
         </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="cname">红利低波100 <span class="cfund">008115</span></div>
-            <div class="ccode">930955 · 跟踪 中证红利低波动100</div>
-          </div>
-          <div class="tempbox" style="color:#e07b27">
-            <span class="tnum">62.8</span><span class="tunit">/100</span>
-          </div>
-        </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:62.8%;background:#e07b27"></div></div></div>
-        <div class="kv">
-          <div><b>11433.78</b><i>点位</i></div>
-          <div><b>9.00</b><i>PE</i></div>
-          <div><b>4.32%</b><i>股息率</i></div>
-          <div><b>9.48pp</b><i>股债差</i></div>
-          <div><b>-2.38%</b><i>年线乖离</i></div>
-          <div><b>48.0</b><i>位置分位</i></div>
-          <div><b>-8.82%</b><i>52周回撤</i></div>
-          <div><b>86</b><i>PE 分位</i></div>
-        </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:68.6%;background:#e07b27"></div></div><span class="fval">69</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:85.7%;background:#e07b27"></div></div><span class="fval">86</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:85.7%;background:#e07b27"></div></div><span class="fval">86</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:22.5%;background:#e07b27"></div></div><span class="fval">22</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:32.6%;background:#e07b27"></div></div><span class="fval">33</span></div></div>
-        <div class="advice" style="background:#fbe8d6">
-          <b>中性偏热</b> · 不再新增，持有观望
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="cname">红利低波 <span class="cfund">007467</span></div>
-            <div class="ccode">H30269 · 跟踪 中证红利低波动</div>
-          </div>
-          <div class="tempbox" style="color:#e07b27">
-            <span class="tnum">66.1</span><span class="tunit">/100</span>
-          </div>
-        </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:66.1%;background:#e07b27"></div></div></div>
-        <div class="kv">
-          <div><b>11136.15</b><i>点位</i></div>
-          <div><b>8.46</b><i>PE</i></div>
-          <div><b>4.27%</b><i>股息率</i></div>
-          <div><b>10.19pp</b><i>股债差</i></div>
-          <div><b>-0.05%</b><i>年线乖离</i></div>
-          <div><b>58.3</b><i>位置分位</i></div>
-          <div><b>-7.12%</b><i>52周回撤</i></div>
-          <div><b>79</b><i>PE 分位</i></div>
-        </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:73.1%;background:#e07b27"></div></div><span class="fval">73</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:79.4%;background:#e07b27"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:79.4%;background:#e07b27"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:32.2%;background:#e07b27"></div></div><span class="fval">32</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:50.5%;background:#e07b27"></div></div><span class="fval">50</span></div></div>
-        <div class="advice" style="background:#fbe8d6">
-          <b>偏热</b> · 可开始部分止盈
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="cname">国企红利 <span class="cfund">561060</span></div>
-            <div class="ccode">000824 · 跟踪 中证国有企业红利</div>
-          </div>
-          <div class="tempbox" style="color:#e07b27">
-            <span class="tnum">70.2</span><span class="tunit">/100</span>
-          </div>
-        </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:70.2%;background:#e07b27"></div></div></div>
-        <div class="kv">
-          <div><b>2142.96</b><i>点位</i></div>
-          <div><b>9.18</b><i>PE</i></div>
-          <div><b>4.10%</b><i>股息率</i></div>
-          <div><b>9.26pp</b><i>股债差</i></div>
-          <div><b>-1.05%</b><i>年线乖离</i></div>
-          <div><b>54.5</b><i>位置分位</i></div>
-          <div><b>-7.44%</b><i>52周回撤</i></div>
-          <div><b>95</b><i>PE 分位</i></div>
-        </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:74.1%;background:#e07b27"></div></div><span class="fval">74</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:95.0%;background:#e07b27"></div></div><span class="fval">95</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:95.0%;background:#e07b27"></div></div><span class="fval">95</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:24.6%;background:#e07b27"></div></div><span class="fval">25</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:45.2%;background:#e07b27"></div></div><span class="fval">45</span></div></div>
-        <div class="advice" style="background:#fbe8d6">
-          <b>偏热</b> · 可开始部分止盈
-        </div>
+        <div class="chartwrap"><img class="chart" src="charts/016441_红利质量.png" alt="红利质量 近一年净值与温度"></div>
       </div>
       <div class="card">
         <div class="card-head">
@@ -260,11 +135,11 @@
             <div class="cname">港股通高股息 <span class="cfund">018388</span></div>
             <div class="ccode">930914 · 跟踪 中证港股通高股息投资</div>
           </div>
-          <div class="tempbox" style="color:#cf4b25">
-            <span class="tnum">77.3</span><span class="tunit">/100</span>
+          <div class="tempbox" style="color:#e07b27">
+            <span class="tnum">60.8</span><span class="tunit">/100</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:77.3%;background:#cf4b25"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:60.8%;background:#e07b27"></div></div></div>
         <div class="kv">
           <div><b>4971.16</b><i>点位</i></div>
           <div><b>10.63</b><i>PE</i></div>
@@ -273,12 +148,148 @@
           <div><b>-3.65%</b><i>年线乖离</i></div>
           <div><b>42.8</b><i>位置分位</i></div>
           <div><b>-9.11%</b><i>52周回撤</i></div>
-          <div><b>93</b><i>PE 分位</i></div>
+          <div><b>74</b><i>PE 分位</i></div>
         </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:98.8%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:93.4%;background:#cf4b25"></div></div><span class="fval">93</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:93.4%;background:#cf4b25"></div></div><span class="fval">93</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:30.5%;background:#cf4b25"></div></div><span class="fval">30</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:32.5%;background:#cf4b25"></div></div><span class="fval">32</span></div></div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:93.9%;background:#e07b27"></div></div><span class="fval">94</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:74.0%;background:#e07b27"></div></div><span class="fval">74</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:74.0%;background:#e07b27"></div></div><span class="fval">74</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:3.9%;background:#e07b27"></div></div><span class="fval">4</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:5.5%;background:#e07b27"></div></div><span class="fval">6</span></div></div>
+        <div class="advice" style="background:#fbe8d6">
+          <b>中性偏热</b> · 不再新增，持有观望
+        </div>
+        <div class="chartwrap"><img class="chart" src="charts/018388_港股通高股息.png" alt="港股通高股息 近一年净值与温度"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">红利低波 <span class="cfund">007467</span></div>
+            <div class="ccode">H30269 · 跟踪 中证红利低波动</div>
+          </div>
+          <div class="tempbox" style="color:#e07b27">
+            <span class="tnum">63.2</span><span class="tunit">/100</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:63.2%;background:#e07b27"></div></div></div>
+        <div class="kv">
+          <div><b>11136.15</b><i>点位</i></div>
+          <div><b>8.46</b><i>PE</i></div>
+          <div><b>4.27%</b><i>股息率</i></div>
+          <div><b>2.49pp</b><i>股债差</i></div>
+          <div><b>-0.05%</b><i>年线乖离</i></div>
+          <div><b>58.3</b><i>位置分位</i></div>
+          <div><b>-7.12%</b><i>52周回撤</i></div>
+          <div><b>99</b><i>PE 分位</i></div>
+        </div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:41.9%;background:#e07b27"></div></div><span class="fval">42</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:98.6%;background:#e07b27"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:98.6%;background:#e07b27"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:37.9%;background:#e07b27"></div></div><span class="fval">38</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:52.6%;background:#e07b27"></div></div><span class="fval">53</span></div></div>
+        <div class="advice" style="background:#fbe8d6">
+          <b>中性偏热</b> · 不再新增，持有观望
+        </div>
+        <div class="chartwrap"><img class="chart" src="charts/007467_红利低波.png" alt="红利低波 近一年净值与温度"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">沪港深红利低波 <span class="cfund">007760</span></div>
+            <div class="ccode">931157 · 跟踪 沪港深红利成长低波</div>
+          </div>
+          <div class="tempbox" style="color:#e07b27">
+            <span class="tnum">65.2</span><span class="tunit">/100</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:65.2%;background:#e07b27"></div></div></div>
+        <div class="kv">
+          <div><b>7158.49</b><i>点位</i></div>
+          <div><b>9.08</b><i>PE</i></div>
+          <div><b>4.73%</b><i>股息率</i></div>
+          <div><b>3.13pp</b><i>股债差</i></div>
+          <div><b>-2.98%</b><i>年线乖离</i></div>
+          <div><b>41.8</b><i>位置分位</i></div>
+          <div><b>-8.66%</b><i>52周回撤</i></div>
+          <div><b>79</b><i>PE 分位</i></div>
+        </div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:94.3%;background:#e07b27"></div></div><span class="fval">94</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:79.0%;background:#e07b27"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:79.0%;background:#e07b27"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:13.5%;background:#e07b27"></div></div><span class="fval">14</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:12.5%;background:#e07b27"></div></div><span class="fval">12</span></div></div>
+        <div class="advice" style="background:#fbe8d6">
+          <b>偏热</b> · 可开始部分止盈
+        </div>
+        <div class="chartwrap"><img class="chart" src="charts/007760_沪港深红利低波.png" alt="沪港深红利低波 近一年净值与温度"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">红利低波100 <span class="cfund">008115</span></div>
+            <div class="ccode">930955 · 跟踪 中证红利低波动100</div>
+          </div>
+          <div class="tempbox" style="color:#e07b27">
+            <span class="tnum">67.0</span><span class="tunit">/100</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:67.0%;background:#e07b27"></div></div></div>
+        <div class="kv">
+          <div><b>11433.78</b><i>点位</i></div>
+          <div><b>9.00</b><i>PE</i></div>
+          <div><b>4.32%</b><i>股息率</i></div>
+          <div><b>2.67pp</b><i>股债差</i></div>
+          <div><b>-2.38%</b><i>年线乖离</i></div>
+          <div><b>48.0</b><i>位置分位</i></div>
+          <div><b>-8.82%</b><i>52周回撤</i></div>
+          <div><b>79</b><i>PE 分位</i></div>
+        </div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:94.4%;background:#e07b27"></div></div><span class="fval">94</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:78.8%;background:#e07b27"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:78.8%;background:#e07b27"></div></div><span class="fval">79</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:17.5%;background:#e07b27"></div></div><span class="fval">18</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:20.8%;background:#e07b27"></div></div><span class="fval">21</span></div></div>
+        <div class="advice" style="background:#fbe8d6">
+          <b>偏热</b> · 可开始部分止盈
+        </div>
+        <div class="chartwrap"><img class="chart" src="charts/008115_红利低波100.png" alt="红利低波100 近一年净值与温度"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">中证红利 <span class="cfund">090010</span></div>
+            <div class="ccode">000922 · 跟踪 中证红利</div>
+          </div>
+          <div class="tempbox" style="color:#e07b27">
+            <span class="tnum">74.8</span><span class="tunit">/100</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:74.8%;background:#e07b27"></div></div></div>
+        <div class="kv">
+          <div><b>5499.33</b><i>点位</i></div>
+          <div><b>8.99</b><i>PE</i></div>
+          <div><b>4.19%</b><i>股息率</i></div>
+          <div><b>2.53pp</b><i>股债差</i></div>
+          <div><b>-1.73%</b><i>年线乖离</i></div>
+          <div><b>49.0</b><i>位置分位</i></div>
+          <div><b>-8.70%</b><i>52周回撤</i></div>
+          <div><b>98</b><i>PE 分位</i></div>
+        </div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:94.2%;background:#e07b27"></div></div><span class="fval">94</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:98.4%;background:#e07b27"></div></div><span class="fval">98</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:98.4%;background:#e07b27"></div></div><span class="fval">98</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:10.9%;background:#e07b27"></div></div><span class="fval">11</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:34.2%;background:#e07b27"></div></div><span class="fval">34</span></div></div>
+        <div class="advice" style="background:#fbe8d6">
+          <b>偏热</b> · 可开始部分止盈
+        </div>
+        <div class="chartwrap"><img class="chart" src="charts/090010_中证红利.png" alt="中证红利 近一年净值与温度"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">国企红利 <span class="cfund">561060</span></div>
+            <div class="ccode">000824 · 跟踪 中证国有企业红利</div>
+          </div>
+          <div class="tempbox" style="color:#cf4b25">
+            <span class="tnum">75.0</span><span class="tunit">/100</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:75.0%;background:#cf4b25"></div></div></div>
+        <div class="kv">
+          <div><b>2142.96</b><i>点位</i></div>
+          <div><b>9.18</b><i>PE</i></div>
+          <div><b>4.10%</b><i>股息率</i></div>
+          <div><b>2.44pp</b><i>股债差</i></div>
+          <div><b>-1.05%</b><i>年线乖离</i></div>
+          <div><b>54.5</b><i>位置分位</i></div>
+          <div><b>-7.44%</b><i>52周回撤</i></div>
+          <div><b>99</b><i>PE 分位</i></div>
+        </div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:94.0%;background:#cf4b25"></div></div><span class="fval">94</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:99.4%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:99.4%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:9.7%;background:#cf4b25"></div></div><span class="fval">10</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:34.6%;background:#cf4b25"></div></div><span class="fval">35</span></div></div>
         <div class="advice" style="background:#f9e0da">
-          <b>过热</b> · 分批减仓
+          <b>偏热</b> · 可开始部分止盈
         </div>
+        <div class="chartwrap"><img class="chart" src="charts/561060_国企红利.png" alt="国企红利 近一年净值与温度"></div>
       </div>
       <div class="card">
         <div class="card-head">
@@ -287,24 +298,25 @@
             <div class="ccode">000825 · 跟踪 中证中央企业红利</div>
           </div>
           <div class="tempbox" style="color:#cf4b25">
-            <span class="tnum">81.0</span><span class="tunit">/100</span>
+            <span class="tnum">76.3</span><span class="tunit">/100</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:81.0%;background:#cf4b25"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:76.3%;background:#cf4b25"></div></div></div>
         <div class="kv">
           <div><b>3519.18</b><i>点位</i></div>
           <div><b>9.89</b><i>PE</i></div>
           <div><b>3.87%</b><i>股息率</i></div>
-          <div><b>8.48pp</b><i>股债差</i></div>
+          <div><b>2.21pp</b><i>股债差</i></div>
           <div><b>1.23%</b><i>年线乖离</i></div>
           <div><b>62.6</b><i>位置分位</i></div>
           <div><b>-7.50%</b><i>52周回撤</i></div>
           <div><b>99</b><i>PE 分位</i></div>
         </div>
-        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:87.1%;background:#cf4b25"></div></div><span class="fval">87</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:99.2%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:99.2%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:41.6%;background:#cf4b25"></div></div><span class="fval">42</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:61.0%;background:#cf4b25"></div></div><span class="fval">61</span></div></div>
+        <div class="factors"><div class="frow"><span class="fname">股债收益差<i>35%</i></span><div class="track" style="height:5px"><div class="fill" style="width:93.8%;background:#cf4b25"></div></div><span class="fval">94</span></div><div class="frow"><span class="fname">PE<i>20%</i></span><div class="track" style="height:5px"><div class="fill" style="width:99.2%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">PB<i>16%</i></span><div class="track" style="height:5px"><div class="fill" style="width:99.2%;background:#cf4b25"></div></div><span class="fval">99</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:17.9%;background:#cf4b25"></div></div><span class="fval">18</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:35.9%;background:#cf4b25"></div></div><span class="fval">36</span></div></div>
         <div class="advice" style="background:#f9e0da">
           <b>过热</b> · 分批减仓
         </div>
+        <div class="chartwrap"><img class="chart" src="charts/561580_央企红利.png" alt="央企红利 近一年净值与温度"></div>
       </div>
       <div class="card partial">
         <div class="card-head">
@@ -313,10 +325,10 @@
             <div class="ccode">CSPSADRP · 跟踪 标普中国A股红利机会</div>
           </div>
           <div class="tempbox" style="color:#3c6fa8">
-            <span class="tnum">15.0</span><span class="tunit">/100</span>
+            <span class="tnum">7.0</span><span class="tunit">/100</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:15.0%;background:#3c6fa8"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:7.0%;background:#3c6fa8"></div></div></div>
         <div class="kv">
           <div><b>1.74</b><i>点位</i></div>
           <div><b>N/A</b><i>PE</i></div>
@@ -327,10 +339,11 @@
           <div><b>-12.11%</b><i>52周回撤</i></div>
           <div><b>N/A</b><i>PE 分位</i></div>
         </div>
-        <div class="factors"><div class="frow muted"><span class="fname">股债收益差<i>35%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PE<i>20%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PB<i>16%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:12.3%;background:#3c6fa8"></div></div><span class="fval">12</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:17.8%;background:#3c6fa8"></div></div><span class="fval">18</span></div></div>
+        <div class="factors"><div class="frow muted"><span class="fname">股债收益差<i>35%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PE<i>20%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PB<i>16%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:6.4%;background:#3c6fa8"></div></div><span class="fval">6</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:7.6%;background:#3c6fa8"></div></div><span class="fval">8</span></div></div>
         <div class="advice" style="background:#e8f0f8">
           <b>价格温度</b> · 仅乖离 50% + 位置 50%，估值面缺失，不与五因子温度并列
         </div>
+        <div class="chartwrap"><img class="chart" src="charts/005125_红利机会.png" alt="红利机会 近一年净值与温度"></div>
       </div>
       <div class="card partial">
         <div class="card-head">
@@ -338,11 +351,11 @@
             <div class="cname">标普红利低波50 <span class="cfund">008163†</span></div>
             <div class="ccode">SPCALVHD50 · 跟踪 标普中国A股大盘红利低波动50</div>
           </div>
-          <div class="tempbox" style="color:#e07b27">
-            <span class="tnum">63.7</span><span class="tunit">/100</span>
+          <div class="tempbox" style="color:#cf4b25">
+            <span class="tnum">76.9</span><span class="tunit">/100</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:63.7%;background:#e07b27"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:76.9%;background:#cf4b25"></div></div></div>
         <div class="kv">
           <div><b>1.45</b><i>点位</i></div>
           <div><b>N/A</b><i>PE</i></div>
@@ -353,27 +366,29 @@
           <div><b>-3.08%</b><i>52周回撤</i></div>
           <div><b>N/A</b><i>PE 分位</i></div>
         </div>
-        <div class="factors"><div class="frow muted"><span class="fname">股债收益差<i>35%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PE<i>20%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PB<i>16%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:51.1%;background:#e07b27"></div></div><span class="fval">51</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:76.3%;background:#e07b27"></div></div><span class="fval">76</span></div></div>
-        <div class="advice" style="background:#fbe8d6">
+        <div class="factors"><div class="frow muted"><span class="fname">股债收益差<i>35%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PE<i>20%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow muted"><span class="fname">PB<i>16%</i></span><div class="track"></div><span class="fval">—</span></div><div class="frow"><span class="fname">年线乖离<i>15%</i></span><div class="track" style="height:5px"><div class="fill" style="width:57.7%;background:#cf4b25"></div></div><span class="fval">58</span></div><div class="frow"><span class="fname">价格位置<i>14%</i></span><div class="track" style="height:5px"><div class="fill" style="width:96.1%;background:#cf4b25"></div></div><span class="fval">96</span></div></div>
+        <div class="advice" style="background:#f9e0da">
           <b>价格温度</b> · 仅乖离 50% + 位置 50%，估值面缺失，不与五因子温度并列
         </div>
+        <div class="chartwrap"><img class="chart" src="charts/008163_标普红利低波50.png" alt="标普红利低波50 近一年净值与温度"></div>
       </div>
   </div>
 
   <div class="foot">
-    <b>动作清单</b>：过热（≥75）港股通高股息(018388)、央企红利(561580) —— 需要在腾额度时优先减；<br>
-    偏冷（&lt;40）红利质量(016441) —— 新增额度优先给它们，分批建仓。
-    <b>本看板不输出仓位倍率</b>：回测（2020-02~2026-09，80 月）：按分位减仓 Calmar 1.03（基准 1.03）、横截面 top2 0.72、绝对档平均仓位 98% —— 温度是「贵不贵」的体检表，
+    <b>动作清单</b>：过热（≥75）国企红利(561060)、央企红利(561580) —— 需要在腾额度时优先减；<br>
+    偏冷（&lt;40）无 —— 新增额度优先给它们，分批建仓。
+    <b>本看板不输出仓位倍率</b>：回测（2020-02~2026-09，80 月）：按分位减仓 Calmar 1.02（基准 1.03）、横截面 top2 0.83、绝对档平均仓位 89% —— 温度是「贵不贵」的体检表，
     不是择时/择基信号（时间维度分位口径越严越差，绝对口径经不起剔除检验）。
     控回撤走 V4（RSI14），选品走 V0 打分。<br>
     <b>口径</b>：温度算在<b>跟踪指数</b>上（基金有费率/跟踪误差）；PE 与点位取中证指数官网日频；
-    10Y 中债取东财中债收益率曲线（018388 港股用 10Y 美债锚）；
+    <b>股债收益差 = 股息率 − 10Y</b>（股息率取 `data/_div_yield_m.csv` 月度：000922/H30269 真实，
+    其余 5 只 000922 变化率代理；930914 无股息率历史，退回 100/PE）；10Y 中债取东财中债收益率曲线
+    （018388 港股用 10Y 美债锚）；
     <b>PB = PE × ROE 中枢（合成）</b> —— 常数 ROE 使 <b>PB 分位 ≡ PE 分位</b>，
     故「五因子」实际权重是 PE 36% + 利差 35% + 乖离 15% + 位置 14%。<br>
     <b>局限</b>：008163（标普中国A股大盘红利低波动50）与 005125（标普中国A股红利机会）三源皆无估值，
     只算价格温度（乖离 50% + 位置 50%，价格用 501029 代理、562060 仅作回退），<b>不可与五因子温度比大小</b>；
-    931468 的 PE 自 2020-05、930955 自 2017-05、931157 自 2019-04，
-    这些标的的「10 年分位」实为全历史分位。<br>
+    分位窗口为「近 2 年」（730 日历日），窗口内不足 300 个观测则<b>不给分位、不出温度</b>（不拿全历史冒充）。<br>
     仅为个人数据记录与研究分析，不构成投资建议；市场有风险，投资需谨慎。
   </div>
 </div>

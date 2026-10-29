@@ -97,9 +97,14 @@ RSI14 = Wilder RSI，用基金累计净值（totvalue，含分红再投）
 ```powershell
 python strategies/dividend/v4_rsi/backtest.py    # 回测 + 阈值敏感性 → backtest/_v4_report.md
 python strategies/dividend/v4_rsi/daily.py       # 每日信号(离线) → daily/_v4_signal.{md,json}
+python strategies/dividend/v4_rsi/chart.py       # 逐标的「累计净值 + RSI14」图 → daily/_v4_<code>_chart.png
+python strategies/dividend/v4_rsi/dashboard.py   # 卡片式看板(内嵌上图) → daily/_v4_dashboard.html
 python strategies/dividend/v4_rsi/universe.py    # 池筛选(单标的适配度) → daily/_v4_universe.html
 ```
 
 每日操作入口是仓库根的 `run_daily_dividend.ps1`（2026-10-26 起由 V4 替换 V0 打分）：
 它先刷新净值再跑 `daily.py --refresh`。V0 打分不再进每日流程，需要时手动
 `python strategies/dividend/v0_rank/rank.py --refresh`。
+
+`dashboard.py` 只做渲染，**依赖 `chart.py` 先产出逐标的小图**（缺图时卡片内显示文字占位，不报错）。
+顺序：`daily.py` → `chart.py` → `dashboard.py`。

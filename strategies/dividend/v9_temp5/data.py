@@ -295,6 +295,99 @@ def load_bond_us(days: int = 60) -> pd.Series | None:
     return s
 
 
+def load_div_yield() -> dict:
+    """指数月度股息率（`data/_div_yield_m.csv`，跨策略数据类）-> {index: {dy, method}}。
+
+    * `real`  ：中证全收益指数 − 价格指数 的 250 日滚动差（000922/H30269 可用）；
+    * `proxy` ：用 000922 的真实股息率变化率代理、水平用各自官网快照校准
+                （930955/931157/931468/000824/000825）—— **形状近似中证红利**；
+    * 港股 930914 与两个标普系列不在文件内，`spread` 退回 `100/PE − 10Y`。
+    """
+    if not os.path.exists(rule.DY_CSV):
+        _warn(f"股息率历史缺失（{rule.DY_CSV}），spread 退回 100/PE − 10Y")
+        return {}
+    df = pd.read_csv(rule.DY_CSV, parse_dates=["date"])
+    out = {}
+    for code, g in df.groupby("index_code"):
+        g = g.sort_values("date")
+        method = str(g["method"].iloc[-1]) if "method" in g.columns else "unknown"
+        out[str(code)] = {"dy": g.set_index("date")["dy"].astype(float),
+                          "method": method}
+    return out
+
+
+# ------------------------------------------------------------------ 蛋卷指数估值（PB 历史）
+_DJ_BASE = "https://danjuanfunds.com/djapi/index_eva"
+_DJ_REF = "https://danjuanfunds.com/djmodule/value-center"
+
+
+def _dj_series(payload, key: str, field: str) -> pd.Series:
+    """蛋卷 history 响应 -> Series(index=日期, values=字段)。坏行跳过。"""
+    rows = ((payload or {}).get("data") or {}).get(key) or []
+    out = {}
+    for x in rows:
+        try:
+            out[pd.to_datetime(int(x["ts"]), unit="ms").normalize()] = float(x[field])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return pd.Series(out).sort_index()
+
+
+def load_danjuan_eva(refresh: bool = False, days: int = 7) -> pd.DataFrame:
+    """蛋卷指数 PE/PB **周频**历史（免 token）-> DataFrame(date, index_code, pe, pb)。
+
+    * 只覆盖 `rule.DJ_CODE` 里的 3 只（000922 / H30269 / 931157），其余 5 只无条目；
+    * 周频（约 517 条 ≈ 10 年，自 2016-10），**不能当日频用**，只做口径对照；
+    * 单只失败沿用旧缓存里该只的数据，全失败才整体回退。
+    """
+    cols = ["date", "index_code", "pe", "pb"]
+    old = None
+    if os.path.exists(rule.DJ_CSV):
+        try:
+            old = pd.read_csv(rule.DJ_CSV, parse_dates=["date"])
+        except Exception:  # noqa: BLE001 - 坏缓存当没有
+            old = None
+    if not refresh and old is not None and len(old):
+        if old["date"].max() >= pd.Timestamp.today().normalize() - pd.Timedelta(days=days):
+            return old[cols]
+
+    frames, ok = [], set()
+    for idx_key, dj_code in rule.DJ_CODE.items():
+        try:
+            pe = _dj_series(_get_json(f"{_DJ_BASE}/pe_history/{dj_code}", {"day": "all"},
+                                      referer=_DJ_REF), "index_eva_pe_growths", "pe")
+            pb = _dj_series(_get_json(f"{_DJ_BASE}/pb_history/{dj_code}", {"day": "all"},
+                                      referer=_DJ_REF), "index_eva_pb_growths", "pb")
+            df = pd.concat([pe.rename("pe"), pb.rename("pb")], axis=1, join="inner").dropna()
+            if df.empty:
+                raise RuntimeError("PE/PB 序列无重叠")
+            df = df.reset_index().rename(columns={"index": "date"})
+            df["index_code"] = idx_key
+            frames.append(df[cols])
+            ok.add(idx_key)
+        except Exception as exc:  # noqa: BLE001 - 单只失败不炸整轮
+            _warn(f"蛋卷估值 {idx_key}({dj_code}) 失败：{type(exc).__name__}: {exc}")
+
+    if not frames:
+        if old is not None and len(old):
+            _warn(f"蛋卷估值全失败，沿用缓存至 {old['date'].max():%Y-%m-%d}")
+            return old[cols]
+        _warn("蛋卷估值全失败且无缓存")
+        return pd.DataFrame(columns=cols)
+
+    out = pd.concat(frames, ignore_index=True)
+    missed = set(rule.DJ_CODE) - ok
+    if missed and old is not None and len(old):
+        keep = old[old["index_code"].isin(missed)]
+        if len(keep):
+            _warn(f"蛋卷估值 {'/'.join(sorted(missed))} 本次失败，沿用缓存")
+            out = pd.concat([out, keep[cols]], ignore_index=True)
+    out = out.sort_values(["index_code", "date"]).reset_index(drop=True)
+    os.makedirs(os.path.dirname(rule.DJ_CSV), exist_ok=True)
+    out.to_csv(rule.DJ_CSV, index=False, encoding="utf-8")
+    return out
+
+
 def official_valuation() -> dict:
     """中证《指数估值》官方股息率（仅展示，不进温度）—— 复用 `pool.load_csindex_value`。
 

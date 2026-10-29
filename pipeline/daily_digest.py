@@ -533,6 +533,7 @@ def collect():
             continue
         fn = PARSERS.get(key)
         if fn is None:
+            print(f"[digest] {key:22s} 无解析器（未注册 PARSERS），卡片将显示「未支持」")
             out[key] = _entry(key, name, None, "未支持", "none",
                               "该策略尚无解析器（新增策略时补 PARSERS）", [],
                               error="no parser")

@@ -63,6 +63,15 @@ def fmt(v, suffix="", digits=2, dash="N/A") -> str:
     return dash if v is None else f"{v:.{digits}f}{suffix}"
 
 
+def _chart(m: dict) -> str:
+    """近一年净值+温度小图（由 charts.py 生成；缺失时给文字占位，不报错）。"""
+    fn = f"{m['code']}_{m['name']}.png"
+    if os.path.exists(os.path.join(rule.DAILY_DIR, "charts", fn)):
+        return (f'<div class="chartwrap"><img class="chart" src="charts/{fn}" '
+                f'alt="{m["name"]} 近一年净值与温度"></div>')
+    return '<div class="chartwrap muted">图表未生成（先运行 charts.py）</div>'
+
+
 def _card(m: dict) -> str:
     c = zone_color(m["temp"])
     is_px = m["temp_kind"] != "五因子温度"
@@ -104,6 +113,7 @@ def _card(m: dict) -> str:
           <b>{m['band']}</b> · {'仅乖离 50% + 位置 50%，估值面缺失，不与五因子温度并列'
                                if is_px else m['action']}
         </div>
+        {_chart(m)}
       </div>"""
 
 
@@ -238,6 +248,10 @@ def render(d: dict) -> str:
   .fval {{ width: 24px; text-align: right; font-size: 11px; color: #8a7860;
            font-variant-numeric: tabular-nums; }}
   .advice {{ margin-top: 12px; padding: 8px 10px; border-radius: 8px; font-size: 12px; color: #5c4a33; }}
+  .chartwrap {{ margin-top: 12px; }}
+  .chart {{ width: 100%; height: auto; display: block; border: 1px solid #eee3cf;
+            border-radius: 8px; background: #fff; }}
+  .chartwrap.muted {{ font-size: 11px; color: #b0a08a; padding: 10px 2px; }}
   .foot {{ margin-top: 18px; background: #fffdf7; border: 1px solid #e6dcc8; border-radius: 14px;
            padding: 16px 22px; font-size: 11.5px; color: #8a7860; line-height: 1.95; }}
   .foot b {{ color: #5c4a33; }}
@@ -258,7 +272,7 @@ def render(d: dict) -> str:
       数据截止 <b>{d['as_of']}</b> · 生成于 {d['generated']} · 池 {len(funds)} 只
       （{len(valued)} 只有估值口径 / {len(px)} 只仅价格温度）<br>
       温度 = 股债收益差 35% + PE 20% + PB 16% + 年线乖离 15% + 价格位置 14%
-      （各取近 10 年日频分位，0 = 冰点，100 = 过热）<br>
+      （各取<b>近 2 年</b>日频分位，0 = 冰点，100 = 过热）<br>
       数据滞后标的：{stale_txt}
     </div>
     <div class="oneline"><b>一句话</b>：{oneline}</div>
@@ -281,13 +295,14 @@ def render(d: dict) -> str:
     不是择时/择基信号（时间维度分位口径越严越差，绝对口径经不起剔除检验）。
     控回撤走 V4（RSI14），选品走 V0 打分。<br>
     <b>口径</b>：温度算在<b>跟踪指数</b>上（基金有费率/跟踪误差）；PE 与点位取中证指数官网日频；
-    10Y 中债取东财中债收益率曲线（018388 港股用 10Y 美债锚）；
+    <b>股债收益差 = 股息率 − 10Y</b>（股息率取 `data/_div_yield_m.csv` 月度：000922/H30269 真实，
+    其余 5 只 000922 变化率代理；930914 无股息率历史，退回 100/PE）；10Y 中债取东财中债收益率曲线
+    （018388 港股用 10Y 美债锚）；
     <b>PB = PE × ROE 中枢（合成）</b> —— 常数 ROE 使 <b>PB 分位 ≡ PE 分位</b>，
     故「五因子」实际权重是 PE 36% + 利差 35% + 乖离 15% + 位置 14%。<br>
     <b>局限</b>：008163（标普中国A股大盘红利低波动50）与 005125（标普中国A股红利机会）三源皆无估值，
     只算价格温度（乖离 50% + 位置 50%，价格用 501029 代理、562060 仅作回退），<b>不可与五因子温度比大小</b>；
-    931468 的 PE 自 2020-05、930955 自 2017-05、931157 自 2019-04，
-    这些标的的「10 年分位」实为全历史分位。<br>
+    分位窗口为「近 2 年」（730 日历日），窗口内不足 300 个观测则<b>不给分位、不出温度</b>（不拿全历史冒充）。<br>
     仅为个人数据记录与研究分析，不构成投资建议；市场有风险，投资需谨慎。
   </div>
 </div>

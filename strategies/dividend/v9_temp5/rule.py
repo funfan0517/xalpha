@@ -7,15 +7,18 @@
 V2 是「四维等权、PB 不可得、股债收益差用股息率代理」的版本；V9 是**外部规则原件**
 （`implementation_rules.md`，公众号《红利类指数温度个人记录》体系）在 `xalpha` 池上的落地：
 
-    温度 = 35%·股债收益差 + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置（各取 10 年分位）
+    温度 = 35%·股债收益差 + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置（各取近 2 年日频分位）
 
 三处与 V2 不同的口径：
 
-1. **股债收益差用盈利收益率**：`100 / PE − 10Y`（无股息率代理，A 股全部标的可算）；
-   V2 用「股息率 − 10Y」，其中 6 只指数的股息率是靠 000922 的变化率代理出来的。
+1. **股债收益差用「股息率 − 10Y」**（`SPREAD_KIND = "dy"`）：股息率取 `data/_div_yield_m.csv`
+   月度序列，000922 / H30269 是真实值，其余 5 只按 000922 变化率代理；无股息率历史的 930914
+   退回 `100 / PE − 10Y`（`SPREAD_KIND = "ey"` 可整体切回盈利收益率口径做对照）。
 2. **PB 参与**：`PB = PE × ROE 中枢`（中证官网无 PB 历史）。⚠ 常数 ROE 意味着
-   **PB 分位 ≡ PE 分位**，所以「五因子」在数学上等于把 36% 权重压在 PE 上 ——
+   **合成 PB 的分位 ≡ PE 分位**，所以「五因子」在数学上等于把 36% 权重压在 PE 上 ——
    `backtest.py` 会把这个等式实测出来，并给出「去掉 PB、四维归一」的对照。
+   ⚠ 但真实 PB 不等价（ROE 时有 9%~11% 变异且系统性下行），该差异见
+   `research/_pb_real_check.md`。
 3. **权重按外部规则原样保留** 35/20/16/15/14（V2 主口径是四维等权）。
 
 方向：分位一律折算成「越高越热」。股债收益差反号（利差宽 = 便宜 = 低分位 = 冷）。
@@ -43,9 +46,9 @@ W_NO_PB = {k: W[k] / _W4_SUM for k in W if k != "pb"}
 # 方向：+1 = 分位越高越热；-1 = 分位越高越冷（利差宽 = 便宜 = 冷）
 SIGN = {"spread": -1, "pe": +1, "pb": +1, "dev": +1, "pos": +1}
 
-# 分位窗口：近 10 年（3650 日历日）的全部日频观测；最少 500 个观测（≈2 年）才给分位
-PCT_WINDOW_DAYS = 3650
-PCT_MIN_N = 500
+# 分位窗口：近 2 年（730 日历日）的全部日频观测；最少 300 个观测才给分位
+PCT_WINDOW_DAYS = 730
+PCT_MIN_N = 300
 MA_WIN = 250            # 年线
 POS_WIN = 250           # 价格位置（52 周 = 250 根 high/low）
 
@@ -138,6 +141,16 @@ DAILY_DIR = os.path.join(_DIR, "daily")
 BOND_CN = os.path.join(ROOT, "data", "_bt_caches", "bond10y_d.csv")      # 日频（本策略生产）
 BOND_CN_M = os.path.join(ROOT, "data", "_bt_caches", "bond10y_m.csv")    # 月频（历史兜底）
 BOND_US_M = os.path.join(ROOT, "data", "_bt_caches", "ust10y_m.csv")     # 月频
+DY_CSV = os.path.join(ROOT, "data", "_div_yield_m.csv")                  # 指数股息率月度历史（跨策略数据类）
+
+# 蛋卷 index_eva：指数 PE/PB 周频历史（免 token，跨策略数据类）。**只覆盖 3 只**：
+#   000922 -> SH000922 · H30269 -> CSIH30269 · 931157 -> CSI931157
+# 其余 5 只（930955/931468/000824/000825/930914）蛋卷无条目，PB 仍只能合成。
+DJ_CSV = os.path.join(ROOT, "data", "_danjuan_eva.csv")
+DJ_CODE = {"000922": "SH000922", "H30269": "CSIH30269", "931157": "CSI931157"}
+
+# 股债收益差口径："dy" = 股息率 − 10Y（红利专用，优先）；"ey" = 100/PE − 10Y（无股息率时的兜底）
+SPREAD_KIND = "dy"
 
 OUT_REPORT = os.path.join(BT_DIR, "_v9_report.md")
 OUT_PANEL = os.path.join(BT_DIR, "_v9_panel.jsonl")
@@ -148,8 +161,9 @@ OUT_JSON = os.path.join(DAILY_DIR, "_v9_signal.json")
 OUT_HTML = os.path.join(DAILY_DIR, "_v9_temp.html")
 
 SUBTITLE = [
-    "温度 = 35%·股债收益差 + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置（各取 10 年分位）",
-    "股债收益差 = 100/PE − 10Y 国债（反号：利差宽 = 便宜 = 冷）；PB = PE × ROE 中枢（无公开 PB 历史）",
+    "温度 = 35%·股债收益差 + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置（各取近 2 年分位）",
+    "股债收益差 = 股息率 − 10Y 国债（红利专用；930914 港股无股息率历史，退回 100/PE − 10Y）；"
+    "PB = PE × ROE 中枢（无公开 PB 历史）",
     "档位阈值固定：<20 冰点 / 20–40 偏冷 / 40–55 中性 / 55–65 中性偏热 / 65–75 偏热 / 75–85 过热 / ≥85 危险",
     f"池 {len(CODES)} 只（{len(VALUED)} 只有估值口径，2 只标普系列只算价格温度、不参与排名）",
 ]

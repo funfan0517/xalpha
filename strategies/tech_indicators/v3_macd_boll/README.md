@@ -50,6 +50,9 @@
 本目录**只读复用**上级基线 `../backtest.py` 的引擎与 5 个基础策略（MA/VOL/MACD/KDJ/BOLL），
 用于对照；**不修改、不覆盖**基线文件。
 
+> 2026-10-30 已复制到 `strategies/vol_legs/v3_macd_boll/`（换六腿场外复权净值池，规则本体不变），
+> 那份是 MACD+BOLL 在 vol_legs 标的池上的口径，二者互不替代。
+
 ## 运行
 
 ```powershell

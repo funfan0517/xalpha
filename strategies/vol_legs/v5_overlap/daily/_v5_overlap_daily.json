@@ -1,0 +1,49 @@
+{
+ "strategy": "V5 两线重合买点",
+ "as_of": "2026-10-29",
+ "rule": {
+  "mode": "level",
+  "level_tol": 0.02,
+  "anchor": "2005-01-04",
+  "hold_days": 250,
+  "allow_rebuy": true,
+  "trade_at": "T+1 收盘净值"
+ },
+ "readings": {
+  "tr": 6085.42,
+  "tr_n": 6191.984045421708,
+  "bd": 3.1515067054983583,
+  "bd_n": 2940.8294580841566,
+  "R": 2.1055229939976052,
+  "threshold": 1.02,
+  "trig": false,
+  "position": 0,
+  "days_left": 0,
+  "held_days": 0,
+  "buy_date": null,
+  "sell_date": null
+ },
+ "action": {
+  "capital": 1000000.0,
+  "todo": "不动",
+  "text": "空仓等待；红线需相对蓝线再跌 **51.6%**（R 从 2.106 到 1.020）才触发买点"
+ },
+ "episodes": [
+  {
+   "start": "2005-01-04",
+   "end": "2006-04-20",
+   "days": 312,
+   "R_start": 1.0,
+   "R_min": 0.807428738569989,
+   "R_mean": 0.9132718298743979,
+   "z_start": null,
+   "tr_start": 982.79,
+   "tr_after_1y": -0.021723867764222193
+  }
+ ],
+ "source": {
+  "hs300_tr": "本地缓存 `csi_H00300.csv` · 至 2026-10-29",
+  "bond_index": "本地缓存 `_v5_bond_index.csv` · 至 2026-10-29"
+ },
+ "warn": []
+}

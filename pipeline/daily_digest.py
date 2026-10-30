@@ -200,50 +200,57 @@ def parse_dividend(_cfg):
                        for t in prev.get("target") or []) or "空仓"
         preview = f" · 预览会变 → {tgt}"
 
-    # ── V9 五因子温度（同卡片追加，逐只档位；完整温度表见独立 HTML 看板）
-    v9_summary, v9_stats, v9_note, n_v9 = "", [], "", 0
-    v9_json = daily.get("v9_signal_json")
-    if v9_json:
-        try:
-            v9 = json.loads(_read(os.path.join(_ROOT, v9_json)))
-            v9_rows = v9.get("funds") or []
-            hot = set(v9.get("hot") or [])
-            cold = set(v9.get("cold") or [])
-            for r in v9_rows:
-                code, name = r.get("code"), r.get("name")
-                temp = float(r.get("temp") or 0)
-                band = r.get("band") or "—"
-                if code in hot or band in ("危险", "过热", "偏热"):
-                    act = "sell"
-                elif code in cold or band in ("冰点", "偏冷"):
-                    act = "buy"
-                else:
-                    act = "hold"
-                rows.append(_row(code, f"V9·{name}", act, band,
-                                 f"温度 {temp:.1f} · {r.get('action', '')}"))
-            n_v9 = len(v9_rows)
-            if v9_rows:
-                bt = v9.get("board_temp")
-                v9_summary = f" · V9 板块温度 {float(bt):.1f}" if bt is not None else ""
-                v9_stats = [["V9 板块温度", "—" if bt is None else f"{float(bt):.1f}"],
-                            ["V9 过热/偏冷", f"{len(hot)} / {len(cold)}"]]
-                v9_note = (f"V9（五因子估值温度，{n_v9} 只有估值标的）也纳入每日操作："
-                           "只出「逐只档位 + 加/减仓额度参考」，不调仓位、不择时"
-                           "（回测证明横截面与分位减仓均无 alpha）；完整温度表见独立 HTML 看板。")
-        except Exception:  # noqa: BLE001 - V9 产物缺失不阻断 V4 卡片
-            pass
-
+    # 2026-10-30 起 V9 估值温度独立成卡（见 parse_dividend_v9）：V4 只管「仓位怎么摆」，
+    # V9 只管「贵不贵、额度给谁」，混在一张表里会被读成同一层决策。
     return _entry(
-        "dividend", "红利 V4 择时 + V9 温度" if n_v9 else "红利 V4 · RSI 择时", as_of,
+        "dividend", "红利 V4 · RSI14 择时", as_of,
         tier.replace("（", " ").replace("）", ""), tone,
-        f"板块 RSI {d.get('board_rsi', '—')} · 持 {holds}{preview}{v9_summary}", rows,
+        f"板块 RSI {d.get('board_rsi', '—')} · 持 {holds}{preview}", rows,
         [["板块 RSI", str(d.get("board_rsi", "—"))], ["档位", tier],
          ["持仓", f"{len(positions)} 只 · {sum(pos.values()) * 100:.0f}%"],
-         ["下次决策", str(d.get("next_decision") or "—")]] + v9_stats,
+         ["下次决策", str(d.get("next_decision") or "—")]],
         note="V4 · RSI14 择时（月末收盘确认、次日开盘执行；月中为预览）：板块(池内 5 只)RSI 均值 ≥70 清仓 / ≥50 减半，"
-             "横截面取 RSI 最低 2 只等权。"
-             + ((" " + v9_note) if v9_note else "")
-             + " 2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。",
+             "横截面取 RSI 最低 2 只等权。2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。"
+             "V9 五因子估值温度已拆成板块4 的第二张卡。",
+        src=_rel(os.path.join(_ROOT, daily["signal_md"])),
+    )
+
+
+def parse_dividend_v9(_cfg):
+    """V9 五因子估值温度：6 只有估值标的的逐只档位，不调仓位（体检表）。"""
+    daily = _cfg["daily"]
+    d = json.loads(_read(os.path.join(_ROOT, daily["signal_json"])))
+    funds = sorted(d.get("funds") or [], key=lambda f: -(float(f.get("temp") or 0)))
+    rows, hot, cold = [], [], []
+    for f in funds:
+        temp = float(f.get("temp") or 0)
+        band = f.get("band") or "—"
+        if band in ("危险", "过热", "偏热"):
+            act, hot = "sell", hot + [f.get("code")]
+        elif band in ("冰点", "偏冷"):
+            act, cold = "buy", cold + [f.get("code")]
+        else:
+            act = "hold"
+        rows.append(_row(f.get("code"), f.get("name"), act, band,
+                         f"温度 {temp:.1f} · {f.get('action', '')} · "
+                         f"{f.get('index_name') or f.get('index', '')}"))
+
+    bt, bp = d.get("board_temp"), d.get("board_pct")
+    tone = "sell" if len(hot) > len(cold) else ("buy" if len(cold) > len(hot) else "hold")
+    badge = f"板块温度 {float(bt):.1f}" if bt is not None else "—"
+    return _entry(
+        "dividend_v9", "红利 V9 · 五因子估值温度", d.get("as_of"), badge, tone,
+        f"{len(funds)} 只有估值标的 · 板块温度 {badge}"
+        + (f"（自身分位 {float(bp) * 100:.0f}%）" if bp is not None else "")
+        + f" · 偏热 {len(hot)} / 偏冷 {len(cold)} · 只给额度参考，不调仓位",
+        rows,
+        [["板块温度", "—" if bt is None else f"{float(bt):.1f}"],
+         ["板块自身分位", "—" if bp is None else f"{float(bp) * 100:.0f}%"],
+         ["偏热只数", str(len(hot))], ["偏冷只数", str(len(cold))]],
+        note="V9 · 五因子温度（利差 35 / PE 20 / PB 16 / 乖离 15 / 位置 14，各取近 2 年分位）："
+             "档位 危险≥85 / 过热≥75 / 偏热≥65 / 中性偏热≥55 / 中性≥40 / 偏冷≥20 / 冰点<20。"
+             "回测显示横截面选品与分位减仓均无 alpha，故**只当估值体温计用，不输出仓位倍率**；"
+             "仓位节奏看板块4 的 V4 卡。完整温度表见 strategies/dividend/v9_temp5/daily/_v9_temp.html。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
     )
 
@@ -269,6 +276,34 @@ def parse_growth_div(_cfg):
          ["本月切换", f"{d.get('month_switches')}/{d.get('month_cap')}"]],
         note="二元轮动（成长 / 红利·现金），信号用指数收盘，次日开盘执行。",
         src=_rel(os.path.join(_ROOT, "strategies", "growth_div_rotation", "v0", "daily", "_signal_report.md")),
+    )
+
+
+def parse_gd_v1(_cfg):
+    """成长/红利轮动 v1：R 的绝对水位（0.20/0.31）+ 5 期分批，与 v0 的 MA20 缓冲带并列。"""
+    daily = _cfg["daily"]
+    d = json.loads(_read(os.path.join(_ROOT, daily["signal_json"])))
+    act = d.get("action") or "不动"
+    tone = {"切成长": "buy", "切红利": "sell", "分批中": "watch"}.get(act, "hold")
+    t = d.get("trigger") or {}
+    side = d.get("target") or "dividend"
+    ex = (d.get("exec") or {}).get(side) or {}
+    rows = [_row(ex.get("code"), f"{d.get('target_label', side)}侧", tone, act,
+                 f"{d.get('reason', '')} · R {d.get('R')} 昨 {d.get('R_prev')} · "
+                 f"{t.get('dist_text', '')}")]
+    return _entry(
+        "gd_v1", "成长/红利轮动 v1 · 绝对阈值", d.get("as_of"), act, tone,
+        f"持 {d.get('target_label', side)} · 今日 {act} · {t.get('dist_text', '')}",
+        rows,
+        [["R", f"{float(d.get('R') or 0):.4f}"],
+         ["阈值 LOW/HIGH", f"{d.get('low')} / {d.get('high')}"],
+         ["当前标的", str(d.get("target_label", side))],
+         ["分批剩余", f"{d.get('pending_left')} 份"]],
+        note="v1 = R 的**绝对水位**（科创50 ÷ 中证红利）：R≤0.20 清红利分 5 期买成长 / R≥0.31 清成长分 5 期买红利 / "
+             "中间地带不动、只按定投日买当前标的。与 v0 的差别：v0 看 R 相对 MA20±1% 缓冲带 + 250 日分位（无量纲、换标的不失效），"
+             "v1 看绝对水位（量纲相关，换指数/基期必须重标定）。回测 2020-01~2026-10：v1 年化 +11.31%/回撤 -45.55%/Calmar 0.25、"
+             "全期仅 2 次换仓；v0 +9.43%/-35.78%/Calmar 0.26、64 次切换 —— 风险调整后打平，v1 阈值近乎惰性。",
+        src=_rel(os.path.join(_ROOT, daily["signal_report"])),
     )
 
 
@@ -543,7 +578,9 @@ def parse_vol_legs(_cfg):
 
 PARSERS = {
     "dividend": parse_dividend,
+    "dividend_v9": parse_dividend_v9,
     "growth_div_rotation": parse_growth_div,
+    "gd_v1": parse_gd_v1,
     "tech_indicators": parse_tech_indicators,
     "v1_ma20": parse_v1_ma20,
     "permanent": parse_permanent,

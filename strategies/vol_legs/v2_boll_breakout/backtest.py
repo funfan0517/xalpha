@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V6 变种：BOLL 上轨突破 · 六腿回测（逐腿 + 组合层）。
+"""波动资产 · V2 变种：BOLL 上轨突破 · 六腿回测（逐腿 + 组合层）。
 
 原 `strategies/tech_indicators/v16_boll_breakout/backtest.py`（2026-10-30 迁入 vol_legs，
 标的池从「`data/_universe.md` 前四类 54 只场内 ETF」改为主策略的**六腿场外复权净值**）。
@@ -11,9 +11,9 @@
 - 空仓按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益。
 
 产出（本目录 backtest/）：
-- `_v6_boll_breakout_bt.md` / `.jsonl`：逐腿对照 + 组合层 + 方向对照 + 成交时滞/费率/止损/参数敏感性
-- `_v6_boll_breakout_portfolio.png`：组合层净值（择时 / 静态带 / 等权）
-- `_v6_boll_breakout_legs.png`：六腿逐腿价格 + 三轨 + 买卖点（2×3）
+- `_v2_boll_breakout_bt.md` / `.jsonl`：逐腿对照 + 组合层 + 方向对照 + 成交时滞/费率/止损/参数敏感性
+- `_v2_boll_breakout_portfolio.png`：组合层净值（择时 / 静态带 / 等权）
+- `_v2_boll_breakout_legs.png`：六腿逐腿价格 + 三轨 + 买卖点（2×3）
 
 模拟结果，非投资建议。
 """
@@ -113,8 +113,8 @@ def portfolio_rows(frame):
     """组合层：BOLL 择时（零费 / 扣费）/ 静态带 / 六腿等权。"""
     sigs = {k: boll.signal(frame[k])[0] for k in frame.columns}
     navs = [
-        ("V6 BOLL 择时（按带权）", boll.portfolio(frame, signals=sigs)),
-        ("V6 BOLL 择时（扣申赎费）", boll.portfolio(frame, signals=sigs, fee=True)),
+        ("V2 BOLL 择时（按带权）", boll.portfolio(frame, signals=sigs)),
+        ("V2 BOLL 择时（扣申赎费）", boll.portfolio(frame, signals=sigs, fee=True)),
         ("静态带（按带权恒定持有）", boll.portfolio(frame, signals=None)),
         ("六腿等权（恒定持有）", boll.portfolio(frame, signals=None,
                                                 weight={k: 1.0 / len(frame.columns)
@@ -241,8 +241,8 @@ def _plot_portfolio(nav_by, path):
     plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
     fig, ax = plt.subplots(figsize=(13, 6.5))
-    colors = {"V6 BOLL 择时（按带权）": "#93c",
-              "V6 BOLL 择时（扣申赎费）": "#d33",
+    colors = {"V2 BOLL 择时（按带权）": "#93c",
+              "V2 BOLL 择时（扣申赎费）": "#d33",
               "静态带（按带权恒定持有）": "#27c",
               "六腿等权（恒定持有）": "#888"}
     for name, nav in nav_by.items():
@@ -316,7 +316,7 @@ def main():
     dirs = [direction_row(frame, "BOLL 上轨突破（本变种）", lambda p: boll.signal(p)),
             direction_row(frame, "BOLL 镜像反转（下轨买 / 上穿中轨卖）", _mirror_signal)]
 
-    with open(os.path.join(OUTDIR, "_v6_boll_breakout_bt.jsonl"), "w", encoding="utf-8") as f:
+    with open(os.path.join(OUTDIR, "_v2_boll_breakout_bt.jsonl"), "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps({k: (round(v, 4) if isinstance(v, float) else v)
                                 for k, v in r.items()}, ensure_ascii=False) + "\n")
@@ -329,11 +329,11 @@ def main():
     med_edge_fee = _med(rows, "edge_fee_pp")
     _drag_pp = sorted(abs((r["ann_fee"] - r["ann"]) * 100) for r in rows
                       if r["fee_buy"] or r["fee_sell"])          # A 类腿的年化拖累(pp)
-    yr = boll.yearly(nav_by["V6 BOLL 择时（按带权）"])
+    yr = boll.yearly(nav_by["V2 BOLL 择时（按带权）"])
     yr_band = boll.yearly(nav_by["静态带（按带权恒定持有）"])
 
     L = [
-        "# 波动资产 · V6 变种：BOLL 上轨突破（六腿逐腿择时）",
+        "# 波动资产 · V2 变种：BOLL 上轨突破（六腿逐腿择时）",
         "> 池与主策略**完全一致**：`rule.LEG_ORDER` 六腿（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）"
         " · 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）",
         "> T 日盘后算信号、**T+1 净值成交** · 空仓按货基 "
@@ -413,7 +413,7 @@ def main():
         "| 变种 | 组合年化 | 组合回撤 | 夏普 | 平均投入 | 逐腿年笔数 | 扣费后年化 | 年化拖累 |",
         "|---|---|---|---|---|---|---|---|",
         f"| V1 MA20 穿越 | +8.10% | -9.20% | 0.86 | 57% | 13~16 | +1.42% | **-6.68pp** |",
-        f"| **V6 BOLL 上轨突破** | {boll.fmt_pct(prows[0]['ann'])} | {boll.fmt_pct(prows[0]['mdd'])} | "
+        f"| **V2 BOLL 上轨突破** | {boll.fmt_pct(prows[0]['ann'])} | {boll.fmt_pct(prows[0]['mdd'])} | "
         f"{prows[0]['sharpe']:.2f} | {prows[0]['invested']:.0%} | 2.2~3.1 | "
         f"{boll.fmt_pct(prows[1]['ann'])} | **{(prows[1]['ann'] - prows[0]['ann']) * 100:+.2f}pp** |",
         "",
@@ -523,15 +523,15 @@ def main():
         "> **模拟结果，非投资建议。**",
     ]
 
-    path = os.path.join(OUTDIR, "_v6_boll_breakout_bt.md")
+    path = os.path.join(OUTDIR, "_v2_boll_breakout_bt.md")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(L))
 
-    _plot_portfolio(nav_by, os.path.join(OUTDIR, "_v6_boll_breakout_portfolio.png"))
-    _plot_legs(rows, os.path.join(OUTDIR, "_v6_boll_breakout_legs.png"))
+    _plot_portfolio(nav_by, os.path.join(OUTDIR, "_v2_boll_breakout_portfolio.png"))
+    _plot_legs(rows, os.path.join(OUTDIR, "_v2_boll_breakout_legs.png"))
 
     print("报告:", path)
-    print("结果:", os.path.join(OUTDIR, "_v6_boll_breakout_bt.jsonl"))
+    print("结果:", os.path.join(OUTDIR, "_v2_boll_breakout_bt.jsonl"))
     print(f"逐腿 {len(rows)} 腿：年化跑赢 {n_beat}/{len(rows)} · 回撤更小 {n_dd}/{len(rows)} · "
           f"年化差中位 {med_edge:+.2f}pp（扣费 {med_edge_fee:+.2f}pp）")
     for r in sorted(rows, key=lambda z: z["edge_pp"], reverse=True):

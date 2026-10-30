@@ -348,9 +348,9 @@
       "note": "2026-10-30 按用户「股债利差（ERP）通道」规则卡落地（用户原称 v3, 因创建时 v3 已被等金额网格变种占用而编号 v4；该网格变种已于 2026-10-30 删除）。**定位**: 不发生在六腿内部, 而是回答「沪深300 与国债之间摆多少」; 与主策略(六腿 pp)、v1_ma20(整腿下车)是不同层次, **默认不与主策略叠加**（叠加前先定谁的额度优先）。**三处规则没写但必须定的口径**: ①PE 用中证官网 peg(滚动/TTM); 换静态 PE 只平移整条 ERP 曲线, 而通道是相对自己 MA±2σ → 信号基本不变、只有绝对读数变; ②「触及上轨」按**水平**判而非金叉（否则次日就退出, 与视频「低估可能持续数月」矛盾）; ③滞回带 进 2σ/出 0σ（不设滞回会在轨道附近天天翻信号）。**两处数据工程**: ①股票腿必须用**全收益 H00300**（价格指数每年漏约 2pp 分红, 对股债对比是系统性偏差）; ②沪深300 两个缓存改「单调增厚」写入(csi_000300.csv 补到 2005-01, PE 2011-06 起有值); **10Y 中债不再放共享缓存** —— data/_bt_caches/bond10y_d.csv 是股息策略生产、按 12 年窗口整体覆盖, 2026-10-30 实测把它补到 2002 年后被股息流程截回 2013-09, 导致样本起点与债券腿年化静默变化(4.18%->4.77%、起点 2012-08->2014-09, 无报错), 故本变种自存 strategies/vol_legs/v4_erp_band/data/bond10y_long.csv(25 年), 共享文件仅只读兜底并告警。绘图: 只保留两张 —— plot_overlay 单面板双 Y 轴(利差/均线/±2σ vs 指数点位, 复刻 Wind 截图) 的全样本与近三年; 窗口已按用户 2026-10-30 比对定为 250 日。**回测诚实结论**（2012-08~2026-10, 14.2 年, 含费, 250日/±2σ/回穿均线/80-50-20）: 策略 +4.88%/年、回撤 -23.48%、夏普 0.31、平均股票仓位 51%; **vs 同窗口静态 50/50 的 +4.94% 只有 -0.06pp —— 没有超额**, 相对买入持有沪深300(全收益 +6.71%) 是 -1.83pp（但回撤只有一半）; 静态 80/20 +6.07%/-38.87%, 合成债 D=8 +4.18%/-8.25%/夏普 0.92。**方向检验失败**: 反向信号(低估 20/高估 80) +5.31%（+0.37pp）但回撤 -34.88% —— 反向的「超额」全部来自更长时间满仓股票的 beta, 这条信号在本样本识别不出方向性优势。**「低估≠立刻上涨」成立**: 低估态未来 60 日 +2.49%(胜率 60%) vs 高估态 +1.97%(61%) 几乎无差, 10% 分位 -10.87%; 只有 250 日口径才分得开（低估 +12.0% vs 高估 -5.5%）, 而规则持仓周期通常不到 250 日。**A 股最难看的一面**: 高估段 2014-12~2015-08(+12.0%)/2016-12~2018-03(+13.8%)/2020-07~2021-05(+8.4%) 全是正收益（动量最强阶段）, 低估段 2021-07~2023-01 是 -12.9% 的价值陷阱。**参数比规则更重要也更易过拟合**: 窗口 120/250/500/750/1250 超额 -0.67/-0.06/+1.59/+2.94/+0.98pp（长窗口样本起点被推后 1~2 年且 1250 又掉回来 → 不单调, 是抽样运气）; 分半样本超额 +0.24pp / -0.08pp; 逐年跑赢静态 50/50 仅 7/15 年（2017 落后 -9.2pp）。**结论**: 它是「情绪刻度 + 再平衡触发器」（极端低估提醒补到 80%、极端高估提醒降到 20%）, 不是收益引擎。**已知边界**: 样本只有 14.2 年且 2012-2026 是 A 股估值中枢持续下移的十四年（对低估值买入类规则最不友好）; 缺 2005-2011（含 2008 型极端低估）; PE 为滚动口径, 与 Wind 有差; 债券腿是 D=8 合成指数(忽略凸性/骑乘), 真实债基 003377 一档超额 -0.83pp; 未计申赎时滞/限购/跟踪误差; 当前只支持沪深300。",
       "pipeline_mode": "full_pool"
     },
-    "v6_boll_breakout": {
-      "name": "波动资产 V6 变种 · 六腿 BOLL 上轨突破（逐腿进出时点）",
-      "source_methodology": "strategies/vol_legs/v6_boll_breakout/README.md（规则权威源 strategies/vol_legs/v6_boll_breakout/boll.py::PARAMS; 标的池继承主策略 strategies/vol_legs/rule.py::LEGS）· 原 tech_indicators/v16_boll_breakout, 2026-10-30 迁入 vol_legs 并改为六腿口径",
+    "v2_boll_breakout": {
+      "name": "波动资产 V2 变种 · 六腿 BOLL 上轨突破（逐腿进出时点）",
+      "source_methodology": "strategies/vol_legs/v2_boll_breakout/README.md（规则权威源 strategies/vol_legs/v2_boll_breakout/boll.py::PARAMS; 标的池继承主策略 strategies/vol_legs/rule.py::LEGS）· 原 tech_indicators/v16_boll_breakout, 2026-10-30 迁入 vol_legs 并改为六腿口径",
       "universe": {
         "offshore_pool": "data/_universe.md",
         "signal": "六腿场外复权净值（rule.LEGS 逐腿 otc 代码）: 023299/270042/017641/011609/012805/000216, 桥接 000051/050025",
@@ -368,7 +368,7 @@
         "组合层权重按目标带归一化: A500 .125 / 纳指 .25 / 标普 .25 / 科创50 .0625 / 恒生科技 .0625 / 黄金 .25（满仓 = 40pp）"
       ],
       "thresholds": {
-        "authoritative": "strategies/vol_legs/v6_boll_breakout/boll.py::PARAMS / ::W / ::CASH_DAILY / ::FEE",
+        "authoritative": "strategies/vol_legs/v2_boll_breakout/boll.py::PARAMS / ::W / ::CASH_DAILY / ::FEE",
         "n": 35,
         "k": 2.0,
         "stop": null,
@@ -376,17 +376,17 @@
         "trade_at": "T+1 净值（回测口径）"
       },
       "backtest": {
-        "engine": "strategies/vol_legs/v6_boll_breakout/backtest.py",
-        "raw_out": "strategies/vol_legs/v6_boll_breakout/backtest/_v6_boll_breakout_bt.jsonl",
-        "report": "strategies/vol_legs/v6_boll_breakout/backtest/_v6_boll_breakout_bt.md",
-        "figures": "strategies/vol_legs/v6_boll_breakout/backtest/_v6_boll_breakout_portfolio.png · _v6_boll_breakout_legs.png",
-        "window": "逐腿各自 BOLL(35) 成形日起（A500 2009-09 起含 000051 桥接、黄金 2013-10、纳指/标普 2012-08、科创50 2021-06、恒生科技 2021-10）; 组合层共同窗口 2021-10-11~2026-10-28; 不接受 --codes 分批, 直接跑 strategies/vol_legs/v6_boll_breakout/backtest.py"
+        "engine": "strategies/vol_legs/v2_boll_breakout/backtest.py",
+        "raw_out": "strategies/vol_legs/v2_boll_breakout/backtest/_v2_boll_breakout_bt.jsonl",
+        "report": "strategies/vol_legs/v2_boll_breakout/backtest/_v2_boll_breakout_bt.md",
+        "figures": "strategies/vol_legs/v2_boll_breakout/backtest/_v2_boll_breakout_portfolio.png · _v2_boll_breakout_legs.png",
+        "window": "逐腿各自 BOLL(35) 成形日起（A500 2009-09 起含 000051 桥接、黄金 2013-10、纳指/标普 2012-08、科创50 2021-06、恒生科技 2021-10）; 组合层共同窗口 2021-10-11~2026-10-28; 不接受 --codes 分批, 直接跑 strategies/vol_legs/v2_boll_breakout/backtest.py"
       },
       "select": {
         "out_active_md": "strategies/vol_legs/daily/_universe_vol_legs_active.md",
         "out_active_json": "strategies/vol_legs/daily/_universe_vol_legs_active.json",
         "min_sample_years": 0.0,
-        "criteria": "不做 A/B 分级: 池 = rule.LEGS 固定六腿, 名单与主策略共用（本变种无独立分级产物）; 勿跑 run_flow select --strategy v6_boll_breakout（会覆盖主策略名单）"
+        "criteria": "不做 A/B 分级: 池 = rule.LEGS 固定六腿, 名单与主策略共用（本变种无独立分级产物）; 勿跑 run_flow select --strategy v2_boll_breakout（会覆盖主策略名单）"
       },
       "daily": {
         "block": "vol",
@@ -396,64 +396,7 @@
         "enabled": false,
         "automation": "(未创建)"
       },
-      "note": "2026-10-30 由 tech_indicators/v16_boll_breakout 迁入 vol_legs 成为变种 v6（原 54 只场内 ETF 全池 -> 六腿场外复权净值; 规则与参数原样保留, 只换池与成交纪律; 未注册到 v16 时期, 故 tech_indicators 侧只留一行迁出说明）。**定位**: 与 v1_ma20 同一层（逐腿进出时点）, 指标换成 BOLL(35,2) 上穿买入 / 跌回中轨卖出; 主策略仍管组合层仓位带（阶梯/闸门/再平衡）, 三者可叠加不可替代。**回测诚实结论**（场外净值口径, 2026-10-30）: 逐腿 6 腿年化跑赢买入持有 3/6、回撤全部更小 6/6（年化差中位 +1.33pp, 扣费后 +0.49pp）; 组合层 2021-10-11~2026-10-28 年化 8.73% / 回撤 -5.30% / 夏普 1.18（扣费 7.42% / -6.26% / 0.97）, 静态带 12.10% / -17.45% / 0.89, 平均只投入 35% —— **让渡收益、换回撤与夏普**。**真正的长处**: 换手只有 MA20 的 1/6（2.2~3.1 笔/年 vs 13~16 笔）, 扣费后只掉 -1.31pp（v1_ma20 掉 -6.68pp, 扣费后只剩 1.42%）。**方向检验**: 镜像成「下穿下轨买、回升中轨卖」（v15 反转方向）后中位年化 6.04% -> 1.73%、回撤 -18.88% -> -26.43%、组合 8.73% -> 3.06% —— 在这六条长期上行资产上突破做多优于抄底做多。**止损**: -8%/-10%/-15% 与关闭完全相同（183 笔不变, 中轨出场已先触发）, 不要再加百分比止损。**已知边界**: QDII 腿净值滞后 T+1~T+2（T+2 一档组合 9.01% / 扣费 7.70%, 无系统性衰减）; 桥接段（000051/050025）不是本基金业绩; C 类 0.2%/年销售服务费未计; 组合层仅 5 年样本（受 012805 2021-08 成立限制）, 且这段是「A股熊转牛 + 黄金大牛 + 港股深跌 + 美股长牛」的特定组合。**流程**: 只有回测入口, 无 daily 产物 -> daily.enabled=false（不出看板卡片, 避免「未支持」空卡片）; select 指向主策略固定六腿名单（只读共用, 不要跑 select）。",
-      "pipeline_mode": "full_pool"
-    },
-    "v5_overlap": {
-      "name": "波动资产 V5 变种 · 两线重合买点（沪深300全收益 × 二级债基指数，买入持有一年）",
-      "source_methodology": "用户 2026-10-30 提供的规则 + 参考图（红=沪深300全收益、蓝=二级债基指数，两线重合/红线跌破蓝线处画圈=买点，「卖出点暂时定为持有一年后卖出」）· 规则与参数权威源 strategies/vol_legs/v5_overlap/overlap.py::CFG（anchor/mode/level_tol/hold_days/allow_rebuy/lag/fee/cash_mode/bond_baseline）",
-      "universe": {
-        "offshore_pool": "不适用（本变种不碰六腿, 只做单一标的沪深300 的「什么时候便宜到可以满仓」）",
-        "signal": "沪深300全收益 H00300（红线）÷ 自建二级债基指数（蓝线），同锚归一 1000 后 R = 红/蓝；买点 R ≤ 1+tol",
-        "data": "data/_bt_caches/csi_H00300.csv（沪深300全收益, 共享） + strategies/vol_legs/v5_overlap/data/_v5_bond_funds.csv（8 只老债基累计净值, 本变种自用） + _v5_bond_index.csv（复合指数）",
-        "note": "蓝线是自建的: 万得 885007.WI 无公开接口, 故取 8 只 2003~2010 年成立的老债基（二级 4 + 一级 4）累计净值、当日有净值的成员等权复合（202101/240003/217003/090002/020002/100018/110017/485111）; 2005-01 起 6 只、2010-08 起 8 只全到。单只 202101 南方宝元留作敏感性对照。"
-      },
-      "rules": [
-        "红线: 沪深300全收益指数 H00300（含分红再投, 不是价格指数）",
-        "蓝线: 自建二级债基指数（8 只老债基累计净值等权复合, 锚 1.0）",
-        "归一: 两条线在锚点 2005-01-04 都归一到 1000; R = 红/蓝, 锚点处 R=1（= 股票相对债券的累计超额）",
-        "买点: R ≤ 1 + level_tol（默认 2%, 即「跌破或几乎贴合」）; 备选 mode=z（lnR 相对 250 日均线 ≤ -k, 仅作对照, 回测更差）",
-        "卖点: 买入后满 hold_days（默认 250 交易日 ≈ 一年）收盘卖出; 卖出日若仍在触发区间且 allow_rebuy=True → 立刻续买（滚动持有一年）",
-        "成交: T 日收盘算信号 → T+1 收盘净值成交（lag=1, 无前视）",
-        "记账: 满仓段 = 沪深300全收益日收益; 空仓段按 cash_mode（cash=货基 1.40% / bond=二级债基指数）; 申购 0.10% / 赎回 0.50% 各扣一次"
-      ],
-      "thresholds": {
-        "authoritative": "strategies/vol_legs/v5_overlap/overlap.py::CFG",
-        "anchor": "2005-01-04",
-        "mode": "level",
-        "level_tol": 0.02,
-        "z_win": 250,
-        "z_k": 1.0,
-        "hold_days": 250,
-        "allow_rebuy": true,
-        "lag": 1,
-        "fee_buy": 0.001,
-        "fee_sell": 0.005,
-        "cash_mode": "cash",
-        "bond_baseline": "composite"
-      },
-      "backtest": {
-        "engine": "strategies/vol_legs/v5_overlap/backtest.py",
-        "raw_out": "strategies/vol_legs/v5_overlap/backtest/_v5_overlap_bt.jsonl",
-        "report": "strategies/vol_legs/v5_overlap/backtest/_v5_overlap_bt.md",
-        "window": "2005-01-04 ~ 2026-10-29（21.8 年, 受沪深300全收益基日 + 6 只债基共同起点限制）; 敏感性档各自起点不同; 不接 --codes"
-      },
-      "select": {
-        "out_active_md": "strategies/vol_legs/v5_overlap/daily/_v5_overlap_daily.md",
-        "out_active_json": "strategies/vol_legs/v5_overlap/daily/_v5_overlap_daily.json",
-        "min_sample_years": 0.0,
-        "criteria": "不做 A/B 分级: 单一标的(沪深300) + 单一信号, 输出的是「买/持有/卖」的状态而不是标的名单"
-      },
-      "daily": {
-        "block": "vol",
-        "codes": [],
-        "runner": "",
-        "runner_note": "不单列 runner: 本变种是 vol_legs 的第 4 步(写在 run_daily_vol_legs.ps1 里), 若在这里再填同一个 .ps1, run_daily_all 会把 vol_legs 跑两遍。留空则 run_daily_all 跳过本策略、但 daily_digest 仍出卡片",
-        "signal_report": "strategies/vol_legs/v5_overlap/daily/_v5_overlap_daily.md",
-        "signal_json": "strategies/vol_legs/v5_overlap/daily/_v5_overlap_daily.json",
-        "automation": "(未创建, 随 vol_legs 定时任务)"
-      },
-      "note": "2026-10-30 按用户「沪深300全收益 × 二级债基指数 两线重合 = 买点, 持有一年后卖出」落地。**定位**: 不发生在六腿内部、也不做仓位刻度, 只回答「沪深300 什么时候便宜到可以满仓」; 与主策略(六腿 pp)、v1_ma20(整腿下车)、v4_erp_band(股 vs 债比例)是不同层次, **默认不叠加**(v4 与 v5 都动沪深300 仓位, 叠加前先定额度优先)。**最重要的事实**: 用真实二级债基指数(自建 8 只老债基等权, 年化 5.07%), 严格口径 `R ≤ 1` 21.8 年只在 2005-01 那一段成立过 —— 参考图能圈出 5 次是因为它的蓝线 20 年涨约 5 倍(≈8.4%/年), 比真实债基指数快 3pp 以上; R 的五个周期低点是逐级抬升的(2005:0.81 / 2008:1.10 / 2014:1.27 / 2018:1.56 / 2024:1.65)。**回测诚实结论**(2005-01~2026-10, 21.8 年, 含费, T+1 成交): A 严格口径(R≤1.02) 2 笔买入、在场 9%、年化 +5.51%、回撤 -22.02%、夏普 0.57 —— **与直接持有二级债基指数(+5.26%/-4.21%/1.82)收益几乎一样但波动 3.5 倍**, 作为独立策略不合格; 把空仓段从货基换成债基后同一套买点年化 +8.33%/回撤不变/夏普 0.93 —— **「空仓时拿什么」比「买点准不准」更决定收益**。放宽阈值 R≤1.20/+9.08%、R≤1.30/+11.32%(4 笔)但那是事后挑的(2008 的底恰好 1.104, 差 0.4pp 就抓不到, 1.00~1.10 结果完全相同)。**相对低位口径被否**(z≤-1: 13 笔/在场 57%/年化 1.78%/回撤 -59.50%)—— 2008-03 就触发满仓并吃满 2008 年跌幅, 「跌得多」≠「跌到底」, 且「持有一年」不提供止损。**已知边界**: 样本极小(严格口径 1 段); 蓝线自建(换单只 202101 后触发 5 段/年化 10.40%, 口径风险大); 绝对水位可能永不回来(权益溢价 3.65pp/年, 下一个周期底大概率 1.8~2.0); 未计申赎时滞/限购/跟踪误差; 当前读数 2026-10-29: R=2.106, 需再跑输 51.6% 才触发。",
+      "note": "2026-10-30 由 tech_indicators/v16_boll_breakout 迁入 vol_legs 成为变种 v6（2026-10-30 同日编号改为 v2, 目录随之迁移; 原 54 只场内 ETF 全池 -> 六腿场外复权净值; 规则与参数原样保留, 只换池与成交纪律; 未注册到 v16 时期, 故 tech_indicators 侧只留一行迁出说明）。**定位**: 与 v1_ma20 同一层（逐腿进出时点）, 指标换成 BOLL(35,2) 上穿买入 / 跌回中轨卖出; 主策略仍管组合层仓位带（阶梯/闸门/再平衡）, 三者可叠加不可替代。**回测诚实结论**（场外净值口径, 2026-10-30）: 逐腿 6 腿年化跑赢买入持有 3/6、回撤全部更小 6/6（年化差中位 +1.33pp, 扣费后 +0.49pp）; 组合层 2021-10-11~2026-10-28 年化 8.73% / 回撤 -5.30% / 夏普 1.18（扣费 7.42% / -6.26% / 0.97）, 静态带 12.10% / -17.45% / 0.89, 平均只投入 35% —— **让渡收益、换回撤与夏普**。**真正的长处**: 换手只有 MA20 的 1/6（2.2~3.1 笔/年 vs 13~16 笔）, 扣费后只掉 -1.31pp（v1_ma20 掉 -6.68pp, 扣费后只剩 1.42%）。**方向检验**: 镜像成「下穿下轨买、回升中轨卖」（v15 反转方向）后中位年化 6.04% -> 1.73%、回撤 -18.88% -> -26.43%、组合 8.73% -> 3.06% —— 在这六条长期上行资产上突破做多优于抄底做多。**止损**: -8%/-10%/-15% 与关闭完全相同（183 笔不变, 中轨出场已先触发）, 不要再加百分比止损。**已知边界**: QDII 腿净值滞后 T+1~T+2（T+2 一档组合 9.01% / 扣费 7.70%, 无系统性衰减）; 桥接段（000051/050025）不是本基金业绩; C 类 0.2%/年销售服务费未计; 组合层仅 5 年样本（受 012805 2021-08 成立限制）, 且这段是「A股熊转牛 + 黄金大牛 + 港股深跌 + 美股长牛」的特定组合。**流程**: 只有回测入口, 无 daily 产物 -> daily.enabled=false（不出看板卡片, 避免「未支持」空卡片）; select 指向主策略固定六腿名单（只读共用, 不要跑 select）。",
       "pipeline_mode": "full_pool"
     },
     "dividend": {
@@ -566,6 +509,39 @@
       "note": "**2026-10-26 每日操作切换(V0 -> V4)**: `run_daily_dividend.ps1` 改为跑 `v4_rsi/daily.py --refresh`, 每日产物 `v4_rsi/daily/_v4_signal.{md,json}`, 看板由 `daily_digest.parse_dividend` 读该 JSON。**为什么切**: 池内 10 只逐只做单标的 RSI 择时的适配度差异极大(全区间 ΔCalmar +0.92 ~ −0.05), 只有 5 只双窗口都为正(`v4_rsi/universe.py`), 而 V0 打分的选择边际在池收窄到 10 只后已全为负(-62~-70bp) —— 打分只剩「排序参考」职能, 不宜作为每日操作依据。**V0 未删除**: `v0_rank/` 与产物保留, 可手动重跑。 **2026-10-26 版本化**: 本打分策略命名为 **V0** 并整体迁入 `strategies/dividend/v0_rank/`(rank.py + backtest_rank.py + backtest/ + daily/), 与 V1(v1_spread)/V2(v2_temp)/V3-V7 平级; `strategies/dividend/pool.py` 作为**跨版本共享数据层**(池/净值/估值, 被 9 个脚本 import)留在 dividend 根, 专项分析(5 指标边际、单标的 RSI14)迁入 `strategies/dividend/research/`。 2026-09-12 落地多标的红利基金横向打分(同日移除原「中证红利ETF单标的估值择时」引擎与其产物, 其规则与结论并入本策略价值分)。 **2026-09-12 多标的扩展**: 把各类红利基金(表内 5 只据用户《红利低波基金打分详情》+ 对照 6 只, 后同日第二批扩充至 19 只, 权威源 strategies/dividend/pool.py::POOL; **2026-10-22 用户指定剔除 159905/022720/021562/024565/021143/563180 六只, 池内 19 -> 13 只; 同日第二批 008164(C类) 换同指数 A 类 008163 并剔除 012762/007606/004533, 13 -> 10 只**)纳入本策略标的池, 新增 rank.py(总分 = 60% 业绩分 + 40% 价值分; 业绩分按 3年50/5年30/10年20 的**池内横截面分位**合成; 价值分五项各 20 分), 输出打分排序 + 操作建议。净值用 xalpha totvalue(累计净值, 含分红再投)。 **2026-09-12 二次修订(用户要求全真实数据)**: 删除此前的表内快照覆盖(TABLE_SNAPSHOT), 全部维度改走公开源: PE-TTM=中证指数官网 peg, PE分位=官网 peg 自算「过去最多10年」累计分位, 股息率=蛋卷指数估值。真实源覆盖缺口如实保留(见 rank.valuation_sources.gap)。另: 指数归属经交叉验证修正 —— 930955(中证红利低波动100, 100只)=021551/008115, H30269(中证红利低波动, 50只)=020603/512890(用户表把 020603 误标为「红利低波100」)。窗权经 backtest_rank.py walk-forward 调优(2016-09~2026-09, 月末再平衡, 单边 0.03%): **选基判别力支持 3 年权重最高** —— 选择边际 3年70/5年20/10年10 +66.3bp、3年50/5年30/10年20 +60.7bp, 而等权 1/3 -14.7bp、10年主导 -40.8bp; 但组合层窗权差异在噪声内(obj -0.0393~-0.0289), 且**分散 > 择基**(topN=2 年化 9.2%/回撤 -30.3% vs topN=1 6.7%/-38.8%)。轮动未跑赢「表内 5 只等权」(选择偏差, 同花顺自证), 故打分定位为「排序 + 估值定性」参考, 档位取 topN=2 等权。详见 strategies/dividend/v0_rank/backtest/_rank_report.md 与 README.md。 **2026-10-26 重跑(池内 10 只, 版本化为 V0 后)**: 选择边际 3年30 -62.6 / 3年70 -66.2 / 指定 -68.5 / 10年主导 -68.7 / 等权1/3 -69.8 bp —— 全部仍为负, 3 年主导组相对最好; topN=2 各方案 obj 落在 -0.0264 ~ 0.0014, 仍低于「表内 2 只等权」基准 0.0143。 **2026-10-26 对齐窗口复核(V0-V7 全景, 见 strategies/dividend/backtest/_compare_all_report.md §一)**: 把 V0 拉到 V3-V7 窗口(2020-01~2026-10, 82 月, 基金累计净值, 单边 0.03%)重算 —— 7 只池 Calmar 0.88(同池等权 0.91, 年化 9.1% vs 8.2% 但回撤 -10.3% vs -9.1%), 10 只池 Calmar 0.65(等权 0.92); 同窗口第一为 V4 RSI14(1.44)。**结论: 业绩分只在同类标的间可比, 扩池到标普/港股通后判别力明显下降; 打分仍作排序参考。**",
       "pipeline_mode": "rotation"
     },
+    "dividend_v9": {
+      "name": "红利 V9 · 五因子估值温度（体检表 · 不调仓位）",
+      "source_methodology": "strategies/dividend/v9_temp5/rule.py（参数权威源）+ RULES.md · 2026-10-30 并入每日操作，与 V4 分卡展示",
+      "universe": {
+        "pool": "6 只有 etf.run 等权真实 PE/PB 的标的（见 v9_temp5/rule.py::FUNDS）",
+        "note": "与 V4 的 5 只择时池只是部分重合: 008163 只在 V4(标普系列三源皆无估值), 007467/561580 只在 V9(V4 单标的 RSI 择时落选)"
+      },
+      "rules": [
+        "五因子温度 = 利差 35% + PE 20% + PB 16% + 年线乖离 15% + 价格位置 14%, 各取近 2 年分位",
+        "档位: 危险 ≥85 大幅减仓 / 过热 ≥75 分批减仓 / 偏热 ≥65 可部分止盈 / 中性偏热 ≥55 不再新增 / 中性 ≥40 持有 / 偏冷 ≥20 可分批加仓 / 冰点 <20",
+        "只输出逐只档位与加/减仓额度参考, 不输出仓位倍率、不做横截面选品(回测: top2 Calmar 0.72 vs 基准 1.03, 时间维度分位减仓无增量)"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/dividend/v9_temp5/rule.py::BANDS / ::W",
+        "window_days": 730,
+        "min_obs": 300,
+        "bands": "85/75/65/55/40/20",
+        "xs_enabled": false,
+        "time_enabled": false
+      },
+      "daily": {
+        "block": "dividend",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner: 本变种是 dividend runner 的第 2 步(写在 run_daily_dividend.ps1 里), 若在这里再填同一个 .ps1, run_daily_all 会把 dividend 跑两遍。留空则 run_daily_all 跳过本策略、但 daily_digest 仍出卡片",
+        "signal_md": "strategies/dividend/v9_temp5/daily/_v9_signal.md",
+        "signal_json": "strategies/dividend/v9_temp5/daily/_v9_signal.json",
+        "dashboard": "strategies/dividend/v9_temp5/daily/_v9_temp.html",
+        "automation": "(未创建, 随 dividend 定时任务)"
+      },
+      "note": "**2026-10-30 起与 V4 分卡展示**: 此前 V9 的 6 行挤在 V4 卡片里(用 `V9·` 前缀区分), 读起来像同一张表的两段; 分卡后 V4 只讲「仓位怎么摆」, V9 只讲「贵不贵、额度给谁」。**定位差别**: V4 是择时(月末 RSI 档位), V9 是估值体温计(每日档位), 两者不互相替代。",
+      "pipeline_mode": "rotation"
+    },
     "growth_div_rotation": {
       "name": "成长/红利风格轮动（Growth/Dividend Style Rotation · 二元切换）",
       "source_methodology": "strategies/growth_div_rotation/v0/rule.py（v0 参数权威源）· 用户《成长/红利风格轮动》手册",
@@ -647,6 +623,49 @@
       },
       "note": "2026-09-12 落地: 风格比值 R 的缓冲带 + 250日分位双信号二元轮动; 回测与每日信号共用本地指数缓存(无前视); 参数权威源 v0/rule.py。整策略经 flow_select 作单标的评级(GD_ROT), select 产物即策略认证档。 **2026-10-29 数据 bug 修正(重要)**: rule.index_prefix() 原先按股票规则(首位 5/6/9→沪)判指数交易所, 把 000922(中证红利)/000688(科创50) 判为深市, 实际取到同号**个股**(佳电股份/国城矿业)日线 —— 红利端年化波动被算成 48.3%(真实 20.6%), 科创50 出现 2015 年数据(该指数 2020-01-02 才发布)。已改为 399/159→深市、其余→沪市, 缓存重抓并回补起点至 2010-06-01; v1 data.py 另加「首值低于合理下界即报错」护栏。修正后 v0 回测: 年化 +13.72% / 回撤 -44.88% / 128 次切换(旧错误值 +11.92% / -62.14% / 140 次全部作废)。 **同日目录版本化**: 原策略本体迁入 v0/(rule/factors/engine/data/backtest/scan/daily)，新增 v1 变种 v1_ratio_bands/(绝对阈值0.40/0.62+5期分批+每月定投, 实现用户手册规则)，家族根新增 compare.py 产出跨变种对比报告 _v1_vs_v0_report.md / _v1_vs_v0.png。 净值口径 v1 +16.75%/-51.02%(Calmar 0.33) vs v0 +13.72%/-44.88%(Calmar 0.31), 风险调整后基本打平; 阈值敏感性大(0.35/0.66→+19.5%, 0.45/0.58→+13.6%), 分批节奏几乎无影响(逐月 +16.75% vs 一次性 +16.54%), 手册的 26.68% 最大回撤复现不出来(实测净值 -53%/资产 -44%)。 **2026-10-30 默认成长指数由创业板指(399006)切换为科创50(000688)**: 两个变种 rule.growth_code 默认均改 000688(创业板指改作 --alt 切回); 因科创50 2020-01-02 才上市, 回测窗口缩为 2020 起(远短于手册 2010-06); v1 绝对阈值随之重新标定到「科创50÷中证红利」比值的新量纲(≈40%/90% 分位的 0.20/0.31, 原 0.40/0.62 对创业板指比值成立、对科创50 永不触发卖出)。切换后净值口径 v1 +11.31%/-45.55%(Calmar 0.25, 全期仅 2 次换仓) vs v0 +9.43%/-35.78%(Calmar 0.26, 64 次切换), v1 的「高收益」基本消失、信号近乎惰性; v0 反而在风险调整后略优。",
       "pipeline_mode": "rotation"
+    },
+    "gd_v1": {
+      "name": "成长/红利轮动 · v1 变种（绝对阈值 0.20/0.31 + 5 期分批 + 定投）",
+      "source_methodology": "strategies/growth_div_rotation/v1_ratio_bands/rule.py（唯一参数权威源）· 用户《成长/红利风格轮动》手册",
+      "universe": {
+        "signal": "指数日线: 科创50(000688) ÷ 中证红利(000922)，与 v0 共用同一份缓存 v0/data/_gd_index_klines.json",
+        "exec": "场外联接(沿用 v0 rule.EXEC): 成长 011609 · 红利 012644",
+        "note": "只跑默认分子科创50, 不支持 --alt（阈值是量纲相关的拟合值, 换指数必须重标定）"
+      },
+      "rules": [
+        "R = 科创50 收盘 ÷ 中证红利 收盘；用 R_{-1} 决策、次日执行",
+        "R ≤ 0.20 且当前非成长 → 清仓红利, 资金拆 5 份, 分 5 个定投日买成长",
+        "R ≥ 0.31 且当前非红利 → 清仓成长, 资金拆 5 份, 分 5 个定投日买红利",
+        "中间地带 0.20 < R < 0.31 → 不轮动, 只按定投日继续买当前标的",
+        "分批途中反向阈值先触发 → 停止未完成分批, 按新信号重新清仓并 5 期分批（INTERRUPT_PENDING=True, 按手册正文）"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/growth_div_rotation/v1_ratio_bands/rule.py",
+        "ratio_low": 0.2,
+        "ratio_high": 0.31,
+        "tranche": 5,
+        "tranche_schedule": "monthly",
+        "fixed_amount": 1000.0,
+        "interrupt_pending": true,
+        "fee": 0.0003
+      },
+      "backtest": {
+        "engine": "strategies/growth_div_rotation/v1_ratio_bands/engine.py",
+        "raw_out": "strategies/growth_div_rotation/v1_ratio_bands/backtest/_v1_bt.jsonl",
+        "report": "strategies/growth_div_rotation/_v1_vs_v0_report.md（跨变种对比, 由家族根 compare.py 生成）",
+        "window": "2020-01~2026-10（科创50 2020-01-02 才上市）; 不接 --codes"
+      },
+      "daily": {
+        "block": "style",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner: 本变种是 growth_div_rotation runner 的第 3 步(写在 run_daily_growth_div_rotation.ps1 里), 若在这里再填同一个 .ps1, run_daily_all 会把该策略跑两遍。留空则 run_daily_all 跳过本策略、但 daily_digest 仍出卡片",
+        "signal_report": "strategies/growth_div_rotation/v1_ratio_bands/daily/_gd_v1_daily.md",
+        "signal_json": "strategies/growth_div_rotation/v1_ratio_bands/daily/_gd_v1_signal.json",
+        "automation": "(未创建, 随 growth_div_rotation 定时任务)"
+      },
+      "note": "**2026-10-30 起与 v0 分卡展示**: 此前看板板块3 只有 v0 一张卡(v1 无每日产物), 想对比两个变种必须手跑 engine; 现由 `v1_ratio_bands/scan.py` 每日落 `_gd_v1_signal.json`, digest 分卡渲染。**两者回答的问题不同**: v0 = 「R 相对自身轨道(MA20±1% + 250日分位)在哪」, v1 = 「R 的绝对水位到没到极端」。**回测诚实结论**(2020-01~2026-10, 科创50/中证红利): v1 年化 +11.31%/回撤 -45.55%/Calmar 0.25, 全期仅 2 次换仓; v0 +9.43%/-35.78%/Calmar 0.26, 64 次切换 —— 风险调整后打平, v1 的「高收益」在换成科创50 后消失(阈值 0.20/0.31 让它长期满仓成长)。阈值是命门: 0.16/0.36→+21.2%, 0.24/0.28→+9.1%。全期只有 2 个决策点, 统计上无法与「事后挑两个日期」区分。",
+      "pipeline_mode": "full_pool"
     },
     "tech_indicators": {
       "name": "技术指标（大策略家族 · 每日固定 6 策略 MACD/V3/V6/V7/V9/V10）",

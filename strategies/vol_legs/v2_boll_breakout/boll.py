@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V6 变种：BOLL 上轨突破（六腿逐腿择时）—— 规则与回测引擎。
+"""波动资产 · V2 变种：BOLL 上轨突破（六腿逐腿择时）—— 规则与回测引擎。
 
 原 `strategies/tech_indicators/v16_boll_breakout/`（2026-10-30 迁入 vol_legs，池从「54 只场内 ETF」
 改为主策略的**六腿场外复权净值**，与 v1_ma20 同构）。
@@ -50,7 +50,7 @@ import rule             # noqa: E402
 
 # ---------------------------------------------------------------- 1. 参数（唯一权威源）
 PARAMS = {"N": 35, "K": 2.0, "STOP": None}
-LABEL = "V6 BOLL上轨突破"
+LABEL = "V2 BOLL上轨突破"
 VARIANT = "BOLL_BREAK"
 
 CASH_ANNUAL = rule.CASH_ANNUAL

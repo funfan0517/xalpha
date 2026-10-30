@@ -1,10 +1,11 @@
-# V6 变种 · BOLL 上轨突破（六腿逐腿择时）
+# V2 变种 · BOLL 上轨突破（六腿逐腿择时）
 
-`vol_legs`（波动资产操作规则 v1.3）的**第三个变种**，原为
-`strategies/tech_indicators/v16_boll_breakout/`（2026-10-30 迁入本目录，**标的池与口径全部改为主策略的六腿**）。
+`vol_legs`（波动资产操作规则 v1.3）的变种之一，原为
+`strategies/tech_indicators/v16_boll_breakout/`（2026-10-30 迁入本目录，**标的池与口径全部改为主策略的六腿**；
+2026-10-30 编号由 v6 改回 **v2**）。
 
-> **编号说明**：`vol_legs` 里 `v1_ma20` / `v3_macd_boll` / `v4_erp_band` / `v5_overlap`（探针目录）
-> 已占 1、3、4、5，故本变种取 **v6**；原 tech_indicators 家族里的 `v16` 编号不再沿用。
+> **编号说明**：`vol_legs` 里 `v1_ma20` / `v3_macd_boll` / `v4_erp_band` 已占 1、3、4，
+> `v2` 槽位原先空置（本变种初入时取 v6），现已归位 **v2** —— 编号按 1/2/3/4 连续；原 tech_indicators 家族里的 `v16` 编号不再沿用。
 
 一句话：主策略回答「**组合层仓位带怎么摆**」（阶梯 / 年线闸门 / 再平衡），
 `v1_ma20` 回答「**每条腿什么时候下车**」（跌破 MA20 就走），本变种回答同一个问题的另一种答法 ——
@@ -24,7 +25,7 @@
 - 参数唯一权威源：`boll.py::PARAMS = {"N": 35, "K": 2.0, "STOP": None}`。
 - 「上穿」而非「站在上轨上方」是刻意的：同一段趋势里只发一次信号，避免重复建仓。
 - **中轨出场本身就是硬止损** —— 建仓价在上轨（= mid + 2σ），离中轨只有几个百分点，
-  百分比止损（-8%/-10%/-15%）在回测里根本来不及触发（见 `backtest/_v6_boll_breakout_bt.md` 的止损敏感性）。
+  百分比止损（-8%/-10%/-15%）在回测里根本来不及触发（见 `backtest/_v2_boll_breakout_bt.md` 的止损敏感性）。
 
 ## 2. 池与口径（与主策略**完全一致**）
 
@@ -44,13 +45,13 @@
 ## 3. 目录
 
 ```
-v6_boll_breakout/
+v2_boll_breakout/
 ├── boll.py                规则（PARAMS / bands / signal）+ 引擎（run / trades / portfolio / perf）
 ├── backtest.py            逐腿 + 组合层 + 方向对照 + 时滞×费率 + 止损 + 参数敏感性 + 两张图
 ├── backtest/
-│   ├── _v6_boll_breakout_bt.md / .jsonl
-│   ├── _v6_boll_breakout_portfolio.png    组合层净值（择时 / 扣费 / 静态带 / 等权）
-│   └── _v6_boll_breakout_legs.png         六腿价格 + 三轨 + 买卖点（2×3）
+│   ├── _v2_boll_breakout_bt.md / .jsonl
+│   ├── _v2_boll_breakout_portfolio.png    组合层净值（择时 / 扣费 / 静态带 / 等权）
+│   └── _v2_boll_breakout_legs.png         六腿价格 + 三轨 + 买卖点（2×3）
 └── README.md
 ```
 
@@ -60,15 +61,16 @@ v6_boll_breakout/
 
 ```powershell
 # 规则自检：六腿序列可读、三轨成形、信号与仓位对得上
-python strategies/vol_legs/v6_boll_breakout/boll.py
+python strategies/vol_legs/v2_boll_breakout/boll.py
 
 # 回测（逐腿 + 组合层 + 五节敏感性 + 两张图）
-python strategies/vol_legs/v6_boll_breakout/backtest.py
+python strategies/vol_legs/v2_boll_breakout/backtest.py
 ```
 
-**未注册到 `pipeline/strategies.json`**：本变种只有回测入口，没有 `daily/` 产物与分级名单，
-注册进去会让 `run_flow universe/select/daily` 三个阶段指向不存在的文件。
-若将来补了每日脚本（`daily/_daily_scan.py` + `_v6_boll_breakout_daily.{md,json}`），
+**在 `pipeline/strategies.json` 注册为 `v2_boll_breakout`，但 `daily.enabled=false`**：本变种只有回测入口，
+没有 `daily/` 产物与分级名单，故不参与 `run_daily_all`、也不出看板卡片；`select` 指向主策略的共用六腿名单
+（只读共用，**不要跑 `run_flow select --strategy v2_boll_breakout`**，会覆盖主策略名单）。
+若将来补了每日脚本（`daily/_daily_scan.py` + `_v2_boll_breakout_daily.{md,json}`），
 再照 `v1_ma20` 的条目补注册即可。
 
 ## 5. 回测结论（场外净值口径 · 2026-10-30）
@@ -90,8 +92,8 @@ python strategies/vol_legs/v6_boll_breakout/backtest.py
 
 | 组合 | 累计 | 年化 | 波动 | 最大回撤 | 夏普 | 平均投入 |
 |---|---:|---:|---:|---:|---:|---:|
-| V6 BOLL 择时（不计费） | +48.5% | 8.73% | 6.22% | **-5.30%** | **1.18** | 35% |
-| V6 BOLL 择时（扣申赎费） | +40.2% | 7.42% | 6.24% | -6.26% | 0.97 | 35% |
+| V2 BOLL 择时（不计费） | +48.5% | 8.73% | 6.22% | **-5.30%** | **1.18** | 35% |
+| V2 BOLL 择时（扣申赎费） | +40.2% | 7.42% | 6.24% | -6.26% | 0.97 | 35% |
 | 静态带（恒定持有） | +71.5% | **12.10%** | 12.03% | -17.45% | 0.89 | 100% |
 | 六腿等权 | +40.9% | 7.53% | 14.44% | -23.23% | 0.42 | 100% |
 

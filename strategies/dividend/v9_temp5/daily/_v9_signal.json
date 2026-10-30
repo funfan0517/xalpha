@@ -1,7 +1,7 @@
 {
  "strategy": "dividend/v9_temp5",
  "as_of": "2026-10-29",
- "generated": "2026-10-30 10:15",
+ "generated": "2026-10-30 15:07",
  "board_temp": 55.1,
  "board_pct": 0.772,
  "version": "V9 · 五因子估值温度（35/20/16/15/14 · 股息率利差 · 近2年 · PB 合成）",

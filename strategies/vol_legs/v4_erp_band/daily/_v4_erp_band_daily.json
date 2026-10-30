@@ -28,7 +28,7 @@
   "target_equity": 0.8
  },
  "action": {
-  "capital": 2000000.0,
+  "capital": 1000000.0,
   "current_equity": 0.8,
   "delta_amount": 0.0,
   "next_trigger": "利差回落到 **5.25%** 以下 → 退出低估，沪深300 降至 50%"

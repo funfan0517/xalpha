@@ -1,0 +1,81 @@
+{
+ "strategy": "growth_div_rotation/v1_ratio_bands",
+ "as_of": "2026-10-30",
+ "generated": "2026-10-30 15:08",
+ "bars": 1654,
+ "start": "2019-12-31",
+ "R": 0.211,
+ "R_prev": 0.2214,
+ "low": 0.2,
+ "high": 0.31,
+ "target": "dividend",
+ "target_label": "红利",
+ "pending_left": 0,
+ "action": "不动",
+ "reason": "0.20 < R=0.2110 < 0.31（中间地带）",
+ "trigger": {
+  "to_side": "growth",
+  "R": 0.2,
+  "dist_pct": -0.0523,
+  "dist_text": "R 再跌 5.2% 至 0.20 触发"
+ },
+ "switches": [
+  {
+   "date": "2022-04-07",
+   "from_side": "dividend",
+   "to_side": "growth",
+   "R": 0.1943,
+   "reason": "R≤0.20",
+   "sold": 32630.83,
+   "per_buy": 6524.21,
+   "interrupted": false
+  },
+  {
+   "date": "2026-05-20",
+   "from_side": "growth",
+   "to_side": "dividend",
+   "R": 0.3135,
+   "reason": "R≥0.31",
+   "sold": 143672.8,
+   "per_buy": 28725.94,
+   "interrupted": false
+  }
+ ],
+ "tranche_last": [
+  {
+   "date": "2026-07-01",
+   "side": "dividend",
+   "amount": 28725.94,
+   "left": 2
+  },
+  {
+   "date": "2026-08-03",
+   "side": "dividend",
+   "amount": 28725.94,
+   "left": 1
+  },
+  {
+   "date": "2026-09-01",
+   "side": "dividend",
+   "amount": 28725.94,
+   "left": 0
+  }
+ ],
+ "exec": {
+  "growth": {
+   "code": "011609",
+   "name": "易方达上证科创板50ETF联接C"
+  },
+  "dividend": {
+   "code": "012644",
+   "name": "招商中证红利ETF联接C"
+  }
+ },
+ "params": {
+  "tranche": 5,
+  "schedule": "monthly",
+  "fixed_amount": 1000.0,
+  "fee": 0.0003,
+  "interrupt_pending": true
+ }
+}

@@ -69,7 +69,7 @@
 > 每日随 `run_daily_vol_legs.ps1` 第 2 步运行）。因此本目录的横截面对比（`compare.py`）不再包含 v8 一行。
 > **v16（BOLL 上轨突破）已于 2026-10-30 迁出本家族** —— 它本来就是 BOLL 的「另一套逻辑」
 > （突破做多，与 v15 的反转方向相反），迁出后归入组合层策略 `vol_legs` 作为第三个变种：
-> `strategies/vol_legs/v6_boll_breakout/`（六腿场外复权净值口径，规则参数与实现原样保留，
+> `strategies/vol_legs/v2_boll_breakout/`（六腿场外复权净值口径，规则参数与实现原样保留，
 > 只换池；它从来不在 `STRAT` 五基线 / `compare.py` 里，故本目录无删改负担）。
 
 ## 运行

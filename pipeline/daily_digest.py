@@ -166,7 +166,7 @@ def _row(code, name, act, label, detail=""):
 
 # ---------------------------------------------------------------- 各策略解析
 def parse_dividend(_cfg):
-    # 2026-10-26 起每日操作是 V4 RSI14 择时（V0 打分退出流程，产物仍在 v0_rank/daily/）
+    # 2026-10-26 每日操作 = V4 RSI14 择时；2026-10-30 起 V9 五因子温度一并纳入（同卡片展示）
     daily = _cfg["daily"]
     path = os.path.join(_ROOT, daily["signal_json"])
     d = json.loads(_read(path))
@@ -199,16 +199,51 @@ def parse_dividend(_cfg):
         tgt = "、".join(f"`{t.get('code')}` {float(t.get('weight') or 0) * 100:.0f}%"
                        for t in prev.get("target") or []) or "空仓"
         preview = f" · 预览会变 → {tgt}"
+
+    # ── V9 五因子温度（同卡片追加，逐只档位；完整温度表见独立 HTML 看板）
+    v9_summary, v9_stats, v9_note, n_v9 = "", [], "", 0
+    v9_json = daily.get("v9_signal_json")
+    if v9_json:
+        try:
+            v9 = json.loads(_read(os.path.join(_ROOT, v9_json)))
+            v9_rows = v9.get("funds") or []
+            hot = set(v9.get("hot") or [])
+            cold = set(v9.get("cold") or [])
+            for r in v9_rows:
+                code, name = r.get("code"), r.get("name")
+                temp = float(r.get("temp") or 0)
+                band = r.get("band") or "—"
+                if code in hot or band in ("危险", "过热", "偏热"):
+                    act = "sell"
+                elif code in cold or band in ("冰点", "偏冷"):
+                    act = "buy"
+                else:
+                    act = "hold"
+                rows.append(_row(code, f"V9·{name}", act, band,
+                                 f"温度 {temp:.1f} · {r.get('action', '')}"))
+            n_v9 = len(v9_rows)
+            if v9_rows:
+                bt = v9.get("board_temp")
+                v9_summary = f" · V9 板块温度 {float(bt):.1f}" if bt is not None else ""
+                v9_stats = [["V9 板块温度", "—" if bt is None else f"{float(bt):.1f}"],
+                            ["V9 过热/偏冷", f"{len(hot)} / {len(cold)}"]]
+                v9_note = (f"V9（五因子估值温度，{n_v9} 只有估值标的）也纳入每日操作："
+                           "只出「逐只档位 + 加/减仓额度参考」，不调仓位、不择时"
+                           "（回测证明横截面与分位减仓均无 alpha）；完整温度表见独立 HTML 看板。")
+        except Exception:  # noqa: BLE001 - V9 产物缺失不阻断 V4 卡片
+            pass
+
     return _entry(
-        "dividend", "红利 V4 · RSI 择时", as_of,
+        "dividend", "红利 V4 择时 + V9 温度" if n_v9 else "红利 V4 · RSI 择时", as_of,
         tier.replace("（", " ").replace("）", ""), tone,
-        f"板块 RSI {d.get('board_rsi', '—')} · 持 {holds}{preview}", rows,
+        f"板块 RSI {d.get('board_rsi', '—')} · 持 {holds}{preview}{v9_summary}", rows,
         [["板块 RSI", str(d.get("board_rsi", "—"))], ["档位", tier],
          ["持仓", f"{len(positions)} 只 · {sum(pos.values()) * 100:.0f}%"],
-         ["下次决策", str(d.get("next_decision") or "—")]],
-        note="V4 · RSI14 择时：板块(池内 5 只)RSI 均值 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只等权；"
-             "月末收盘确认、次日开盘执行 —— 月中看到的是预览，不要提前动手。"
-             "2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。",
+         ["下次决策", str(d.get("next_decision") or "—")]] + v9_stats,
+        note="V4 · RSI14 择时（月末收盘确认、次日开盘执行；月中为预览）：板块(池内 5 只)RSI 均值 ≥70 清仓 / ≥50 减半，"
+             "横截面取 RSI 最低 2 只等权。"
+             + ((" " + v9_note) if v9_note else "")
+             + " 2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
     )
 

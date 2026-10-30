@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-r"""红利策略全版本回测总对比（V0–V7）—— 先对齐窗口，再分组
+r"""红利策略全版本回测总对比（V0–V10）—— 先对齐窗口，再分组；V9/V10 不同构单列
 
 V0 与 V3–V7 的原始口径不同（V0：2016-09 起、10 只池、只回测业绩分），直接并排会把
 「池子差异 + 样本差异」算成「策略差异」。所以本脚本做三件事：
 
 * **§一 全景（可直接比）**：把 V0 拉到 V3–V7 的窗口（2020-01~2026-10、82 月、基金累计净值、
   单边 0.03%、月末决策下月生效）**重算**，池取 7 只与 10 只两种 ——
-  V0 复用 `v0_rank/backtest_rank.py::build_picks` 的原逻辑，V3–V7 用 `_single_signal` 引擎，
+  V0 复用 `v0_rank/backtest_rank.py::build_picks` 的原逻辑，V3–V8 用 `_single_signal` 引擎，
   于是 13 行之间只差「信号」与「池大小」两个变量。
 * **§三 原生口径（不可比）**：V0（10 只 / 10 年）、V1（单指数全收益 / 8 年）、
   V2（4 只价格指数）保持原样，逐条标注差异来源。
@@ -59,6 +59,8 @@ OUT_MD = os.path.join(_DIR, "backtest", "_compare_all_report.md")
 V1_BT = os.path.join(_DIR, "v1_spread", "backtest", "_v1_bt.jsonl")
 V2_PANEL = os.path.join(_DIR, "v2_temp", "backtest", "_v2_panel.jsonl")
 RANK_BT = os.path.join(_DIR, "v0_rank", "backtest", "_rank_bt.jsonl")
+V9_SUM = os.path.join(_DIR, "v9_temp5", "backtest", "_v9_bt_summary.json")
+V10_SUM = os.path.join(_DIR, "v10_resonance", "backtest", "_v10_bt_summary.json")
 CACHE = os.path.join(ROOT, "data", "_bt_caches")
 
 BASE = "基准：7 只等权"
@@ -294,6 +296,67 @@ def build_b_rank() -> list[dict]:
     return out
 
 
+def _json(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _stat_row(label: str, mech: str, st: dict, cal: str, why: str,
+              base_calmar: float = None, pos: float = None) -> dict:
+    """把 V9/V10 summary 里的一段 stats 转成与 `_row` 同构的行（不含月度收益）。"""
+    return {"策略": label, "机制": mech, "cagr": st["cagr"], "dd": st["dd"],
+            "calmar": st["calmar"], "vol": st.get("vol"), "sharpe": st.get("sharpe"),
+            "total": st.get("total"), "n": None, "cagr_d3": float("nan"),
+            "base_calmar": base_calmar if base_calmar is not None else float("nan"),
+            "pos": pos, "caliber": cal, "why": why, "r": None}
+
+
+def build_b_v9() -> list[dict]:
+    """V9 五因子温度：6 只池 · 2020-02~2026-09 · 面板型信号（不可并入 §一 排名）。"""
+    d = _json(V9_SUM)
+    sims = d["sims"]
+    base = sims["基准：6 只等权"]["calmar"]
+    cal = "6 只基金累计净值 · 2020-02~2026-09 · 80 月 · etf.run 等权真实 PE/PB"
+    out = [
+        _stat_row("V9 基准：6 只等权", "六维等权（无信号）",
+                  sims["基准：6 只等权"], cal, "—", base, pos=1.0),
+        _stat_row("V9 时间：温度分位 ≥80/90 减仓", "板块温度分位减仓",
+                  sims["时间：板块温度分位减仓"], cal, "分位越松越好 → 反向", base, pos=0.75),
+        _stat_row("V9 横截面：温度最低 2 只", "每月选温度最低 2 只",
+                  sims["横截面：温度最低 2 只"], cal, "8 只红利指数高相关 → 选品无效", base, pos=1.0),
+        _stat_row("V9 主方案：top2 + 时间减仓", "横截面 + 时间叠加",
+                  sims["横截面 top2 + 时间减仓"], cal, "面板型温度，非同构择时器", base, pos=0.75),
+    ]
+    leg = d.get("legacy_sims", {}).get("横截面 top2 + 时间减仓")
+    if leg:
+        out.append(_stat_row("V9 旧口径（加权 PE + 合成 PB）", "PB = PE × 常数",
+                             leg, "同窗口同池 · 合成口径", "PB 与 PE 恒等（差 0）", base, pos=0.75))
+    return out
+
+
+def build_b_v10() -> list[dict]:
+    """V10 三重共振：单标的 000922 · 2008 起 · 状态机（不可并入 §一 排名）。"""
+    d = _json(V10_SUM)
+    cal = "单标的 000922 全收益 · 2008-01~2026-10 · 状态机"
+    w1b, w1f, w1bench = d["base"], d["full"], d["bench"]
+    w2b, w2f, w2bench = d["w2"]["base"], d["w2"]["full"], d["w2_bench"]
+    return [
+        _stat_row("V10 W1 基准：全收益买入持有", "全收益买入持有", w1bench, cal,
+                  "2008 起含 6 年空仓", pos=1.0),
+        _stat_row("V10 W1 默认（三批 40/30/30）",
+                  "回撤≥10%×破年线×dy≥4.5% → 前高/满250日/止损退出", w1b["stats"], cal,
+                  f"平均仓位 {w1b['expo'] * 100:.0f}%", w1bench["calmar"], w1b["expo"]),
+        _stat_row("V10 W1 一次性打满", "同上，首日 100%", w1f["stats"], cal,
+                  f"平均仓位 {w1f['expo'] * 100:.0f}%", w1bench["calmar"], w1f["expo"]),
+        _stat_row("V10 W2 基准：全收益买入持有", "首笔建仓日起算", w2bench, cal,
+                  "W2 2014-05 起", pos=1.0),
+        _stat_row("V10 W2 默认（三批）", "同上", w2b["stats"], cal,
+                  f"平均仓位 {w2b['expo'] * 100:.0f}%", w2bench["calmar"], w2b["expo"]),
+        _stat_row("V10 W2 一次性打满", "同上", w2f["stats"], cal,
+                  f"平均仓位 {w2f['expo'] * 100:.0f}%", w2bench["calmar"], w2f["expo"]),
+    ]
+
+
 # ------------------------------------------------------------------ 口径差
 def caliber_gap() -> pd.DataFrame:
     """同一段窗口、同一个指数（000922）：价格 / 全收益 / 跟踪基金累计净值。"""
@@ -335,16 +398,16 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
     n_month = len(rets)
     allrows = sorted(rows + v0_rows, key=lambda r: -r["calmar"])
 
-    L = ["# 红利策略全版本回测总对比（V0–V7）", "",
-         f"> **§一 是全景表**：V0–V7 全部放在同一窗口 **{rets.index[0]:%Y-%m} ~ "
+    L = ["# 红利策略全版本回测总对比（V0–V10）", "",
+         f"> **§一 是全景表**：V0–V8 全部放在同一窗口 **{rets.index[0]:%Y-%m} ~ "
          f"{rets.index[-1]:%Y-%m}**（{n_month} 月）重算，只有「信号」和「池大小」两个变量。",
          "> V0 原生口径是 2016-09 起、10 只池，为进同一张表被**拉到本窗口重算**（7 只 / 10 只两种）；"
          "它的原生结果见 §三。",
          "> 复算方式：V0 复用 `v0_rank/backtest_rank.py::build_picks`（同一套业绩分逻辑），"
-         "V3–V7 用 `_single_signal` 引擎；全部在本进程内重算，不读旧报告。", ""]
+         "V3–V8 用 `_single_signal` 引擎；全部在本进程内重算，不读旧报告。", ""]
 
     # ---------------- 一
-    L += ["## 一、V0–V7 全景（同窗口、同成本、同收益源）", "",
+    L += ["## 一、V0–V8 全景（同窗口、同成本、同收益源）", "",
           "五条口径一致：**收益源**基金累计净值 `totvalue`（含分红再投）· "
           f"**样本** 2020-01~{rets.index[-1]:%Y-%m}（{n_month} 月，月末决策下月生效）· "
           "**成本**单边 0.03%（Σ|Δw|）· **决策**每月 top2 等权 · "
@@ -372,7 +435,7 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
           "- V7 的 `rsi（单指标对照）` 与 V4 完全等价，已跳过，不重复占一行。", ""]
 
     # ---------------- 二
-    L += ["## 二、V3–V7 变体分解（Calmar）", "",
+    L += ["## 二、V3–V8 变体分解（Calmar）", "",
           "同一个信号，用在「时间维度」「横截面」「两者叠加」上的效果可以完全不同。", "",
           "| 策略 | 时间维度 | 横截面 top2 | 两者叠加 | 该策略最佳 |",
           "|---|---:|---:|---:|---:|"]
@@ -400,7 +463,9 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
           "且只回测业绩分（价值分无历史序列，无法进回测）。",
           "",
           "> V2 的数字由 `_v2_panel.jsonl` 重算（close 保留 2 位、temp 1 位），"
-          "与 `_v2_report.md` 的差在 ±0.1pp 舍入范围内。", ""]
+          "与 `_v2_report.md` 的差在 ±0.1pp 舍入范围内。",
+          "> **V9/V10 也在本表末尾：** V9 是 6 只池的面板型温度、V10 是单标的状态机，"
+          "与 V0–V8 不同构，只列方向、不参与 §一 排名（定位见 §五 补充）。", ""]
 
     # ---------------- 四
     L += ["## 四、口径差量化：为什么不能混着比", "",
@@ -465,13 +530,37 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
           "所以 2020 年前半段实际是单标的轮动，这会压低 V0 的早期表现。"
           f"{len(rows)} 个 V3–V7 条目 × 3 个变体 = {len(rows) * 3} 次比较，"
           "第一名天然偏高（多重比较）；RSI 的可信度来自阈值敏感性三档全过，不是来自这一次排名。", ""]
+
+    # V9/V10 不同构，单列补充（不进入 §一 排名；§三 表已逐行列出）
+    v9 = [r for r in b if r["策略"].startswith("V9")]
+    v10 = [r for r in b if r["策略"].startswith("V10")]
+    if v9:
+        v9_main = next((r for r in v9 if "主方案" in r["策略"]), v9[0])
+        v9_base = next((r for r in v9 if "基准" in r["策略"]), v9[0])
+        L += ["---", "",
+              f"> **补充：V9 五因子温度（6 只池，6/6 等权真实 PB）。** 基准 6 只等权 Calmar "
+              f"{v9_base['calmar']:.2f}，主方案（top2+时间）{v9_main['calmar']:.2f}。方向结论："
+              "分位减仓**反向**（阈值越松越好）、横截面选品无效、绝对档经不起剔除检验 —— "
+              "**只作「贵不贵」体检表，不是择时/选品器**。等权真实 PB 让 PB 首次独立"
+              "（PB−PE 最大差 94.65 分，旧合成口径恒为 0）。"]
+    if v10:
+        v10b = next((r for r in v10 if "W1 基准" in r["策略"]), None)
+        v10w1 = next((r for r in v10 if "W1 默认" in r["策略"]), None)
+        v10w2 = next((r for r in v10 if "W2 默认" in r["策略"]), None)
+        if v10w1:
+            L.append(
+                f"> **补充：V10 三重共振（单标的状态机，非同构）。** W1（2008 起）默认 Calmar "
+                f"{v10w1['calmar']:.2f}（基准买入持有 {v10b['calmar']:.2f}）；W2（2014 首笔起）默认 "
+                f"{v10w2['calmar']:.2f}。**回撤保护有效（−15% vs −72%）、收益不稳定、"
+                "\"满 250 日\" 卖点最贵** —— 低仓位的机会资金模块，不是主仓。")
+
     return "\n".join(L)
 
 
 def main() -> int:
     a, rets = build_a()
     v0_rows, base10 = build_v0(rets)
-    b = build_b_v1() + build_b_v2() + build_b_rank()
+    b = build_b_v1() + build_b_v2() + build_b_rank() + build_b_v9() + build_b_v10()
     gap = caliber_gap()
     S.write(OUT_MD, render(a, rets, b, gap, v0_rows, base10))
 

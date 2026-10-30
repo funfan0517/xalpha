@@ -1,9 +1,11 @@
 # 红利基金打分策略（V0 · 多标的 · 手册 §4 防御底仓）
 
-> **每日操作已切换（2026-10-26）**：`run_daily_dividend.ps1` 现在跑 **V4 · RSI14 择时**
-> （`v4_rsi/daily.py`，V4 专用池 5 只 = 561060/008163/090010/008115/016441），**不再跑本文的 V0 打分**。
-> V0 的 `v0_rank/` 未删除，可手动重跑作排序/估值参考。替换依据：单标的 RSI 择时适配度
-> （`v4_rsi/daily/_v4_universe.html`）—— 只有 ΔCalmar 双窗口都为正的 5 只适合择时。
+> **每日操作（2026-10-26 起 V4；2026-10-30 起 V4 + V9）**：`run_daily_dividend.ps1` 现在跑
+> **V4 · RSI14 择时**（`v4_rsi/daily.py`，V4 专用池 5 只 = 561060/008163/090010/008115/016441）
+> + **V9 · 五因子估值温度**（`v9_temp5/daily.py` + `charts.py` + `dashboard.py`，6 只池，出逐只档位与 HTML 看板），
+> **不再跑本文的 V0 打分**。V0 的 `v0_rank/` 未删除，可手动重跑作排序/估值参考。
+> 替换依据：单标的 RSI 择时适配度（`v4_rsi/daily/_v4_universe.html`）—— 只有 ΔCalmar 双窗口都为正的 5 只适合择时；
+> V9 作「贵不贵」体检表，不择时、不选品。
 >
 > 来源：《核心轮动投资策略手册》§4 防御底仓。
 > **版本：V0**。2026-10-26 把原打分策略整体封装进 `v0_rank/`（`rank.py` / `backtest_rank.py` /
@@ -189,6 +191,7 @@ strategies/dividend/
 | ② 策略数据 | `data/_dividend_pool.json` · `_fund_nav.json` · `_csindex_value.json` · `_index_peg.json` · `_mx_valuation.json` · `_valuation_snapshot.json` · `data/_csi_hist/` |
 | ③ **V0 回测** | `v0_rank/backtest_rank.py`（打分 / 窗权 walk-forward）→ `v0_rank/backtest/_rank_bt.{jsonl,json}` · `_rank_report.md` |
 | ⑤ **V4 每日（现行）** | `v4_rsi/daily.py` → `v4_rsi/daily/_v4_signal.{md,json}`（`run_daily_dividend.ps1` 调用；5 只专用池 + RSI 70/50 择时 + 横截面 top2） |
+| ⑤ **V9 每日（现行）** | `v9_temp5/daily.py` + `charts.py` + `dashboard.py` → `_v9_signal.{md,json}` + `charts/*.png` + `_v9_temp.html`（与 V4 同脚本；6 只池五因子温度，作加减仓额度参考，不调仓位） |
 | ⑤ V0 每日（仅手动） | `v0_rank/rank.py`（打分窗权权威源）→ `v0_rank/daily/_dividend_rank.{md,json}`（2026-10-26 退出每日流程） |
 | ③ V1 | `v1_spread/`（单标的利差分位择时，已验证时间维度不成立）→ `v1_spread/backtest/_v1_report.md` |
 | ③ V2 | `v2_temp/`（四维估值温度 + 温度分位减仓）→ `v2_temp/backtest/_v2_report.md` · `v2_temp/daily/_v2_read.md` |
@@ -203,7 +206,7 @@ strategies/dividend/
 | ⑤ V4 读数图 + 看板 | `v4_rsi/chart.py`（逐标的：左轴累计净值 / 右轴 RSI14，背景按满仓/减半/清仓三档着色并标注操作；默认池内 5 只近一年，`--all` 全样本、`--basis index` 改指数点位）→ `v4_rsi/daily/_v4_<code>_chart[_all][_index].png`；`v4_rsi/dashboard.py` → `daily/_v4_dashboard.html`（卡片式看板，内嵌上述小图） |
 | ③ V7 | `v7_combo/`（组合搜索 + 最终优选）→ `v7_combo/backtest/_v7_report.md` |
 | ③ 备选规则 | `pool_rule_v1.py`（利差读数卡，并行未替换）→ `daily/_pool_rule_v1.{md,json}` |
-| ③ 总对比 | `_compare_all.py`（V0–V8：**§一 对齐窗口全景** + §三 原生口径）→ `backtest/_compare_all_report.md`。**V9 未并入**：它的信号是「面板型温度」，与 `_single_signal` 的 q/xs 双信号结构不同构；V9 的横比看它自己报告的 §三（同窗口同基准） |
+| ③ 总对比 | `_compare_all.py`（**V0–V10**：§一 V0–V8 对齐窗口全景 + §三 原生口径含 V9/V10）→ `backtest/_compare_all_report.md`。V9/V10 与 `_single_signal` 结构不同构，只并列在 §三 表、**不参与 §一 排名**；§五 另附两者定位 |
 | ④ 专项分析 | `research/backtest_dims.py`（5 指标边际）· `research/backtest_rsi14.py`（单标的 RSI14 择时）· `research/mood_band.py`（80/65 情绪双阈值波段，外部策略复现）→ `research/backtest/*` |
 | 启动 | `run_daily_dividend.ps1`（仓库根） |
 
@@ -270,6 +273,7 @@ strategies/dividend/
 
 ```powershell
 python strategies/dividend/v4_rsi/daily.py --refresh      # ★ 每日操作(现行): V4 RSI14 择时信号
+python strategies/dividend/v9_temp5/daily.py --refresh    # ★ 每日操作(现行): V9 五因子温度读数(另跑 charts.py + dashboard.py)
 python strategies/dividend/v4_rsi/backtest.py             # V4 回测(5 只池) + 阈值敏感性
 python strategies/dividend/v4_rsi/chart.py                # V4 逐标的累计净值+RSI图(近一年, 5 只)
 python strategies/dividend/v4_rsi/dashboard.py            # V4 卡片式看板(内嵌上图) → daily/_v4_dashboard.html
@@ -300,7 +304,7 @@ python strategies/dividend/v6_ratio/backtest.py  # V6 股债收益比
 python strategies/dividend/v7_combo/search.py    # V7 组合优选 + 横向对比总表
 python strategies/dividend/research/backtest_dims.py   # 专项：5 个价值分的边际（V0 指标重要度）
 python strategies/dividend/research/backtest_rsi14.py  # 专项：单标的 RSI14 择时（结论已被 V4 覆盖）
-python strategies/dividend/_compare_all.py       # V0–V7 总对比（§一 对齐窗口全景 + §三 原生口径）
+python strategies/dividend/_compare_all.py       # V0–V10 总对比（§一 V0–V8 全景 + §三 原生口径含 V9/V10）
 powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1
 # 或走 pipeline:
 python pipeline/run_flow.py daily --strategy dividend

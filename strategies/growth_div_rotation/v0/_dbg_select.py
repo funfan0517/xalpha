@@ -1,6 +1,7 @@
 import json, os
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BT = os.path.join(ROOT, "strategies", "growth_div_rotation", "backtest", "_gd_bt.jsonl")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
+BT = os.path.join(ROOT, "strategies", "growth_div_rotation", "v0", "backtest", "_gd_bt.jsonl")
 MIN_YEARS = 3.0
 raw = open(BT, "rb").read()
 text = raw.decode("utf-8") if raw[:2] not in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-16")

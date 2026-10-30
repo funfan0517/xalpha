@@ -1,13 +1,13 @@
-# growth_div_rotation 策略执行标的池（自动生成）2026-09-12 18:01
+# growth_div_rotation 策略执行标的池（自动生成）2026-10-30 09:05
 
-> 来源: 策略回测 strategies/growth_div_rotation/backtest/_gd_bt.jsonl · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)
-> 输出: 本文件 + strategies/growth_div_rotation/daily/_universe_growth_div_active.json · 仅供流程参考，非投资建议
+> 来源: 策略回测 strategies/growth_div_rotation/v0/backtest/_gd_bt.jsonl · 判定: A=策略年化>0 且 超额>0；B=超额>0 但策略年化≤0(防守)
+> 输出: 本文件 + strategies/growth_div_rotation/v0/daily/_universe_growth_div_active.json · 仅供流程参考，非投资建议
 
 ## A 类 · 核心（用该策略主推）
 
 | 场内 | 主题 | 场外基金 | 样本年 | 基准年化 | 策略年化 | 超额 | 基准回撤 | 策略回撤 |
 |---|---|---|---|---|---|---|---|---|
-| GD_ROT | 成长/红利风格轮动 | — | 10.7 | +6.68% | **+11.92%** | +5.23% | -62.11% | -62.14% |
+| GD_ROT | 成长/红利风格轮动 | — | 5.8 | +3.42% | **+9.43%** | +6.01% | -20.97% | -35.78% |
 
 ## B 类 · 防守候选（仅参考，不主动加仓）
 

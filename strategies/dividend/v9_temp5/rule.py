@@ -2,24 +2,17 @@
 # -*- coding: utf-8 -*-
 """V9 · 红利五因子估值温度 —— 参数权威源（`RULES.md` 是文字版，本文件是代码版）
 
-与 V2（`../v2_temp`）的关系
----------------------------
-V2 是「四维等权、PB 不可得、股债收益差用股息率代理」的版本；V9 是**外部规则原件**
-（`implementation_rules.md`，公众号《红利类指数温度个人记录》体系）在 `xalpha` 池上的落地：
-
     温度 = 35%·股债收益差 + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置（各取近 2 年日频分位）
 
-三处与 V2 不同的口径：
+口径（生产用单一路径 `etfrun`；`csindex` 仅 backtest 对照复现 v1.0 恒等式）：
 
-1. **股债收益差用「股息率 − 10Y」**（`SPREAD_KIND = "dy"`）：股息率取 `data/_div_yield_m.csv`
-   月度序列，000922 / H30269 是真实值，其余 5 只按 000922 变化率代理；无股息率历史的 930914
-   退回 `100 / PE − 10Y`（`SPREAD_KIND = "ey"` 可整体切回盈利收益率口径做对照）。
-2. **PB 参与**：`PB = PE × ROE 中枢`（中证官网无 PB 历史）。⚠ 常数 ROE 意味着
-   **合成 PB 的分位 ≡ PE 分位**，所以「五因子」在数学上等于把 36% 权重压在 PE 上 ——
-   `backtest.py` 会把这个等式实测出来，并给出「去掉 PB、四维归一」的对照。
-   ⚠ 但真实 PB 不等价（ROE 时有 9%~11% 变异且系统性下行），该差异见
-   `research/_pb_real_check.md`。
-3. **权重按外部规则原样保留** 35/20/16/15/14（V2 主口径是四维等权）。
+1. **股债收益差 = 股息率 − 10Y**（`SPREAD_KIND = "dy"`）：股息率取 `data/_div_yield_m.csv`
+   月度序列（000922 / H30269 真实，其余 4 只按 000922 变化率代理）；10Y 取中债日频。
+2. **PE / PB = etf.run 等权日频真实值**（`equalWeightedPeTtm` / `equalWeightedPbTtm`），
+   全池 6 只覆盖，落 `data/_etfrun_eva.csv`。**不是**「中证加权 PE + `PE × ROE` 合成 PB」。
+   ⚠ 等权 ≠ 加权：同一天 000922 等权 PE 12.04 vs 中证加权 9.23（差 30%），
+   不要与外部「按加权 PE 分位」的说法直接对照。
+3. **权重原样保留** 35/20/16/15/14（外部规则 R0-1，禁改）。
 
 方向：分位一律折算成「越高越热」。股债收益差反号（利差宽 = 便宜 = 低分位 = 冷）。
 """
@@ -32,7 +25,7 @@ _STRAT = os.path.dirname(_DIR)                      # strategies/dividend
 ROOT = os.path.dirname(os.path.dirname(_STRAT))     # 仓库根（推导，不写死）
 
 SIGNAL = "temp5"
-TITLE = "V9 · 红利五因子估值温度（35/20/16/15/14 · PB 合成）"
+TITLE = "V9 · 红利五因子估值温度（35/20/16/15/14 · 等权 PE + 真实 PB）"
 
 # ------------------------------------------------------------------ 因子
 FACTORS = ("spread", "pe", "pb", "dev", "pos")
@@ -78,41 +71,24 @@ XS_ENABLED = False      # 横截面选品
 TIME_ENABLED = False    # 时间维度降暴露
 
 # ------------------------------------------------------------------ 标的池
-# 10 只基金 = 10 个跟踪指数（来源 `../pool.py::POOL`，README §1）。
-# 指数键用中证代码；两个标普系列在中证官网无条目，用自定键 + 价格代理。
+# 6 只基金 = 6 个跟踪指数（来源 `../pool.py::POOL`）。
+# **入选条件：必须有 etf.run 等权日频 PE/PB 全历史** —— 全池同一估值口径，温度才可横比。
+# 2026-10-29 剔出 4 只：007760(931157)、018388(930914) 无等权 PE/PB；
+# 008163(标普红利低波50)、005125(标普红利机会) 无可用的估值历史（只剩价格温度，与其余不可比）。
+# 要加回标的，**先确认它也有等权估值**，否则会重新引入混合口径。
 FUNDS = [
-    # fund, 短名, 指数键, 跟踪指数全称, ROE 中枢(PB 合成), 是否可得估值, 价格代理(仅无估值标的)
-    dict(code="008163", short="标普红利低波50", index="SPCALVHD50",
-         index_name="标普中国A股大盘红利低波动50", roe=0.110, has_valuation=False,
-         price_proxy="sh515450", note="515450 ETF 价格代理；标普系列三源皆无估值"),
-    dict(code="008115", short="红利低波100", index="930955",
-         index_name="中证红利低波动100", roe=0.098, has_valuation=True),
-    dict(code="007467", short="红利低波", index="H30269",
-         index_name="中证红利低波动", roe=0.105, has_valuation=True),
-    dict(code="007760", short="沪港深红利低波", index="931157",
-         index_name="沪港深红利成长低波", roe=0.120, has_valuation=True),
-    dict(code="090010", short="中证红利", index="000922",
-         index_name="中证红利", roe=0.0993, has_valuation=True,
-         note="ROE 经东财 PB 0.853 / PE 8.706 校准（隐含 0.098）"),
-    dict(code="005125", short="红利机会", index="CSPSADRP",
-         index_name="标普中国A股红利机会", roe=0.120, has_valuation=False,
-         price_proxy=["sh501029", "sh562060"],
-         note="501029 LOF（历史更长 2017→，作主代理）+ 562060 标普红利ETF华宝（场内、流动性更好，"
-              "作交叉校验/回退）；标普系列三源皆无估值"),
-    dict(code="016441", short="红利质量", index="931468",
-         index_name="中证红利质量", roe=0.150, has_valuation=True),
-    dict(code="561060", short="国企红利", index="000824",
-         index_name="中证国有企业红利", roe=0.105, has_valuation=True),
-    dict(code="561580", short="央企红利", index="000825",
-         index_name="中证中央企业红利", roe=0.100, has_valuation=True),
-    dict(code="018388", short="港股通高股息", index="930914",
-         index_name="中证港股通高股息投资", roe=0.120, has_valuation=True,
-         bond_anchor="US", note="港股用 10Y 美债锚，其余用 10Y 中债"),
+    # fund, 短名, 指数键, 跟踪指数全称
+    dict(code="008115", short="红利低波100", index="930955", index_name="中证红利低波动100"),
+    dict(code="007467", short="红利低波", index="H30269", index_name="中证红利低波动"),
+    dict(code="090010", short="中证红利", index="000922", index_name="中证红利"),
+    dict(code="016441", short="红利质量", index="931468", index_name="中证红利质量"),
+    dict(code="561060", short="国企红利", index="000824", index_name="中证国有企业红利"),
+    dict(code="561580", short="央企红利", index="000825", index_name="中证中央企业红利"),
 ]
 CODES = [f["code"] for f in FUNDS]
 NAME = {f["code"]: f["short"] for f in FUNDS}
 BY_CODE = {f["code"]: f for f in FUNDS}
-VALUED = [f["code"] for f in FUNDS if f["has_valuation"]]
+VALUED = CODES                    # 全池都有估值口径（入选条件）
 INDEX_OF = {f["code"]: f["index"] for f in FUNDS}
 
 BASE_LABEL = f"基准：{len(CODES)} 只等权"
@@ -133,8 +109,7 @@ def band_of(temp: float):
 
 # ------------------------------------------------------------------ 路径
 DATA_DIR = os.path.join(_DIR, "data")
-IDX_DIR = os.path.join(DATA_DIR, "_idx")            # 中证指数日频（close/high/low/pe）
-SINA_DIR = os.path.join(DATA_DIR, "_sina")          # 标普系价格代理（ETF/LOF）
+IDX_DIR = os.path.join(DATA_DIR, "_idx")            # 中证指数日频（close/high/low）
 BT_DIR = os.path.join(_DIR, "backtest")
 DAILY_DIR = os.path.join(_DIR, "daily")
 
@@ -145,12 +120,25 @@ DY_CSV = os.path.join(ROOT, "data", "_div_yield_m.csv")                  # 指�
 
 # 蛋卷 index_eva：指数 PE/PB 周频历史（免 token，跨策略数据类）。**只覆盖 3 只**：
 #   000922 -> SH000922 · H30269 -> CSIH30269 · 931157 -> CSI931157
-# 其余 5 只（930955/931468/000824/000825/930914）蛋卷无条目，PB 仍只能合成。
+# 其中 931157 已于 2026-10-29 移出 V9 池，仅保留给 `research/_pb_real_check.py` 做口径对照。
 DJ_CSV = os.path.join(ROOT, "data", "_danjuan_eva.csv")
 DJ_CODE = {"000922": "SH000922", "H30269": "CSIH30269", "931157": "CSI931157"}
 
+# etf.run：指数 **日频** PE/PB（**等权**口径）历史，免 token，跨策略数据类。
+# 这是 V9 **唯一**的估值来源，全池 6 只全部覆盖：
+#   000922(2005→) · H30269(2005→) · 000824(2015→) · 000825(2015→) · 930955(2020→) · 931468(2021→)
+ETF_RUN_CSV = os.path.join(ROOT, "data", "_etfrun_eva.csv")
+ETF_RUN_CODE = {
+    "000922": "CSI/000922", "H30269": "CSI/H30269", "930955": "CSI/930955",
+    "931468": "CSI/931468", "000824": "CSI/000824", "000825": "CSI/000825",
+}
+
 # 股债收益差口径："dy" = 股息率 − 10Y（红利专用，优先）；"ey" = 100/PE − 10Y（无股息率时的兜底）
 SPREAD_KIND = "dy"
+
+# 估值口径（单一主路径）："etfrun" = etf.run 等权真实 PE/PB（默认、唯一可用）；
+# "csindex" 是文档里 v1.0 的对照概念（PB=PE×ROE 合成），当前 factors 已不支持该口径。
+VALUATION_SRC = "etfrun"
 
 OUT_REPORT = os.path.join(BT_DIR, "_v9_report.md")
 OUT_PANEL = os.path.join(BT_DIR, "_v9_panel.jsonl")
@@ -162,13 +150,13 @@ OUT_HTML = os.path.join(DAILY_DIR, "_v9_temp.html")
 
 SUBTITLE = [
     "温度 = 35%·股债收益差 + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置（各取近 2 年分位）",
-    "股债收益差 = 股息率 − 10Y 国债（红利专用；930914 港股无股息率历史，退回 100/PE − 10Y）；"
-    "PB = PE × ROE 中枢（无公开 PB 历史）",
+    "股债收益差 = 股息率 − 10Y 国债（红利专用）",
+    "PE / PB 取 etf.run 等权日频（全池 6 只同源，无回退口径）",
     "档位阈值固定：<20 冰点 / 20–40 偏冷 / 40–55 中性 / 55–65 中性偏热 / 65–75 偏热 / 75–85 过热 / ≥85 危险",
-    f"池 {len(CODES)} 只（{len(VALUED)} 只有估值口径，2 只标普系列只算价格温度、不参与排名）",
+    f"池 {len(CODES)} 只，全部有等权 PE/PB 日频历史",
 ]
 
-NOTE = ("V9 是外部《红利族基金估值温度》规则在 xalpha 池上的**原样落地**，与 V2 的差别在口径"
-        "（盈利收益率替股息率代理、PB 参与、原版权重）。它的价值不在「又一种温度」，"
-        "而在把该体系的两个隐含假设摊开验证：①PB 用 PE×常数合成时，PB 分位与 PE 分位是同一个数，"
-        "36% 权重实际压在 PE 上；②绝对档位（20/40/55/65/75/85）能不能当择时阈值。")
+NOTE = ("V9 是外部《红利族基金估值温度》规则在 xalpha 池上的落地：五因子原版权重、"
+        "股息率−10Y 利差、etf.run 等权日频真实 PE/PB（非合成的 PB）。"
+        "它验证过两件事：①估值换成真实 PB 后，16% 的 PB 权重才不再与 PE 重复；"
+        "②绝对档位（20/40/55/65/75/85）能不能当择时阈值（结论：不能照抄）。")

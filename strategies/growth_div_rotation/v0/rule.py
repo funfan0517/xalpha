@@ -4,7 +4,7 @@
 方法论：每日收盘后算「成长指数 ÷ 中证红利」风格比值 R，
         算 R 的均线(20/30)与上下缓冲带，算 R 过去 250 日分位数 Q，
         按缓冲带 + 分位数双信号做「满仓成长 / 红利(现金)」二元切换，
-        次日开盘执行。默认成长=创业板指，红利=中证红利；科创50 仅替换分子。
+        次日开盘执行。默认成长=科创50，红利=中证红利；创业板指为备选分子（--alt 切回）。
 
 参数判据（见各常量 docstring）：
   - 缓冲带 BUFFER 默认 ±1%，可在 0.5%~1.5% 微调（震荡大加宽、科创50 收窄）
@@ -15,25 +15,27 @@
   - 任何阈值改动**只改本文件**，引擎/信号层禁止内联常量。
 
 执行通道（信号用指数、执行走场外联接基金，见 EXEC）：
-  成长侧默认创业板指联接 / 科创50 联接；红利侧=中证红利联接（与唯一池 #403 同代码）。
+  成长侧默认科创50联接 / 创业板指联接；红利侧=中证红利联接（与唯一池 #403 同代码）。
 """
 import os
 import sys
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# v0/rule.py -> 上溯 4 级才是仓库根（v0 -> growth_div_rotation -> strategies -> 仓库根）
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 
 # ============================ 指数与标的 ============================
 # 指数代码（信号源，直接用指数收盘算风格比值 R；前缀 SH/SZ 供 xa.get_daily）
-GROWTH_INDEX = "399006"      # 创业板指（默认分子）
+GROWTH_INDEX = "000688"      # 科创50（默认分子）
 DIV_INDEX = "000922"         # 中证红利（分母，固定）
-STAR50_INDEX = "000688"      # 科创50（备选分子，仅替换分子用）
+ALT_INDEX = "399006"         # 创业板指（备选分子，--alt 切回）
 
-GROWTH_NAME = "创业板指"
+GROWTH_NAME = "科创50"
 DIV_NAME = "中证红利"
-STAR50_NAME = "科创50"
+ALT_NAME = "创业板指"
 
 # 执行通道（场外联接基金）：信号用指数，申赎走场外。
 # 红利侧 012644 与唯一池 strategies 共用；成长侧为对应指数联接（非唯一池硬性约束，
@@ -67,22 +69,29 @@ FEE = 0.0003                 # 单边切换成本（ETF 佣金，默认未含滑
 TRADE_AT = "信号次日开盘"    # 决策用 R_{-1}（最新可得收盘），执行用次日开盘价
 
 
+# 指数代码的交易所归属**不能用股票规则（首位 5/6/9→SH）推断**：
+# 沪市指数多为 000xxx（中证红利 000922、科创50 000688），深市指数为 399xxx/159xxx。
+# 按首位数字判会把 000922/000688 误投到深市，取到同号的**个股**日线（佳电股份/国城矿业），
+# 静默污染整条回测（2026-10-29 修正）。
+_SZ_INDEX_PREFIX = ("399", "159")
+
+
 def index_prefix(code):
-    """指数代码 -> xa.get_daily 所需 SH/SZ 前缀（5/6/9 开头为 SH）。"""
-    return ("SH" if code.startswith(("5", "6", "9")) else "SZ") + code
+    """指数代码 -> xa.get_daily 所需 SH/SZ 前缀（399/159 为深市，其余为沪市）。"""
+    return ("SZ" if code.startswith(_SZ_INDEX_PREFIX) else "SH") + code
 
 
 def growth_code(alt=False):
-    """当前使用的成长指数代码（alt=True 时切科创50）。"""
-    return STAR50_INDEX if alt else GROWTH_INDEX
+    """当前使用的成长指数代码（默认 000688 科创50；alt=True 时切回 399006 创业板指）。"""
+    return ALT_INDEX if alt else GROWTH_INDEX
 
 
 def growth_label(alt=False):
-    return STAR50_NAME if alt else GROWTH_NAME
+    return ALT_NAME if alt else GROWTH_NAME
 
 
 def exec_pair(alt=False):
     """返回 (成长侧场外代码, 成长侧名称, 红利侧场外代码, 红利侧名称)。"""
-    g_code, g_name = EXEC["kc"] if alt else EXEC["cyb"]
+    g_code, g_name = EXEC["cyb"] if alt else EXEC["kc"]
     d_code, d_name = EXEC["div"]
     return g_code, g_name, d_code, d_name

@@ -66,13 +66,13 @@ def collect(refresh: bool = False) -> dict:
         if code not in panels:
             continue
         p = panels[code]
-        t = factors.temp_at(p["daily"], [asof], has_valuation=f["has_valuation"])
+        t = factors.temp_at(p["daily"], [asof], has_valuation=f.get("has_valuation", True))
         if t.empty:
             continue
         r = t.iloc[-1]
         is_val = r["temp_kind"] == factors.TEMP_KIND_VAL
         band, act = rule.band_of(float(r["temp"])) if is_val else ("价格温度", "无估值序列，仅参考")
-        dy = (official.get(f["index"]) or {}).get("dy") if f["has_valuation"] else None
+        dy = (official.get(f["index"]) or {}).get("dy") if f.get("has_valuation", True) else None
         dd52 = _dd52(p["daily"], r["asof"])
         rows.append({
             "code": code, "name": f["short"], "index": f["index"],
@@ -91,7 +91,7 @@ def collect(refresh: bool = False) -> dict:
                         else round(float(r[f"sub_{k}"]), 1)) for k in rule.FACTORS},
             "asof": r["asof"].strftime("%Y-%m-%d"),
             "stale": code in stale,
-            "has_valuation": f["has_valuation"],
+            "has_valuation": f.get("has_valuation", True),
         })
     if not rows:
         raise RuntimeError("没有任何标的算出温度（数据是否缺失？先跑 data.py）")
@@ -152,17 +152,24 @@ def _bt_line(bt: dict) -> str:
     if not bt:
         return ("回测结论见 `backtest/_v9_report.md`（先跑一次 `backtest.py` 才能在这里引用数字）。")
     s = bt["sims"]
-    bench = s.get("基准：10 只等权", {})
+    bench = s.get(rule.BASE_LABEL, {})
     over = s.get("时间：板块温度分位减仓", {})
     top2 = s.get("横截面：温度最低 2 只", {})
-    return (f"样本（{bt['window']}，{bt['months']} 月）：基准 10 只等权 Calmar "
+    # 结论必须随数据走：分位减仓明显优于基准时，不能再写「不产生 alpha」
+    better = (over.get("calmar") or 0) >= (bench.get("calmar") or 0) + 0.10
+    worse_xs = (top2.get("calmar") or 0) < (bench.get("calmar") or 0)
+    if better and worse_xs:
+        verdict = ("**分位减仓有边际改善（回撤压得比收益让渡更多），但改善集中在少数月份、"
+                   "阈值又是样本内选的，不作为择时信号；横截面选品仍未跑赢基准。**")
+    else:
+        verdict = "**温度不产生择时/择基 alpha**。"
+    return (f"样本（{bt['window']}，{bt['months']} 月）：基准 {len(rule.CODES)} 只等权 Calmar "
             f"{bench.get('calmar', float('nan')):.2f}；按分位减仓 "
             f"{over.get('calmar', float('nan')):.2f}（年化 "
             f"{over.get('cagr', 0) * 100:.1f}% vs {bench.get('cagr', 0) * 100:.1f}%）；"
             f"横截面 top2 {top2.get('calmar', float('nan')):.2f}；"
-            f"绝对档 ≥{rule.ABS_CUT:.0f} 减半 / ≥{rule.ABS_OUT:.0f} 清仓 平均仓位仅 "
-            f"{bt['abs_band']['pos']:.0%}（几乎不触发）。"
-            "**温度不产生择时/择基 alpha**。")
+            f"绝对档 ≥{rule.ABS_CUT:.0f} 减半 / ≥{rule.ABS_OUT:.0f} 清仓 平均仓位 "
+            f"{bt['abs_band']['pos']:.0%}（几乎不触发）。" + verdict)
 
 
 def render(d: dict) -> str:
@@ -217,20 +224,19 @@ def render(d: dict) -> str:
     L += ["## 四、口径与边界（必读）", "",
           "1. **股债收益差 = 股息率 − 10Y**（不再是 100/PE）：股息率取 `data/_div_yield_m.csv`（月度）——"
           "000922 / H30269 为真实序列（全收益指数 − 价格指数），"
-          "930955 / 931157 / 931468 / 000824 / 000825 为 000922 变化率代理 + 各自官网快照校准；"
-          "930914 港股无股息率历史，退回 `100/PE − 10Y`。",
-          "2. **PB 是合成口径**：`PB = PE × ROE 中枢`，常数 ROE 意味着 **PB 分位 ≡ PE 分位**，"
-          f"所以「五因子」实际是 **PE {(rule.W['pe'] + rule.W['pb']) * 100:.0f}% + 利差 35% + "
-          "乖离 15% + 位置 14%**。要 PB 独立，需补指数 PB 历史序列（目前只有 000922 一个快照点）。",
+          "930955 / 931468 / 000824 / 000825 为 000922 变化率代理 + 各自官网快照校准。",
+          "2. **PE / PB 同源等权**：估值链已从「中证加权 PE + `PB = PE × ROE` 合成」换成 "
+          f"etf.run **等权 PE + 真实 PB**（日频，{len(rule.VALUED)} 只有估值标的全部覆盖："
+          "000922 / H30269 / 930955 / 931468 / 000824 / 000825）；**全池同一口径**，温度可横比。"
+          f"PE + PB 仍占 {(rule.W['pe'] + rule.W['pb']) * 100:.0f}% 权重。",
           "3. **温度算在跟踪指数上**（规则 R0-2）：基金有费率与跟踪误差，估值只有指数口径。",
           "4. **两个标普系列无估值**（008163 / 005125）：中证官网、蛋卷、东财指数库三源皆无条目，"
           "只算价格温度并标 †，不进排名、不进横截面。价格用 501029（主，2017→）；562060 实测与 501029 "
           "全期日收益 corr≈0.44（仅近 250 日 0.89），长期背离，仅作回退、不替换。",
-          "5. **港股 018388 用 10Y 美债锚**（其余用 10Y 中债）：用中债锚会让它的利差分位长期贴顶、"
-          "系统性显得最便宜，横截面比较会失真。",
-          f"6. **回测结论**：{_bt_line(d.get('bt') or {})}",
-          "7. 数据分位窗口「近 2 年（730 日历日）」，需 ≥300 个日频观测才给分位；不足 2 年用全历史。",
-          "8. **股息率代理说明**：5 只 proxy 的股息率形状基本等同中证红利，其「利差分位」与 000922 "
+          f"5. **回测结论**：{_bt_line(d.get('bt') or {})}",
+          "6. 数据分位窗口「近 2 年（730 日历日）」，需 ≥300 个日频观测才给分位；"
+          "窗口内不足 300 个观测则不出温度（不拿全历史冒充）。",
+          "7. **股息率代理说明**：4 只 proxy 的股息率形状基本等同中证红利，其「利差分位」与 000922 "
           "高度相关，不宜当作彼此独立的信号。", "",
           "> 仅为个人研究记录，不构成投资建议；市场有风险，投资需谨慎。", ""]
     return "\n".join(L)
@@ -260,7 +266,7 @@ def payload(d: dict) -> dict:
         "backtest": {
             "window": bt.get("window"),
             "months": bt.get("months"),
-            "bench_calmar": _cal("基准：10 只等权"),
+            "bench_calmar": _cal(rule.BASE_LABEL),
             "overlay_calmar": _cal("时间：板块温度分位减仓"),
             "xs_top2_calmar": (bt.get("xs_calmar") or {}).get("top2"),
             "abs_band_pos": (bt.get("abs_band") or {}).get("pos"),

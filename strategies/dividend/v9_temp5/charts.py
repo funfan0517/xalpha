@@ -34,7 +34,7 @@ import factors  # noqa: E402  pylint: disable=wrong-import-position
 import rule     # noqa: E402  pylint: disable=wrong-import-position
 
 OUT_DIR = os.path.join(rule.DAILY_DIR, "charts")
-WINDOW_DAYS = 365          # 图上只展示近一年
+WINDOW_DAYS = rule.PCT_WINDOW_DAYS   # 图与分位窗口对齐：近 2 年（730 日历日）
 
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -69,7 +69,7 @@ def _temp_series(panel: dict):
     """逐日温度（与 daily.py 同一 `temp_at`），返回按日期索引的 DataFrame。"""
     f = panel["fund"]
     daily = panel["daily"]
-    return factors.temp_at(daily, daily.index, has_valuation=f["has_valuation"])
+    return factors.temp_at(daily, daily.index, has_valuation=f.get("has_valuation", True))
 
 
 def plot_one(code: str, panel: dict, t, refresh: bool = False) -> str | None:
@@ -79,7 +79,7 @@ def plot_one(code: str, panel: dict, t, refresh: bool = False) -> str | None:
     if nav.empty:
         return None
 
-    # 只画近一年：x 轴 [asof − WINDOW_DAYS, asof]
+    # 展示窗口 = 分位窗口（730 天）：x 轴 [asof − WINDOW_DAYS, asof]
     asof = nav.index[-1]
     xmin = max(asof - pd.Timedelta(days=WINDOW_DAYS), nav.index[0])
     nav = nav.loc[xmin:]
@@ -121,9 +121,9 @@ def plot_one(code: str, panel: dict, t, refresh: bool = False) -> str | None:
     ax2.tick_params(axis="y", colors="#c0392b", labelsize=7)
     ax.set_xlim(xmin, nav.index[-1])
 
-    is_px = not f["has_valuation"]
+    is_px = not f.get("has_valuation", True)
     tag = "价格温度†" if is_px else "五因子温度"
-    ax.set_title(f"{f['short']}（{code}）· {tag} · 近一年",
+    ax.set_title(f"{f['short']}（{code}）· {tag} · 近两年",
                  fontsize=9.5, fontweight="bold", pad=6, loc="left")
 
     ax.grid(axis="x", color="#e6ddcb", lw=0.4, alpha=0.6)
@@ -158,6 +158,18 @@ def main(refresh: bool = False) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     panels = factors.build(refresh=refresh)
+    if not panels:
+        print("[v9:chart] 无数据面板，跳过", file=sys.stderr)
+        return 1
+    # 清理已剔除标的的旧图，避免 charts/ 残留历史标的（如 005125/008163）
+    os.makedirs(OUT_DIR, exist_ok=True)
+    keep = {f"{f['code']}_" for f in rule.FUNDS}
+    for fn in os.listdir(OUT_DIR):
+        if fn.lower().endswith(".png") and not any(fn.startswith(k) for k in keep):
+            try:
+                os.remove(os.path.join(OUT_DIR, fn))
+            except OSError:
+                pass
     n = 0
     for code, p in panels.items():
         t = _temp_series(p)

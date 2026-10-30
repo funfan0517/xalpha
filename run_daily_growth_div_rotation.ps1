@@ -6,13 +6,13 @@ Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
 
 Write-Host "[1/2] 增量刷新指数行情缓存..."
-python -W ignore strategies\growth_div_rotation\data.py
+python -W ignore strategies\growth_div_rotation\v0\data.py
 if ($LASTEXITCODE -ne 0) { throw "行情刷新失败" }
 
 Write-Host "[2/2] 生成成长/红利风格轮动每日信号..."
-python -W ignore strategies\growth_div_rotation\scan.py
+python -W ignore strategies\growth_div_rotation\v0\scan.py
 if ($LASTEXITCODE -ne 0) { throw "信号生成失败" }
 
 Write-Host ""
-Write-Host "Done. 报告: strategies\growth_div_rotation\daily\_signal_report.md ; 快照: strategies\growth_div_rotation\daily\_gd_signal.json"
+Write-Host "Done. 报告: strategies\growth_div_rotation\v0\daily\_signal_report.md ; 快照: strategies\growth_div_rotation\v0\daily\_gd_signal.json"
 Write-Host "[i] 信号用指数收盘(盘后), 执行用次日开盘价(场外按当日15:00前净值); 机械规则, 非投资建议."

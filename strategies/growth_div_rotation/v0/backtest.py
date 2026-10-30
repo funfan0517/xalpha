@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """成长/红利风格轮动 · 官方回测（二元：满仓成长 / 红利）
 
-数据: 创业板指(399006) ÷ 中证红利(000922) 风格比值 R（默认；--alt 切科创50 000688）
+数据: 科创50(000688) ÷ 中证红利(000922) 风格比值 R（默认；--alt 切回创业板指 399006）
 引擎: 无前视，次日开盘切换；缓冲带 ±BUFFER；分位风控 250 日；月频上限防摩擦
 基准: 买入持有成长 / 买入持有红利 / 50-50 恒定
 产物: backtest/_bt_report.md · backtest/_gd_bt.json · backtest/_gd_nav.png
       backtest/_gd_bt.jsonl（单行摘要，供 pipeline/flow_select 读取）
-用法: python strategies/growth_div_rotation/backtest.py [--alt] [--refresh]
+用法: python strategies/growth_div_rotation/v0/backtest.py [--alt] [--refresh]
 """
 import io
 import json
@@ -20,7 +20,7 @@ import pandas as pd
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))   # 仓库根
 for _p in (_DIR, _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -61,7 +61,7 @@ def compute(alt=False, refresh=False):
     dcode = rule.DIV_INDEX
     wide = datamod.load_wide(codes=[gcode, dcode])
     if wide.shape[1] < 2 or len(wide) < rule.QUANTILE_WINDOW + 30:
-        raise RuntimeError("数据不足：请先 python strategies/growth_div_rotation/data.py --refresh")
+        raise RuntimeError("数据不足：请先 python strategies/growth_div_rotation/v0/data.py --refresh")
     gclose, dclose = wide[gcode], wide[dcode]
     sig = factors.compute_signals(gclose, dclose)
 

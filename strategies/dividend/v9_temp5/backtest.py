@@ -188,8 +188,9 @@ def load_rets() -> pd.DataFrame:
     return me.pct_change()
 
 
-def build(weights: dict | None = None, refresh: bool = False) -> dict:
-    panels = factors.build(weights=weights, refresh=refresh)
+def build(weights: dict | None = None, refresh: bool = False,
+          src: str | None = None) -> dict:
+    panels = factors.build(weights=weights, refresh=refresh, src=src)
     temp = factors.monthly_temp(panels)
     rets = load_rets()
     start = pd.Timestamp(START)
@@ -220,8 +221,8 @@ def sims_of(d: dict) -> dict:
     m_time = time_mult(bq, rule.CUT_Q, rule.OUT_Q)
 
     out = {
-        "基准：10 只等权": run_weights(w_bench, rets),
-        "基准：8 只有估值标的等权": run_weights(w_val, rets),
+        rule.BASE_LABEL: run_weights(w_bench, rets),
+        "基准：6 只有估值标的等权": run_weights(w_val, rets),
         "时间：板块温度分位减仓": run_weights(w_bench.mul(m_time, axis=0), rets),
         "横截面：温度最低 2 只": run_weights(lowest_weights(tv, 2), rets),
         "横截面：温度最低 3 只": run_weights(lowest_weights(tv, 3), rets),
@@ -239,8 +240,11 @@ def main(argv=None) -> int:
 
     base = build(weights=rule.W, refresh=args.refresh)
     nopb = build(weights=rule.W_NO_PB, refresh=False)
+    # 旧口径对照：中证加权 PE + 合成 PB（rule.VALUATION_SRC 改口径后仍可复现）
+    legacy = build(weights=rule.W, refresh=False, src="csindex")
     S = sims_of(base)
     S4 = sims_of(nopb)
+    S_legacy = sims_of(legacy)
 
     temp, rets = base["temp"], base["rets"]
     board, bq = S["board"], S["board_q"]
@@ -260,7 +264,7 @@ def main(argv=None) -> int:
     for cut, out in ((50, 60), (55, 65), (60, 70), (65, 75)):
         m = abs_mult(board, cut, out)
         r = run_weights(w_bench.mul(m, axis=0), rets)
-        bench_r = S["sims"]["基准：10 只等权"]
+        bench_r = S["sims"][rule.BASE_LABEL]
         diff_abs = (r - bench_r).dropna()
         drop = diff_abs.nlargest(3).index
         adv = stats(r)["cagr"] - stats(bench_r)["cagr"]
@@ -275,7 +279,7 @@ def main(argv=None) -> int:
     # 逐年 + 剔除最大贡献月
     pos_eff = S["m_time"].shift(1).reindex(rets.index)
     strat = S["sims"]["横截面 top2 + 时间减仓"]
-    bench = S["sims"]["基准：10 只等权"]
+    bench = S["sims"][rule.BASE_LABEL]
     yearly = pd.DataFrame({"bench": bench, "strat": strat, "expo": pos_eff}).dropna(
         subset=["bench", "strat"])
     yearly = (1 + yearly[["bench", "strat"]]).groupby(yearly.index.year).prod() - 1
@@ -286,15 +290,23 @@ def main(argv=None) -> int:
         drop = diff.nlargest(k).index
         robust[k] = (stats(bench.drop(drop))["cagr"], stats(strat.drop(drop))["cagr"])
 
-    # PB ≡ PE 实测
-    pb_gap = 0.0
-    for code in rule.VALUED:
-        m = base["panels"][code]["monthly"].dropna(subset=["temp"])
-        if not m.empty:
-            pb_gap = max(pb_gap, float((m["sub_pb"] - m["sub_pe"]).abs().max()))
+    # PB 分位 vs PE 分位：旧口径应恒等（=0），等权口径下是真实差异（>0）
+    def _pb_gap(panels: dict) -> float:
+        gap = 0.0
+        for code in rule.VALUED:
+            m = panels.get(code, {}).get("monthly", pd.DataFrame()).dropna(subset=["temp"])
+            if not m.empty:
+                gap = max(gap, float((m["sub_pb"] - m["sub_pe"]).abs().max()))
+        return gap
 
-    ctx = dict(base=base, nopb=nopb, S=S, S4=S4, sens=sens, sens_abs=sens_abs, xs=xs, yearly=yearly,
-               robust=robust, sim_abs=sim_abs, m_abs=m_abs, pb_gap=pb_gap,
+    pb_gap = _pb_gap(legacy["panels"])
+    pb_gap_ew = _pb_gap(base["panels"])
+
+    ctx = dict(base=base, nopb=nopb, legacy=legacy, S=S, S4=S4, S_legacy=S_legacy,
+               sens=sens, sens_abs=sens_abs, xs=xs, yearly=yearly,
+               robust=robust, sim_abs=sim_abs, m_abs=m_abs,
+               pb_gap=pb_gap, pb_gap_ew=pb_gap_ew,
+               val_src={c: p.get("val_src") for c, p in base["panels"].items()},
                ic=ts_ic(base["panels"], rets),
                cs=cs_ic(S["temp_valued"], rets), tri=tercile(base["panels"], rets),
                bench=bench, strat=strat, pos_eff=pos_eff)
@@ -307,7 +319,7 @@ def main(argv=None) -> int:
         fh.write(render(ctx))
 
     print(f"[v9bt] 样本 {rets.index[0]:%Y-%m}~{rets.index[-1]:%Y-%m}（{len(rets)} 月）· "
-          f"有估值标的 {len(rule.VALUED)} 只 · 价格温度 2 只")
+          f"有估值标的 {len(rule.VALUED)} 只 · 价格温度 0 只")
     for name, r in S["sims"].items():
         st = stats(r)
         print(f"[v9bt] {name:26s} 年化 {st['cagr'] * 100:5.1f}%  回撤 {st['dd'] * 100:6.1f}%  "
@@ -315,7 +327,11 @@ def main(argv=None) -> int:
     st = stats(sim_abs)
     print(f"[v9bt] {'对照：绝对档 65/75 减仓':26s} 年化 {st['cagr'] * 100:5.1f}%  "
           f"回撤 {st['dd'] * 100:6.1f}%  Calmar {st['calmar']:5.2f}")
-    print(f"[v9bt] PB 分位与 PE 分位最大差 {pb_gap:.6f}")
+    print(f"[v9bt] 估值口径 {rule.VALUATION_SRC} · 合成口径 PB−PE 最大差 {pb_gap:.6f}"
+          f" · 等权口径真实最大差 {pb_gap_ew:.2f} 分")
+    for name, v in ctx["S_legacy"]["sims"].items():
+        st = stats(v)
+        print(f"[v9bt] 旧口径 {name:20s} 年化 {st['cagr'] * 100:5.1f}%  Calmar {st['calmar']:5.2f}")
     print(f"[v9bt] 产物 -> {os.path.relpath(rule.OUT_REPORT, rule.ROOT)}")
     return 0
 
@@ -325,6 +341,9 @@ def _write_summary(ctx: dict) -> None:
     rets = ctx["base"]["rets"]
     sims = {k: {kk: (None if not np.isfinite(vv) else round(float(vv), 4))
                 for kk, vv in stats(v).items()} for k, v in ctx["S"]["sims"].items()}
+    legacy_sims = {k: {kk: (None if not np.isfinite(vv) else round(float(vv), 4))
+                       for kk, vv in stats(v).items()}
+                   for k, v in ctx["S_legacy"]["sims"].items()}
     out = {
         "window": f"{rets.index[0]:%Y-%m}~{rets.index[-1]:%Y-%m}",
         "months": int(len(rets)),
@@ -332,7 +351,13 @@ def _write_summary(ctx: dict) -> None:
         "xs_calmar": {k: round(float(v["calmar"]), 4) for k, v in ctx["xs"].items()},
         "abs_band": {"pos": round(float(ctx["m_abs"].mean()), 4),
                      "stats": {k: round(float(v), 4) for k, v in stats(ctx["sim_abs"]).items()}},
-        "pb_gap": round(float(ctx["pb_gap"]), 9),
+        "valuation": {
+            "src": rule.VALUATION_SRC,
+            "pb_gap_synth": round(float(ctx["pb_gap"]), 9),
+            "pb_gap_ew": round(float(ctx["pb_gap_ew"]), 6),
+            "sources": {c: v for c, v in ctx["val_src"].items()},
+        },
+        "legacy_sims": legacy_sims,
         "flags": {"xs": rule.XS_ENABLED, "time": rule.TIME_ENABLED},
     }
     with open(rule.OUT_BT_SUM, "w", encoding="utf-8") as fh:
@@ -353,7 +378,7 @@ def _write_bt(d: dict) -> None:
     with open(rule.OUT_BT, "w", encoding="utf-8") as fh:
         for ts in rets.index:
             row = {"date": ts.strftime("%Y-%m-%d"),
-                   "bench": round(float(S["sims"]["基准：10 只等权"].get(ts, np.nan)), 6),
+                   "bench": round(float(S["sims"][rule.BASE_LABEL].get(ts, np.nan)), 6),
                    "strat": round(float(S["sims"]["横截面 top2 + 时间减仓"].get(ts, np.nan)), 6),
                    "mult": round(float(S["m_time"].reindex([ts]).iloc[0]), 2),
                    "board": None if pd.isna(S["board"].get(ts)) else round(float(S["board"].get(ts)), 1),
@@ -400,11 +425,34 @@ def render(ctx: dict) -> str:
          "> 温度 = 35%·股债收益差(反号) + 20%·PE + 16%·PB + 15%·年线乖离 + 14%·价格位置，"
          "各取近 2 年日频分位（窗口内不足 300 个观测不给分位）", ""]
 
+    # ---------------- 〇 估值口径
+    vsrc = ctx.get("val_src") or {}
+    ew = [c for c in rule.VALUED if vsrc.get(c) == "etfrun_ew"]
+    fb = [c for c in rule.VALUED if vsrc.get(c) != "etfrun_ew"]
+    L += ["## 〇、本轮变更：估值链换成等权 PE + 真实 PB", "",
+          f"`rule.VALUATION_SRC = \"{rule.VALUATION_SRC}\"`。估值不再是「中证加权 PE + "
+          "`PB = PE × ROE` 合成」，而是 **etf.run 等权 `equalWeightedPeTtm` + 真实 "
+          "`equalWeightedPbTtm`**（日频；价格与中证官网逐日一致，只换估值列）。", "",
+          f"覆盖 **{len(ew)}/{len(rule.VALUED)}** 只有估值标的：{'、'.join(ew) or '—'}；"
+          f"回退中证加权 + 合成 PB：{'、'.join(fb) or '—'}。"
+          "**池内两种口径并存**，温度只做自身时序分位，不宜跨标的比大小。", "",
+          "| 方案（同一套规则） | 年化 | 最大回撤 | Calmar | Sharpe |",
+          "|---|---:|---:|---:|---:|"]
+    for tag, src_key in (("新：等权 PE + 真实 PB", "S"),
+                         ("旧：加权 PE + 合成 PB", "S_legacy")):
+        st = stats(ctx[src_key]["sims"]["横截面 top2 + 时间减仓"])
+        L.append(f"| {tag} | {_p(st['cagr'])} | {_p(st['dd'])} | {_n(st['calmar'])} | "
+                 f"{_n(st['sharpe'])} |")
+    L += ["",
+          f"合成口径下 `PB 分位 − PE 分位` 最大差 **{ctx['pb_gap']:.6f}**（恒等式）；"
+          f"等权口径下是 **{ctx['pb_gap_ew']:.2f} 分** —— PB 第一次带上独立信息。", ""]
+
     # ---------------- 一
-    L += ["## 一、先说 PB：16% 权重没有提供新信息", "",
+    L += ["## 一、PB 在**合成口径**下是重复的（等权口径下不是）", "",
+          "本节只讨论旧口径。**等权 PE + 真实 PB** 下 PB 已带上独立信息，见 §〇。", "",
           f"合成口径 `PB = PE × ROE 常数` ⇒ 常数缩放不改变秩 ⇒ **PB 分位 ≡ PE 分位**。"
           f"全池实测最大差 **{ctx['pb_gap']:.6f}**（0 即恒等）。", "",
-          "所以外部规则的「五因子」在数学上是四维：", "",
+          "所以**旧口径**下外部规则的「五因子」在数学上是四维：", "",
           "| 维度 | 规则权重 | 实际等价权重 |", "|---|---:|---:|",
           f"| PE（含 PB 合并） | 20% + 16% | **{(rule.W['pe'] + rule.W['pb']) * 100:.0f}%** |",
           f"| 股债收益差 | 35% | {rule.W['spread'] * 100:.0f}% |",
@@ -565,13 +613,14 @@ def render(ctx: dict) -> str:
     n_neg = {h: int((icd.loc[icd["h"] == h, "ic"] < 0).sum()) for h in (1, 3, 6, 12)}
     n_all = {h: int((icd["h"] == h).sum()) for h in (1, 3, 6, 12)}
     L += ["## 七、读法（结论）", "",
-          f"1. **「五因子」实为四维，PE 实际占 {(rule.W['pe'] + rule.W['pb']) * 100:.0f}%**"
-          f"（PB 分位 ≡ PE 分位，实测差 {ctx['pb_gap']:.6f}）。要 PB 独立必须补指数 PB 历史；"
-          "在拿到之前，这套温度实质是「PE 36% + 利差 35% + 位置类 29%」，比 V2 的四维等权**更偏 PE**。"
-          "去 PB、四维归一的对照在同一套规则下 Calmar 从 "
+          f"1. **PB 在等权口径下第一次有了独立信息。** 旧口径 `PB = PE × ROE 常数` 下"
+          f"PB 分位 ≡ PE 分位（差 {ctx['pb_gap']:.6f}）；换成 etf.run 等权真实 PB 后，"
+          f"两者最大差 **{ctx['pb_gap_ew']:.2f} 分** —— 等权 ROE 从 2019 的 0.130 降到 "
+          "2025 的 0.086（−34%），同样的 PE 对应的 PB 越来越低。"
+          "去 PB、四维归一的对照 Calmar 从 "
           f"{stats(S['sims']['横截面 top2 + 时间减仓'])['calmar']:.2f} 变成 "
           f"{stats(S4['sims']['横截面 top2 + 时间减仓'])['calmar']:.2f} —— "
-          "差别只来自 PE 权重 36% vs 23%，不是「多了一个维度」。",
+          "PB 不再是纯重复项；但 16% 权重下它的单独贡献仍然有限。",
           f"2. **时间序列 IC 方向对、幅度弱。** 温度 vs 未来 1/3/6/12 月的平均 IC 为 "
           f"{ic_mean[1]:+.2f} / {ic_mean[3]:+.2f} / {ic_mean[6]:+.2f} / {ic_mean[12]:+.2f}"
           f"（负 = 温度高则未来收益低，方向符合预期；为负的只数 "
@@ -581,20 +630,20 @@ def render(ctx: dict) -> str:
           f"`{ic6.iloc[-1]['name']}` {ic6.iloc[-1]['ic']:+.2f}。"
           "**IC 为负 ≠ 可以拿来择时**：IC 说的是横截面上「贵的那只后面涨得少」，"
           "而组合层要靠「什么时候整体降暴露」赚钱，这是两件事（见第 3、4 条）。",
-          f"3. **横截面选品：无效，且明显负贡献。** 横截面 IC "
+          f"3. **横截面选品：仍未跑赢基准。** 横截面 IC "
           f"{_n(cs[1][0])}（1M）/ {_n(cs[3][0])}（3M）/ {_n(cs[6][0])}（6M）≈ 0；"
           f"top1/top2/top3 的 Calmar 是 {ctx['xs']['top1']['calmar']:.2f}/"
           f"{ctx['xs']['top2']['calmar']:.2f}/{ctx['xs']['top3']['calmar']:.2f}，"
           f"全部低于基准 {st_bench['calmar']:.2f}（最好 {best_cs}、最差 {worst_cs}）。"
           "8 只红利指数月收益高度相关，「同一板块里谁更便宜」换不来收益 —— 与 V2 结论一致。",
-          f"4. **时间维度：分位口径无效、绝对口径经不起剔除检验。** 分位 "
+          f"4. **时间维度：分位口径边际有效，绝对口径经不起剔除检验。** 分位 "
           f"{rule.CUT_Q:.0%}/{rule.OUT_Q:.0%} 把 Calmar 从 {st_bench['calmar']:.2f} 变成 "
           f"{stats(S['sims']['时间：板块温度分位减仓'])['calmar']:.2f}（年化 "
           f"{_p(st_bench['cagr'])} → {_p(stats(S['sims']['时间：板块温度分位减仓'])['cagr'])}，"
           f"回撤 {_p(st_bench['dd'])} → {_p(stats(S['sims']['时间：板块温度分位减仓'])['dd'])}），"
-          f"三档阈值 {min(s['calmar'] for s in sens.values()):.2f}~"
-          f"{max(s['calmar'] for s in sens.values()):.2f} 且**越严越差** —— 分位化把温度变成了"
-          "「常年贴在高位」（利率下行把利差维度顶死），减仓等于长期低配。"
+          f"三档阈值落在 {min(s['calmar'] for s in sens.values()):.2f}~"
+          f"{max(s['calmar'] for s in sens.values()):.2f}，**阈值本身仍是样本内选的**；"
+          "且改善主要来自「回撤压得比收益让渡更多」，样本只有 80 个月、一轮涨跌。"
           f"绝对口径 4 档反而全部 ≥ 基准（最好 {best_abs}：Calmar {ba['calmar']:.2f}、"
           f"仓位 {ba['pos']:.0%}、年化优势 {ba['adv'] * 100:+.1f}pp），但剔除贡献最大的 3 个月后"
           f"优势只剩 {ba['adv_d3'] * 100:+.1f}pp —— 集中在少数几个月、阈值又是样本内选的，不能照抄。"

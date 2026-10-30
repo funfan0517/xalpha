@@ -8,7 +8,7 @@
   - 信号用指数、执行走场外联接基金（见 rule.EXEC）
 
 只读本地缓存（先跑 data.py --refresh 或收盘后 data.py 增量刷新），本脚本不重抓全量。
-用法: python strategies/growth_div_rotation/scan.py [--alt]
+用法: python strategies/growth_div_rotation/v0/scan.py [--alt]
 输出: daily/_signal_report.md · daily/_gd_signal.json
 """
 import io
@@ -20,7 +20,7 @@ from datetime import datetime
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))   # 仓库根
 for _p in (_DIR, _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -56,7 +56,7 @@ def main():
     dcode = rule.DIV_INDEX
     wide = datamod.load_wide(codes=[gcode, dcode])
     if wide.shape[1] < 2 or len(wide) < rule.QUANTILE_WINDOW + 30:
-        sys.exit("数据不足：先 python strategies/growth_div_rotation/data.py --refresh")
+        sys.exit("数据不足：先 python strategies/growth_div_rotation/v0/data.py --refresh")
     gclose, dclose = wide[gcode], wide[dcode]
     sig = factors.compute_signals(gclose, dclose)
     res = engine.run_strategy(sig, gclose, dclose)

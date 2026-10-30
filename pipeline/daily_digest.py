@@ -214,7 +214,7 @@ def parse_dividend(_cfg):
 
 
 def parse_growth_div(_cfg):
-    path = os.path.join(_ROOT, "strategies", "growth_div_rotation", "daily", "_gd_signal.json")
+    path = os.path.join(_ROOT, "strategies", "growth_div_rotation", "v0", "daily", "_gd_signal.json")
     d = json.loads(_read(path))
     snap = d.get("snapshot") or {}
     act_txt = d.get("action_tomorrow") or "不动"
@@ -233,7 +233,7 @@ def parse_growth_div(_cfg):
          ["Q", f"{float(snap.get('q') or 0) * 100:.1f}%"],
          ["本月切换", f"{d.get('month_switches')}/{d.get('month_cap')}"]],
         note="二元轮动（成长 / 红利·现金），信号用指数收盘，次日开盘执行。",
-        src=_rel(os.path.join(_ROOT, "strategies", "growth_div_rotation", "daily", "_signal_report.md")),
+        src=_rel(os.path.join(_ROOT, "strategies", "growth_div_rotation", "v0", "daily", "_signal_report.md")),
     )
 
 

@@ -23,6 +23,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -388,6 +389,84 @@ def load_danjuan_eva(refresh: bool = False, days: int = 7) -> pd.DataFrame:
     return out
 
 
+# ------------------------------------------------------------------ etf.run 指数估值（日频等权 PE/PB）
+_ETF_RUN_URL = "https://etf.run/index/{code}"
+
+
+def fetch_etfrun_eva(code: str) -> pd.DataFrame:
+    """etf.run 指数页内嵌 `compressedIndexDaily` -> DataFrame(date, close, pe, pb)。
+
+    * `code` 形如 `CSI/000922`；
+    * `pe` = `equalWeightedPeTtm`、`pb` = `equalWeightedPbTtm`，均为**等权**口径，
+      与中证官网市值加权的 `peg` **不可混用**（同一天 000922 等权 PE 12.0 vs 加权 9.2）；
+    * `close` 实测与中证官网逐日一致（偏差 1e-6 量级），只作交叉校验，不替换价格源。
+    """
+    if _SESSION is None:
+        raise RuntimeError("requests 不可用")
+    r = _SESSION.get(_ETF_RUN_URL.format(code=code), timeout=40)
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code}")
+    flat = r.text.replace('\\"', '"')
+    i = flat.find('"compressedIndexDaily"')
+    if i < 0:
+        raise RuntimeError("页面无 compressedIndexDaily（该指数未被收录）")
+    obj, _ = json.JSONDecoder().raw_decode(flat[flat.find("{", i):])
+    df = pd.DataFrame(obj["values"], columns=obj["fieldNames"])
+    df["date"] = pd.to_datetime(df["date"])
+    out = df[["date", "close", "equalWeightedPeTtm", "equalWeightedPbTtm"]].rename(
+        columns={"equalWeightedPeTtm": "pe", "equalWeightedPbTtm": "pb"})
+    for c in ("close", "pe", "pb"):
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    return out.sort_values("date").drop_duplicates("date", keep="last").reset_index(drop=True)
+
+
+def load_etfrun_eva(refresh: bool = False, days: int = 3) -> pd.DataFrame:
+    """etf.run 日频等权 PE/PB（缓存优先）-> DataFrame(date, index_code, pe, pb, close)。
+
+    * 只覆盖 `rule.ETF_RUN_CODE` 的 6 只，其余 2 只（931157 / 930914）回退中证口径；
+    * 单只失败沿用旧缓存里该只的数据，全失败才整体回退。
+    """
+    cols = ["date", "index_code", "pe", "pb", "close"]
+    old = None
+    if os.path.exists(rule.ETF_RUN_CSV):
+        try:
+            old = pd.read_csv(rule.ETF_RUN_CSV, parse_dates=["date"])
+        except Exception:  # noqa: BLE001 - 坏缓存当没有
+            old = None
+    if not refresh and old is not None and len(old):
+        if old["date"].max() >= pd.Timestamp.today().normalize() - pd.Timedelta(days=days):
+            return old[cols]
+
+    frames, ok = [], set()
+    for idx_key, code in rule.ETF_RUN_CODE.items():
+        try:
+            df = fetch_etfrun_eva(code)
+            df["index_code"] = idx_key
+            frames.append(df[cols])
+            ok.add(idx_key)
+        except Exception as exc:  # noqa: BLE001 - 单只失败不炸整轮
+            _warn(f"etf.run 估值 {idx_key}({code}) 失败：{type(exc).__name__}: {exc}")
+
+    if not frames:
+        if old is not None and len(old):
+            _warn(f"etf.run 估值全失败，沿用缓存至 {old['date'].max():%Y-%m-%d}")
+            return old[cols]
+        _warn("etf.run 估值全失败且无缓存")
+        return pd.DataFrame(columns=cols)
+
+    out = pd.concat(frames, ignore_index=True)
+    missed = set(rule.ETF_RUN_CODE) - ok
+    if missed and old is not None and len(old):
+        keep = old[old["index_code"].isin(missed)]
+        if len(keep):
+            _warn(f"etf.run 估值 {'/'.join(sorted(missed))} 本次失败，沿用缓存")
+            out = pd.concat([out, keep[cols]], ignore_index=True)
+    out = out.sort_values(["index_code", "date"]).reset_index(drop=True)
+    os.makedirs(os.path.dirname(rule.ETF_RUN_CSV), exist_ok=True)
+    out.to_csv(rule.ETF_RUN_CSV, index=False, encoding="utf-8")
+    return out
+
+
 def official_valuation() -> dict:
     """中证《指数估值》官方股息率（仅展示，不进温度）—— 复用 `pool.load_csindex_value`。
 
@@ -409,7 +488,7 @@ def main(refresh: bool = False) -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     print(f"[v9:data] 抓取 {len(rule.FUNDS)} 只标的的指数价格 / PE")
     for f in rule.FUNDS:
-        if f["has_valuation"]:
+        if f.get("has_valuation", True):
             df = load_index(f["index"], refresh=refresh)
             n_pe = int(df["pe"].notna().sum())
             span = f"{df['date'].min():%Y-%m-%d}~{df['date'].max():%Y-%m-%d}" if len(df) else "空"

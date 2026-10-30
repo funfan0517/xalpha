@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """成长/红利风格轮动 · 行情抓取与缓存（数据类 → 本策略 data/ 子目录）
 
-抓取三个指数日线收盘（成长 创业板指/科创50 + 红利 中证红利），
+抓取三个指数日线收盘（成长 科创50/创业板指 + 红利 中证红利），
 落本地缓存，回测与每日信号共用同一份数据（不重复联网）。
-用法: python strategies/growth_div_rotation/data.py [--refresh]
+用法: python strategies/growth_div_rotation/v0/data.py [--refresh]
 """
 import io
 import json
@@ -14,7 +14,7 @@ if not isinstance(sys.stdout, io.TextIOWrapper):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_DIR))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_DIR)))   # v0 -> 家族 -> strategies -> 仓库根
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -29,7 +29,12 @@ def _sh(code):
     return rule.index_prefix(code)
 
 
-def fetch_index(code, start="2015-01-01"):
+# 起点回补到创业板指上市（2010-06-01，基日 2010-05-31 基点 1000），
+# 对齐用户手册/视频的回测区间 2010-06~（196 个月、每月 1000 元），使两个变种可同窗对比。
+DEFAULT_START = "2010-06-01"
+
+
+def fetch_index(code, start=DEFAULT_START):
     """单指数日线 -> DataFrame(date, close)。"""
     import xalpha as xa
     df = xa.get_daily(_sh(code), start=start)
@@ -49,16 +54,16 @@ def save_cache(d):
     json.dump(d, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
 
 
-def refresh(start="2015-01-01", codes=None):
-    """拉取并合并缓存；codes 缺省为 [成长默认, 红利, 科创50]。"""
-    codes = codes or [rule.GROWTH_INDEX, rule.DIV_INDEX, rule.STAR50_INDEX]
+def refresh(start=DEFAULT_START, codes=None):
+    """拉取并合并缓存；codes 缺省为 [成长默认, 红利, 创业板指(备选)]。"""
+    codes = codes or [rule.GROWTH_INDEX, rule.DIV_INDEX, rule.ALT_INDEX]
     cache = load_cache()
     for code in codes:
         try:
             df = fetch_index(code, start=start)
             cache[code] = {
                 "name": (rule.GROWTH_NAME if code == rule.GROWTH_INDEX
-                         else rule.STAR50_NAME if code == rule.STAR50_INDEX
+                         else rule.ALT_NAME if code == rule.ALT_INDEX
                          else rule.DIV_NAME),
                 "dates": [d.strftime("%Y-%m-%d") for d in df["date"]],
                 "close": df["close"].tolist(),
@@ -95,7 +100,7 @@ def append_latest():
     """每日信号前刷新最新若干 bar（仅补增量，不重抓全量）。"""
     cache = load_cache()
     changed = False
-    for code in [rule.GROWTH_INDEX, rule.DIV_INDEX, rule.STAR50_INDEX]:
+    for code in [rule.GROWTH_INDEX, rule.DIV_INDEX, rule.ALT_INDEX]:
         if code not in cache:
             continue
         last = cache[code]["dates"][-1]

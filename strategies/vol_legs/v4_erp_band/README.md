@@ -78,6 +78,7 @@ v4_erp_band/
 │   ├── _v4_erp_band_daily.md
 │   └── _v4_erp_band_daily.json
 ├── a500/                 平行变种：同样的规则换成中证A500（见 a500/README.md）
+├── hs300_ladder/         替代规则：单腿 0~100% 阶梯加减仓，不做股债配比（见 hs300_ladder/README.md）
 └── README.md
 ```
 

@@ -1,0 +1,1 @@
+{"ok": true, "code": "GD_ROT_V2", "theme": "成长/红利风格轮动 v2(绝对水位 0.30/0.70)", "years": 16.4, "st_ann": 0.10066880477532858, "st_mdd": -0.6973997872057777, "base_ann": 0.044128312888574106, "base_mdd": -0.4650849514407187, "switches": 2, "mean_w": 0.628, "params": {"ratio_low": 0.3, "ratio_high": 0.7, "w_at_low": 1.0, "w_at_high": 0.0, "init_side": "div", "fee": 0.0003}}

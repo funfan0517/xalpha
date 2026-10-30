@@ -441,6 +441,67 @@ def parse_v1_ma20(_cfg):
     )
 
 
+def parse_v3_macd_boll(_cfg):
+    """V3 变种（MACD + 布林自适应窗口）：逐腿读数 = DIF/DEA + ER 窗口 + 到触发位的距离。"""
+    base_dir = os.path.join(_ROOT, "strategies", "vol_legs", "v3_macd_boll", "daily")
+    json_path = os.path.join(base_dir, "_v3_macd_boll_daily.json")
+    md_path = os.path.join(base_dir, "_v3_macd_boll_daily.md")
+    if not os.path.exists(json_path):
+        raise ValueError("产物缺失：请先跑 run_daily_vol_legs.ps1（第 2 步）")
+    data = json.loads(_read(json_path))
+    legs = data.get("legs") or []
+    if not legs:
+        raise ValueError("产物无腿记录")
+    summ = data.get("summary") or {}
+    rule = data.get("rule") or {}
+    tone_map = {"买入": "buy", "卖出": "sell", "持有": "hold", "空仓": "none"}
+    buys = [x for x in legs if x.get("action") == "买入"]
+    sells = [x for x in legs if x.get("action") == "卖出"]
+    stale = [x for x in legs if str(x.get("fresh") or "").startswith(("⚠️", "❌"))]
+
+    rows = []
+    for x in legs:
+        act = x.get("action") or "空仓"
+        pos = "持仓" if x.get("pos") else "空仓"
+        detail = ("DIF {:+.4f} / DEA {:+.4f} · ER {:.2f}（{}）· {} {:+.2%} · "
+                  "当前{} · 带 {:g}pp · {}").format(
+            float(x.get("dif") or 0), float(x.get("dea") or 0), float(x.get("er") or 0),
+            x.get("window") or "—", x.get("dist_kind") or "距上轨", float(x.get("dist") or 0),
+            pos, float(x.get("band") or 0), x.get("fresh") or "")
+        rows.append(_row(x.get("exec"), x.get("name"), tone_map.get(act, "none"), act, detail))
+
+    def _txt(items):
+        return "、".join(f"{x.get('name', '')}(`{x.get('exec', '')}`)" for x in items)
+
+    if buys or sells:
+        parts = []
+        if buys:
+            parts.append(f"买入 {_txt(buys)}")
+        if sells:
+            parts.append(f"卖出 {_txt(sells)}")
+        summary = " · ".join(parts)
+        badge = f"买 {len(buys)} 卖 {len(sells)}"
+        tone = "buy" if buys else "sell"
+    else:
+        summary = "六腿均无突破/离场信号 —— 维持原仓位（" + _txt(legs) + "）"
+        badge, tone = "无动作", "none"
+
+    return _entry(
+        "v3_macd_boll", "波动资产 V3 变种 · MACD+BOLL 自适应窗口", data.get("as_of"), badge, tone,
+        summary, rows,
+        [["六腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
+         ["卖出", str(len(sells))], ["持有", str(summ.get("hold", 0))],
+         ["空仓", str(summ.get("empty", 0))], ["陈旧/失败", str(len(stale))]],
+        note=f"池 = 主策略六腿（`rule.LEGS`）。入场 {rule.get('buy', 'DIF>0 且 DIF>DEA + 开口 + 上穿上轨')}，"
+             f"离场 {rule.get('sell', '死叉 或 跌破中轨')}，布林窗口按 ER(20) 滞回 "
+             f"{rule.get('window_fast')}↔{rule.get('window_slow')}，{rule.get('trade_at', 'T+1 净值')} 成交。"
+             "**突破追涨型**，与主策略「跌了才加仓」的阶梯方向相反，不可叠加在同一份额度上；"
+             "年笔数 2~4/年、曝光 12%~19%，扣费后组合年化 5.55%→3.74%。",
+        src=_rel(md_path),
+        cols=["场外代码", "腿", "动作", "关键值"],
+    )
+
+
 def parse_permanent(_cfg):
     """永久投资组合：8 项目标权重（基准 × ±50% 倾斜）。
 
@@ -583,6 +644,7 @@ PARSERS = {
     "gd_v1": parse_gd_v1,
     "tech_indicators": parse_tech_indicators,
     "v1_ma20": parse_v1_ma20,
+    "v3_macd_boll": parse_v3_macd_boll,
     "permanent": parse_permanent,
     "vol_legs": parse_vol_legs,
 }

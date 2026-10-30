@@ -4,8 +4,10 @@
 当前已注册策略（**按每日操作板块 1→5 排列**，板块定义见 §3）：
 `permanent`（**板块1 总策略**·永久组合 8 项固定基准 ±50% 倾斜，组合层，不走 backtest/select）、
 `vol_legs`（**板块2** 波动资产操作规则·A500/纳指100/标普500/科创50/恒生科技/黄金六腿仓位带 + 回撤阶梯 + 季度再平衡，组合层，不走 backtest/select）、
-`v1_ma20`（**板块2 变种**·六腿 **MA20 穿越**逐腿进出时点，随 `run_daily_vol_legs.ps1` 第 2 步运行，全腿出信号，不走 backtest/select）、
-`v2_boll_breakout`（**板块2 变种**·六腿 **BOLL(35,2) 上轨突破**逐腿进出时点，**只有回测入口**，`daily.enabled=false` 不参与每日操作；原 `tech_indicators/v16_boll_breakout`）、
+`v3_macd_boll`（**板块2 变种**·六腿 **MACD+BOLL 自适应窗口**逐腿进出时点，随 `run_daily_vol_legs.ps1` 第 2 步运行，全腿出信号，不走 backtest/select；2026-10-30 顶替 V1/V4 进入本板块）、
+`v1_ma20`（**板块2 变种（已退出看板）**·六腿 **MA20 穿越**逐腿进出时点，`daily.enabled=false`，脚本与产物仍可手跑）、
+`v2_boll_breakout`（**板块2 变种（已退出看板）**·六腿 **BOLL(35,2) 上轨突破**逐腿进出时点，**只有回测入口**，`daily.enabled=false` 不参与每日操作；原 `tech_indicators/v16_boll_breakout`）、
+`v4_erp_band`（**板块2 变种（已退出看板）**·股债利差 ERP 通道，沪深300 × 10Y 国债 80/50/20 刻度；`daily.enabled=false`，脚本仍可手跑）、
 `growth_div_rotation`（**板块3** 成长/红利二元轮动）、
 `gd_v1`（**板块3 变种**·风格比值 R 的**绝对水位** 0.20/0.31 + 5 期分批 + 定投，与 v0 分卡展示，随 `run_daily_growth_div_rotation.ps1` 第 3 步运行）、
 `dividend`（**板块4** 红利 **V4 · RSI14 择时**，5 只专用池；2026-10-26 起每日跑它，不再跑 V0 打分）、
@@ -86,8 +88,10 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 |---|---|---|---|
 | 1 | permanent | `run_daily_permanent.ps1` | `strategies/permanent/daily/_permanent_report.md` |
 | 2 | vol_legs | `run_daily_vol_legs.ps1` | `strategies/vol_legs/daily/_vol_legs_report.md` |
-| 2 | v1_ma20 | （空，由 `run_daily_vol_legs.ps1` 第 2 步带上） | `strategies/vol_legs/v1_ma20/daily/_v1_ma20_daily.md` |
+| 2 | v3_macd_boll | （空，由 `run_daily_vol_legs.ps1` 第 2 步带上） | `strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.md` |
+| 2 | v1_ma20 | （空，`daily.enabled=false` → 2026-10-30 起退出默认流程与看板；手跑 `v1_ma20/daily/_daily_scan.py`） | `strategies/vol_legs/v1_ma20/daily/_v1_ma20_daily.md` |
 | 2 | v2_boll_breakout | （空，**无每日脚本**，`daily.enabled=false` → 跳过、不出看板卡片） | —（无每日产物，只有回测 `backtest/_v2_boll_breakout_bt.md`） |
+| 2 | v4_erp_band | （空，`daily.enabled=false` → 2026-10-30 起退出默认流程与看板；手跑 `v4_erp_band/daily/_daily_scan.py`） | `strategies/vol_legs/v4_erp_band/daily/_v4_erp_band_daily.md` |
 | 3 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/v0/daily/_signal_report.md` |
 | 3 | gd_v1 | （空，由 `run_daily_growth_div_rotation.ps1` 第 3 步带上） | `strategies/growth_div_rotation/v1_ratio_bands/daily/_gd_v1_daily.md` |
 | 4 | dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
@@ -103,7 +107,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | 板块 | 定位 | 策略 key |
 |---|---|---|
 | **1 总策略 · 永久投资组合** | 先定总盘子：8 项基准（债 30 / 红利 20 / 纳指100 10 / 标普500 10 / 黄金 10 / 现金 10 / A500 5 / 科创50 5）按单项 ±50% 倾斜，输出「每项配多少」；后续板块都在这套额度内做动作 | `permanent` |
-| **2 波动类资产 · 仓位带 + 逐腿上下车** | 管辖 40pp（A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10）；主策略回答「仓位带怎么摆、今天动多少 pp」，变种回答「每条腿何时下车」 | `vol_legs`、`v1_ma20`、`v2_boll_breakout`（仅回测，`daily.enabled=false`） |
+| **2 波动类资产 · 仓位带 + 逐腿上下车** | 管辖 40pp（A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10）；主策略回答「仓位带怎么摆、今天动多少 pp」，变种回答「每条腿何时突破上车 / 何时下车」 | `vol_legs`、`v3_macd_boll`（`v1_ma20` / `v2_boll_breakout` / `v4_erp_band` 均 `daily.enabled=false`，2026-10-30 起不上板） |
 | **3 风格轮动 · 成长/红利二元切换** | 成长(创业板/科创50) ÷ 红利(中证红利) 的比值 R 过缓冲带 + 250 日分位，决定整仓切换 | `growth_div_rotation` |
 | **4 稳健红利 · V4 RSI14 择时 + V9 估值温度** | 红利底仓的进退节奏（V4：5 只专用池，板块 RSI14 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只）＋「贵不贵」体检（V9：6 只有估值标的的五因子温度，只给额度参考、不调仓位） | `dividend`、`dividend_v9` |
 | **5 技术指标 · 全池 54 只（前四类 · 6 策略并列）** | MACD / V3 / V6 / V7 / V9 右侧 / V10 亮灯 同时对全池每只出信号，看共振 | `tech_indicators` |
@@ -127,7 +131,7 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
 - 看板按 **每日操作板块 1→5** 分节（见上文「每日操作板块」），每节标题旁给出该板块的买/卖/观察计数与策略数；老归档无需重建 —— 板块定义每次渲染都从 `strategies.json` 读，按策略 key 重新归组。
-- 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格（**列宽按 `daily.strategies` 动态取**，增删策略只改 json）；`v1_ma20` 读 `_v1_ma20_daily.json`（`as_of` / `summary` / `legs`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
+- 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格（**列宽按 `daily.strategies` 动态取**，增删策略只改 json）；`v1_ma20` / `v3_macd_boll` 读各自的 `_*_daily.json`（`as_of` / `summary` / `legs`，v3 的 leg 多带 `dif`/`dea`/`er`/`window`/`dist_kind`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
 - 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。
 

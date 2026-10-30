@@ -52,6 +52,9 @@ v2_boll_breakout/
 │   ├── _v2_boll_breakout_bt.md / .jsonl
 │   ├── _v2_boll_breakout_portfolio.png    组合层净值（择时 / 扣费 / 静态带 / 等权）
 │   └── _v2_boll_breakout_legs.png         六腿价格 + 三轨 + 买卖点（2×3）
+├── research/
+│   ├── _plot_leg.py                       单腿图脚本（薄封装 `strategies/vol_legs/_plot_leg_core.py`）
+│   └── _v2_{a500,hs300,hkt}.png           买入持有 vs V2 择时，两条线 + 双线买卖点
 └── README.md
 ```
 
@@ -65,7 +68,23 @@ python strategies/vol_legs/v2_boll_breakout/boll.py
 
 # 回测（逐腿 + 组合层 + 五节敏感性 + 两张图）
 python strategies/vol_legs/v2_boll_breakout/backtest.py
+
+# 单腿图：买入持有 vs V2 择时（两条线同起点归 1，▲/▼ 同时标在指数曲线与策略线上）
+python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py            # a500 / hs300 / hkt 全画
+python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py --leg hkt  # 只画一只
 ```
+
+图的画法与口径（三条腿、双线标注、A500 只画成立后）见
+`strategies/vol_legs/_plot_leg_core.py` —— 与 `v3_macd_boll/research/_plot_leg.py` 共用同一个渲染器，
+变种之间只差一个 `SPEC`（信号函数 / 净值函数 / 预热天数 / 文案）。
+
+三张图的口径速查（2026-10-30，主口径不计申赎费）：
+
+| 图 | 样本 | 买入持有 | V2 择时 |
+|---|---|---|---|
+| `_v2_a500` | 2025-03-27 ~ 2026-10-29（1.6y，只画真实段） | +17.84%/年 · 回撤 −20.91% | **+18.27%/年 · 回撤 −7.46% · 曝光 47%**（3 往返） |
+| `_v2_hs300` | 2009-09-10 ~ 2026-10-29（17.1y） | +3.25%/年 · 回撤 −43.43% | **+7.18%/年 · 回撤 −15.65% · 曝光 30%**（扣费 +5.56% / −17.53%） |
+| `_v2_hkt` | 2021-10-12 ~ 2026-10-29（5.0y） | −10.05%/年 · 回撤 −52.91% | **+3.36%/年 · 回撤 −22.60% · 曝光 24%** |
 
 **在 `pipeline/strategies.json` 注册为 `v2_boll_breakout`，但 `daily.enabled=false`**：本变种只有回测入口，
 没有 `daily/` 产物与分级名单，故不参与 `run_daily_all`、也不出看板卡片；`select` 指向主策略的共用六腿名单

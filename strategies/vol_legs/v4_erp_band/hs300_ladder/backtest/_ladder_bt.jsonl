@@ -1,0 +1,50 @@
+{"kind": "summary", "start": "2013-09-05", "end": "2026-10-29", "years": 13.15, "days": 3194, "params": {"channel_window": 500, "channel_k": 2.0, "line_entry1": 0.75, "w_entry1": 0.2, "line_entry2": 1.0, "w_entry2": 0.3, "step": 0.1, "w_max": 1.0, "line_mid": 0.5, "line_low": 0.25, "line_exit": 0.0, "halve": 0.5, "refill_after_reduce": false, "base_weight": 0.0, "lag": 1, "fee_buy": 0.001, "fee_sell": 0.005, "cash_annual": 0.014}, "state_share": {"空仓": 0.5341, "满仓": 0.2013, "平均仓位": 0.3027}, "cycles": 5, "source": {"hs300": "本地缓存 `csi_000300.csv` · 至 2026-10-29", "bond": "本变种缓存 `data/bond10y_long.csv` · 至 2026-10-29 · 自 2002-01-04", "hs300_tr": "本地缓存 `csi_H00300.csv` · 至 2026-10-29"}}
+{"name": "**阶梯加减仓（本规则）**", "cum": 1.067335, "ann": 0.058993, "vol": 0.088405, "mdd": -0.265758, "sharpe": 0.508939, "calmar": 0.22198, "note": "75% 投 20% → 上线 30% → 每多一日 +10pp 至满仓；中线/25%/下线逐级减", "trades": 41, "fees": 0.033592, "w_avg": 0.260567, "switches": 41, "rebal": 0}
+{"name": "同上（不计费）", "cum": 1.111069, "ann": 0.060744, "vol": 0.08849, "mdd": -0.265758, "sharpe": 0.528243, "calmar": 0.228569, "note": "费率置 0，单看摩擦成本", "trades": 41, "fees": 0.0, "w_avg": 0.260749, "switches": 41, "rebal": 0}
+{"name": "改版：底仓 30%（不清到 0）", "cum": 0.63425, "ann": 0.034094, "vol": 0.077836, "mdd": -0.194996, "sharpe": 0.258163, "calmar": 0.174847, "note": "减仓下限 30%，其余不动", "trades": 10, "fees": 0.005263, "w_avg": 0.365615, "switches": 9, "rebal": 0}
+{"name": "改版：减仓后允许回补", "cum": 1.125039, "ann": 0.052797, "vol": 0.082221, "mdd": -0.265758, "sharpe": 0.471866, "calmar": 0.198666, "note": "refill_after_reduce=True，其余不动", "trades": 41, "fees": 0.033592, "w_avg": 0.260567, "switches": 41, "rebal": 0}
+{"name": "对照：v4 原规则 20/50/80 三档", "cum": 0.885912, "ann": 0.051344, "vol": 0.097664, "mdd": -0.21607, "sharpe": 0.382372, "calmar": 0.237627, "note": "同一标的、同一现金腿，只换仓位规则", "trades": 17, "fees": 0.025456, "w_avg": 0.477772, "switches": 16, "rebal": 0}
+{"name": "常仓 50%（月末回锚）", "cum": 0.782532, "ann": 0.046677, "vol": 0.105893, "mdd": -0.253378, "sharpe": 0.308581, "calmar": 0.184217, "note": "不择时", "trades": 158, "fees": 0.008988, "w_avg": 0.500173, "switches": 0, "rebal": 157}
+{"name": "常仓 80%（月末回锚）", "cum": 1.114883, "ann": 0.060895, "vol": 0.169653, "mdd": -0.383743, "sharpe": 0.276419, "calmar": 0.158687, "note": "不择时", "trades": 158, "fees": 0.007024, "w_avg": 0.799889, "switches": 0, "rebal": 157}
+{"name": "买入持有沪深300（全收益）", "cum": 1.321784, "ann": 0.068739, "vol": 0.212389, "mdd": -0.460589, "sharpe": 0.257729, "calmar": 0.149242, "note": "满仓不动"}
+{"kind": "action", "date": "2013-11-08T00:00:00", "action": "加仓", "before": 0.0, "after": 0.2, "erp": 6.551, "pos": 0.7569}
+{"kind": "action", "date": "2014-05-05T00:00:00", "action": "加仓", "before": 0.2, "after": 0.3, "erp": 7.2605, "pos": 1.0125}
+{"kind": "action", "date": "2014-05-06T00:00:00", "action": "加仓", "before": 0.3, "after": 0.4, "erp": 7.2938, "pos": 1.0228}
+{"kind": "action", "date": "2014-05-07T00:00:00", "action": "加仓", "before": 0.4, "after": 0.5, "erp": 7.3747, "pos": 1.0515}
+{"kind": "action", "date": "2014-05-08T00:00:00", "action": "加仓", "before": 0.5, "after": 0.6, "erp": 7.4247, "pos": 1.0677}
+{"kind": "action", "date": "2014-05-09T00:00:00", "action": "加仓", "before": 0.6, "after": 0.7, "erp": 7.5345, "pos": 1.1067}
+{"kind": "action", "date": "2014-05-12T00:00:00", "action": "加仓", "before": 0.7, "after": 0.8, "erp": 7.3081, "pos": 1.0156}
+{"kind": "action", "date": "2014-05-13T00:00:00", "action": "加仓", "before": 0.8, "after": 0.9, "erp": 7.2911, "pos": 1.0066}
+{"kind": "action", "date": "2014-05-15T00:00:00", "action": "建仓满档", "before": 0.9, "after": 1.0, "erp": 7.3692, "pos": 1.0322}
+{"kind": "action", "date": "2014-08-04T00:00:00", "action": "下穿中线·减半", "before": 1.0, "after": 0.5, "erp": 6.1312, "pos": 0.4658}
+{"kind": "action", "date": "2014-12-02T00:00:00", "action": "跌破25%·再减半", "before": 0.5, "after": 0.25, "erp": 5.4294, "pos": 0.1711}
+{"kind": "action", "date": "2014-12-04T00:00:00", "action": "清仓", "before": 0.25, "after": 0.0, "erp": 4.8257, "pos": -0.0546}
+{"kind": "action", "date": "2018-06-28T00:00:00", "action": "加仓", "before": 0.0, "after": 0.2, "erp": 4.5733, "pos": 0.757}
+{"kind": "action", "date": "2018-10-11T00:00:00", "action": "加仓", "before": 0.2, "after": 0.3, "erp": 5.3321, "pos": 1.0538}
+{"kind": "action", "date": "2018-10-12T00:00:00", "action": "加仓", "before": 0.3, "after": 0.4, "erp": 5.1965, "pos": 1.0081}
+{"kind": "action", "date": "2018-10-15T00:00:00", "action": "加仓", "before": 0.4, "after": 0.5, "erp": 5.327, "pos": 1.0488}
+{"kind": "action", "date": "2018-10-16T00:00:00", "action": "加仓", "before": 0.5, "after": 0.6, "erp": 5.3849, "pos": 1.0653}
+{"kind": "action", "date": "2018-10-17T00:00:00", "action": "加仓", "before": 0.6, "after": 0.7, "erp": 5.324, "pos": 1.0437}
+{"kind": "action", "date": "2018-10-18T00:00:00", "action": "加仓", "before": 0.7, "after": 0.8, "erp": 5.6067, "pos": 1.1321}
+{"kind": "action", "date": "2018-10-19T00:00:00", "action": "加仓", "before": 0.8, "after": 0.9, "erp": 5.3469, "pos": 1.0467}
+{"kind": "action", "date": "2018-10-23T00:00:00", "action": "建仓满档", "before": 0.9, "after": 1.0, "erp": 5.2242, "pos": 1.0056}
+{"kind": "action", "date": "2019-04-16T00:00:00", "action": "下穿中线·减半", "before": 1.0, "after": 0.5, "erp": 3.7954, "pos": 0.4711}
+{"kind": "action", "date": "2020-07-02T00:00:00", "action": "跌破25%·再减半", "before": 0.5, "after": 0.25, "erp": 4.2238, "pos": 0.2291}
+{"kind": "action", "date": "2020-07-06T00:00:00", "action": "清仓", "before": 0.25, "after": 0.0, "erp": 3.5572, "pos": -0.0718}
+{"kind": "action", "date": "2022-03-07T00:00:00", "action": "加仓", "before": 0.0, "after": 0.2, "erp": 4.7175, "pos": 0.7565}
+{"kind": "action", "date": "2022-04-25T00:00:00", "action": "加仓", "before": 0.2, "after": 0.3, "erp": 5.6371, "pos": 1.0296}
+{"kind": "action", "date": "2022-04-26T00:00:00", "action": "加仓", "before": 0.3, "after": 0.4, "erp": 5.6846, "pos": 1.043}
+{"kind": "action", "date": "2022-05-06T00:00:00", "action": "加仓", "before": 0.4, "after": 0.5, "erp": 5.5902, "pos": 1.0186}
+{"kind": "action", "date": "2022-05-09T00:00:00", "action": "加仓", "before": 0.5, "after": 0.6, "erp": 5.6592, "pos": 1.0383}
+{"kind": "action", "date": "2022-05-10T00:00:00", "action": "加仓", "before": 0.6, "after": 0.7, "erp": 5.5945, "pos": 1.0194}
+{"kind": "action", "date": "2022-05-12T00:00:00", "action": "加仓", "before": 0.7, "after": 0.8, "erp": 5.5278, "pos": 1.0004}
+{"kind": "action", "date": "2022-05-24T00:00:00", "action": "加仓", "before": 0.8, "after": 0.9, "erp": 5.5614, "pos": 1.0107}
+{"kind": "action", "date": "2022-05-26T00:00:00", "action": "建仓满档", "before": 0.9, "after": 1.0, "erp": 5.5476, "pos": 1.0061}
+{"kind": "action", "date": "2024-05-06T00:00:00", "action": "下穿中线·减半", "before": 1.0, "after": 0.5, "erp": 5.6347, "pos": 0.3942}
+{"kind": "action", "date": "2024-09-30T00:00:00", "action": "跌破25%·再减半", "before": 0.5, "after": 0.25, "erp": 5.2337, "pos": 0.1045}
+{"kind": "action", "date": "2024-10-08T00:00:00", "action": "清仓", "before": 0.25, "after": 0.0, "erp": 4.8445, "pos": -0.0703}
+{"kind": "action", "date": "2025-04-07T00:00:00", "action": "加仓", "before": 0.0, "after": 0.2, "erp": 6.7364, "pos": 0.7948}
+{"kind": "action", "date": "2025-07-10T00:00:00", "action": "下穿中线·减半", "before": 0.2, "after": 0.1, "erp": 6.2248, "pos": 0.4854}
+{"kind": "action", "date": "2025-08-20T00:00:00", "action": "跌破25%·再减半", "before": 0.1, "after": 0.05, "erp": 5.7938, "pos": 0.2277}
+{"kind": "action", "date": "2025-09-01T00:00:00", "action": "清仓", "before": 0.05, "after": 0.0, "erp": 5.1624, "pos": -0.1315}
+{"kind": "action", "date": "2026-10-21T00:00:00", "action": "加仓", "before": 0.0, "after": 0.2, "erp": 6.1897, "pos": 0.7904}

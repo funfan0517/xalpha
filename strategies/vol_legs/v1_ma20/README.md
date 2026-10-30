@@ -42,8 +42,14 @@ v1_ma20/
 │   └── _v1_ma20_daily.{md,json}
 └── research/
     ├── backtest.py         逐腿详报（逐年 / 最近 8 笔 / 净值+回撤图）
-    └── _v1_ma20_legs.md · .jsonl · _v1_ma20_<leg>.png · _v1_ma20_all.png
+    ├── _plot_leg.py        单腿图脚本（薄封装 `strategies/vol_legs/_plot_leg_core.py`）
+    ├── _v1_ma20_legs.md · .jsonl · _v1_ma20_<leg>.png · _v1_ma20_all.png   ← 价格 + MA20 + 买卖点
+    └── _v1_{a500,hs300,hkt}.png                                            ← 买入持有 vs 择时两条线
 ```
+
+> 两套图别混：`_v1_ma20_<leg>.png` 是「价格 + MA20 + 买卖点」的单线图（`research/backtest.py` 产出）；
+> `_v1_{a500,hs300,hkt}.png` 是「买入持有 vs V1 择时」的双线对比图（`research/_plot_leg.py` 产出，
+> 与 v2 / v3 的同名图版式、口径完全一致，A500 只画成立后区间）。
 
 ## 4. 运行
 
@@ -56,7 +62,19 @@ python strategies/vol_legs/v1_ma20/backtest.py
 
 # 逐腿详报
 python strategies/vol_legs/v1_ma20/research/backtest.py
+
+# 单腿图：买入持有 vs V1 择时（两条线同起点归 1，▲/▼ 同时标在指数曲线与策略线上）
+python strategies/vol_legs/v1_ma20/research/_plot_leg.py            # a500 / hs300 / hkt 全画
+python strategies/vol_legs/v1_ma20/research/_plot_leg.py --leg hkt  # 只画一只
 ```
+
+三张图的口径速查（2026-10-30，主口径不计申赎费）：
+
+| 图 | 样本 | 买入持有 | V1 择时 |
+|---|---|---|---|
+| `_v1_a500` | 2025-03-27 ~ 2026-10-29（1.6y，只画真实段） | +17.84%/年 · 回撤 −20.91% | **+19.46%/年 · 回撤 −8.32% · 曝光 69%**（11.3 往返/年） |
+| `_v1_hs300` | 2009-08-20 ~ 2026-10-29（17.2y） | +3.23%/年 · 回撤 −43.43% | +4.24%/年 · 回撤 −33.77% · 曝光 53%（**扣费 −4.29%**，235 往返） |
+| `_v1_hkt` | 2021-09-10 ~ 2026-10-29（5.1y） | −11.45%/年 · 回撤 −53.13% | **−6.64%/年 · 回撤 −43.06%**（仍为负，16 往返/年） |
 
 ## 5. 回测结论（场外净值口径 · 2026-10-28）
 

@@ -10,6 +10,7 @@
 | --- | --- | --- | --- | --- |
 | `v0/` | R 相对自身 MA20 ± 1% 缓冲带 + 250 日分位 Q（无量纲、自适应） | 一次性整仓切换，月频上限 4 次 | 纯净值（满仓二元） | **主线，进每日流水线 + flow_select 排名** |
 | `v1_ratio_bands/` | R 的绝对水位：`≤0.20` 切成长 / `≥0.31` 切红利（量纲相关、历史拟合，**按科创50/中证红利比值重新标定**） | 清仓 → 资金拆 5 份 → 5 个定投日分买；反向阈值可打断 | 每月定投 1000 + 轮动（资金加权 XIRR） | 研究变种，仅回测对比 |
+| `v2_absolute_bands/` | R 的绝对水位带：**创业板指** R `≤0.30` 加仓 / `≥0.70` 减仓（**复现用户两张图**；分子固定 399006） | 一次性整仓切换（无分批） | 纯净值（与 v0 同口径） | 研究变种，仅回测 + 画图 |
 
 **关键事实**：默认成长指数 = **科创50（000688）**（2026-10-30 由创业板指切换；创业板指改作 `--alt`）。
 v1 的「高收益」大半来自阈值拟合与更高成长暴露，风险调整后与 v0 基本打平；
@@ -31,9 +32,14 @@ growth_div_rotation/
 │  ├─ daily/              ← _signal_report.md / _gd_signal.json / _universe_growth_div_active.*
 │  ├─ data/               ← _gd_index_klines.json（跨变种共享，仅此处维护）
 │  └─ README.md
-└─ v1_ratio_bands/        ← 研究变种（绝对阈值 + 5 期分批 + 定投，实现用户手册规则）
-   ├─ rule.py / engine.py / data.py
-   ├─ backtest/           ← _v1_bt.json / _v1_bt.jsonl（v1 单行摘要）
+├─ v1_ratio_bands/        ← 研究变种（绝对阈值 + 5 期分批 + 定投，实现用户手册规则）
+│  ├─ rule.py / engine.py / data.py
+│  ├─ backtest/           ← _v1_bt.json / _v1_bt.jsonl（v1 单行摘要）
+│  └─ README.md
+└─ v2_absolute_bands/     ← 研究变种（创业板指 0.30/0.70 绝对水位带，复现用户两张图）
+   ├─ rule.py / factors.py / engine.py / data.py / backtest.py
+   ├─ backtest/           ← _v2_report.md / _v2_bt.json(l) / _v2_nav.png
+   │                         _v2_band.png（图1 比值带状）/ _v2_cycle.png（图2 周期轮动）
    └─ README.md
 ```
 
@@ -49,6 +55,9 @@ python pipeline/run_flow.py backtest --strategy growth_div_rotation --report
 
 # 跨变种对比（v1 vs v0，自动重跑 v0 保证同窗同数据）
 python strategies/growth_div_rotation/compare.py [--rerun-v0]
+
+# v2 回测 + 报告 + 复现两张图（band / cycle）
+python strategies/growth_div_rotation/v2_absolute_bands/backtest.py
 ```
 
 ## 数据口径与修正（2026-10-29）

@@ -58,18 +58,43 @@ v3_macd_boll/
 │                           / run / trades / trade_stats / perf / portfolio / yearly）
 ├── backtest.py             六腿逐腿 + 组合层（自适应 / 扣费 / 固定 w20 / 固定 w30 / 静态带 / 等权）
 ├── backtest/               _v3_macd_boll_bt.md · _v3_macd_boll_bt.jsonl
+├── daily/                  _daily_scan.py · _v3_macd_boll_daily.{md,json}
+├── research/               _plot_leg.py（薄封装 vol_legs/_plot_leg_core.py）
+│                           · _v3_{a500,hs300,hkt}.png（买入持有 vs 择时，两条线 + 双线买卖点）
 └── README.md
 ```
 
 ## 4. 运行
 
 ```powershell
+# 每日买卖标的（已并入 run_daily_vol_legs.ps1 的第 2 步）
+python strategies/vol_legs/v3_macd_boll/daily/_daily_scan.py
+
 # 自检（六腿序列可读、信号与仓位对得上）
 python strategies/vol_legs/v3_macd_boll/macd_boll.py
 
 # 回测（逐腿 + 组合层 + 分段 + 逐年 + 成本）
 python strategies/vol_legs/v3_macd_boll/backtest.py
+
+# 单腿图：买入持有 vs V3 择时（两条线同起点归 1，▲/▼ 标买卖点）
+python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py            # a500 / hs300 / hkt 全画
+python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py --leg hkt  # 只画一只
 ```
+
+- **A500 默认只画 `023299` 成立（2025-03-27）之后的真实净值**，桥接段不显示，两条线以成立日为 1 重新归位。
+  信号仍在含桥接的全样本上算（桥接只用来撑 MACD / BOLL / ER 的窗口），所以起点那天的仓位是真实仓位。
+  要看含桥接的 17 年视图加 `--with-bridge`。
+  这样截出来后样本只有 1.6 年：买入持有 +17.8%/年、V3 **-0.4%/年**（曝光 27%）—— 2025-2026 是 A500 的
+  单边快涨，突破型规则大部分时间在场外；17 年那张图里的 +5.8%/年 主要来自桥接段（沪深300）的贡献。
+- `hs300` 用 `000051` 华夏沪深300ETF联接A 的场外复权净值 —— 它**不在六腿内**，这张图是把同一套 V3
+  规则外推到沪深300 的同口径对照（顺带说明：它也是 A500 2025-03 之前的桥接基金）。
+- 主口径不计申赎费；`000051` 是 A 类（0.10%/0.50%），图注给出扣费后的年化/回撤。
+- 渲染器与 `v2_boll_breakout/research/_plot_leg.py` 共用 `strategies/vol_legs/_plot_leg_core.py`，
+  变种之间只差一个 `SPEC`（信号函数 / 净值函数 / 预热天数 / 文案），改图只改那一处。
+
+**每日操作板块2 的当前成员**（`2026-10-30` 起）：主策略 `vol_legs` + 本变种 `v3_macd_boll`；
+`v1_ma20`（MA20 穿越）与 `v4_erp_band`（ERP 通道）已从看板撤下（`daily.enabled=false`），脚本与产物保留可手跑。
+本变种的卡片读 `daily/_v3_macd_boll_daily.json`，逐腿给 `DIF/DEA`、`ER` 与窗口、到触发位（空仓看距上轨、持仓看距中轨）的距离。
 
 ## 5. 回测结论（场外净值口径 · 2026-10-30）
 

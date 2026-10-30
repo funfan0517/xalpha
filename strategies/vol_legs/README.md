@@ -231,9 +231,11 @@ strategies/vol_legs/
 ├── engine.py      # 组合层逐日复算(回测与每日共用) + 绩效指标
 ├── backtest.py    # 六档对比 × 两种口径 + 三条腿的单腿全周期 + 闸门敏感性
 ├── scan.py        # 每日操作报告 + 信号 JSON + 固定 6 腿名单
+├── _plot_leg_core.py  # 跨变种共享的单腿图渲染器（各变种 research/_plot_leg.py 只传 SPEC）
 ├── data/          # _val_inputs.json(人工回填: FOMC、PB/ERP 分位、保险丝、QDII 额度)
 ├── backtest/      # _vol_legs_bt.md / .json
-└── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
+├── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
+└── v1_ma20/ v2_boll_breakout/ v3_macd_boll/ v4_erp_band/   # 四个变种（各自 rule/engine/backtest/daily|research）
 ```
 
 共享数据（在仓库 `data/`，本策略只读；`_otc_nav.json` / `_us_index_klines.json` 由本模块增量维护）：
@@ -263,7 +265,8 @@ strategies/vol_legs/
 - 本策略只管「六腿各自买多少」，不判断「买哪条腿」（选腿属组合层之上的资产配置决策）。
 - **本策略的第一个变种 `v1_ma20/`**（原 `tech_indicators/v8_ma20`，2026-10-28 迁入）：用同一六腿的场外复权净值
   做 MA20 穿越，回答「每条腿什么时候下车」；本策略回答「组合层仓位带怎么摆」。两者可叠加、不可互相替代，
-  变种的结论与费率口径见 `v1_ma20/README.md`。
+  变种的结论与费率口径见 `v1_ma20/README.md`。**2026-10-30 起退出每日操作板块2 的看板**（`daily.enabled=false`，
+  脚本与产物保留，需要时手跑 `v1_ma20/daily/_daily_scan.py`）。
 - **第二个变种 `v4_erp_band/`**（2026-10-30 按用户「股债利差（ERP）通道」规则落地；编号沿用创建时的 v4，
   v3 槽位空置）：**不发生在六腿内部**，而是回答「**沪深300 与国债之间摆多少**」——
   `ERP = 100/PE(沪深300) − 10Y国债`，滚动 250 日 MA ± 2σ 通道，利差触上轨 = 低估 → 股票 80%，
@@ -272,6 +275,8 @@ strategies/vol_legs/
   2012-08~2026-10 年化 4.88% vs 同窗口静态 50/50 4.94%（**-0.06pp，无超额**），回撤 -23.5% vs -24.4%；
   反向信号（低估 20 / 高估 80）反而 5.31% 但回撤放大到 -34.9% —— 说明这条信号在 A 股**识别不出方向性优势**，
   它的价值是「情绪刻度 + 再平衡触发器」，不是收益引擎。本变种与主策略**默认不叠加**（叠加前先定谁的额度优先）。
+  **2026-10-30 起不出每日看板**（`daily.enabled=false`，它本就不在六腿这一层），脚本保留可手跑
+  `v4_erp_band/daily/_daily_scan.py`。
 - **变种 `v2_boll_breakout/`**（原 `tech_indicators/v16_boll_breakout`，2026-10-30 迁入；初入时编号 v6，同日改回 v2）：与 `v1_ma20`
   **同一层**（六腿逐腿进出时点），只是指标换成 **BOLL(35,2) 上穿买入 / 跌回中轨卖出**。
   结论见 `v2_boll_breakout/README.md` §5 —— 简版：组合层 2021-10~2026-10 年化 8.73% / 回撤 **-5.30%** /
@@ -286,4 +291,5 @@ strategies/vol_legs/
   `v3_macd_boll/README.md` §5 —— 简版：共同窗口 2021-11~2026-10 年化 5.55% / 回撤 **-4.89%** / 夏普 0.93
   vs 静态带 11.09% / -17.45% / 0.80，**只降回撤不增收益**；笔数只有 2~4/年（v1_ma20 是 13~16），
   扣费后 3.74%（-1.81pp）—— 成本不再是决定性变量。注意它是**突破追涨型**，与主策略「跌了才加仓」的阶梯
-  方向相反，**不可叠加在同一份额度上**。
+  方向相反，**不可叠加在同一份额度上**。**2026-10-30 起进每日操作板块2**（`daily/_daily_scan.py`，
+  随 `run_daily_vol_legs.ps1` 第 2 步运行，看板卡读 `daily/_v3_macd_boll_daily.json`），顶替 v1 / v4 的卡片。

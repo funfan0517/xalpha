@@ -138,22 +138,21 @@ def up_cycles(r, start_max=None, end_min=None, drop=None, merge_gap=None):
     return bands
 
 
-def extreme_marks(r, low=None, high=None, min_gap=400, tol=None):
+def extreme_marks(r, low=None, high=None, min_gap=400):
     """低估/高估区段内的极值点（复现图 2 的绿圈/红圈）。
 
     每个连续区段取一次极值（低估取最低、高估取最高）；同标签相邻区段若间隔
     < `min_gap` 个交易日则合并，只保留更极端的那个 —— 否则 2010-2013 年在 0.30
     附近反复穿越会标出十几个圈，把图糊死。
 
-    `tol` 是**标注容差**（默认 rule.MARK_TOL）：原图把「靠近 0.30 但没跌破」的
-    2019-01(0.306)、2024-08(0.304) 也标了绿圈。这里按 R ≤ low×tol 放宽，
-    **只影响画圈，不影响交易信号**（信号仍用严格阈值）。
+    标注用的是 `rule.MARK_LOW_ABS/MARK_HIGH_ABS`（放宽后的绝对值，原图把「贴近但没跌破」
+    的 2019-01(0.306)、2024-08(0.304) 也标了绿圈），**与交易阈值解耦**：
+    挪 `RATIO_LOW/HIGH` 不会改变图 2 的圈点。仅影响画图，不影响信号。
     返回 dict(low=[(日期, 值)], high=[(日期, 值)])，各自按时间升序。
     """
-    low = rule.RATIO_LOW if low is None else low
-    high = rule.RATIO_HIGH if high is None else high
-    tol = rule.MARK_TOL if tol is None else tol
-    lab = classify(r, low * tol, high / tol).values
+    low = rule.MARK_LOW_ABS if low is None else low
+    high = rule.MARK_HIGH_ABS if high is None else high
+    lab = classify(r, low, high).values
     vals = r.values.astype(float)
     idx = r.index
     n = len(vals)

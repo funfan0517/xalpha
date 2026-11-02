@@ -668,11 +668,13 @@
         },
         "v2_absolute_bands": {
           "dir": "strategies/growth_div_rotation/v2_absolute_bands",
-          "name": "v2 绝对水位带 0.30/0.70（复现用户两张图）",
-          "rules": "R=创业板指(399006)÷中证红利(000922); R≤0.30 加仓满仓成长 / R≥0.70 减仓清空成长换红利 / 0.30<R<0.70 保持原仓不动; 用 R[-1] 决策、次一交易日起计收益",
+          "name": "v2 绝对水位带 0.35/0.65（复现用户两张图）",
+          "rules": "R=创业板指(399006)÷中证红利(000922); R≤0.35 加仓满仓成长 / R≥0.65 减仓清空成长换红利 / 0.35<R<0.65 保持原仓不动; 用 R[-1] 决策、次一交易日起计收益",
           "thresholds": {
-            "ratio_low": 0.3,
-            "ratio_high": 0.7,
+            "ratio_low": 0.35,
+            "ratio_high": 0.65,
+            "ratio_low_orig": 0.3,
+            "ratio_high_orig": 0.7,
             "w_at_low": 1.0,
             "w_at_high": 0.0,
             "init_side": "div",
@@ -682,11 +684,33 @@
             "engine": "strategies/growth_div_rotation/v2_absolute_bands/backtest.py",
             "raw_out": "strategies/growth_div_rotation/v2_absolute_bands/backtest/_v2_bt.jsonl",
             "report": "strategies/growth_div_rotation/v2_absolute_bands/backtest/_v2_report.md",
-            "charts": "同目录 _v2_band.png（图1 比值带状）· _v2_cycle.png（图2 周期轮动 2010-2026）· _v2_nav.png（净值）",
+            "charts": "同目录 _v2_band.png（图1 比值带状）· _v2_cycle.png（图2 周期轮动 2010-2026）· _v2_dual.png（R+创业板指+买卖点）· _v2_nav.png（净值）",
             "code": "GD_ROT_V2"
           },
           "status": "研究变种: 未进每日流水线、未进 flow_select 排名; 仅回测与画图用",
-          "note": "**阈值 0.30/0.70 是全样本极值拟合**（实测 R∈[0.2524,0.8647]，0.30≈5.6% 分位、0.70≈1.4% 交易日）—— 含前视; 无前视的滚动分位版年化仅 +2.25% vs 绝对阈值 +10.07%, 且 0.70 全期仅触发 1 次使规则退化为两次择时, 详见其 README §4/§7"
+          "note": "**2026-10-30 阈值由原图口径 0.30/0.70 挪至 0.35/0.65**(用户决定; 依据 research/_opt_probe.py 的阈值曲面: 高估线 0.62~0.68 为 Calmar 平台, 0.70 掉在平台之外, 因 2015 年风格峰值仅 0.687)。回测 +17.27%/-51.85%/Calmar 0.33/6 次切换(原口径 +10.07%/-69.74%/0.14/2 次)。**仍是样本内选优**: 0.35≈23.6% 分位、0.65≈5.0%; 无前视滚动分位版年化仅 +2.25%(差 15.0pp); 阈值曲面在 RATIO_LOW=0.30→0.32 处年化从 10% 跳到 19%(不连续)。详见其 README §4/§8"
+        },
+        "v3_trend_filter": {
+          "dir": "strategies/growth_div_rotation/v3_trend_filter",
+          "name": "v3 绝对水位 0.35/0.65 + MA250 趋势闸门",
+          "rules": "R 层同 v2(R≤0.35 满仓 / R≥0.65 空仓 / 中间带保持); 趋势层: 创业板指 < MA250 时成长权重封顶 TREND_CAP=0.5(破线减半); 两次切换间隔 < COOL_BARS=20 交易日则挂起; 用 t-1 的 R 与趋势状态决策",
+          "thresholds": {
+            "ratio_low": 0.35,
+            "ratio_high": 0.65,
+            "ma_trend": 250,
+            "trend_cap": 0.5,
+            "cool_bars": 20,
+            "fee": 0.0003
+          },
+          "backtest": {
+            "engine": "strategies/growth_div_rotation/v3_trend_filter/backtest.py",
+            "raw_out": "strategies/growth_div_rotation/v3_trend_filter/backtest/_v3_bt.jsonl",
+            "report": "strategies/growth_div_rotation/v3_trend_filter/backtest/_v3_report.md",
+            "charts": "同目录 _v3_nav.png（净值 v3 vs v2 vs 基准）· _v3_dual.png（R+创业板指+MA250+20 个买卖点）",
+            "code": "GD_ROT_V3"
+          },
+          "status": "研究变种: 未进每日流水线、未进 flow_select 排名; 仅回测与画图用",
+          "note": "**核心结论: 四格矩阵显示趋势闸门与挪阈值是替代关系, 不是叠加关系**。原口径 0.30/0.70 + 趋势: +11.23%/-60.75%/Calmar 0.18(无趋势 0.14); 新口径 0.35/0.65 + 趋势: +16.76%/-53.50%/Calmar 0.31(无趋势 0.33) —— 两者都在治 2015 年不防守那一个病, 同上是净损失。趋势层真正解决的是「卖出后死锁」(站上 MA250 即可恢复, 不必等 R≤0.35)。破线清仓(cap=0)比减半(cap=0.5)更差(摩擦); MA120/200 回撤更低(-46%~-48%)但属同样本挑参。详见其 README §3/§4"
         }
       },
       "select": {

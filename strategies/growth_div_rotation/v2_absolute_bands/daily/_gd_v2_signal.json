@@ -1,0 +1,70 @@
+{
+ "strategy": "growth_div_rotation/v2_absolute_bands",
+ "as_of": "2026-10-30",
+ "generated": "2026-11-02 11:20",
+ "bars": 3985,
+ "start": "2010-06-01",
+ "R": 0.4386,
+ "R_prev": 0.4539,
+ "low": 0.35,
+ "high": 0.65,
+ "current_w": 0.0,
+ "current_label": "红利",
+ "target_w": 0.0,
+ "target_label": "红利",
+ "action": "不动",
+ "reason": "0.35 < R=0.4386 < 0.65（中间带保持原仓）",
+ "trigger": {
+  "to_side": "growth",
+  "R": 0.35,
+  "dist_pct": -0.202,
+  "dist_text": "R 再跌 20.2% 至 0.35 触发"
+ },
+ "switches": [
+  {
+   "date": "2021-01-05",
+   "from_w": 1.0,
+   "to_w": 0.0,
+   "turn": 1.0,
+   "fee": 0.0003,
+   "R_prev": 0.6675,
+   "action": "减仓成长"
+  },
+  {
+   "date": "2024-01-08",
+   "from_w": 0.0,
+   "to_w": 1.0,
+   "turn": 1.0,
+   "fee": 0.0003,
+   "R_prev": 0.3482,
+   "action": "加仓成长"
+  },
+  {
+   "date": "2026-04-23",
+   "from_w": 1.0,
+   "to_w": 0.0,
+   "turn": 1.0,
+   "fee": 0.0003,
+   "R_prev": 0.6524,
+   "action": "减仓成长"
+  }
+ ],
+ "exec": {
+  "growth": {
+   "code": "011362",
+   "name": "易方达创业板ETF联接C"
+  },
+  "dividend": {
+   "code": "012644",
+   "name": "招商中证红利ETF联接C"
+  }
+ },
+ "params": {
+  "ratio_low": 0.35,
+  "ratio_high": 0.65,
+  "w_at_low": 1.0,
+  "w_at_high": 0.0,
+  "init_side": "div",
+  "fee": 0.0003
+ }
+}

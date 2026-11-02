@@ -307,6 +307,89 @@ def parse_gd_v1(_cfg):
     )
 
 
+def parse_gd_v2(_cfg):
+    """成长/红利轮动 v2：R 绝对水位 0.35/0.65，一次性整仓切换（**信号层裸基准**）。"""
+    daily = _cfg["daily"]
+    d = json.loads(_read(os.path.join(_ROOT, daily["signal_json"])))
+    act = d.get("action") or "不动"
+    tone = {"加仓成长": "buy", "减仓成长": "sell"}.get(act, "hold")
+    t = d.get("trigger") or {}
+    cur_w = float(d.get("current_w") or 0)
+    side = "growth" if cur_w >= 0.5 else "dividend"
+    ex = (d.get("exec") or {}).get(side) or {}
+    rows = [_row(ex.get("code"), f"{d.get('current_label')}侧 {cur_w:.0%}", tone, act,
+                 f"{d.get('reason', '')} · {t.get('dist_text', '')}")]
+    return _entry(
+        "gd_v2", "成长/红利轮动 v2 · 绝对水位 0.35/0.65", d.get("as_of"), act, tone,
+        f"持 {d.get('current_label')}（成长 {cur_w:.0%}）· 明日 {act} · R {d.get('R')}",
+        rows,
+        [["R", f"{float(d.get('R') or 0):.4f}"],
+         ["阈值 LOW/HIGH", f"{d.get('low')} / {d.get('high')}"],
+         ["成长权重", f"{cur_w:.0%} → {float(d.get('target_w') or 0):.0%}"],
+         ["下次触发", t.get("dist_text", "—")]],
+        note="v2 = R 的**绝对水位**（创业板指 ÷ 中证红利）：R≤0.35 满仓成长 / R≥0.65 满仓红利 / "
+             "中间带保持原仓，无冷却、无分批。全期 +17.27%/-51.85%/Calmar 0.33 —— 年化家族最高，"
+             "但回撤比它换着持有的中证红利（-46.51%）还深，**定位是「信号层裸基准」**、"
+             "不是可直接实盘的仓位方案；要看风控层的加成请对照同一板块的 v5 卡。"
+             "阈值是全样本内挑出的绝对值（量纲相关），换指数/基期须重标定。",
+        src=_rel(os.path.join(_ROOT, daily["signal_report"])),
+    )
+
+
+def _gd_side_act(cur, nxt):
+    """权重变化 -> (动作类型, 说明)。"""
+    if nxt - cur > 1e-6:
+        return "buy", f"{cur:.0%} → {nxt:.0%}"
+    if cur - nxt > 1e-6:
+        return "sell", f"{cur:.0%} → {nxt:.0%}"
+    return "hold", f"维持 {cur:.0%}"
+
+
+def parse_gd_v5(_cfg):
+    """成长/红利轮动 v5：R 水位 + 双侧 MA200 闸门 + 18% 波动率目标（**家族风险调整最优**）。"""
+    daily = _cfg["daily"]
+    d = json.loads(_read(os.path.join(_ROOT, daily["signal_json"])))
+    act = d.get("action") or "不动"
+    tone = ("buy" if "加仓" in act else
+            "sell" if ("减仓" in act or "降仓" in act) else
+            "watch" if "限速" in act else "hold")
+    w = d.get("weights") or {}
+    nx = d.get("next") or {}
+    nw = nx.get("weights") or {}
+    ex = d.get("exec") or {}
+    tr = d.get("trend") or {}
+    vol = d.get("vol")
+
+    rows = []
+    for key, label in (("growth", "成长 · 创业板"), ("div", "红利 · 中证红利"), ("cash", "现金 · 货基/短债")):
+        cur, nxt = float(w.get(key) or 0), float(nw.get(key) or 0)
+        a, txt = _gd_side_act(cur, nxt)
+        code = (ex.get(key) or {}).get("code") or "—"
+        rows.append(_row(code, label, a, txt,
+                         f"{label}目标 {nxt:.0%}" if key != "cash" else f"风险预算腾出 {nxt:.0%}"))
+
+    broken = [n for n, k in (("创业板指", "growth_broken"), ("中证红利", "div_broken")) if tr.get(k)]
+    badge = act if act != "不动" else f"在场 {float(w.get('growth') or 0) + float(w.get('div') or 0):.0%}"
+    return _entry(
+        "gd_v5", "成长/红利轮动 v5 · 水位+趋势+波动目标", d.get("as_of"), badge, tone,
+        f"成长 {float(w.get('growth') or 0):.0%} / 红利 {float(w.get('div') or 0):.0%} / "
+        f"现金 {float(w.get('cash') or 0):.0%} · 明日 {act}"
+        + (f" · {'/'.join(broken)}破 MA200" if broken else ""),
+        rows,
+        [["R", f"{float(d.get('R') or 0):.4f}"],
+         ["缩放系数", f"{float(d.get('scale') or 0):.0%}（目标波动 {float(d.get('target_vol') or 0):.0%}）"],
+         ["已实现波动", "—" if vol is None else f"{float(vol):.1%}"],
+         ["距上次调仓", f"{nx.get('gap', '—')} 日" + ("（限速中）" if nx.get("throttled") else "")]],
+        note="v5 = v3 的 R 水位 + **双侧 MA200 闸门**（破线该侧减半、削掉的进现金）+ "
+             "**18% 波动率目标**（120 日已实现波动缩放总仓位，死区 0.15）+ 全局限速 10 日。"
+             "全期 +14.23%/-26.74%/夏普 0.88/Calmar 0.53，**家族风险调整最优**；代价是年化比 v3 少 1.4pp、"
+             "平均只在场 63%（缩放均值 0.80，仅 3% 交易日满仓）。注意趋势层的贡献会随市场阶段反转："
+             "2010~2021 有效（v3 反超 v2 +0.97pp），2021~2026 拖累（v3 落后 v2 6.07pp）。",
+        src=_rel(os.path.join(_ROOT, daily["signal_report"])),
+        cols=["执行代码", "资产", "动作", "目标仓位"],
+    )
+
+
 def parse_tech_indicators(_cfg):
     path = os.path.join(_ROOT, "strategies", "tech_indicators", "daily", "_daily_recommend.md")
     lines = _read(path).splitlines()
@@ -642,6 +725,8 @@ PARSERS = {
     "dividend_v9": parse_dividend_v9,
     "growth_div_rotation": parse_growth_div,
     "gd_v1": parse_gd_v1,
+    "gd_v2": parse_gd_v2,
+    "gd_v5": parse_gd_v5,
     "tech_indicators": parse_tech_indicators,
     "v1_ma20": parse_v1_ma20,
     "v3_macd_boll": parse_v3_macd_boll,

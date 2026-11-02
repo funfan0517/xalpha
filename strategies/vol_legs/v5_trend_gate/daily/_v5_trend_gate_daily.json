@@ -1,0 +1,263 @@
+{
+ "strategy": "V5 趋势四象限闸门",
+ "as_of": "2026-10-30",
+ "pool": [
+  "a500",
+  "ndx",
+  "spx",
+  "kc50",
+  "hkt",
+  "gold"
+ ],
+ "gate_legs": [
+  "kc50",
+  "hkt",
+  "gold"
+ ],
+ "rule": {
+  "ma": 250,
+  "slope_n": 20,
+  "reduce_days": 5,
+  "clear_days": 20,
+  "action_gap": 5,
+  "levels": {
+   "full": 1.0,
+   "half": 0.5,
+   "observe": 0.2
+  },
+  "trade_at": "T+1 净值",
+  "cash_annual": 0.014
+ },
+ "summary": {
+  "n": 6,
+  "buy": 0,
+  "sell": 1,
+  "stale": 0,
+  "fail": 0,
+  "quads": {
+   "上涨趋势": 2,
+   "反弹": 0,
+   "高位回调": 1,
+   "下跌趋势": 3
+  }
+ },
+ "legs": [
+  {
+   "leg": "a500",
+   "name": "中证A500",
+   "role": "核心腿",
+   "band": 5.0,
+   "exec": "023299",
+   "exec_name": "汇添富中证A500指数增强C",
+   "date": "2026-10-30",
+   "nav": 1.2528,
+   "ma": 1.4296072000000002,
+   "slope": 0.0032376000000002847,
+   "slope_up": true,
+   "above": false,
+   "dev": -0.12367537040943855,
+   "quad": "高位回调",
+   "below_days": 20,
+   "dd_hi": -0.2234550300626046,
+   "gated": false,
+   "state": 1.0,
+   "level": "满带",
+   "pos_pp": 5.0,
+   "target": 1.0,
+   "decide": "",
+   "done": "",
+   "fresh": "·未刷新(本地缓存)",
+   "action": "不套闸门",
+   "lack": "宽基不套闸门(估值锚已含均值回归)",
+   "next_level": "满带",
+   "level_txt": "满带"
+  },
+  {
+   "leg": "ndx",
+   "name": "纳指100",
+   "role": "核心腿",
+   "band": 10.0,
+   "exec": "270042",
+   "exec_name": "广发纳斯达克100ETF联接(QDII)A",
+   "date": "2026-10-29",
+   "nav": 8.3055,
+   "ma": 7.986491200000001,
+   "slope": 0.07845119999999994,
+   "slope_up": true,
+   "above": true,
+   "dev": 0.03994354867629468,
+   "quad": "上涨趋势",
+   "below_days": 0,
+   "dd_hi": -0.06287023141931913,
+   "gated": false,
+   "state": 1.0,
+   "level": "满带",
+   "pos_pp": 10.0,
+   "target": 1.0,
+   "decide": "",
+   "done": "",
+   "fresh": "·未刷新(本地缓存)",
+   "action": "不套闸门",
+   "lack": "宽基不套闸门(估值锚已含均值回归)",
+   "next_level": "满带",
+   "level_txt": "满带"
+  },
+  {
+   "leg": "spx",
+   "name": "标普500",
+   "role": "核心腿",
+   "band": 10.0,
+   "exec": "017641",
+   "exec_name": "摩根标普500指数(QDII)人民币A",
+   "date": "2026-10-29",
+   "nav": 1.6997,
+   "ma": 1.6205395999999999,
+   "slope": 0.012664000000000009,
+   "slope_up": true,
+   "above": true,
+   "dev": 0.04884817378112838,
+   "quad": "上涨趋势",
+   "below_days": 0,
+   "dd_hi": -0.018195471349353065,
+   "gated": false,
+   "state": 1.0,
+   "level": "满带",
+   "pos_pp": 10.0,
+   "target": 1.0,
+   "decide": "",
+   "done": "",
+   "fresh": "·未刷新(本地缓存)",
+   "action": "不套闸门",
+   "lack": "宽基不套闸门(估值锚已含均值回归)",
+   "next_level": "满带",
+   "level_txt": "满带"
+  },
+  {
+   "leg": "kc50",
+   "name": "科创50",
+   "role": "进攻腿",
+   "band": 2.5,
+   "exec": "011609",
+   "exec_name": "易方达上证科创板50ETF联接C",
+   "date": "2026-10-30",
+   "nav": 0.9132,
+   "ma": 1.1824444,
+   "slope": -0.0014975999999999878,
+   "slope_up": false,
+   "above": false,
+   "dev": -0.22770153082884914,
+   "quad": "下跌趋势",
+   "below_days": 18,
+   "dd_hi": -0.45186074429771905,
+   "gated": true,
+   "state": 0.5,
+   "level": "半仓",
+   "pos_pp": 1.25,
+   "target": 0.5,
+   "decide": "",
+   "done": "",
+   "fresh": "·未刷新(本地缓存)",
+   "action": "维持",
+   "lack": "close 需站上年线(1.1824, 现距 -22.8%) + 年线需转为上行(现 20 日斜率向下) + 下跌趋势第 18 日",
+   "next_level": "半仓",
+   "level_txt": "半仓"
+  },
+  {
+   "leg": "hkt",
+   "name": "恒生科技",
+   "role": "进攻腿",
+   "band": 2.5,
+   "exec": "012805",
+   "exec_name": "广发恒生科技ETF联接QDII-C",
+   "date": "2026-10-30",
+   "nav": 0.5982,
+   "ma": 0.8149696,
+   "slope": -0.03148200000000001,
+   "slope_up": false,
+   "above": false,
+   "dev": -0.2659848907247584,
+   "quad": "下跌趋势",
+   "below_days": 179,
+   "dd_hi": -0.41905409342526956,
+   "gated": true,
+   "state": 0.2,
+   "level": "观察仓",
+   "pos_pp": 0.5,
+   "target": 0.2,
+   "decide": "",
+   "done": "",
+   "fresh": "·未刷新(本地缓存)",
+   "action": "维持",
+   "lack": "close 需站上年线(0.8150, 现距 -26.6%) + 年线需转为上行(现 20 日斜率向下) + 下跌趋势第 179 日",
+   "next_level": "观察仓",
+   "level_txt": "观察仓"
+  },
+  {
+   "leg": "gold",
+   "name": "黄金",
+   "role": "避险腿",
+   "band": 10.0,
+   "exec": "000216",
+   "exec_name": "华安黄金ETF联接A",
+   "date": "2026-10-30",
+   "nav": 2.9546,
+   "ma": 3.3976423999999996,
+   "slope": -0.001265600000000422,
+   "slope_up": false,
+   "above": false,
+   "dev": -0.13039700705406776,
+   "quad": "下跌趋势",
+   "below_days": 39,
+   "dd_hi": -0.31275586155563817,
+   "gated": true,
+   "state": 0.5,
+   "level": "半仓",
+   "pos_pp": 5.0,
+   "target": 0.2,
+   "decide": "sell",
+   "done": "",
+   "fresh": "·未刷新(本地缓存)",
+   "action": "减仓",
+   "lack": "close 需站上年线(3.3976, 现距 -13.0%) + 年线需转为上行(现 20 日斜率向下) + 下跌趋势第 39 日",
+   "next_level": "观察仓",
+   "level_txt": "半仓 → 观察仓"
+  }
+ ],
+ "recent_flow": [
+  {
+   "date": "2026-10-30",
+   "buy": [],
+   "sell": [
+    "黄金"
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "buy": [],
+   "sell": [
+    "科创50"
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "buy": [],
+   "sell": [
+    "黄金"
+   ]
+  },
+  {
+   "date": "2026-08-20",
+   "buy": [
+    "黄金"
+   ],
+   "sell": []
+  },
+  {
+   "date": "2026-06-16",
+   "buy": [],
+   "sell": [
+    "黄金"
+   ]
+  }
+ ]
+}

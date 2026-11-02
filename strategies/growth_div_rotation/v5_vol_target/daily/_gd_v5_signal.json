@@ -1,0 +1,124 @@
+{
+ "strategy": "growth_div_rotation/v5_vol_target",
+ "as_of": "2026-10-30",
+ "generated": "2026-11-02 11:20",
+ "bars": 3985,
+ "start": "2010-06-01",
+ "R": 0.4386,
+ "R_prev": 0.4539,
+ "low": 0.35,
+ "high": 0.65,
+ "weights": {
+  "growth": 0.0,
+  "div": 0.4926,
+  "cash": 0.5074
+ },
+ "base_weights": {
+  "growth": 0.0,
+  "div": 0.5,
+  "cash": 0.5
+ },
+ "next": {
+  "weights": {
+   "growth": 0.0,
+   "div": 0.4926,
+   "cash": 0.5074
+  },
+  "base": {
+   "growth": 0.0,
+   "div": 0.5,
+   "cash": 0.5
+  },
+  "scale": 0.985,
+  "throttled": false,
+  "gap": 22,
+  "wait": 0
+ },
+ "scale": 0.985,
+ "vol": 0.1004,
+ "target_vol": 0.18,
+ "deadband": 0.15,
+ "trend": {
+  "growth_broken": true,
+  "div_broken": true,
+  "ma_growth": 3485.34,
+  "ma_div": 5595.69,
+  "growth_close": 2432.75,
+  "div_close": 5546.77
+ },
+ "action": "不动",
+ "reason": "三层目标与当前权重一致，无需调仓",
+ "switches": [
+  {
+   "date": "2026-08-25",
+   "from_w": [
+    0.0,
+    0.4052,
+    0.5948
+   ],
+   "to_w": [
+    0.0,
+    0.8103,
+    0.1897
+   ],
+   "turn": 0.8103,
+   "fee": 0.000243,
+   "R_prev": 0.607,
+   "action": "加仓红利"
+  },
+  {
+   "date": "2026-09-08",
+   "from_w": [
+    0.0,
+    0.8103,
+    0.1897
+   ],
+   "to_w": [
+    0.0,
+    0.9852,
+    0.0148
+   ],
+   "turn": 0.3497,
+   "fee": 0.000105,
+   "R_prev": 0.6091,
+   "action": "加仓红利"
+  },
+  {
+   "date": "2026-09-22",
+   "from_w": [
+    0.0,
+    0.9852,
+    0.0148
+   ],
+   "to_w": [
+    0.0,
+    0.4926,
+    0.5074
+   ],
+   "turn": 0.9852,
+   "fee": 0.000296,
+   "R_prev": 0.615,
+   "action": "减仓红利"
+  }
+ ],
+ "exec": {
+  "growth": {
+   "code": "011362",
+   "name": "易方达创业板ETF联接C"
+  },
+  "dividend": {
+   "code": "012644",
+   "name": "招商中证红利ETF联接C"
+  }
+ },
+ "params": {
+  "vol_target": 0.18,
+  "vol_window": 120,
+  "deadband": 0.15,
+  "min_rebalance": 10,
+  "ma_trend": 200,
+  "trend_cut": 0.5,
+  "cash_yield": 0.015,
+  "fee": 0.0003
+ }
+}

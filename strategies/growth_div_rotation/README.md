@@ -9,9 +9,11 @@
 | 目录 | 信号形态 | 换仓方式 | 资金模型 | 状态 |
 | --- | --- | --- | --- | --- |
 | `v0/` | R 相对自身 MA20 ± 1% 缓冲带 + 250 日分位 Q（无量纲、自适应） | 一次性整仓切换，月频上限 4 次 | 纯净值（满仓二元） | **主线，进每日流水线 + flow_select 排名** |
-| `v1_ratio_bands/` | R 的绝对水位：`≤0.20` 切成长 / `≥0.31` 切红利（量纲相关、历史拟合，**按科创50/中证红利比值重新标定**） | 清仓 → 资金拆 5 份 → 5 个定投日分买；反向阈值可打断 | 每月定投 1000 + 轮动（资金加权 XIRR） | 研究变种，仅回测对比 |
-| `v2_absolute_bands/` | R 的绝对水位带：**创业板指** R `≤0.35` 加仓 / `≥0.65` 减仓（**复现用户两张图**，2026-10-30 阈值由 0.30/0.70 挪至 0.35/0.65；分子固定 399006） | 一次性整仓切换（无分批） | 纯净值（与 v0 同口径） | 研究变种，仅回测 + 画图 |
-| `v3_trend_filter/` | v2 的 0.35/0.65 **∩ 创业板指 vs MA250 趋势闸门**（破线减半 + 20 日冷却） | 一次性整仓切换 | 纯净值 | 研究变种，仅回测 + 画图 |
+| `v1_ratio_bands/` | R 的绝对水位：`≤0.20` 切成长 / `≥0.31` 切红利（量纲相关、历史拟合，**按科创50/中证红利比值重新标定**） | 清仓 → 资金拆 5 份 → 5 个定投日分买；反向阈值可打断 | 每月定投 1000 + 轮动（资金加权 XIRR） | 研究变种，仅回测对比；**2026-11-02 起退出每日看板**（`daily.enabled=false`，脚本与产物保留可手跑） |
+| `v2_absolute_bands/` | R 的绝对水位带：**创业板指** R `≤0.35` 加仓 / `≥0.65` 减仓（**复现用户两张图**，2026-10-30 阈值由 0.30/0.70 挪至 0.35/0.65；分子固定 399006） | 一次性整仓切换（无分批） | 纯净值（与 v0 同口径） | 研究变种；**2026-11-02 起进板块3 每日看板**（信号层裸基准，与 v0/v5 三卡并列） |
+| `v3_trend_filter/` | v2 的 0.35/0.65 **+ 双侧趋势闸门**（创业板指 / 中证红利 各看自己 MA200，破线该侧减半、削掉的仓位**转现金** + 20 日冷却） | 一次性整仓切换 | 纯净值 + 现金仓计息 | 研究变种（v2 的回撤控制版），仅回测 + 画图 |
+| `v4_graded_bands/` | v3 的**连续化**：R 0.35~0.65 拆 4 档，成长:红利按 5:0 / 4:1 / 1:1 / 1:4 / 0:5 逐级过渡（趋势层与现金仓同 v3） | 逐档调仓（20~30% 单边换手） | 纯净值 + 现金仓计息 | 研究变种，**实测跑输 v3**（+8.38%/-52.53%/Calmar 0.16），留档备查 |
+| `v5_vol_target/` | v3 + **波动率目标层**：按 120 日已实现年化波动把总仓位缩放 `min(1, 18%/vol)`，腾出的进现金（死区 0.15 + 全局限速 10 日） | 缩放系数跨档才调（平均暴露 63%） | 纯净值 + 现金仓计息 | 研究变种，**全家族风险调整最优**（+14.23%/-26.74%/Calmar 0.53），代价是年化让 1.4pp；**2026-11-02 起进板块3 每日看板** |
 
 **关键事实**：默认成长指数 = **科创50（000688）**（2026-10-30 由创业板指切换；创业板指改作 `--alt`）。
 v1 的「高收益」大半来自阈值拟合与更高成长暴露，风险调整后与 v0 基本打平；
@@ -23,7 +25,10 @@ v1 唯一站得住的优势是**执行层面**：全期仅 2 次换仓 vs v0 的
 ```
 growth_div_rotation/
 ├─ README.md              ← 本文件（家族说明）
-├─ compare.py             ← 跨变种对比入口（产出 _v1_vs_v0_report.md / .png 到本目录）
+├─ compare.py             ← 跨变种对比入口（v1 vs v0，产出 _v1_vs_v0_report.md / .png 到本目录）
+├─ _compare_v0_v5.py      ← 全家族对比（读六份已落盘产物，产出 _v0_v5_compare.md / .png）
+├─ _v0_v5_compare.md      ← 六代综合对比报告（三段窗口、基准标尺、趋势层反转）
+├─ _v0_v5_compare.png     ← 六代同窗净值 + 回撤（2021-01 起）
 ├─ _v1_vs_v0_report.md    ← 对比报告（口径 A/B、分段、阈值/分批敏感性、决策延迟、换仓日志）
 ├─ _v1_vs_v0.png          ← 对比净值曲线（对数轴）
 ├─ v0/                    ← 主线变种（缓冲带 + 分位）
@@ -38,16 +43,25 @@ growth_div_rotation/
 │  ├─ backtest/           ← _v1_bt.json / _v1_bt.jsonl（v1 单行摘要）
 │  └─ README.md
 ├─ v2_absolute_bands/     ← 研究变种（创业板指 0.35/0.65 绝对水位带，复现用户两张图）
-│  ├─ rule.py / factors.py / engine.py / data.py / backtest.py
+│  ├─ rule.py / factors.py / engine.py / data.py / backtest.py / scan.py
 │  ├─ backtest/           ← _v2_report.md / _v2_bt.json(l) / _v2_nav.png
 │  │                         _v2_band.png（图1）/ _v2_cycle.png（图2）/ _v2_dual.png
+│  ├─ daily/              ← _gd_v2_signal.json / _gd_v2_daily.md（板块3 第二张卡）
 │  ├─ research/           ← _opt_probe.py（阈值曲面 / 趋势过滤 / 分档对照）
 │  └─ README.md
-└─ v3_trend_filter/       ← 研究变种（v2 的 0.35/0.65 + MA250 趋势闸门）
-   ├─ rule.py / factors.py / engine.py / data.py / backtest.py
-   ├─ backtest/           ← _v3_report.md / _v3_bt.json(l) / _v3_nav.png / _v3_dual.png
-   ├─ research/           ← _tune.py（封顶 / 冷却 / 均线窗口标定）
-   └─ README.md
+├─ v3_trend_filter/       ← 研究变种（v2 的 0.35/0.65 + 双侧 MA200 闸门 + 现金仓）
+│  ├─ rule.py / factors.py / engine.py / data.py / backtest.py
+│  ├─ backtest/           ← _v3_report.md / _v3_bt.json(l) / _v3_nav.png / _v3_alloc.png / _v3_dual.png
+│  ├─ research/           ← _dd_probe.py（回撤归因）/ _dd_control.py（闸门分层实验）/ _tune.py（参数标定）
+│  └─ README.md
+├─ v4_graded_bands/       ← 研究变种（v3 的连续化：R 阶梯 5:0→0:5，**实测跑输 v3**）
+│  ├─ rule.py / factors.py / engine.py / data.py / backtest.py
+│  ├─ backtest/           ← _v4_report.md / _v4_bt.json(l) / _v4_nav.png / _v4_alloc.png / _v4_dual.png
+│  └─ README.md
+└─ v5_vol_target/         ← 研究变种（v3 + 18% 波动率目标，**全家族风险调整最优**）
+   ├─ rule.py / factors.py / engine.py / data.py / backtest.py / scan.py
+   ├─ backtest/           ← _v5_report.md / _v5_bt.json(l) / _v5_nav.png / _v5_vol.png / _v5_alloc.png
+   └─ daily/              ← _gd_v5_signal.json / _gd_v5_daily.md（板块3 第三张卡）
 ```
 
 ## 运行
@@ -63,12 +77,38 @@ python pipeline/run_flow.py backtest --strategy growth_div_rotation --report
 # 跨变种对比（v1 vs v0，自动重跑 v0 保证同窗同数据）
 python strategies/growth_div_rotation/compare.py [--rerun-v0]
 
+# 全家族对比（v0~v5，只读六份已落盘产物，不重跑）
+python strategies/growth_div_rotation/_compare_v0_v5.py
+
 # v2 回测 + 报告 + 四张图（band / cycle / dual / nav）
 python strategies/growth_div_rotation/v2_absolute_bands/backtest.py
 
-# v3 回测 + 报告 + 两张图（MA250 趋势闸门）
+# v3 回测 + 报告 + 三张图（双侧 MA200 闸门 + 现金仓；nav / alloc / dual）
 python strategies/growth_div_rotation/v3_trend_filter/backtest.py
+
+# v4 回测 + 报告 + 三张图（R 阶梯分档；结论是跑输 v3，见其 README）
+python strategies/growth_div_rotation/v4_graded_bands/backtest.py
+
+# v5 回测 + 报告 + 三张图（波动率目标；nav / vol / alloc）
+python strategies/growth_div_rotation/v5_vol_target/backtest.py
 ```
+
+## 每日操作（板块3 = v0 / v2 / v5 三卡）
+
+`run_daily_growth_div_rotation.ps1` 一条命令跑三步，产物分别落在各变种的 `daily/`：
+
+| 卡 | 规则 | 脚本 | 产物 |
+|---|---|---|---|
+| v0 | R 相对 MA20±1% 缓冲带 + 250 日分位（主线） | `v0/scan.py` | `v0/daily/_gd_signal.json` + `_signal_report.md` |
+| v2 | R 绝对水位 0.35/0.65，一次性整仓切换（信号层裸基准） | `v2_absolute_bands/scan.py` | `v2_absolute_bands/daily/_gd_v2_signal.json` + `_gd_v2_daily.md` |
+| v5 | R 水位 + 双侧 MA200 闸门 + 18% 波动率目标（风险调整最优） | `v5_vol_target/scan.py` | `v5_vol_target/daily/_gd_v5_signal.json` + `_gd_v5_daily.md` |
+
+> "明日"的权重靠**追加一个占位 bar** 让状态机自己再走一步得到（复制最新收盘成下一交易日，
+> 重跑 `signal_weights` / `target_weights` / `vol_scale` / `throttle`），
+> 因此冷却、死区、限速三道状态都与回测逐行同构，扫描脚本里不重写规则。
+>
+> `v1_ratio_bands/`（绝对阈值 0.20/0.31 + 5 期分批）2026-11-02 起退出看板
+> （`daily.enabled=false`），产物与 `scan.py` 保留可手跑；v3 / v4 是 v5 的中间形态，不出每日卡。
 
 ## 数据口径与修正（2026-10-29）
 

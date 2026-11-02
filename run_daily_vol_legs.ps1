@@ -9,6 +9,7 @@
 # 已退出默认流程(2026-10-30, 需要时手动跑):
 #   python strategies\vol_legs\v1_ma20\daily\_daily_scan.py          # V1 MA20 穿越
 #   python strategies\vol_legs\v4_erp_band\daily\_daily_scan.py      # V4 股债利差 ERP 通道
+#   python strategies\vol_legs\v5_trend_gate\daily\_daily_scan.py     # V5 趋势四象限闸门(年线位置+年线斜率, 只套科创50/恒生科技/黄金)
 # 参数权威源 strategies/vol_legs/rule.py::CFG 与 v3_macd_boll/macd_boll.py; 口径说明 strategies/vol_legs/README.md
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_vol_legs.ps1
 #        已有存量持仓时校准起点: ... -File run_daily_vol_legs.ps1 --hold a500=10,ndx=5,spx=5,kc50=5,hkt=5,gold=10
@@ -42,5 +43,6 @@ Write-Host "  Note    : all six legs trade OTC share classes only (never chase o
 Write-Host "            if the QDII quota is closed, the tier is deferred, not cancelled."
 Write-Host "  Note    : NAV cache = data\_otc_nav.json; codes 023299 / 270042 / 017641 / 011609 /"
 Write-Host "            012805 / 000216, plus bridge funds 000051 (A500 warm-up) and 050025 (SPX warm-up)."
-Write-Host "  Note    : V1 (MA20) / V4 (ERP band) are out of the daily flow since 2026-10-30;"
-Write-Host "            run their daily\_daily_scan.py by hand if needed."
+Write-Host "  Note    : V1 (MA20) / V4 (ERP band) / V5 (trend quadrant gate) are out of the daily"
+Write-Host "            flow; run their daily\_daily_scan.py by hand if needed (V5: add --no-refresh"
+Write-Host "            to skip the OTC NAV refresh)."

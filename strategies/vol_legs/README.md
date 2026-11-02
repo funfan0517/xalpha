@@ -235,7 +235,8 @@ strategies/vol_legs/
 ├── data/          # _val_inputs.json(人工回填: FOMC、PB/ERP 分位、保险丝、QDII 额度)
 ├── backtest/      # _vol_legs_bt.md / .json
 ├── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
-└── v1_ma20/ v2_boll_breakout/ v3_macd_boll/ v4_erp_band/   # 四个变种（各自 rule/engine/backtest/daily|research）
+└── v1_ma20/ v2_boll_breakout/ v3_macd_boll/ v4_erp_band/ v5_trend_gate/ v6_score_wf/
+                                                          # 六个变种（各自 rule/engine/backtest/daily|research）
 ```
 
 共享数据（在仓库 `data/`，本策略只读；`_otc_nav.json` / `_us_index_klines.json` 由本模块增量维护）：
@@ -293,3 +294,28 @@ strategies/vol_legs/
   扣费后 3.74%（-1.81pp）—— 成本不再是决定性变量。注意它是**突破追涨型**，与主策略「跌了才加仓」的阶梯
   方向相反，**不可叠加在同一份额度上**。**2026-10-30 起进每日操作板块2**（`daily/_daily_scan.py`，
   随 `run_daily_vol_legs.ps1` 第 2 步运行，看板卡读 `daily/_v3_macd_boll_daily.json`），顶替 v1 / v4 的卡片。
+- **变种 `v5_trend_gate/`**（2026-11-02 按用户「趋势判断」说明落地，**同日替换掉原 BOLL+SKDJ 的 v5**；
+  编号沿用用户口径的 v5）：判断趋势只用两个数 —— `close` 在 **MA250** 上/下、MA250 自身近 **20 日**斜率
+  的正负，组成四象限（上涨趋势 / 反弹 / 高位回调 / 下跌趋势）。两个都朝上才给加仓许可，其余三格不给：
+  反弹 = 只持有、高位回调 = 降一档（封顶半仓）、下跌趋势 = 满 5 日减半 → 满 20 日清至观察仓。档位是
+  **占本腿目标带的比例**（1.0 / 0.5 / 0.2），所以它是**仓位带上的闸门**，不是 0/1 择时。默认**只套
+  科创50 / 恒生科技 / 黄金**（无现金流锚三条腿），宽基三条腿不套 —— 结论见 `v5_trend_gate/README.md` §3
+  —— 简版：组合层 2022-09~2026-10 年化 **+17.93%** / 回撤 **-12.07%** / 夏普 **1.54**（静态带 +18.13% /
+  -12.51% / 1.44），**几乎打平、风险调整后略好**，平均曝光 93%；逐腿只有科创50 有正超额（+1.40pp），
+  黄金让渡 2.52pp。**给六腿全套闸门 = -2.44pp 且回撤无改善**，与用户给的 510300 证据（2.35pp 年化换
+  1.77pp 回撤）同向 —— 这就是默认只套三腿的依据。**不进每日流程**（`daily.enabled=false`），需要时手跑
+  `v5_trend_gate/daily/_daily_scan.py`；趋势线与操作点图见 `v5_trend_gate/research/_v5_trend_{a500,kc50}.png`
+  （A500 默认不套闸门，图上为「若套」的对照）——`python v5_trend_gate/research/_plot_trend.py`。
+- **变种 `v6_score_wf/`**（2026-11-02 由 `tech_indicators/v6_score_wf` 复制并按六腿口径落地；**规则本体
+  一条没改**）：4 票打分制（①价>MA20且>MA60 ②DIF>DEA且DIF>0 ③K>D ④放量上涨）+ 滞回进出 +
+  锚定式 Walk-Forward 逐年选参。④「放量」没有净值成交量，用**同资产场内 ETF 的真实成交量**代理
+  （`data/_indicators_hist.json`，A500 用 510300 桥接）；KDJ/MACD 抄 `_gen_indicators.py` 的算式。
+  移植已校验（510300 上 4/2 不计费：胜率 52%/盈亏比 2.12，源报告 50%/2.11）。结论见
+  `v6_score_wf/README.md` §3 —— 简版：换池后**选参结论自己变了**（54 只时 4/2，六腿变 3/1，
+  因为中位夏普只有 6 个样本）；逐腿中位 不计费 +2.85% → **场外真实 -9.69%** → **场内 ETF +1.81%**，
+  跑赢买入持有 2/6 且**恰好是那两条本来为负的腿**（恒生科技、科创50），四条上行腿全部让渡；
+  组合层固定 3/1(ETF) +5.78% / -6.37% / 0.70 vs 静态带 +10.80% / -17.45% / **0.78** —— 风险调整后
+  打平、绝对收益落后，**WF 反而不如固定参数**。**成本是生死线**：平均持仓仅 2~4 个交易日、
+  逐腿年均 8.5 笔，场外「持有 <7 个自然日收 1.5% 赎回费」把中位年化从 +5.56%（不计费）压到
+  -6.36%，换场内 ETF 载体才回到 +4.29% —— **这条规则只能配 ETF**。无 `daily/` 脚本
+  （`daily.enabled=false`，与 v2 同属回测型变种）。

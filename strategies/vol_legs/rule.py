@@ -1,35 +1,45 @@
 # -*- coding: utf-8 -*-
-"""波动资产操作规则 v1.3 · 规则定义 —— 唯一权威源。
+"""波动资产操作规则 v1.4 · 规则定义 —— 唯一权威源。
 
-战略权重(v1.3, pp of 总资产): 核心腿 A股 5(中证A500) + 美股 20(纳指100 10 / 标普500 10);
-进攻腿 5(科创50 2.5 / 恒生科技 2.5); 避险腿 10(黄金) —— 管辖额度 40pp。
+战略权重(v1.4, pp of 总资产): 核心腿 A股 5(中证A500 **2.5** / 沪深300 **2.5**) + 美股 20
+(纳指100 10 / 标普500 10); 进攻腿 5(科创50 2.5 / 恒生科技 2.5); 避险腿 10(黄金)。
+共 **七条腿**, 管辖额度仍是 40pp。
 其余 60pp: 红利 20(另见 strategies/dividend) / 国债 30 / 货币基金 10, 不在本策略内。
 即大类仍是 权益 50 / 债 30 / 金 10 / 现金 10(文档 §0 的总目标未变, 变的是权益内部 A股/美股 的配比)。
 
 规则文档: 《波动资产操作规则.md》v1.1(2026-10-28)。文档 §0 写的是「A500 10% + 纳指 5% +
 标普 5%」(旧权重), v1.3 按用户确认的目标带改为 A500 5% / 纳指 10% / 标普 10% / 科创50 2.5% /
-恒生科技 2.5% / 黄金 10% —— **份数按同一「满梯≈带」比例重标**, 见下面 ①。
+恒生科技 2.5% / 黄金 10%; **v1.4(2026-11-02) 再把 A股核心那 5pp 拆成
+中证A500 2.5pp + 沪深300 2.5pp**(七腿, 额度合计不变)—— 份数按同一「满梯≈带」比例重标, 见下面 ①。
 
 v1.2 只改口径不改规则: 信号 / 记账 / 回测 / 执行统一到**场外基金复权净值**
 (`SIGNAL_MODE = "otc"`, 默认)。v1.1 的场内 ETF 收盘 + 美元指数口径保留为
 `SIGNAL_MODE = "exchange"`, 回测里两套口径直接对照。
 
 ## 本文件负责什么
-1. `CFG` —— 文档 §9 参数表的镜像 + v1.3 权重重标后的份数(`CFG["unit_pp"]`), 改阈值只改这里。
+1. `CFG` —— 文档 §9 参数表的镜像 + v1.3/v1.4 权重重标后的份数(`CFG["unit_pp"]`), 改阈值只改这里。
 2. `add_indicators` —— close 口径的四个派生量: ma250 / high52w(近250交易日最高收盘) /
    dd(回撤) / rsi14(Wilder)。全部由收盘价自算, 不用估算值。
-3. 六条腿的**状态机**(`IndexLadderPolicy` / `TechPolicy` / `GoldPolicy`) —— 文档 §2~§6 的
+3. 七条腿的**状态机**(`IndexLadderPolicy` / `TechPolicy` / `GoldPolicy`) —— 文档 §2~§6 的
    「闸门 → 阶梯 → 扳机 → 频率帽」逐条落地。策略只在此处做决策, engine.py 只负责记账。
 
 ## 五处文档口径与取法(必须知道, 否则数字对不上)
 ### ① 「1 份 = 权益账户 2%」的分母
 文档 §2 自检写「满梯 9% ≈ 填满 10% 带」: 阶梯份数 1+1.5+2=4.5 份 → 4.5×2%=9%。
-v1.3 的权重表让这句话**字面成立**: 权益账户 = 总资产的 50%, 2% 权益 = **1pp 总资产**,
-A500 带 5pp, 满梯 4.5 份 = 4.5pp ≈ 5pp 带。于是 `unit_pp` 取「带的 20%」:
-  a500 1.0pp / ndx 2.0 / spx 2.0 / gold 2.0(各 4.5 份 = 4.5pp / 9pp, 都是带的 90%)。
+不变量始终是「**1 份 = 带的 20%, 满梯 4.5 份 ≈ 带的 90%**」, 变的只是带本身:
+  v1.3(A500 5pp)   → a500 1.0pp / ndx 2.0 / spx 2.0 / gold 2.0(满梯 4.5pp / 9pp)
+  v1.4(A500 2.5pp + 沪深300 2.5pp) → a500 0.5pp / hs300 0.5pp, 其余不变
+所以 v1.4 起 A500 的 1 份 = 0.5pp 总资产(权益账户的 1%), 满梯 4.5 份 = 2.25pp ≈ 2.5pp 带。
 旧权重(A500 10pp、美股各 5pp)下同一比例给出 2pp / 1pp / 1pp —— 与文档 §9 的
 `unit_pct_equity`(全局 2.0, 美股 1.0)一致, 所以这是同一个设计不变量的重标, 不是新规则。
 美股/黄金的 1 份 = 权益账户 4%(2pp 总资产)。份数统一用 `unit_pp(leg)` 取。
+
+### ①' 沪深300 为什么是独立的一条腿(不是 A500 的影子)
+v1.4 把 A股核心 5pp 对半拆开, 理由是**执行出口两个、规则一套**: 两条腿各自跑自己的
+ERP 闸门 / 回撤阶梯 / 52 周高点, 互不占用对方的档位。它们不是两个资产类别 ——
+中证A500 与沪深300 的成分重叠约八成, 相关性极高, 拆分**不增加分散度**, 只增加
+「同一笔 A股额度可以由哪只基金执行」的粒度。两条腿的场外序列在 2025-03-27 之前
+**完全相同**(A500 的桥接基金就是沪深300 的 000051), 见 README §2.3。
 
 ### ② 「仓位带是主锚」vs「阶梯填满带」
 文档设计原则说「仓位带是主锚」, 但 §2/§5/§6 的份数设计只能解释为「**空仓起步、由阶梯填满带**」
@@ -41,8 +51,10 @@ A500 带 5pp, 满梯 4.5 份 = 4.5pp ≈ 5pp 带。于是 `unit_pp` 取「带的
 文档 §1: 数据不足时信号输出 null, 「对应规则不执行」。本策略把 null 解释为
 **「该闸门不生效(不否决)」**, 而非「视为否决」。例: A500 的 ERP 分位当前为 null
 (中证A500 指数 2024-09 才有 PE 历史, 差 3 年门槛) → 启动闸门不执行 → 回撤阶梯照常工作;
-科创50 的 PB 分位 null → 「pb<20 禁新增」不生效。所有 null 都在每日报告中逐条列出原因,
-不以估算值补位。若你想把 null 当否决(更保守), 把 `NULL_GATE_BLOCKS` 设为 True。
+**沪深300 不是这种情形** —— 它的 PE 自 2005 年就有(月度样本 136 个), 分位是真分位,
+只是当前读数落在 30~70 的中间地带 → 同样「不设限」, 但性质不同(一个是没数据, 一个是
+数据说「中间」); 科创50 的 PB 分位 null → 「pb<20 禁新增」不生效。所有 null 都在每日报告中
+逐条列出原因, 不以估算值补位。若你想把 null 当否决(更保守), 把 `NULL_GATE_BLOCKS` 设为 True。
 
 ### ④ 美股腿(§6)的三条特殊口径
 - **信号源随 `SIGNAL_MODE` 走**: `"otc"`(默认, v1.2) 用该腿场外 QDII 复权净值(270042/017641,
@@ -71,10 +83,16 @@ CFG = {
     # 1 份 = 该腿多少 pp of 总资产。取「带的 20%」, 使 4.5 份满梯 ≈ 带的 90%
     # (与文档 §2/§5/§6 自检「满梯 9% ≈ 填满 10 带」「满梯 4.5% ≈ 5 带」同比例)。
     # 文档 §9 的 unit_pct_equity(全局 2.0 / 美股 1.0)是按旧权重 A500 10pp、美股各 5pp 标定的;
-    # v1.3 权重改成 A500 5pp、美股各 10pp 后按同一比例重标: 5pp 带 → 1pp, 10pp 带 → 2pp。
-    "unit_pp": {"a500": 1.0, "ndx": 2.0, "spx": 2.0, "gold": 2.0},
+    # v1.3 改成 A500 5pp、美股各 10pp; v1.4 再把 A股 5pp 拆成 A500 2.5 + 沪深300 2.5
+    # —— 比例不变量不变: 5pp 带 → 1pp(v1.3) → 0.5pp(v1.4 的 2.5pp 带), 10pp 带 → 2pp。
+    "unit_pp": {"a500": 0.5, "hs300": 0.5, "ndx": 2.0, "spx": 2.0, "gold": 2.0},
     "a500": {"erp_gate_on": 70, "erp_gate_off": 30, "ladder_dd": [8, 16, 24],
              "ladder_units": [1, 1.5, 2], "max_tranche_per_month": 1},
+    # v1.4: 沪深300 与 A500 同层同构(宽基核心), 阶梯与闸门参数逐字相同 —— 唯一的差别是
+    # **闸门数据源真的存在**: A500 的 PE 历史 2024-09 才起(分位恒 null, 见 ③), 沪深300 的
+    # PE 自 2005 年就有(data/_bt_caches/csi_000300.csv), 所以这条腿的 ERP 分位是真分位。
+    "hs300": {"erp_gate_on": 70, "erp_gate_off": 30, "ladder_dd": [8, 16, 24],
+              "ladder_units": [1, 1.5, 2], "max_tranche_per_month": 1},
     "kc50": {"ma_gate": 250, "half_in_days": 5, "clear_after_days": 20,
              "pb_panic": 90, "pb_add_min": 80, "pb_no_add_below": 20},
     "hkt": {"ma_gate": 250, "tips_pause_months": 3, "erp_gate_on": 70,
@@ -112,7 +130,7 @@ def unit_pp(leg):
 
 
 UNIT_PCT = unit_pp("a500")
-UNIT = UNIT_PCT          # 默认 1 份 = 1.0pp(A500) / 2.0pp(美股、黄金)
+UNIT = UNIT_PCT          # 默认 1 份 = 0.5pp(A500/沪深300) / 2.0pp(美股、黄金)
 
 NULL_GATE_BLOCKS = False   # null 闸门是否视为否决(默认否, 见模块 docstring ③)
 
@@ -150,15 +168,22 @@ SIGNAL_MODE = "otc"
 
 # exec = 场外执行代码(唯一执行通道, A 类优先); otc = 该代码即场外净值序列;
 # otc_proxy = 场外长历史同类基金, 仅用于桥接 otc 成立前的窗口(按拼接日净值缩放)。
-# band = 目标带(pp of 总资产)。v1.3 战略权重: A股核心 5(A500) + 美股核心 20(纳指10/标普10)
-#   + 进攻 5(科创50 2.5 / 恒生科技 2.5) + 避险 10(黄金) = 40pp。
+# band = 目标带(pp of 总资产)。v1.4 战略权重: A股核心 5(A500 2.5 + 沪深300 2.5)
+#   + 美股核心 20(纳指10/标普10) + 进攻 5(科创50 2.5 / 恒生科技 2.5) + 避险 10(黄金) = 40pp。
 #   其余 60pp(红利 20 / 国债 30 / 货币 10)不在本策略内 —— 权益合计 50 / 债 30 / 金 10 / 现金 10。
 LEGS = {
-    "a500": dict(name="中证A500", role="核心腿", band=5.0,
+    "a500": dict(name="中证A500", role="核心腿", band=2.5,
                  signal="563360", signal_name="A500ETF华泰柏瑞",
                  exec="023299", exec_name="汇添富中证A500指数增强C",
                  otc="023299", otc_start="2025-03-27",
                  otc_proxy="000051", otc_proxy_name="华夏沪深300ETF联接A"),
+    # v1.4 新增第七腿。000051(华夏沪深300ETF联接A)2009-07 起有净值, **不需要桥接**,
+    # 所以这条腿是七条腿里唯一「信号=执行=同一只基金全历史」的宽基腿。
+    # 注意: a500 的桥接基金也是 000051 —— 2025-03-27 之前两条腿的场外序列完全相同(README §2.3)。
+    "hs300": dict(name="沪深300", role="核心腿", band=2.5,
+                  signal="510300", signal_name="沪深300ETF华泰柏瑞",
+                  exec="000051", exec_name="华夏沪深300ETF联接A",
+                  otc="000051", otc_start="2009-07-10"),
     # v1.1 §6: 美股腿的 exchange 口径信号是**美元指数**(Xueqiu 代码, data.py 会拉取并缓存到
     # data/_us_index_klines.json); proxy 仅在指数源不可用时作降级(CNY 口径, 报告会标注)。
     "ndx": dict(name="纳指100", role="核心腿", band=10.0,
@@ -185,15 +210,15 @@ LEGS = {
                  exec="000216", exec_name="华安黄金ETF联接A",
                  otc="000216", otc_start="2013-08-22"),
 }
-LEG_ORDER = ["a500", "ndx", "spx", "kc50", "hkt", "gold"]
+LEG_ORDER = ["a500", "hs300", "ndx", "spx", "kc50", "hkt", "gold"]
 SLEEVE_PP = sum(LEGS[k]["band"] for k in LEG_ORDER)      # 40pp: 本策略管辖的额度
 
 
 def rebalance_pp(leg):
     """该腿的季度再平衡触发阈值 = min(绝对 5pp, 目标带 × 50%)。
 
-    纯绝对阈值在小带宽腿上等于失效: A500 带 5pp 时可以漂到 10pp(2 倍带)才减持;
-    叠加比例上限后 → A500 2.5pp、科创50/恒生科技 1.25pp、美股与黄金 5pp。
+    纯绝对阈值在小带宽腿上等于失效: 带 5pp 时可以漂到 10pp(2 倍带)才减持;
+    叠加比例上限后 → A500/沪深300/科创50/恒生科技 1.25pp、美股与黄金 5pp。
     """
     return min(BAND_PP, float(LEGS[leg]["band"]) * BAND_FRAC)
 
@@ -215,6 +240,9 @@ OTC_USE_PROXY_HISTORY = True
 # 硬过滤(§8): 当前池内标的的实测值(来源 data/_universe.md, 2026-09 维护)
 HARD_FILTER_CHECK = {
     "a500": dict(size_yi=16.3, turnover_wan=None, premium_pct=None, track_err_pct=None),
+    # 000051 的规模未在 data/_universe.md 维护 -> 记 None(报告里显示「—」并计入待核对),
+    # 不拿同类基金的规模顶替(AGENTS.md §7「不用估算值补位」)。
+    "hs300": dict(size_yi=None, turnover_wan=None, premium_pct=None, track_err_pct=None),
     # 美股两条腿的规模取自 data/_universe.md 的场外基金规模(270042=122.2亿 / 017641=53.0亿);
     # QDII 另有「额度」风险, 不是规模问题, 见 §6 通道纪律。
     "ndx": dict(size_yi=122.2, turnover_wan=None, premium_pct=None, track_err_pct=None),
@@ -291,13 +319,15 @@ def _op(leg, kind, rule, detail, delta_pp=None, target_pp=None, units=None):
 
 
 class IndexLadderPolicy:
-    """§2 A500 / §6 纳指100 / §6 标普500: 启动闸门(ERP 分位) → 回撤阶梯 → RSI 扳机 → 月度帽。
+    """§2 A500·沪深300 / §6 纳指100 / §6 标普500: 启动闸门(ERP 分位) → 回撤阶梯 →
+    RSI 扳机 → 月度帽。
 
-    三条腿结构相同, 差异集中在参数(§9 + v1.3 权重):
-      a500 : dd 8/16/24%, 带 5pp, 1 份 = 1pp, 无 FOMC 窗口(在岸资产)
+    四条腿结构相同, 差异集中在参数(§9 + v1.4 权重):
+      a500 : dd 8/16/24%, 带 2.5pp, 1 份 = 0.5pp, 无 FOMC 窗口(在岸资产); ERP 分位恒 null
+      hs300: 参数与 a500 逐字相同, 但 **ERP 分位是真分位**(PE 自 2005 年, 月度样本 136 个)
       ndx  : dd 10/20/30%(波动更大, 间距加宽), 带 10pp, 1 份 = 2pp, FOMC 窗口禁新仓, QDII 额度可顺延
       spx  : dd 8/16/24%, 带 10pp, 1 份 = 2pp, 同 ndx
-    阶梯份数 1/1.5/2 为**累加**(A500 满梯 4.5 份 = 4.5pp; 美股/黄金 4.5 份 = 9pp)。
+    阶梯份数 1/1.5/2 为**累加**(A500/沪深300 满梯 4.5 份 = 2.25pp; 美股/黄金 4.5 份 = 9pp)。
     close 创 52 周新高 → 阶梯计数归零(已建份数不动); 累计仓位封顶在仓位带以内。
     """
 
@@ -336,9 +366,16 @@ class IndexLadderPolicy:
         g = gates.get(self.gate_key)
         on = self.cfg["erp_gate_on"]
         off = self.cfg["erp_gate_off"]
-        return {"on": f"on(分位 ≥{on}%, 激活阶梯)",
-                "off": f"off(分位 <{off}%, 暂停新增)",
-                None: "null(数据不足 → §1 规定该规则不执行, 不否决)"}[g]
+        if g == "on":
+            return f"on(分位 ≥{on}%, 激活阶梯)"
+        if g == "off":
+            return f"off(分位 <{off}%, 暂停新增)"
+        # gate 为 None 有两种完全不同的来历: 「没数据」与「数据说中间」(v1.4 沪深300 属于后者),
+        # 报告必须区分, 否则会让人以为沪深300 也缺 PE 历史。
+        pct = gates.get(f"{self.key}_erp_pct")
+        if pct is None:
+            return "null(数据不足 → §1 规定该规则不执行, 不否决)"
+        return (f"不设限(分位 {pct * 100:.0f}% 落在 {off}~{on}% 之间 → 闸门不生效, 只走阶梯)")
 
     # ---- 每日决策
     def step(self, row, gates, date, cur_pp=0.0):
@@ -596,7 +633,7 @@ def make_policies(init_pp=None):
     """-> {leg: policy}。init_pp 给存量持仓(pp of 总资产)时按份数折算起步状态。"""
     init_pp = init_pp or {}
     out = {}
-    for key in ("a500", "ndx", "spx"):
+    for key in ("a500", "hs300", "ndx", "spx"):
         out[key] = IndexLadderPolicy(key, units=float(init_pp.get(key, 0.0)) / unit_pp(key))
     for key in ("kc50", "hkt"):
         out[key] = TechPolicy(key, target_pp=float(init_pp.get(key, 0.0)))
@@ -635,7 +672,7 @@ def _self_check():
     print(f"管辖额度 {SLEEVE_PP:.0f}pp = " + " + ".join(
         f"{LEGS[k]['name']}{LEGS[k]['band']:g}pp" for k in LEG_ORDER))
     print("其余 60pp 不在本策略: 红利 20 / 国债 30 / 货币基金 10")
-    for key in ("a500", "ndx", "spx", "gold"):
+    for key in ("a500", "hs300", "ndx", "spx", "gold"):
         u = unit_pp(key)
         tot = sum(CFG[key]["ladder_units"]) * u
         print(f"  {LEGS[key]['name']:8s} 1 份 = {u:.2f}pp · 满梯 "

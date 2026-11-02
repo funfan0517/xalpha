@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""波动资产操作规则 v1.3 · 组合层回测(**场外净值口径**)。
+"""波动资产操作规则 v1.4 · 组合层回测(**场外净值口径**)。
 
 同一份数据、同一个执行框架(engine.py, 与每日操作共用), 只换「是否执行规则」, 隔离规则本身的贡献:
 
   strategy : 按 §2~§7 全部规则(阶梯 / 趋势闸门 / 保险丝 / 季度再平衡)
-  seed     : 同上, 但起点就按带满仓(已持有 5/10/10/2.5/2.5/10 的人)
+  seed     : 同上, 但起点就按带满仓(已持有 2.5/2.5/10/10/2.5/2.5/10 的人)
   open_us  : 同上, 但美股 ERP 闸门不设限(null) —— 隔离「§6 当前读数(erp<0 → 暂停新增)」
              对美股腿的锁定效应
-  static   : 六腿恒定 5/10/10/2.5/2.5/10, 每季回锚 —— 「仓位带是主锚」的朴素实现
+  static   : 七腿恒定 2.5/2.5/10/10/2.5/2.5/10, 每季回锚 —— 「仓位带是主锚」的朴素实现
   hold     : 首日按带建仓后完全不动
-  equal    : 六腿等权(各 6.67pp), 每季回锚
+  equal    : 七腿等权(各 5.71pp), 每季回锚
 
 价格序列有两种口径, 本文件**两套都跑并逐档对比**:
   otc(主口径, rule.SIGNAL_MODE="otc") : 场外基金复权净值(累计净值, 含分红再投)。
@@ -18,7 +18,8 @@
   exchange : A500/科创50/恒生科技/黄金 用场内 ETF 收盘, 美股用美元指数(NDX/SPX) —— 文档原口径,
       信号更纯净, 但与你实际持有的净值有偏离(汇率 + 溢价 + 跟踪误差)。
 
-单腿专项: A500 / 纳指100 / 标普500 的「阶梯 vs 首日一次性满仓」, 用各自场外净值全历史。
+单腿专项: 中证A500 / 沪深300 / 纳指100 / 标普500 的「阶梯 vs 首日一次性满仓」,
+用各自场外净值全历史。
 
 用法:
   python strategies/vol_legs/backtest.py            # 两种口径都跑
@@ -56,10 +57,10 @@ MODES = [
          gates={"ndx_erp": None, "spx_erp": None}),
     dict(key="static", name="静态带(季度回锚)", mode="static"),
     dict(key="hold", name="买入持有(建仓后不动)", mode="hold"),
-    dict(key="equal", name="六腿等权(季度回锚)", mode="equal"),
+    dict(key="equal", name="七腿等权(季度回锚)", mode="equal"),
 ]
 SEED = {leg: rule.LEGS[leg]["band"] for leg in rule.LEG_ORDER}
-SINGLE = ["a500", "ndx", "spx"]
+SINGLE = ["a500", "hs300", "ndx", "spx"]
 MODE_LABEL = {"otc": "场外净值(主口径)", "exchange": "场内ETF/美元指数"}
 
 
@@ -181,11 +182,13 @@ def main():
 
     singles = {k: single_leg(k, ind, gates, fomc) for k in SINGLE}
 
-    sweep = {}
+    sweep, sweep3 = {}, {}
     if not args.quick:
         for tag, val in (("on", "on"), ("off", "off"), ("null", None)):
             g = dict(gates, a500_erp=val)
             sweep[tag] = engine.metrics(engine.run(ind, g, fomc, since=since)["nav"])
+            g3 = dict(gates, hs300_erp=val)
+            sweep3[tag] = engine.metrics(engine.run(ind, g3, fomc, since=since)["nav"])
 
     res = runs["strategy"]
     nav0 = float(res["nav"].iloc[0])
@@ -194,13 +197,14 @@ def main():
     n_days = len(res["nav"])
     years = n_days / 252.0
     erp = gates["_erp"]
+    erp3 = gates["_hs300_erp"]
     us = gates["_us_erp"]
     vi = gates["_inputs"]
     nav_tab = data.otc_nav_table()
 
     L = []
     A = L.append
-    A("# 波动资产操作规则 v1.3 · 组合层回测(场外净值口径)")
+    A("# 波动资产操作规则 v1.4 · 组合层回测(场外净值口径)")
     A("")
     A(f"> 生成 {datetime.now():%Y-%m-%d %H:%M} · 主口径 = **{MODE_LABEL[main_m]}** · 样本 "
       f"**{res['nav'].index[0]:%Y-%m-%d} ~ {res['nav'].index[-1]:%Y-%m-%d}**"
@@ -269,7 +273,7 @@ def main():
         A(f"## 二、口径对比：{MODE_LABEL[main_m]} vs {MODE_LABEL[other]}")
         A("")
         so, soo = O["since"], since
-        A(f"> 场外样本 {soo:%Y-%m-%d} 起, 场内样本 {so:%Y-%m-%d} 起(各自「六腿就绪」的最早一天)"
+        A(f"> 场外样本 {soo:%Y-%m-%d} 起, 场内样本 {so:%Y-%m-%d} 起(各自「七腿就绪」的最早一天)"
           f" —— 起点不同, 差异既含「净值 vs 价格」的口径差, 也含起点差, 只做量级参考。")
         A("")
         A("| 组合 | 场外 年化 | 场外 回撤 | 场外 夏普 | 场内 年化 | 场内 回撤 | 场内 夏普 | Δ年化 |")
@@ -350,7 +354,9 @@ def main():
 
     if sweep:
         sec = "五" if len(blocks) > 1 else "四"
-        A(f"## {sec}、A500 ERP 启动闸门敏感性(场外净值)")
+        A(f"## {sec}、ERP 启动闸门敏感性(场外净值)")
+        A("")
+        A("### 中证A500（分位恒 null）")
         A("")
         A("样本内 A500 的 PE 历史自 2024-09 起(月度 "
           f"{erp['n_months']} 个点), 不到 3 年门槛 → 分位 = null、闸门不执行。下表把闸门强行钉成 "
@@ -366,6 +372,25 @@ def main():
           f"{erp['bond10y']:.2f}%), 但只有 {erp['n_months']} 个月度样本, 分位不可信 → 按文档 §1 "
           f"输出 null。{'等月度样本满 36 个, 闸门自动生效。' if erp['n_months'] < 36 else ''}")
         A("")
+        if sweep3:
+            pct3 = erp3.get("erp_pct")
+            A("### 沪深300（真分位, v1.4 新增腿）")
+            A("")
+            A(f"沪深300 的 PE 自 2005 年就有(月度 {erp3.get('n_months')} 个点, 远超 3 年门槛), "
+              f"所以这条腿的分位**是真的**: 现状 ERP {erp3.get('erp'):.2f}% → 分位 "
+              f"{pct3 * 100:.0f}% → "
+              f"{'≥70 → on' if pct3 >= 0.70 else '<30 → off' if pct3 < 0.30 else '30~70 → 不设限'}。"
+              "下表同样把闸门钉成 on / off / null 作对照:")
+            A("")
+            A("| ERP 闸门 | 累计 | 年化 | 年化波动 | 最大回撤 | 夏普 |")
+            A("|---|---:|---:|---:|---:|---:|")
+            for tag, m in sweep3.items():
+                A(_row({"on": "钉成 on(≥70 才买)", "off": "钉成 off(<30 暂停)",
+                        "null": "钉成 null(不设限)"}[tag], m))
+            A("")
+            A("> 与 A500 的区别值得记住: A500 的「不设限」是**没数据**, 沪深300 的「不设限」是"
+              "**数据说中间**。前者修数据源就能改变行为, 后者只能等分位跑到两端。")
+            A("")
 
     sec = ("六" if sweep else "五") if len(blocks) > 1 else ("五" if sweep else "四")
     A(f"## {sec}、策略全部成交(场外口径)")
@@ -429,12 +454,15 @@ def main():
                       for k in SINGLE},
             erp_gate_sweep={k: {kk: round(vv, 6) for kk, vv in v.items()}
                             for k, v in sweep.items()},
+            erp_gate_sweep_hs300={k: {kk: round(vv, 6) for kk, vv in v.items()}
+                                  for k, v in sweep3.items()},
             attribution={k: round(v, 3) for k, v in attrib.items()},
             trades=[dict(date=f"{t['date']:%Y-%m-%d}", leg=t["leg"], kind=t["kind"],
                          amount_pp=round(t["amount_pp"], 3), rule=t["rule"],
                          detail=t["detail"]) for t in res["trades"]],
             cost=tstats,
-            valuation=dict(erp=erp, us_erp=us, ndx_erp_pct=vi["ndx_erp_pct"],
+            valuation=dict(erp=erp, hs300_erp=erp3, us_erp=us,
+                           ndx_erp_pct=vi["ndx_erp_pct"],
                            spx_erp_pct=vi["spx_erp_pct"]),
         ), f, ensure_ascii=False, indent=2)
 

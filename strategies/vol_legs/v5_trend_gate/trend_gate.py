@@ -26,9 +26,9 @@
   叠加「跌破 200 日均线就降仓」后只剩 4.10% / 16.47% —— 用 2.35pp 年化换 1.77pp 回撤，
   不划算。原因是宽基的估值锚本身已经隐含均值回归（跌多了 PE 分位自动变低、自动触发买入），
   再加一层趋势过滤，等于把同一个信号用两次并让它们互相抵消。
-- 所以本变种的默认作用域是 `GATE_LEGS = ("kc50", "hkt", "gold")`，A500 / 纳指100 / 标普500
-  **不套闸门**（维持带内满仓）。`GATE_ALL=True` 可把六腿全套上，回测里两档并列，用来验证
-  上面那条「不划算」在本库净值上是否同样成立 —— 不是用来选优的。
+- 所以本变种的默认作用域是 `GATE_LEGS = ("kc50", "hkt", "gold")`，中证A500 / 沪深300 /
+  纳指100 / 标普500 **不套闸门**（维持带内满仓）。`GATE_ALL=True` 可把七腿全套上，回测里两档并列，
+  用来验证上面那条「不划算」在本库净值上是否同样成立 —— 不是用来选优的。
 
 ## 2. 三个坑（写在参数里，不是写在注释里）
 
@@ -50,6 +50,18 @@
 不是「买入持有」（虽然逐腿也给买入持有列）。
 
 观察仓 0.2 与主策略 `rule.OBSERVE_PP`（0.5pp / 2.5pp 带）同比例，减半 1.25pp 与之拉开一档。
+
+## 3.5 读数口径（研究用；默认不动，报告见 `research/_v5_trend_sens.md`）
+
+`KIND` 决定「趋势读数」是哪条线（`ma` / `donchian` / `dual_ma` / `momentum` / `macd`），
+四象限与档位阶梯不变 —— **换口径只是换温度计，不是换规则**。15 档实测：更灵敏的确认确实存在
+（MACD(12,26) 在距高点 −7.5% 就确认下跌，现行 −13.5%），但**没换来更高年化**
+（各档 16.6%~18.1%，宽度 1.5pp），切换频率却从 6.6 次/年涨到 32 次/年。
+
+唯一有结构性理由的方向是**非对称**：`MODE="asym"` + `DOWN_WIN=120` / `DOWN_SLOPE=5` ——
+减仓用快线（MA120+5 日）、加仓仍由 MA250+20 把门（两套读数各算目标档位取 `min`，快口径
+只能压更低、不能抬更高）。实测 +18.12% / 回撤 −11.61% / 夏普 1.58（默认 +17.83% / −12.07% /
+1.53），调仓 25→32 次、三腿超额 −0.65pp→+0.80pp；幅度仍在噪声内，故**默认关闭**。
 
 ## 4. 成交与时序（无前视）
 
@@ -93,6 +105,25 @@ LABEL = "V5 趋势四象限闸门"
 # ---------------------------------------------------------------- 1. 参数（唯一权威源）
 MA_WIN = 250            # 年线（A 股口径 250，不是美股 200）
 SLOPE_N = 20            # 年线斜率回看交易日数
+
+# 趋势「读数」口径：默认均线法。研究脚本 `research/_sens_trend.py` 会换这几档做灵敏度对比
+# （它们全部映射成同一组 (above, up) 两个布尔量，档位阶梯不改）：
+#   ma        价格 vs MA(MA_WIN)
+#   donchian  价格 vs 唐奇安通道中轨 (N 日最高+最低)/2
+#   dual_ma   价格 ≥ MA(FAST_WIN) 且 MA(FAST_WIN) ≥ MA(SLOW_WIN)
+#   momentum  动量读数 vs 0（MOM_N 日累计收益）
+#   macd      DIF > 0 且 DIF ≥ DEA（FAST_WIN/SLOW_WIN 当 EMA 周期）
+KIND = "ma"
+BUF = 0.0               # 均线类口径的确认缓冲（0 = 贴着线就翻转；0.02 = 要跌破 2% 才算跌破）
+FAST_WIN = 50           # dual_ma / macd 的快线（EMA）
+SLOW_WIN = 200          # dual_ma / macd 的慢线（EMA）
+KAMA_N = 10             # 考夫曼自适应均线：效率比率窗口
+KAMA_FAST = 2           # KAMA 快端 EMA 常数（2/(n+1) 里的 n）
+KAMA_SLOW = 30          # KAMA 慢端
+HULL_N = 100            # Hull 均线窗口（低滞后）
+DON_N = 55              # 唐奇安通道回看
+MOM_N = 126             # 动量口径回看（约 6 个月）
+REF_HI = 250            # 「距高点回撤」的参照窗口，固定不随口径变（否则滞后统计不可比）
 REDUCE_DAYS = 5         # 跌破年线满 5 个交易日 → 减至半仓
 CLEAR_DAYS = 20         # 满 20 个交易日未收复 → 清至观察仓
 ACTION_GAP = 5          # 同一腿两次调仓的最小间隔（频率帽第二层）
@@ -100,11 +131,14 @@ ACTION_GAP = 5          # 同一腿两次调仓的最小间隔（频率帽第二
 FULL, HALF, OBSERVE = 1.0, 0.5, 0.2      # 满带 / 半仓 / 观察仓（带的占比）
 LEVEL_TXT = {1.0: "满带", 0.5: "半仓", 0.2: "观察仓", 0.0: "空仓"}    # 档位中文名（图与每日共用）
 
-# 作用域：只套没有现金流锚的三条腿；宽基（A500/纳指/标普）有估值锚，套上会互相抵消
+# 作用域：只套没有现金流锚的三条腿；宽基（A500/沪深300/纳指/标普）有估值锚，套上会互相抵消
 GATE_LEGS = ("kc50", "hkt", "gold")
-GATE_ALL = False        # True = 六腿全套（仅作对照，不推荐）
+GATE_ALL = False        # True = 七腿全套（仅作对照，不推荐）
 START = "full"          # "full" = 带内满仓起步（实盘口径）/ "flat" = 空仓起步
-MODE = "quad"           # "quad" = 四象限（默认）/ "ma_only" = 只看 close 与 ma250（对照）
+MODE = "quad"           # "quad" 四象限（默认）/ "ma_only" 只看 close 与年线（对照）/
+                        # "asym" 非对称：减仓用快线（DOWN_WIN + DOWN_SLOPE），加仓仍由 MA250+20 把门
+DOWN_WIN = 120          # 非对称档的「快线」：跌破它满 REDUCE_DAYS 日就减半（只压不抬）
+DOWN_SLOPE = 5          # 快线斜率回看（判定「快线下行」）
 
 WARMUP = MA_WIN + SLOPE_N - 1     # 年线成形 + 斜率可算的第一个交易日
 SLIP = 0.001            # 单边滑点 0.1%（与 v1~v6 同一口径）
@@ -120,6 +154,8 @@ W = {k: float(rule.LEGS[k]["band"]) / float(rule.SLEEVE_PP) for k in LEGS}   # �
 # 故 C 类腿的扣费后数字偏乐观。滑点 `SLIP` 在 `fee_of()` 里逐边追加。
 FEE = {
     "a500": (0.0, 0.0),
+    # v1.4 第七腿: 000051 是 A 类(申购 0.10% / 赎回 0.50%), 与美股腿同一档
+    "hs300": (0.001, 0.005),
     "ndx": (0.001, 0.005),
     "spx": (0.001, 0.005),
     "kc50": (0.0, 0.0),
@@ -129,13 +165,55 @@ FEE = {
 
 QUADS = ("上涨趋势", "反弹", "高位回调", "下跌趋势")
 
+# 各腿「判趋势用哪种读数」—— 逐腿实测的结论（每日报告的「板块2」直接引用这张表）。
+# 数字都是该腿**自己样本**上的回测：宽基四腿是 GATE_ALL=True 的对照结果（当前并不套闸门），
+# 闸门三腿即当前真实档位。样本：A500 16.2 年、纳指 13.0 年、标普 13.2 年、黄金 12.0 年、
+# 科创50 4.4 年、恒生科技 4.1 年。研究过程见 research/_a500_trend.md 与 research/_v5_trend_*.png。
+# v1.4 新增的沪深300 没有单独立项（它与 A500 的场外序列 2025-03 前完全相同），沿用 A500 的结论。
+TREND_READ = {
+    "a500": dict(
+        label="双均线 50/150 + 10 日斜率",
+        stats="若套闸门 +5.10% / -31.45% / 0.29 · 4.5 次/年（年线口径只有 +2.74% / -42.23% / 0.08 · 2.8 次/年）",
+        why="16.2 年里唯一「年化与回撤同时改善」的口径，滞后也短一档（下侧 55%、上侧 74%；年线 66%、86%）。"
+            "该腿当前不套闸门，换口径只改「读数」，不影响档位。"),
+    "hs300": dict(
+        label="年线 250 + 20 日斜率（未单独立项）",
+        stats="沿用中证A500 的结论（同族宽基，两腿成分重叠约八成）",
+        why="2026-11-02 新增的第七腿，未单独跑过口径对比：场外序列在 2025-03-27 之前与中证A500 "
+            "**完全相同**（同一只 000051 联接），单独再跑一遍只会得到同一张图。宽基一律不套闸门 "
+            "（`GATE_LEGS` 只含科创50/恒生科技/黄金），这一行只是把「若套」的读数口径标出来。"),
+    "ndx": dict(
+        label="年线 250 + 20 日斜率",
+        stats="若套闸门 +14.06% / -26.49% / 0.72 · 1.5 次/年（双均线 +7.13% / -19.40% / 0.41 · 5.8 次/年）",
+        why="美股慢牛急跌，快口径一年翻 20 次、被洗掉一半收益；年线几乎不用动就能待在里面。"),
+    "spx": dict(
+        label="年线 250 + 20 日斜率",
+        stats="若套闸门 +10.20% / -29.53% / 0.62 · 1.4 次/年（双均线 +4.04% / -20.49% / 0.25 · 5.5 次/年）",
+        why="同纳指：换快口径年化腰斩，只为少 9pp 回撤，不划算。"),
+    "kc50": dict(
+        label="年线 250 + 20 日斜率",
+        stats="+5.49% / -40.51% / 0.17 · 2.0 次/年（双均线 -0.72% / -29.52% / -0.10 · 4.1 次/年）",
+        why="4.4 年高波动样本，象限翻转从 2.9 次/年涨到 11.1 次/年，快口径把收益直接打没。"),
+    "hkt": dict(
+        label="年线 250 + 20 日斜率",
+        stats="-3.50% / -26.79% / -0.25 · 3.7 次/年（双均线 -5.24% / -30.26% / -0.35 · 4.6 次/年）",
+        why="4.1 年震荡样本两口径都亏，年线少亏又少交易；这条腿闸门的价值在压回撤（恒持 -44.74% → -26.79%），不在抓涨。"),
+    "gold": dict(
+        label="年线 250 + 20 日斜率（双均线可替补）",
+        stats="+7.90% / -29.87% / 0.49 · 2.3 次/年（双均线 +7.94% / -25.07% / 0.54 · 4.1 次/年）",
+        why="12.0 年收益打平、回撤浅 4.8pp，但调仓几乎翻倍，属噪声级改善，默认不换。"),
+}
+
 
 def params(**kw):
     """参数打包：回测敏感性扫描时用 `**{...}` 覆盖，不必改模块常量。"""
     p = dict(MA_WIN=MA_WIN, SLOPE_N=SLOPE_N, REDUCE_DAYS=REDUCE_DAYS,
              CLEAR_DAYS=CLEAR_DAYS, ACTION_GAP=ACTION_GAP,
              FULL=FULL, HALF=HALF, OBSERVE=OBSERVE,
-             GATE_LEGS=GATE_LEGS, GATE_ALL=GATE_ALL, START=START, MODE=MODE)
+             GATE_LEGS=GATE_LEGS, GATE_ALL=GATE_ALL, START=START, MODE=MODE,
+             DOWN_WIN=DOWN_WIN, DOWN_SLOPE=DOWN_SLOPE,
+             KIND=KIND, BUF=BUF, FAST_WIN=FAST_WIN, SLOW_WIN=SLOW_WIN, DON_N=DON_N, MOM_N=MOM_N,
+             KAMA_N=KAMA_N, KAMA_FAST=KAMA_FAST, KAMA_SLOW=KAMA_SLOW, HULL_N=HULL_N)
     p.update(kw)
     return p
 
@@ -167,25 +245,97 @@ def _streak(cond):
     return cond.fillna(False).astype(int).groupby(grp).cumsum()
 
 
+def _wma(s, n):
+    """加权移动平均（近端权重高）—— Hull 均线的零件。"""
+    w = np.arange(1, n + 1, dtype=float)
+    return s.rolling(n, min_periods=n).apply(lambda x: float(np.dot(x, w)) / w.sum(), raw=True)
+
+
+def _kama(c, n, fast, slow):
+    """考夫曼自适应均线：平滑系数随「效率比率」在 fast/slow 之间自适应。"""
+    arr = c.to_numpy(dtype=float)
+    er = (c.diff(n).abs() / c.diff().abs().rolling(n).sum()).to_numpy(dtype=float)
+    sc = (np.nan_to_num(er) * (2.0 / (fast + 1) - 2.0 / (slow + 1))
+          + 2.0 / (slow + 1)) ** 2
+    out = np.full(len(arr), np.nan)
+    if len(arr) <= n:
+        return pd.Series(out, index=c.index)
+    out[n] = arr[n]
+    for i in range(n + 1, len(arr)):
+        out[i] = out[i - 1] + sc[i] * (arr[i] - out[i - 1])
+    return pd.Series(out, index=c.index)
+
+
+def readout(c, p):
+    """按 `KIND` 算该口径的「趋势读数」。-> (base, above, ok)
+
+    `base` 是读数序列（均线 / 中轨 / 快线 / 动量 / DIF），下游统一用它算斜率；
+    `above` 是「处于上方态」的布尔序列；`ok` 是该读数已成形。
+
+    这样五种口径都能压成同一组 (above, up)，档位阶梯与回测代码不用改 —— 换口径只换读数，
+    换的不是规则。
+    """
+    kind = p["KIND"]
+    if kind == "ma":
+        base = c.rolling(p["MA_WIN"], min_periods=p["MA_WIN"]).mean()
+        return base, c >= base * (1.0 - p["BUF"]), base.notna()
+    if kind == "donchian":
+        n = p["DON_N"]
+        mid = (c.rolling(n, min_periods=n).max() + c.rolling(n, min_periods=n).min()) / 2.0
+        return mid, c >= mid * (1.0 - p["BUF"]), mid.notna()
+    if kind == "dual_ma":
+        f = c.rolling(p["FAST_WIN"], min_periods=p["FAST_WIN"]).mean()
+        s = c.rolling(p["SLOW_WIN"], min_periods=p["SLOW_WIN"]).mean()
+        return f, (c >= f * (1.0 - p["BUF"])) & (f >= s), f.notna() & s.notna()
+    if kind == "momentum":
+        mom = c / c.shift(p["MOM_N"]) - 1.0
+        return mom, mom > 0.0, mom.notna()
+    if kind == "macd":
+        dif = (c.ewm(span=p["FAST_WIN"], adjust=False).mean()
+               - c.ewm(span=p["SLOW_WIN"], adjust=False).mean())
+        dea = dif.ewm(span=9, adjust=False).mean()
+        return dif, (dif > 0.0) & (dif >= dea), dif.notna()
+    if kind == "kama":
+        # 考夫曼自适应均线：趋势明确（效率比率高）时几乎贴价格跑，震荡时自动变慢 ——
+        # 「又快又稳」的教科书答案，代价是它有自相关、不好解释
+        base = _kama(c, p["KAMA_N"], p["KAMA_FAST"], p["KAMA_SLOW"])
+        return base, c >= base * (1.0 - p["BUF"]), base.notna()
+    if kind == "hull":
+        # Hull 均线：WMA(2*WMA(n/2) - WMA(n), sqrt(n))，用加权压低滞后
+        n = p["HULL_N"]
+        base = _wma(2.0 * _wma(c, max(n // 2, 2)) - _wma(c, n), max(int(np.sqrt(n)), 2))
+        return base, c >= base * (1.0 - p["BUF"]), base.notna()
+    raise ValueError(
+        f"未知 KIND: {kind}（可选 ma / donchian / dual_ma / momentum / macd / kama / hull）")
+
+
 def indicators(px, **kw):
     """收盘价 -> 指标表。只用到当日及之前的数据。
 
     列：close / ma / slope / above / below_days / quad / dev / dd_hi / ready
         + 诊断列 mom6 / mom12（动量法口径，只用于「三口径分歧」统计，不参与交易）
+
+    `ma` 这一列名沿用均线口径的叫法，实际存的是 `KIND` 对应口径的读数（均线 / 中轨 / 快线 /
+    动量 / DIF）——下游只把它当「一条要比较斜率的主线」，不假设它是均线。
+    读数类口径（momentum / macd）没有「价格乖离」，`dev` 记 NaN。
     """
     p = params(**kw)
     c = px.astype("float64")
     out = pd.DataFrame(index=c.index)
     out["close"] = c
-    out["ma"] = c.rolling(p["MA_WIN"], min_periods=p["MA_WIN"]).mean()
-    out["slope"] = out["ma"] - out["ma"].shift(p["SLOPE_N"])
-    out["ready"] = out["ma"].notna() & out["slope"].notna()
-    out["above"] = c >= out["ma"]
-    # 连续在年线下只从「指标成形」那天起算 —— 预热期的 NaN 不参与计数，
+    base, above, ok = readout(c, p)
+    out["ma"] = base
+    out["slope"] = base - base.shift(p["SLOPE_N"])
+    out["ready"] = ok & out["slope"].notna()
+    out["above"] = above
+    # 连续不在上方态只从「指标成形」那天起算 —— 预热期的 NaN 不参与计数，
     # 否则第一条 ready 的记录会显示「已跌破 270 日」（实际上是预热期被算了进去）
     out["below_days"] = _streak(~out["above"] & out["ready"]).where(out["ready"], 0)
-    out["dev"] = c / out["ma"] - 1.0                      # 年线乖离
-    out["dd_hi"] = c / c.rolling(p["MA_WIN"], min_periods=1).max() - 1.0
+    if p["KIND"] in ("ma", "donchian", "dual_ma", "kama", "hull"):
+        out["dev"] = c / base - 1.0                       # 价格乖离
+    else:
+        out["dev"] = np.nan                               # 读数类口径无乖离概念
+    out["dd_hi"] = c / c.rolling(REF_HI, min_periods=1).max() - 1.0
     up = out["slope"] > 0.0
     quad = np.where(out["above"].to_numpy(dtype=bool),
                     np.where(up.to_numpy(dtype=bool), QUADS[0], QUADS[1]),
@@ -246,6 +396,15 @@ def state_machine(px, leg, **kw):
     ready = I["ready"].to_numpy(dtype=bool)
     below = I["below_days"].to_numpy(dtype=int)
 
+    # 非对称档（MODE="asym"）：另算一套「快」读数，只允许把档位压得更低（min），
+    # 加仓许可仍由慢口径（主读数）把着 —— 快线下车、慢线上车。
+    d_quad = d_below = d_ready = None
+    if p["MODE"] == "asym":
+        D = indicators(px, KIND="ma", MA_WIN=p["DOWN_WIN"], SLOPE_N=p["DOWN_SLOPE"])
+        d_quad = D["quad"].to_numpy(dtype=object)
+        d_below = D["below_days"].to_numpy(dtype=int)
+        d_ready = D["ready"].to_numpy(dtype=bool)
+
     hold = 1.0 if p["START"] == "full" else 0.0
     last_act, pend, pend_note = -10 ** 9, None, ""
     for t in range(n):
@@ -258,6 +417,10 @@ def state_machine(px, leg, **kw):
         if not ready[t]:
             continue
         tgt, why = target_of(quad[t], int(below[t]), hold, p)
+        if d_ready is not None and d_ready[t]:
+            tgt_d, why_d = target_of(d_quad[t], int(d_below[t]), hold, p)
+            if tgt_d < tgt - 1e-9:
+                tgt, why = tgt_d, why_d + "（快线下车）"
         tgt_v[t] = tgt
         if abs(tgt - hold) > 1e-9 and t - last_act >= p["ACTION_GAP"]:
             pend, pend_note = tgt, why
@@ -330,7 +493,7 @@ def leg_slice(leg, **kw):
 
 
 def common_frame():
-    """六腿净值的共同窗口（各自年线 + 斜率成形之后再取交集）。"""
+    """七腿净值的共同窗口（各自年线 + 斜率成形之后再取交集）。"""
     cols = {}
     for k in LEGS:
         px = load(k)
@@ -417,7 +580,7 @@ def fmt_x(x, nd=2):
 
 
 def _self_check():
-    """快速自检：六腿序列可读、象限四格齐全、仓位只落在 {0, .2, .5, 1} 内。"""
+    """快速自检：七腿序列可读、象限四格齐全、仓位只落在 {0, .2, .5, 1} 内。"""
     for k in LEGS:
         px, sm = leg_slice(k)
         st = sm["state"]

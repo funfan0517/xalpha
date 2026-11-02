@@ -98,14 +98,46 @@ def _fmt_w(row: pd.Series) -> list[tuple[str, str, float]]:
             if v > 1e-9]
 
 
-def _next_decision(d: dict) -> pd.Timestamp | None:
-    if d["prov_ts"] is None:
-        return None
-    return pd.Timestamp(d["prov_ts"]) + pd.offsets.MonthBegin(1) - pd.offsets.BDay(1)
+def _month_last_bday(ts) -> pd.Timestamp:
+    """某个自然月最后一个交易日(月末自然日往前退到工作日)。"""
+    nxt = pd.Timestamp(ts).to_period("M").to_timestamp() + pd.offsets.MonthBegin(1)
+    return nxt - pd.offsets.BDay(1)
+
+
+def _next_decision(d: dict) -> pd.Timestamp:
+    """下一次决策日 = 本月最后一个交易日; 本月信号已确认(数据已过月末)则顺延到下月。
+
+    与「当前处于哪个月」无关 —— 月初刚确认完上月信号时, 下一个决策点是本月末,
+    否则报告会在这段时间里没有决策日可写。
+    """
+    today = pd.Timestamp(d["today"])
+    me = _month_last_bday(today)
+    if pd.Timestamp(d["data_asof"]) >= me:          # 本月信号已确认 → 顺延下月
+        me = _month_last_bday(me + pd.Timedelta(days=1))
+    return me
+
+
+def _preview_w(d: dict) -> tuple[pd.Series, str]:
+    """「预计下次决策」用的预览权重 + 口径说明。
+
+    月中 → 直接读未走完那一行(`prov_w`, 与回测同口径);
+    月初刚确认完上月信号、还没有新月度数据时 → 按最新日度 RSI 重算同一套规则
+    (板块均值定档 × RSI 最低 TOP_K 只等权), 只是没等到本月行情。
+    """
+    if d["prov_w"] is not None:
+        return d["prov_w"], "按未走完的本月数据"
+    hyp = pd.Series({c: 0.0 for c in V4.CODES})
+    if d["picks_now"] and d["mult_now"] > 0:
+        for c in d["picks_now"]:
+            hyp[c] = d["mult_now"] / len(d["picks_now"])
+    return hyp, f"按 {d['data_asof']:%m-%d} 最新 RSI"
 
 
 def render(d: dict) -> str:
     cur = _fmt_w(d["cur_w"])
+    last_day = _next_decision(d)
+    dec_txt = f"{last_day:%Y-%m-%d}"
+    prev_w, prev_tag = _preview_w(d)
     L = [f"# V4 · 今日信号（{d['today']:%Y-%m-%d}）", "",
          f"> 数据截至 **{d['data_asof']:%Y-%m-%d}**（基金累计净值）。"
          f"池 {len(V4.CODES)} 只（{'/'.join(V4.CODES)}）。"
@@ -123,22 +155,28 @@ def render(d: dict) -> str:
         L.append("| — | **空仓** | 0% |")
     L.append("")
 
-    L += ["## 二、进行中读数（预览，不可执行）", "",
-          f"本月至今（至 {d['data_asof']:%Y-%m-%d}）的日度 RSI 快照：", "",
-          "| 标的 | 名称 | RSI14 | 备注 |", "|---|---|---:|---|"]
+    L += ["## 二、逐标的 RSI 与预计下次决策（预览，不可执行）", "",
+          f"日度 RSI14 快照（至 {d['data_asof']:%Y-%m-%d}）。**预计下次决策** = {prev_tag} 预演 "
+          f"**{dec_txt} 收盘** 的判定（板块均值 {d['board_now']:.1f} → 档位 "
+          f"{_tier(d['mult_now'])}，横截面取 RSI 最低 {min(V4.TOP_K, len(d['rsi_now']))} 只等权）"
+          "；最终以月末收盘值为准。", "",
+          f"| 标的 | 名称 | RSI14 | 当前权重 | 预计下次决策（{dec_txt} 收盘） |",
+          "|---|---|---:|---:|---|"]
     for code, v in d["rsi_now"].sort_values().items():
-        flag = "← 入选" if code in d["picks_now"] else ""
-        L.append(f"| {code} | {V4.NAME.get(code, code)} | {v:.1f} | {flag} |")
+        w_cur = float(d["cur_w"].get(code, 0.0))
+        w_pre = float(prev_w.get(code, 0.0))
+        dec = f"**入选 → {w_pre * 100:.0f}%**" if w_pre > 1e-9 else "落选 → 0%"
+        L.append(f"| {code} | {V4.NAME.get(code, code)} | {v:.1f} | "
+                 f"{w_cur * 100:.0f}% | {dec} |")
     L += ["", f"- 板块均值 **{d['board_now']:.1f}** → 若今天收盘就是月末，档位为 "
               f"**{_tier(d['mult_now'])}**；当前生效档位 {_tier(d['cur_mult'])}。", ""]
 
-    last_day = _next_decision(d)
+    L += ["## 三、下一个决策点", "",
+          f"下一个决策点：**{dec_txt} 收盘**确认，**次日开盘**执行。", ""]
     if d["prov_w"] is not None:
         prov = _fmt_w(d["prov_w"])
         same = all(abs(float(d["prov_w"].get(c, 0)) - float(d["cur_w"].get(c, 0))) < 1e-9
                    for c in V4.CODES)
-        L += ["## 三、下一个决策点", "",
-              f"本月信号在 **{last_day:%Y-%m-%d} 收盘**确认，**次日开盘**执行。", ""]
         if same:
             L.append(f"- 用 {d['data_asof']:%m-%d} 数据预览：**持仓不变**，无需动作。")
         else:
@@ -148,6 +186,9 @@ def render(d: dict) -> str:
         turn = float((d["prov_w"] - d["cur_w"]).abs().sum())
         L += [f"- 若按预览调仓，单边换手 {turn * 100:.0f}%，成本约 "
               f"{turn * S.FEE * 100:.3f}%。", ""]
+    else:
+        L += ["- 本月信号刚在上一月末确认，还没有新月度数据；上表「预计下次决策」是按"
+              "最新日度 RSI 的预演，只作方向参考。", ""]
 
     L += ["## 四、操作结论", ""]
     if not cur:
@@ -157,7 +198,7 @@ def render(d: dict) -> str:
         holds = "、".join(f"{n} {v * 100:.0f}%" for _, n, v in cur)
         L.append(f"1. 今天**持有 {holds}**，不调仓 —— V4 是月末策略，"
                  f"本月执行的是 {d['cur_ts']:%Y-%m-%d} 的信号。")
-    L += [f"2. 下次动作在 {(last_day or d['today']):%Y-%m-%d} 收盘后；"
+    L += [f"2. 下次动作在 {last_day:%Y-%m-%d} 收盘后；"
           "若届时板块 RSI 均值跨过 50/70，才需要改档位。",
           "3. 这条信号只控仓位，不预测方向：RSI 在强单边趋势里会钝化，"
           "连续数月在 50–70 之间意味着「长期半仓」，这是本策略的已知代价。", ""]
@@ -167,6 +208,7 @@ def render(d: dict) -> str:
 def payload(d: dict) -> dict:
     """给 pipeline 每日看板的结构化快照（`_v4_signal.json`）。"""
     last_day = _next_decision(d)
+    prev_w, prev_tag = _preview_w(d)
     cur = [{"code": c, "name": n, "weight": round(v, 4)}
            for c, n, v in _fmt_w(d["cur_w"])]
     prov = [{"code": c, "name": n, "weight": round(v, 4)}
@@ -181,7 +223,8 @@ def payload(d: dict) -> dict:
         "tier": _tier(d["cur_mult"]),
         "mult": round(float(d["cur_mult"]), 2),
         "positions": cur,
-        "next_decision": f"{last_day:%Y-%m-%d}" if last_day is not None else None,
+        "next_decision": f"{last_day:%Y-%m-%d}",
+        "preview_basis": prev_tag,
         "preview": {
             "board_rsi": round(d["board_now"], 1),
             "tier": _tier(d["mult_now"]),
@@ -196,7 +239,11 @@ def payload(d: dict) -> dict:
             if d["prov_w"] is not None else 0.0,
         },
         "pool": [{"code": c, "name": V4.NAME.get(c, c),
-                  "weight": round(float(d["cur_w"].get(c, 0)), 4)} for c in V4.CODES],
+                  "weight": round(float(d["cur_w"].get(c, 0)), 4),
+                  "rsi": None if d["rsi_now"].get(c) is None
+                  else round(float(d["rsi_now"].get(c)), 1),
+                  "preview_weight": round(float(prev_w.get(c, 0.0)), 4)}
+                 for c in V4.CODES],
         "rule": {
             "window": V4.WINDOW,
             "q_out": V4.Q_OUT,
@@ -222,9 +269,10 @@ def main() -> int:
     print(f"[v4] 当前生效：{d['cur_ts']:%Y-%m-%d} 信号 · 板块 RSI "
           f"{d['cur_bq'] * 100:.1f} → {_tier(d['cur_mult'])}")
     print("[v4] 持仓：" + ("、".join(f"{n} {v * 100:.0f}%" for _, n, v in cur) or "空仓"))
-    print(f"[v4] 预览：板块 RSI {d['board_now']:.1f} → {_tier(d['mult_now'])}；"
-          f"目标 " + ("、".join(f"{V4.NAME.get(c, c)} {100 / len(d['picks_now']):.0f}%"
-                                for c in d["picks_now"]) or "空仓"))
+    tgt_pct = d["mult_now"] * 100 / len(d["picks_now"]) if d["picks_now"] else 0.0
+    print(f"[v4] 预览：板块 RSI {d['board_now']:.1f} → {_tier(d['mult_now'])}；目标 "
+          + ("、".join(f"{V4.NAME.get(c, c)} {tgt_pct:.0f}%" for c in d["picks_now"])
+             if tgt_pct > 0 else "空仓"))
     print(f"[v4] 产物 -> {os.path.relpath(OUT_MD, _DIR)} · "
           f"{os.path.relpath(OUT_JSON, _DIR)}")
     return 0

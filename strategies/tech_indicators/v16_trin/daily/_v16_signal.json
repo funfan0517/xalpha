@@ -1,0 +1,75 @@
+{
+ "generated_at": "2026-11-02 12:13",
+ "date": "2026-10-30",
+ "label": "trin5v20",
+ "params": {
+  "trin_win": 5,
+  "trin_th": 1.4,
+  "trin_confirm": 2,
+  "field": "amt",
+  "edge_trigger": true,
+  "hold_days": 20,
+  "stop": 0.08,
+  "size": 1.0,
+  "fee": 0.0003,
+  "pick_k": 3,
+  "select_q": 0.2,
+  "vol_lo": 0.6,
+  "vol_hi": 2.0,
+  "broken": 0.85,
+  "amt_min": 30000000.0,
+  "vehicle": "510300",
+  "label": "trin5v20"
+ },
+ "breadth": {
+  "adv": 854,
+  "dec": 4289,
+  "flat": 73,
+  "adv_amt_yi": 3789.4,
+  "dec_amt_yi": 12835.6
+ },
+ "trin": 0.674,
+ "trin_ma": 0.737,
+ "threshold": 1.4,
+ "hot": false,
+ "streak": 0,
+ "need_more": 2,
+ "gap": -0.663,
+ "triggered": false,
+ "state": {
+  "holding": false,
+  "exposure": 0.158,
+  "nav": 1.0513,
+  "trades": 28
+ },
+ "action": "空仓 · 未触发（不猜底，满足条件再买）",
+ "candidates": [],
+ "candidate_note": "合格 0 只（错杀阈值 ret20 ≤ -18.3%）",
+ "recent_triggers": [
+  {
+   "signal_date": "2026-03-30",
+   "exec_date": "2026-03-31",
+   "trin_ma": 1.666
+  },
+  {
+   "signal_date": "2026-07-06",
+   "exec_date": "2026-07-07",
+   "trin_ma": 1.745
+  },
+  {
+   "signal_date": "2026-07-16",
+   "exec_date": "2026-07-17",
+   "trin_ma": 2.0
+  },
+  {
+   "signal_date": "2026-07-28",
+   "exec_date": "2026-07-29",
+   "trin_ma": 1.952
+  },
+  {
+   "signal_date": "2026-08-26",
+   "exec_date": "2026-08-27",
+   "trin_ma": 1.446
+  }
+ ]
+}

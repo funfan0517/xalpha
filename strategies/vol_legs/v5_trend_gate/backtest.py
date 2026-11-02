@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V5 变种：趋势四象限闸门 · 六腿回测（逐腿 + 组合层 + 象限收益 + 滞后成本 + 敏感性）。
+"""波动资产 · V5 变种：趋势四象限闸门 · 七腿回测（逐腿 + 组合层 + 象限收益 + 滞后成本 + 敏感性）。
 
 池与口径完全跟随 `strategies/vol_legs`：
-- 六腿 = `rule.LEG_ORDER`（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
+- 七腿 = `rule.LEG_ORDER`（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
 - 价格 = `data.series_for_leg()` 场外**复权净值**（`rule.SIGNAL_MODE`，含分红再投 / 汇率 / 跟踪误差）；
 - 闸门默认只套 `GATE_LEGS`（科创50 / 恒生科技 / 黄金 —— 无现金流锚的三条腿），
-  宽基三条腿维持带内满仓；`GATE_ALL=True` 只作对照；
+  宽基四条腿维持带内满仓；`GATE_ALL=True` 只作对照；
 - 成交 = T 日盘后算信号、**T+1 收盘净值成交**；空仓按货基 `rule.CASH_ANNUAL` 逐日计息。
 
 产出：
@@ -51,7 +51,7 @@ SENS = [
     ("间隔帽 10 日", dict(ACTION_GAP=10)),
     ("观察仓改 0.3（不清到 0.2）", dict(OBSERVE=0.3)),
     ("空仓起步（不继承底仓）", dict(START="flat")),
-    ("六腿全套闸门", dict(GATE_ALL=True)),
+    ("七腿全套闸门", dict(GATE_ALL=True)),
     ("只看 close 在年线上/下（无斜率）", dict(MODE="ma_only")),
 ]
 
@@ -110,21 +110,21 @@ def portfolio_rows(frame):
     eq = {k: 1.0 / len(frame.columns) for k in frame.columns}
 
     specs = [
-        ("静态带（六腿恒持满带）", None, True, "对照基准：本变种的默认满仓态"),
+        ("静态带（七腿恒持满带）", None, True, "对照基准：本变种的默认满仓态"),
         ("静态带 · 成本另列", None, False, ""),
         ("**V5 默认（三腿套闸门）**", base, True, "科创50 / 恒生科技 / 黄金；宽基不套"),
         ("V5 默认 · 成本另列", base, False, ""),
-        ("V5 六腿全套闸门", allg, True, "对照：验证「宽基不该叠加趋势过滤」"),
+        ("V5 七腿全套闸门", allg, True, "对照：验证「宽基不该叠加趋势过滤」"),
         ("V5 只看 close 在年线上/下", maonly, True, "对照：去掉斜率与阶梯"),
         ("V5 无阶梯（跌破即减半、不清仓）", noladder, True, "对照：只保留减半"),
         ("V5 空仓起步", flat, True, "起点无底仓，靠右侧信号建仓"),
         ("V5 无间隔帽（ACTION_GAP=0）", gaps[0], True, "频率帽第二层的贡献"),
         ("V5 间隔帽 10 日", gaps[10], True, ""),
-        ("六腿等权（恒定持有）", None, False, "对照：等权满仓"),
+        ("七腿等权（恒定持有）", None, False, "对照：等权满仓"),
     ]
     rows, navs = [], {}
     for i, (name, states, fee, note) in enumerate(specs):
-        weight = eq if name.startswith("六腿等权") else None
+        weight = eq if name.startswith("七腿等权") else None
         nav, inv = tg.portfolio(frame, states, weight=weight, fee=fee, detail=True)
         m = tg.perf(nav)
         rows.append(dict(name=name, cum=m["cum"], ann=m["ann"], vol=m["vol"], mdd=m["mdd"],
@@ -139,7 +139,7 @@ def _fwd(px, h):
 
 
 def long_table(frame, **kw):
-    """六腿 × 日 的长表（只留闸门腿），带带内权重，供分桶统计。"""
+    """七腿 × 日 的长表（只留闸门腿），带带内权重，供分桶统计。"""
     parts = []
     for k in frame.columns:
         if not tg.gated(k, tg.params(**kw)):
@@ -329,17 +329,17 @@ def main():
         return next(p for p in prows if p["name"].startswith(prefix))
 
     base, base_nc = pick("**V5 默认（三腿套闸门）**"), pick("V5 默认 · 成本另列")
-    static, static_nc = pick("静态带（六腿恒持满带）"), pick("静态带 · 成本另列")
-    allg, maonly, noladder = pick("V5 六腿全套"), pick("V5 只看 close"), pick("V5 无阶梯")
+    static, static_nc = pick("静态带（七腿恒持满带）"), pick("静态带 · 成本另列")
+    allg, maonly, noladder = pick("V5 七腿全套"), pick("V5 只看 close"), pick("V5 无阶梯")
     flat, gap0 = pick("V5 空仓起步"), pick("V5 无间隔帽")
-    eqw = pick("六腿等权")
+    eqw = pick("七腿等权")
     gated_rows = [r for r in rows if r["gate"] == "是"]
     win = f"{frame.index[0].date()} ~ {frame.index[-1].date()}"
     yrs = (frame.index[-1] - frame.index[0]).days / 365.25
 
     L = [
-        "# 波动资产 · V5 变种：趋势四象限闸门 · 六腿回测",
-        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 六腿（A500 / 纳指100 / 标普500 / 科创50 / "
+        "# 波动资产 · V5 变种：趋势四象限闸门 · 七腿回测",
+        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 七腿（A500 / 纳指100 / 标普500 / 科创50 / "
         "恒生科技 / 黄金）",
         "> 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）· T 日盘后算信号、"
         "**T+1 收盘净值成交** · "
@@ -415,7 +415,7 @@ def main():
         "> 「打脸」= 减仓后 20 个交易日内又加回的次数（频率帽要防的东西）；"
         "「恒持满带」= 同区间不做闸门、一直 100% 带（等价于买入持有 + 一次申购费）。",
         "",
-        f"## 3. 组合层（六腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
+        f"## 3. 组合层（七腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
         "",
         "| 组合 | 累计 | 年化 | 波动 | 最大回撤 | 夏普 | 平均曝光 | 备注 |",
         "|---|---:|---:|---:|---:|---:|---:|---|",
@@ -438,7 +438,7 @@ def main():
         f"{base_nc['sharpe']:.2f}（vs 静态带 {tg.fmt_pct(static_nc['ann'])} / "
         f"{tg.fmt_pct(static_nc['mdd'])} / {static_nc['sharpe']:.2f}）—— 成本吃掉的年化"
         f" = {(base_nc['ann'] - base['ann']) * 100:.2f}pp（调仓少，成本不是主要矛盾）。",
-        f"> **六腿全套闸门（对照）**：{tg.fmt_pct(allg['ann'])} / {tg.fmt_pct(allg['mdd'])} / "
+        f"> **七腿全套闸门（对照）**：{tg.fmt_pct(allg['ann'])} / {tg.fmt_pct(allg['mdd'])} / "
         f"{allg['sharpe']:.2f}，平均曝光 {allg['invested']:.0%}；相对三腿口径 "
         f"**{(allg['ann'] - base['ann']) * 100:+.2f}pp**、回撤 "
         f"{(allg['mdd'] - base['mdd']) * 100:+.2f}pp。用户给的 510300 证据是「叠 200 日均线过滤后"
@@ -454,9 +454,9 @@ def main():
         f"{flat['sharpe']:.2f}，曝光 {flat['invested']:.0%} —— 右侧确认才建仓会错过第一波反弹，"
         "这也是「带内满仓起步」作为默认口径的原因（与主策略「带内满仓起步」的实盘口径一致）。",
         f"> **无间隔帽**：{tg.fmt_pct(gap0['ann'])} / {tg.fmt_pct(gap0['mdd'])} / "
-        f"{gap0['sharpe']:.2f}；六腿等权：{tg.fmt_pct(eqw['ann'])} / {tg.fmt_pct(eqw['mdd'])} / "
+        f"{gap0['sharpe']:.2f}；七腿等权：{tg.fmt_pct(eqw['ann'])} / {tg.fmt_pct(eqw['mdd'])} / "
         f"{eqw['sharpe']:.2f}。间隔帽在本样本几乎不影响结果（调仓本就稀疏，"
-        f"六腿合计 {int(sum(len(tg.actions(build_states(frame)[k])) for k in frame.columns))} 次），"
+        f"七腿合计 {int(sum(len(tg.actions(build_states(frame)[k])) for k in frame.columns))} 次），"
         "它防的是极端震荡，不是拿来提升收益的。",
         "",
         "## 4. 四象限的未来收益（回答「判断错了分别亏多少」）",
@@ -566,14 +566,14 @@ def main():
         "",
         "## 9. 参数敏感性（组合层 · 每档都扣费，只改一格）",
         "",
-        "| 档位 | 年化 | 最大回撤 | 夏普 | 平均曝光 | 六腿总调仓次数 |",
+        "| 档位 | 年化 | 最大回撤 | 夏普 | 平均曝光 | 七腿总调仓次数 |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for r in sens:
         L.append(f"| {r['name']} | {tg.fmt_pct(r['ann'])} | {tg.fmt_pct(r['mdd'])} | "
                  f"{r['sharpe']:.2f} | {r['invested']:.0%} | {r['actions']} |")
 
-    anns = [r["ann"] for r in sens if not r["name"].startswith("六腿全套")]
+    anns = [r["ann"] for r in sens if not r["name"].startswith("七腿全套")]
 
     def _sens(prefix):
         return next(r for r in sens if r["name"].startswith(prefix))
@@ -581,7 +581,7 @@ def main():
     s_base, s_ma120, s_ma200 = _sens("基准"), _sens("年线改 MA120"), _sens("年线改 MA200")
     L += [
         "",
-        f"> 除「六腿全套」那一档（口径变了，见 §3），其余 {len(anns)} 档的年化全部落在 "
+        f"> 除「七腿全套」那一档（口径变了，见 §3），其余 {len(anns)} 档的年化全部落在 "
         f"{tg.fmt_pct(min(anns))} ~ {tg.fmt_pct(max(anns))}（宽度 "
         f"{(max(anns) - min(anns)) * 100:.2f}pp）、回撤落在 "
         f"{tg.fmt_pct(max(r['mdd'] for r in sens))} ~ {tg.fmt_pct(min(r['mdd'] for r in sens))}。"
@@ -605,10 +605,10 @@ def main():
         "",
         "## 11. 口径与已知边界",
         "",
-        "- **作用域是规则的一部分**：只套科创50 / 恒生科技 / 黄金（无现金流锚）。宽基三条腿"
+        "- **作用域是规则的一部分**：只套科创50 / 恒生科技 / 黄金（无现金流锚）。宽基四条腿"
         "不套，因为估值锚本身已隐含均值回归，再叠趋势过滤等于同一信号用两次并互相抵消"
         "（用户给的 510300 实测：6.45%/18.24% → 4.10%/16.47%，2.35pp 年化换 1.77pp 回撤）。"
-        "§3 的「六腿全套」就是这条判断在本库净值上的复核。",
+        "§3 的「七腿全套」就是这条判断在本库净值上的复核。",
         "- **滞后是设计特性**：§5 给出实测（确认时已跌掉多少、之后还会跌多少）。目标不是躲回调，"
         "是避开年单位阴跌；拿它躲三个月的波动会被反复打脸（§2 打脸列 = 减仓后 20 日内又加回的次数）。",
         "- **250 与 200 不是一回事**：A 股一年约 240–245 个交易日，中文语境的年线取 250；"

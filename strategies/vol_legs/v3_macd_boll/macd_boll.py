@@ -5,8 +5,8 @@
 **只换标的池与口径**，规则本体（MACD 定多空 + 布林开口突破买入 / 死叉或下穿中轨离场 +
 ER 自适应窗口）一条没改：
 
-- **池** = `rule.LEG_ORDER` 六腿（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金），
-  不另立池、不做 A/B 分级，增删腿只改 `rule.LEGS`；
+- **池** = `rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 /
+  恒生科技 / 黄金），不另立池、不做 A/B 分级，增删腿只改 `rule.LEGS`；
 - **价格** = `data.series_for_leg(leg)` 场外**复权净值**（`rule.SIGNAL_MODE`，含分红再投 /
   汇率 / 跟踪误差），与主策略、v1_ma20 同一列；
 - **成交** = T 日盘后算信号、**T+1 净值成交**（`pos = sig.shift(1)`），与 vol_legs §2.4 同一纪律；
@@ -67,6 +67,8 @@ W = {k: float(rule.LEGS[k]["band"]) / float(rule.SLEEVE_PP) for k in LEGS}   # �
 # 故 C 类腿的扣费后数字偏乐观（与 v1_ma20 同一取法）。
 FEE = {
     "a500": (0.0, 0.0),
+    # v1.4 第七腿: 000051 是 A 类(申购 0.10% / 赎回 0.50%), 与美股腿同一档
+    "hs300": (0.001, 0.005),
     "ndx": (0.001, 0.005),
     "spx": (0.001, 0.005),
     "kc50": (0.0, 0.0),
@@ -264,7 +266,7 @@ def leg_slice(leg, warmup=WARMUP, mode=None):
 
 
 def common_frame(start_from_warmup=True):
-    """六腿净值的共同窗口（各自预热之后再取交集）。"""
+    """七腿净值的共同窗口（各自预热之后再取交集）。"""
     cols = {}
     for k in LEGS:
         px = load(k)
@@ -328,7 +330,7 @@ def fmt_x(x, nd=2):
 
 
 def _self_check():
-    """快速自检：六腿序列可读、指标成形、信号与仓位对得上。"""
+    """快速自检：七腿序列可读、指标成形、信号与仓位对得上。"""
     for k in LEGS:
         px, sig, s20, s30 = leg_slice(k)
         assert len(sig) == len(px) and set(sig.unique()) <= {0, 1}

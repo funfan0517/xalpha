@@ -179,18 +179,31 @@ def parse_dividend(_cfg):
     pos = {p.get("code"): float(p.get("weight") or 0) for p in positions}
     prev = d.get("preview") or {}
     rsi = {p.get("code"): p.get("rsi") for p in prev.get("picks") or []}
-    pool = sorted(d.get("pool") or [], key=lambda p: rsi.get(p.get("code")) or 999)
+    pool = sorted(d.get("pool") or [],
+                  key=lambda p: (p.get("rsi") if p.get("rsi") is not None
+                                 else rsi.get(p.get("code"))) or 999)
 
+    nd = d.get("next_decision") or "—"
     rows = []
     for p in pool:
         code = p.get("code")
         w = pos.get(code, 0.0)
         act, label = ("hold", f"持有 {w * 100:.0f}%") if w > 0 else ("none", "空仓")
-        r = rsi.get(code)
-        rows.append(_row(code, p.get("name"), act, label,
-                         f"RSI14 {r:.1f} · 板块均值 {d.get('board_rsi', '—')} · "
-                         f"权重 {w * 100:.0f}%" if r is not None else
-                         f"权重 {w * 100:.0f}%（今日无 RSI 快照）"))
+        r = p.get("rsi")
+        if r is None:
+            r = rsi.get(code)
+        pv = p.get("preview_weight")
+        if pv is None:
+            dec = f"下次决策 {nd} 待定"
+        elif float(pv) > 1e-9:
+            dec = f"下次决策 {nd} 预计入选 {float(pv) * 100:.0f}%"
+        else:
+            dec = f"下次决策 {nd} 预计落选"
+        detail = (f"RSI14 {r:.1f} · 板块均值 {d.get('board_rsi', '—')} · "
+                  if r is not None else
+                  f"RSI14 —（今日无快照） · 板块均值 {d.get('board_rsi', '—')} · ")
+        detail += f"权重 {w * 100:.0f}% · {dec}"
+        rows.append(_row(code, p.get("name"), act, label, detail))
 
     holds = "、".join(f"`{p.get('code')}` {float(p.get('weight') or 0) * 100:.0f}%"
                      for p in positions) or "空仓"
@@ -505,16 +518,16 @@ def parse_v1_ma20(_cfg):
         badge = f"买 {len(buys)} 卖 {len(sells)}"
         tone = "buy" if buys else "sell"
     else:
-        summary = "六腿无穿越信号 —— 维持原仓位（" + _txt(legs) + "）"
+        summary = "七腿无穿越信号 —— 维持原仓位（" + _txt(legs) + "）"
         badge, tone = "无动作", "none"
 
     return _entry(
-        "v1_ma20", "波动资产 V1 变种 · 六腿 MA20 穿越", data.get("as_of"), badge, tone,
+        "v1_ma20", "波动资产 V1 变种 · 七腿 MA20 穿越", data.get("as_of"), badge, tone,
         summary, rows,
-        [["六腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
+        [["七腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
          ["卖出", str(len(sells))], ["持有", str(summ.get("hold", 0))],
          ["空仓", str(summ.get("empty", 0))], ["陈旧/失败", str(len(stale))]],
-        note=f"池 = 主策略六腿（`rule.LEGS`，增删腿只改那一处）；"
+        note=f"池 = 主策略七腿（`rule.LEGS`，增删腿只改那一处）；"
              f"场外复权净值 {rule.get('buy', '上穿MA20')} 买 / {rule.get('sell', '下穿MA20')} 卖，"
              f"{rule.get('trade_at', 'T+1 净值')} 成交。**成本是决定性变量**：逐腿 13~16 笔/年，"
              "按 A 类真实费率扣费后组合年化 8.10% → 1.42%（C 类销售服务费未计）。"
@@ -566,16 +579,16 @@ def parse_v3_macd_boll(_cfg):
         badge = f"买 {len(buys)} 卖 {len(sells)}"
         tone = "buy" if buys else "sell"
     else:
-        summary = "六腿均无突破/离场信号 —— 维持原仓位（" + _txt(legs) + "）"
+        summary = "七腿均无突破/离场信号 —— 维持原仓位（" + _txt(legs) + "）"
         badge, tone = "无动作", "none"
 
     return _entry(
         "v3_macd_boll", "波动资产 V3 变种 · MACD+BOLL 自适应窗口", data.get("as_of"), badge, tone,
         summary, rows,
-        [["六腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
+        [["七腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
          ["卖出", str(len(sells))], ["持有", str(summ.get("hold", 0))],
          ["空仓", str(summ.get("empty", 0))], ["陈旧/失败", str(len(stale))]],
-        note=f"池 = 主策略六腿（`rule.LEGS`）。入场 {rule.get('buy', 'DIF>0 且 DIF>DEA + 开口 + 上穿上轨')}，"
+        note=f"池 = 主策略七腿（`rule.LEGS`）。入场 {rule.get('buy', 'DIF>0 且 DIF>DEA + 开口 + 上穿上轨')}，"
              f"离场 {rule.get('sell', '死叉 或 跌破中轨')}，布林窗口按 ER(20) 滞回 "
              f"{rule.get('window_fast')}↔{rule.get('window_slow')}，{rule.get('trade_at', 'T+1 净值')} 成交。"
              "**突破追涨型**，与主策略「跌了才加仓」的阶梯方向相反，不可叠加在同一份额度上；"
@@ -649,7 +662,7 @@ def parse_permanent(_cfg):
 
 
 def parse_vol_legs(_cfg):
-    """波动资产操作规则：4 腿(仓位带) + 阶梯状态。
+    """波动资产操作规则：7 腿(仓位带) + 阶梯状态。
 
     产物 `_vol_legs_signal.json` 已按腿组织(legs/actions/ladder/rebalance)，直接映射成表格行；
     动作 = 次日收盘待执行的挂单(§0 收盘后计算、次日执行)，空动作表示「不动」。
@@ -689,28 +702,32 @@ def parse_vol_legs(_cfg):
         summary += f" · 投入 {d.get('invested_pp')}/{d.get('sleeve_pp')}pp"
     else:
         badge, tone = "无动作", "none"
-        summary = (f"六腿均未触发阈值 · 投入 {d.get('invested_pp'):g}/{d.get('sleeve_pp'):g}pp · "
+        summary = (f"七腿均未触发阈值 · 投入 {d.get('invested_pp'):g}/{d.get('sleeve_pp'):g}pp · "
                    f"现金 {d.get('cash_pp'):g}pp")
 
     lad = d.get("ladder") or {}
     a5 = lad.get("a500") or {}
+    h3 = lad.get("hs300") or {}
     gd = lad.get("gold") or {}
     reb = d.get("rebalance") or {}
     val = d.get("valuation") or {}
     chips = [["投入", f"{d.get('invested_pp'):g}/{d.get('sleeve_pp'):g}pp"],
              ["A500 阶梯", f"{float(a5.get('units') or 0):.2f} 份"],
+             ["沪深300 阶梯", f"{float(h3.get('units') or 0):.2f} 份"],
              ["黄金阶梯", f"{float(gd.get('units') or 0):.2f} 份"],
              ["再平衡核对", str(reb.get("next_check") or "—")],
              ["ERP 闸门", "null" if not val.get("a500_erp_gate") else str(val.get("a500_erp_gate"))],
+             ["沪深300 ERP", str(val.get("hs300_erp_gate") or "null")],
              ["美股闸门", str(val.get("ndx_erp_gate") or "null")]]
     qdii = val.get("qdii_limit_closed") or []
     return _entry(
-        "vol_legs", "波动资产(A500/纳指/标普/科创/恒科/黄金)", d.get("as_of"),
+        "vol_legs", "波动资产(A500/沪深300/纳指/标普/科创/恒科/黄金)", d.get("as_of"),
         badge, tone, summary, rows, chips,
         note="§0 口径：收盘后计算、次日下单（场外 15:00 前提交才拿当日净值）—— 这里显示的是"
              "**下一交易日**该成交的那一笔。"
-             f"六腿仓位带共 {d.get('sleeve_pp'):g}pp（A500 5 / 纳指100 10 / 标普500 10 / "
-             "科创50 2.5 / 恒生科技 2.5 / 黄金 10），1 份 = 带的 20%（A500 1pp、美股/黄金 2pp）。"
+             f"七腿仓位带共 {d.get('sleeve_pp'):g}pp（中证A500 2.5 / 沪深300 2.5 / 纳指100 10 / "
+             "标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10），1 份 = 带的 20%"
+             "（A500·沪深300 0.5pp、美股/黄金 2pp）。"
              "**信号与记账口径均为场外基金复权净值**（含汇率与分红再投，不含场内溢价）；"
              "估值闸门为 null（或美股人工分位）时按 §1「规则不执行」处理"
              + (f"；当前 QDII 额度关闭：{'/'.join(qdii)}（档位顺延）" if qdii else "")

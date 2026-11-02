@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V1 变种（MA20 穿越）· 六腿逐只详报与单独回测。
+"""波动资产 · V1 变种（MA20 穿越）· 七腿逐只详报与单独回测。
 
 每条腿单独回测（各自 MA20 成形日起）并与买入持有逐项对照：年化 / 波动 / 夏普 / 最大回撤 /
 卡玛 / 总收益 / 交易 / 胜率 / 盈亏比 / 曝光 / 扣费后年化；另附逐年收益、最近 8 笔交易、
@@ -93,7 +93,7 @@ def _plot_all(curves, path):
     fig, ax = plt.subplots(figsize=(12, 6))
     for leg, (name, nav) in curves.items():
         ax.plot(pd.to_datetime(nav.index), nav.to_numpy(), label=name, linewidth=1.4)
-    ax.set_title(f"六腿 · {ma20.LABEL} 净值一览（各自起=1，起点不同）")
+    ax.set_title(f"七腿 · {ma20.LABEL} 净值一览（各自起=1，起点不同）")
     ax.set_ylabel("净值")
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8, ncol=2)
@@ -179,8 +179,8 @@ def main():
     n_dd = sum(1 for r in out if abs(r["mdd"]) < abs(r["bh_mdd"]))
 
     L = [
-        "# 波动资产 · V1（MA20 穿越）· 六腿逐只详报",
-        f"> 池 = `rule.LEG_ORDER` 六腿（与主策略一致）· 场外复权净值 · T+1 净值成交 · "
+        "# 波动资产 · V1（MA20 穿越）· 七腿逐只详报",
+        f"> 池 = `rule.LEG_ORDER` 七腿（与主策略一致）· 场外复权净值 · T+1 净值成交 · "
         f"空仓计货基 {ma20.CASH_ANNUAL:.2%} · 年化按 252 日",
         "> ⚠️ 各腿上市时间不同（科创50 / 恒生科技 2021 起，A500 / 标普含桥接前段）："
         "只比「各自区间内 V1 vs 买入持有」，不是同窗口排名。",

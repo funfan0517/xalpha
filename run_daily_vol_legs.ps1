@@ -1,9 +1,9 @@
 # 波动资产操作规则 v1.3(A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10 = 40pp) · 每日操作 - 双击运行
 
 # 口径: 信号 + 记账 + 执行 **全部用场外基金复权净值**(rule.SIGNAL_MODE="otc")
-# 盘后运行: 刷新场外净值(023299/270042/017641/011609/012805/000216) -> 复算六腿状态
+# 盘后运行: 刷新场外净值(023299/000051/270042/017641/011609/012805/000216) -> 复算七腿状态
 #          (回撤阶梯/趋势闸门/季度再平衡) -> 输出「下一交易日该下单的那一笔」
-# 第 2 步: V3 变种(strategies\vol_legs\v3_macd_boll\daily\_daily_scan.py) —— 六腿逐一判定
+# 第 2 步: V3 变种(strategies\vol_legs\v3_macd_boll\daily\_daily_scan.py) —— 七腿逐一判定
 #          MACD 零轴上金叉 + 布林开口放大 + 收盘上穿上轨 = 买入 / 死叉或跌破中轨 = 卖出
 #          布林窗口按 ER(20) 在 20<->30 之间滞回; 与第 1 步的组合层仓位带互不替代
 # 已退出默认流程(2026-10-30, 需要时手动跑):
@@ -12,7 +12,7 @@
 #   python strategies\vol_legs\v5_trend_gate\daily\_daily_scan.py     # V5 趋势四象限闸门(年线位置+年线斜率, 只套科创50/恒生科技/黄金)
 # 参数权威源 strategies/vol_legs/rule.py::CFG 与 v3_macd_boll/macd_boll.py; 口径说明 strategies/vol_legs/README.md
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_vol_legs.ps1
-#        已有存量持仓时校准起点: ... -File run_daily_vol_legs.ps1 --hold a500=10,ndx=5,spx=5,kc50=5,hkt=5,gold=10
+#        已有存量持仓时校准起点: ... -File run_daily_vol_legs.ps1 --hold a500=2.5,hs300=2.5,ndx=10,spx=10,kc50=2.5,hkt=2.5,gold=10
 #        切回场内/美元指数口径: 把 rule.SIGNAL_MODE 改成 "exchange"
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -39,10 +39,11 @@ Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
 Write-Host "  V3 MACD+BOLL: strategies\vol_legs\v3_macd_boll\daily\_v3_macd_boll_daily.md (+ .json)"
 Write-Host "  Note    : signal on NAV at close, place the order BEFORE 15:00 next trading day to get"
 Write-Host "            that day's NAV. QDII NAV prints T+1~T+2 -- do not cancel inside the window."
-Write-Host "  Note    : all six legs trade OTC share classes only (never chase on-exchange premium);"
+Write-Host "  Note    : all seven legs trade OTC share classes only (never chase on-exchange premium);"
 Write-Host "            if the QDII quota is closed, the tier is deferred, not cancelled."
-Write-Host "  Note    : NAV cache = data\_otc_nav.json; codes 023299 / 270042 / 017641 / 011609 /"
-Write-Host "            012805 / 000216, plus bridge funds 000051 (A500 warm-up) and 050025 (SPX warm-up)."
+Write-Host "  Note    : NAV cache = data\_otc_nav.json; codes 023299 / 000051 / 270042 / 017641 / 011609 /"
+Write-Host "            012805 / 000216; 000051 is BOTH the HS300 leg itself and the A500 warm-up series"
+Write-Host "            (they are identical before 2025-03-27), 050025 is the SPX warm-up."
 Write-Host "  Note    : V1 (MA20) / V4 (ERP band) / V5 (trend quadrant gate) are out of the daily"
 Write-Host "            flow; run their daily\_daily_scan.py by hand if needed (V5: add --no-refresh"
 Write-Host "            to skip the OTC NAV refresh)."

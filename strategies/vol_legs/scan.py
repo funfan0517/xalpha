@@ -6,9 +6,9 @@
 **次日收盘**执行的那一笔, 不是让你今天盘中追。
 
 复算起点(`--since`)决定持仓状态的来历:
-  默认 = **目标带起步**(a500=5, ndx=10, spx=10, kc50=2.5, hkt=2.5, gold=10 = 40pp),
+  默认 = **目标带起步**(a500=2.5, hs300=2.5, ndx=10, spx=10, kc50=2.5, hkt=2.5, gold=10 = 40pp),
   即「已按基准比例持有, 之后完全交给规则调整」—— 实盘口径, 也是 backtest 的 seed 档。
-  起点退到「六腿就绪日」, 让起点到今天的漂移有界。`--hold` 覆盖成你的真实持仓(同格式);
+  起点退到「七腿就绪日」, 让起点到今天的漂移有界。`--hold` 覆盖成你的真实持仓(同格式);
   `--from-zero` 切回「空仓起步」对照口径(文档 §2 自检「满梯 9% ≈ 填满 10% 带」的读法)。
   注意: 带内起步时起点现金 = 0, **加仓只能靠卖出其他腿腾挪或追加资金**。
 
@@ -24,7 +24,7 @@ ERP 闸门取自人工月度复核值、QDII 额度关闭时该档顺延。
   python strategies/vol_legs/scan.py --force              # 先刷新场外净值 + 行情库
   python strategies/vol_legs/scan.py --from-zero          # 空仓起步对照口径
   python strategies/vol_legs/scan.py --capital 2000000    # 按总资产折算金额
-  python strategies/vol_legs/scan.py --hold a500=5,ndx=10,spx=10,kc50=2.5,hkt=2.5,gold=10
+  python strategies/vol_legs/scan.py --hold a500=2.5,hs300=2.5,ndx=10,spx=10,kc50=2.5,hkt=2.5,gold=10
 输出:
   strategies/vol_legs/daily/_vol_legs_report.md
   strategies/vol_legs/daily/_vol_legs_signal.json
@@ -58,6 +58,11 @@ _ACT_JSON = os.path.join(_DAILY, "_universe_vol_legs_active.json")
 # 目标带 = 实盘的起点持仓(用户按基准比例持有), 也是「今日理论最优」的对照锚
 BAND_SEED = {k: rule.LEGS[k]["band"] for k in rule.LEG_ORDER}
 
+# 走「启动闸门 + 回撤阶梯 + RSI 扳机 + 频率帽」那套状态机的腿(§2 在岸宽基 / §6 美股)。
+# v1.4 起中证A500 与沪深300 同层同构 —— 旧的 `key in ("a500","ndx","spx")` 硬编码
+# 会漏掉新腿(报告里那条腿就没有「下一触发条件」), 故收敛成这一处常量。
+LADDER_LEGS = ("a500", "hs300", "ndx", "spx")
+
 
 # ---------------------------------------------------------------- 工具
 def _pct(x, nd=1):
@@ -69,7 +74,7 @@ def _f(x, nd=2):
 
 
 def _ready_start(ind):
-    """六腿指标全部就绪的第一天(与回测同口径)。"""
+    """七腿指标全部就绪的第一天(与回测同口径)。"""
     starts = [ind[k][ind[k]["ready"]].index[0] for k in rule.LEG_ORDER
               if len(ind[k][ind[k]["ready"]])]
     return max(starts) if starts else None
@@ -148,13 +153,15 @@ def leg_view(key, ind, res, pending, gates):
                  action_label=("买入" if delta > 0 else "卖出") + f" {abs(delta):.2f}pp",
                  rule=o["rule"], detail=o["detail"], delta_pp=round(delta, 3))
     elif pos > 0.05:
-        v.update(action="hold", action_label=f"持有 {pos:.1f}pp",
+        # 动作列用百分比表述(1pp = 总资产 1%, 数值不变): 看板上「持有 4.5%」比
+        # 「持有 4.5pp」好读; 报告正文的 pp 刻度(pp of 40pp 管辖额度)保持原样。
+        v.update(action="hold", action_label=f"持有 {pos:.1f}%",
                  rule="无触发", detail="维持当前仓位")
     else:
         v.update(action="none", action_label="空仓", rule="无触发", detail="等待阈值")
 
     # 触发条件说明
-    if key in ("a500", "ndx", "spx", "gold") and pol is not None:
+    if key in LADDER_LEGS + ("gold",) and pol is not None:
         i, th = _next_tier(pol, key)
         gate_off = key != "gold" and gates.get(f"{key}_erp") == "off"
         if i is None:
@@ -162,7 +169,7 @@ def leg_view(key, ind, res, pending, gates):
         else:
             gap = _gap_to(th, row)
             extra = ""
-            if key in ("a500", "ndx", "spx"):
+            if key in LADDER_LEGS:
                 extra = " + RSI<40 扳机" if (pol.armed_tier is not None) else ""
             txt = (f"第{i + 1}档 dd≥{th}%"
                    + (f"(还需再跌 {abs(gap):.1%})" if gap is not None and gap < 0 else
@@ -201,13 +208,15 @@ def leg_view(key, ind, res, pending, gates):
 
 def _theory_note(key, pol, gates, legs):
     """单腿「今日理论最优」的依据文字。"""
-    if key in ("a500", "ndx", "spx"):
+    if key in LADDER_LEGS:
         txt = f"阶梯已建 {float(pol.units):.2f} 份 × {rule.unit_pp(key):g}pp"
         gate = gates.get(f"{key}_erp")
         if gate == "off":
             txt += "; 启动闸门 off(只停新增, 存量不动)"
         elif gate is None:
-            txt += "; 启动闸门 null(不设限)"
+            pct = gates.get(f"{key}_erp_pct")
+            txt += (f"; 启动闸门不设限(分位 {pct * 100:.0f}% 在中间地带)" if pct is not None
+                    else "; 启动闸门 null(数据不足, 不设限)")
         return txt
     if key == "gold":
         txt = f"阶梯已建 {float(pol.units):.2f} 份 × {rule.unit_pp('gold'):g}pp"
@@ -274,11 +283,11 @@ def render(ctx):
     A("> §0 口径: **收盘后计算、次日执行**。场外基金 15:00 前提交才拿当日净值, 所以"
       "「今日动作」= **明天下单**、按明天净值成交。机械规则输出, 非投资建议。")
     if base == "band":
-        A("> 起点口径: **按目标带 5/10/10/2.5/2.5/10 起步**(= 你的实际持仓), 之后完全交给规则; "
+        A("> 起点口径: **按目标带 2.5/2.5/10/10/2.5/2.5/10 起步**(= 你的实际持仓), 之后完全交给规则; "
           "起点现金为 0, 所以**加仓只能靠卖出其他腿腾挪或追加资金**。换一个起点用 "
-          "`--hold a500=...,ndx=...`; 想看「空仓起步」对照用 `--from-zero`。")
+          "`--hold a500=...,hs300=...`; 想看「空仓起步」对照用 `--from-zero`。")
     elif base == "hold":
-        A("> 起点口径: `--hold` 自定义持仓(**起点日**的值, 不是今日); 起点已退到六腿就绪日。"
+        A("> 起点口径: `--hold` 自定义持仓(**起点日**的值, 不是今日); 起点已退到七腿就绪日。"
           "想让「今天 = 你的实际持仓」, 把 `--since` 设成你建仓的日期。")
     else:
         A("> 起点口径: **空仓起步**(`--from-zero`) —— 由阶梯/趋势闸门从 0 填到带, 是「规则自己建仓」"
@@ -301,7 +310,7 @@ def render(ctx):
                 amt += f" ≈ {cap * abs(x.get('delta_pp') or 0) / 100:,.0f} 元"
             A(f"| {x['name']} | **{x['action_label']}** | {amt} | {x['rule']} | {x['detail']} |")
     else:
-        A("**无动作** —— 六条腿均未触发阈值, 维持现有仓位。")
+        A("**无动作** —— 七条腿均未触发阈值, 维持现有仓位。")
     if any(x["action"] in ("buy", "sell") and x["name"] in ("纳指100", "标普500") for x in v.values()):
         A("")
         A("> QDII 时滞(§6): 美股腿信号日提交、T+2 确认; 时滞内价格波动**不改单不撤单**。")
@@ -334,8 +343,8 @@ def render(ctx):
         A(f"> 按总资产 {cap:,.0f} 元折算: 1pp = {cap / 100:,.0f} 元。")
         A("")
 
-    # ---- 三、六腿状态
-    A("## 三、六腿状态")
+    # ---- 三、七腿状态
+    A("## 三、七腿状态")
     A("")
     otc_mode = rule.SIGNAL_MODE == "otc"
     A("| 资产 | 净值/信号代码 | " + ("复权净值" if otc_mode else "收盘") +
@@ -362,8 +371,8 @@ def render(ctx):
     # ---- 三、阶梯与闸门
     A("## 四、阶梯状态与闸门")
     A("")
-    for key, title in (("a500", "A500 回撤阶梯(§2)"), ("ndx", "纳指100 回撤阶梯(§6)"),
-                       ("spx", "标普500 回撤阶梯(§6)")):
+    for key, title in (("a500", "A500 回撤阶梯(§2)"), ("hs300", "沪深300 回撤阶梯(§2)"),
+                       ("ndx", "纳指100 回撤阶梯(§6)"), ("spx", "标普500 回撤阶梯(§6)")):
         s = v[key]
         pol = res["policies"][key]
         cfg = rule.CFG[key]
@@ -384,7 +393,7 @@ def render(ctx):
             A(f"- 未挂档(RSI {_f(s['rsi'], 1)}, dd "
               f"{_pct(-s['dd']) if s['dd'] is not None else '—'})")
         A(f"- 启动闸门: **{pol.gate_text(gates)}**")
-        if key != "a500":
+        if key in ("ndx", "spx"):
             src = data.SOURCE_NOTE.get(key, f"`{s['signal']}`")
             A(f"- 信号源: {src}" + ("" if otc_mode else "(§6 要求美元指数口径)"))
             closed = key in (gates.get("qdii_limit_closed") or [])
@@ -392,6 +401,14 @@ def render(ctx):
               f"{'; ⚠️ **额度关闭/限大额 → 该档顺延**(禁止换场内追溢价)' if closed else ''}")
             if gates.get("fomc_blackout"):
                 A("- ⚠️ 今日在 FOMC 禁新仓窗口内(§6): 阶梯档位顺延")
+        elif key == "hs300":
+            e3 = gates.get("_hs300_erp") or {}
+            if e3.get("erp") is not None:
+                pct_txt = ("null" if e3.get("erp_pct") is None
+                           else f"{e3['erp_pct'] * 100:.0f}%")
+                A(f"- ERP 读数: PE(TTM) {e3['pe']:.2f} · 10Y 中债 {e3['bond10y']:.2f}% · "
+                  f"ERP {e3['erp']:.2f}% · 月度样本 {e3['n_months']} 个 → 分位 {pct_txt}"
+                  "(真分位, 不是 A500 那种「历史太短」的 null)")
         A("")
     A("### 黄金(§5)")
     A("")
@@ -439,12 +456,19 @@ def render(ctx):
     A("## 六、估值输入状态(§1「数据不足 → null → 规则不执行」)")
     A("")
     erp = gates["_erp"]
+    erp3 = gates.get("_hs300_erp") or {}
     vi = gates["_inputs"]
     A("| 输入 | 当前值 | 来源 | 状态 |")
     A("|---|---|---|---|")
     erp_txt = "null" if erp["erp_pct"] is None else f"{erp['erp_pct'] * 100:.0f}%"
     erp_state = f"**不执行**({erp['why']})" if erp["erp_pct"] is None else "生效"
     A(f"| A500 ERP 分位 | {erp_txt} | data/_a500_pe_hist.csv + bond10y_m.csv | {erp_state} |")
+    e3_pct = erp3.get("erp_pct")
+    e3_txt = "null" if e3_pct is None else f"{e3_pct * 100:.0f}%"
+    e3_state = (f"**不执行**({erp3.get('why') or '数据不足'})" if e3_pct is None
+                else f"生效({erp3.get('n_months')} 个月度样本)")
+    A(f"| 沪深300 ERP 分位 | {e3_txt} | data/_bt_caches/csi_000300.csv + bond10y_m.csv | "
+      f"{e3_state} |")
     for label, val in (("科创50 PB 分位", vi["kc50_pb_pct"]),
                        ("恒生科技 ERP 分位", vi["hkt_erp_pct"]),
                        ("纳指100 ERP 分位", vi["ndx_erp_pct"]),
@@ -469,6 +493,9 @@ def render(ctx):
         A(f"> A500: PE(TTM) {erp['pe']:.2f} · 10Y 中债 {erp['bond10y']:.2f}% · "
           f"ERP {erp['erp']:.2f}% · 月度样本 {erp['n_months']} 个"
           f"(分位需 ≥{data.PCT_MIN_MONTHS} 个)。")
+    if erp3.get("erp") is not None:
+        A(f"> 沪深300: PE(TTM) {erp3['pe']:.2f} · 10Y 中债 {erp3['bond10y']:.2f}% · "
+          f"ERP {erp3['erp']:.2f}% · 月度样本 {erp3['n_months']} 个 —— 样本够, 分位是真分位。")
     us = gates.get("_us_erp") or {}
     if us.get("ust10y") is not None:
         extra = ""
@@ -512,8 +539,9 @@ def render(ctx):
 
 
 def active_md():
-    L = ["# 波动资产操作规则 · 固定 6 腿名单", "",
-         f"> 生成 {datetime.now():%Y-%m-%d} · 由《波动资产操作规则 v1.3》§0 直接定档"
+    n_leg = len(rule.LEG_ORDER)
+    L = [f"# 波动资产操作规则 · 固定 {n_leg} 腿名单", "",
+         f"> 生成 {datetime.now():%Y-%m-%d} · 由《波动资产操作规则 v1.4》§0 直接定档"
          "(非回测 select, 不做 A/B 分级)。", "",
          "| # | 腿 | 目标带 | 信号标的(场内) | 执行代码(场外) | 执行标的 |",
          "|---|---|---:|---|---|---|"]
@@ -521,10 +549,12 @@ def active_md():
         x = rule.LEGS[key]
         L.append(f"| {i} | {x['name']}({x['role']}) | {x['band']:g}pp | "
                  f"`{x['signal']}` {x['signal_name']} | `{x['exec']}` | {x['exec_name']} |")
-    core = sum(rule.LEGS[k]["band"] for k in ("a500", "ndx", "spx"))
+    core = sum(rule.LEGS[k]["band"] for k in LADDER_LEGS)
     atk = sum(rule.LEGS[k]["band"] for k in ("kc50", "hkt"))
     L += ["", f"> 管辖额度合计 **{rule.SLEEVE_PP:.0f}pp**(核心腿 {core:g} = A股 "
-          f"{rule.LEGS['a500']['band']:g} + 美股 {rule.LEGS['ndx']['band'] + rule.LEGS['spx']['band']:g}; "
+          f"{rule.LEGS['a500']['band'] + rule.LEGS['hs300']['band']:g}(A500 "
+          f"{rule.LEGS['a500']['band']:g} + 沪深300 {rule.LEGS['hs300']['band']:g}) + 美股 "
+          f"{rule.LEGS['ndx']['band'] + rule.LEGS['spx']['band']:g}; "
           f"进攻腿 {atk:g} = 科创50 {rule.LEGS['kc50']['band']:g} + 恒生科技 "
           f"{rule.LEGS['hkt']['band']:g}; 黄金 {rule.LEGS['gold']['band']:g}); "
           "其余 60pp(红利 20 / 国债 30 / 货币基金 10)"
@@ -539,9 +569,10 @@ def main():
     ap.add_argument("--force", action="store_true", help="先刷新场外净值(data/_otc_nav.json)与行情库")
     ap.add_argument("--capital", type=float, default=None, help="总资产(元), 用于折算金额")
     ap.add_argument("--since", default=None,
-                    help="复算起点(YYYY-MM-DD), 默认带内起步时为六腿就绪日")
+                    help="复算起点(YYYY-MM-DD), 默认带内起步时为七腿就绪日")
     ap.add_argument("--hold", default="",
-                    help="存量持仓覆盖, 如 a500=5,ndx=10,spx=10,kc50=2.5,hkt=2.5,gold=10")
+                    help="存量持仓覆盖, 如 a500=2.5,hs300=2.5,ndx=10,spx=10,"
+                         "kc50=2.5,hkt=2.5,gold=10")
     ap.add_argument("--from-zero", action="store_true",
                     help="空仓起步对照口径(默认从目标带起步, 因为实际持仓就是基准比例)")
     args = ap.parse_args()
@@ -574,7 +605,7 @@ def main():
     since = args.since
     if init and not since:
         # 注入的是**起点**仓位; 若从 2009 年回放, 十几年涨幅会把仓位放大到离谱。
-        # 未显式给 --since 时退到「六腿就绪日」, 让起点到今天的漂移有界、读数可解释。
+        # 未显式给 --since 时退到「七腿就绪日」, 让起点到今天的漂移有界、读数可解释。
         since = _ready_start(ind)
     res = engine.run(ind, gates, fomc, since=since, init=init)
     engine_nav = float(res["nav"].iloc[-1])
@@ -596,7 +627,7 @@ def main():
                 amount_pp=round(t["amount_pp"], 3), rule=t["rule"], detail=t["detail"])
            for t in res["trades"][-40:]]
     snap = dict(
-        strategy="波动资产操作规则 v1.3",
+        strategy="波动资产操作规则 v1.4",
         as_of=max(x["as_of"] for x in legs.values()),
         generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
         since=f"{res['cal'][0]:%Y-%m-%d}",
@@ -620,7 +651,7 @@ def main():
             armed_tier=getattr(res["policies"][k], "armed_tier", None),
             month_tranche=getattr(res["policies"][k], "month_tranche", None),
             degraded=getattr(res["policies"][k], "degraded", None))
-            for k in ("a500", "ndx", "spx", "gold")},
+            for k in LADDER_LEGS + ("gold",)},
         rebalance=dict(next_check=f"{next_q:%Y-%m-%d}", band_pp=rule.BAND_PP,
                        band_frac=rule.BAND_FRAC,
                        tol_pp={k: round(rule.rebalance_pp(k), 2) for k in rule.LEG_ORDER},
@@ -633,6 +664,11 @@ def main():
                        a500_erp_pct=gates["a500_erp_pct"],
                        a500_erp_months=gates["_erp"]["n_months"],
                        a500_erp_gate=gates["a500_erp"],
+                       hs300_erp=round(gates["_hs300_erp"]["erp"], 2)
+                       if gates["_hs300_erp"]["erp"] is not None else None,
+                       hs300_erp_pct=gates["hs300_erp_pct"],
+                       hs300_erp_months=gates["_hs300_erp"]["n_months"],
+                       hs300_erp_gate=gates["hs300_erp"],
                        ndx_erp_pct=gates["ndx_erp_pct"], ndx_erp_gate=gates["ndx_erp"],
                        spx_erp_pct=gates["spx_erp_pct"], spx_erp_gate=gates["spx_erp"],
                        qdii_limit_closed=gates.get("qdii_limit_closed") or [],
@@ -651,7 +687,7 @@ def main():
     with open(_ACT_MD, "w", encoding="utf-8") as f:
         f.write(active_md() + "\n")
     with open(_ACT_JSON, "w", encoding="utf-8") as f:
-        json.dump(dict(strategy="波动资产操作规则 v1.3", as_of=snap["as_of"],
+        json.dump(dict(strategy="波动资产操作规则 v1.4", as_of=snap["as_of"],
                        sleeve_pp=rule.SLEEVE_PP,
                        legs=[dict(key=k, name=rule.LEGS[k]["name"], role=rule.LEGS[k]["role"],
                                   band=rule.LEGS[k]["band"], signal=rule.LEGS[k]["signal"],

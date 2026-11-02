@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V2 变种：BOLL 上轨突破 · 六腿回测（逐腿 + 组合层）。
+"""波动资产 · V2 变种：BOLL 上轨突破 · 七腿回测（逐腿 + 组合层）。
 
 原 `strategies/tech_indicators/v16_boll_breakout/backtest.py`（2026-10-30 迁入 vol_legs，
-标的池从「`data/_universe.md` 前四类 54 只场内 ETF」改为主策略的**六腿场外复权净值**）。
+标的池从「`data/_universe.md` 前四类 54 只场内 ETF」改为主策略的**七腿场外复权净值**）。
 
 池与口径完全跟随 `strategies/vol_legs`：
-- 六腿 = `rule.LEG_ORDER`（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
+- 七腿 = `rule.LEG_ORDER`（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
 - 价格 = `data.series_for_leg()` 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）；
 - 成交 = T 日盘后算信号、**T+1 净值成交**（`pos = sig.shift(1)`），与主策略 §2.4 同一纪律；
 - 空仓按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益。
@@ -13,7 +13,7 @@
 产出（本目录 backtest/）：
 - `_v2_boll_breakout_bt.md` / `.jsonl`：逐腿对照 + 组合层 + 方向对照 + 成交时滞/费率/止损/参数敏感性
 - `_v2_boll_breakout_portfolio.png`：组合层净值（择时 / 静态带 / 等权）
-- `_v2_boll_breakout_legs.png`：六腿逐腿价格 + 三轨 + 买卖点（2×3）
+- `_v2_boll_breakout_legs.png`：七腿逐腿价格 + 三轨 + 买卖点（2×3）
 
 模拟结果，非投资建议。
 """
@@ -110,13 +110,13 @@ def leg_rows():
 
 
 def portfolio_rows(frame):
-    """组合层：BOLL 择时（零费 / 扣费）/ 静态带 / 六腿等权。"""
+    """组合层：BOLL 择时（零费 / 扣费）/ 静态带 / 七腿等权。"""
     sigs = {k: boll.signal(frame[k])[0] for k in frame.columns}
     navs = [
         ("V2 BOLL 择时（按带权）", boll.portfolio(frame, signals=sigs)),
         ("V2 BOLL 择时（扣申赎费）", boll.portfolio(frame, signals=sigs, fee=True)),
         ("静态带（按带权恒定持有）", boll.portfolio(frame, signals=None)),
-        ("六腿等权（恒定持有）", boll.portfolio(frame, signals=None,
+        ("七腿等权（恒定持有）", boll.portfolio(frame, signals=None,
                                                 weight={k: 1.0 / len(frame.columns)
                                                         for k in frame.columns})),
     ]
@@ -244,10 +244,10 @@ def _plot_portfolio(nav_by, path):
     colors = {"V2 BOLL 择时（按带权）": "#93c",
               "V2 BOLL 择时（扣申赎费）": "#d33",
               "静态带（按带权恒定持有）": "#27c",
-              "六腿等权（恒定持有）": "#888"}
+              "七腿等权（恒定持有）": "#888"}
     for name, nav in nav_by.items():
         ax.plot(nav.index, nav.to_numpy(), label=name, color=colors.get(name), linewidth=1.6)
-    ax.set_title("波动资产六腿 · BOLL 上轨突破择时 vs 静态带 vs 等权（净值, 起=1）")
+    ax.set_title("波动资产七腿 · BOLL 上轨突破择时 vs 静态带 vs 等权（净值, 起=1）")
     ax.set_ylabel("净值")
     ax.grid(alpha=0.3)
     ax.legend()
@@ -298,7 +298,7 @@ def _plot_legs(rows, path):
                      f"曝光 {r['exposure']:.0%} · {r['trades']} 笔", fontsize=10)
         ax.grid(alpha=0.3)
         ax.legend(fontsize=8, loc="upper left")
-    fig.suptitle("六腿 · BOLL 上轨突破：收盘上穿上轨买入 / 跌回中轨卖出（紫色阴影 = 持仓区间）")
+    fig.suptitle("七腿 · BOLL 上轨突破：收盘上穿上轨买入 / 跌回中轨卖出（紫色阴影 = 持仓区间）")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(path, dpi=110)
     plt.close(fig)
@@ -333,12 +333,12 @@ def main():
     yr_band = boll.yearly(nav_by["静态带（按带权恒定持有）"])
 
     L = [
-        "# 波动资产 · V2 变种：BOLL 上轨突破（六腿逐腿择时）",
-        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 六腿（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）"
+        "# 波动资产 · V2 变种：BOLL 上轨突破（七腿逐腿择时）",
+        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）"
         " · 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）",
         "> T 日盘后算信号、**T+1 净值成交** · 空仓按货基 "
         f"{boll.CASH_ANNUAL:.2%} 计息 · 主表零费用，成本另算（见「成交时滞 × 费率」）",
-        "> 原 `strategies/tech_indicators/v16_boll_breakout/`（54 只场内 ETF 全池），2026-10-30 迁入 vol_legs 并改为六腿口径。",
+        "> 原 `strategies/tech_indicators/v16_boll_breakout/`（54 只场内 ETF 全池），2026-10-30 迁入 vol_legs 并改为七腿口径。",
         "",
         "## 规则",
         "",
@@ -374,7 +374,7 @@ def main():
         f"曝光中位 **{_med(rows, 'exposure'):.0%}** —— 本规则大部分时间空仓，"
         "组合层收益会被现金摊薄，这是策略属性不是缺陷。",
         "",
-        f"## 组合层（六腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
+        f"## 组合层（七腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
         "",
         "| 组合 | 累计 | 年化 | 波动 | 最大回撤 | 夏普 | 平均投入 |",
         "|---|---:|---:|---:|---:|---:|---:|",
@@ -464,7 +464,7 @@ def main():
         "> 止损自建仓日收盘价起算，同样只在收盘判定。建仓价在上轨（= mid + 2σ），"
         "**中轨离建仓价只差几个百分点** —— 中轨出场本身就是硬止损，百分比止损未必来得及触发。",
         "",
-        "| 止损 | 中位年化 | 中位最大回撤 | 中位夏普 | 六腿总交易 | 组合年化 |",
+        "| 止损 | 中位年化 | 中位最大回撤 | 中位夏普 | 七腿总交易 | 组合年化 |",
         "|---|---|---|---|---|---|",
     ]
     for s in stops:

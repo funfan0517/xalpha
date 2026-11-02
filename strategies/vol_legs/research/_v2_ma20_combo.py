@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V2（BOLL 上轨突破）叠不叠 MA20？—— 六腿 + 组合层的同口径对照。
+"""V2（BOLL 上轨突破）叠不叠 MA20？—— 七腿 + 组合层的同口径对照。
 
 `v2_boll_breakout` 与 `v1_ma20` 回答的是同一件事（逐腿进出时点），只是触发条件不同：
 V2 要「突破上轨」才上车、跌回中轨就下车；V1 是「站上 MA20 就上车、跌破 MA20 就下车」。
@@ -17,7 +17,7 @@ V2 要「突破上轨」才上车、跌回中轨就下车；V1 是「站上 MA20
 口径与族内一致：场外复权净值、T+1 净值成交、空仓按货基 1.40%、组合层按目标带归一化（满仓 = 40pp）。
 每格给「不计费 / 扣费」两行；扣费按真实执行代码（A 类 0.10%/0.50%，C 类 0）。
 
-样本两段分别报：**全样本**（各腿指标预热后各自起算）与**共同窗口**（2021-11 ~ 2026-10，六腿交集），
+样本两段分别报：**全样本**（各腿指标预热后各自起算）与**共同窗口**（2021-11 ~ 2026-10，七腿交集），
 A500 另给 `023299` 成立后（2025-03-27 起）的单腿结果 —— 那才是本基金自己的历史。
 
 产物（本目录）：`_v2_ma20_combo.md` · `_v2_ma20_combo.png`。机械规则输出，非投资建议。
@@ -173,7 +173,7 @@ def main():
     frame = frame.iloc[max(N, MA_WIN):]
     yrs = (frame.index[-1] - frame.index[0]).days / 365.25
     print(f"\n组合层共同窗口 {frame.index[0].date()} ~ {frame.index[-1].date()}（{yrs:.1f} 年）")
-    md += ["", f"## 3. 组合层（六腿按目标带，{frame.index[0].date()} ~ {frame.index[-1].date()}，{yrs:.1f} 年）",
+    md += ["", f"## 3. 组合层（七腿按目标带，{frame.index[0].date()} ~ {frame.index[-1].date()}，{yrs:.1f} 年）",
            "", "| 组合 | 不计费 年化 | 回撤 | 夏普 | 累计 | 扣费 年化 | 回撤 | 夏普 | 曝光 | 笔/年 |",
            "|---|---|---|---|---|---|---|---|---|---|"]
     navs, invs, ntrs = {}, {}, {}
@@ -233,7 +233,7 @@ def main():
         ax.spines[s].set_visible(False)
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    fig.suptitle("V2（BOLL 上轨突破）叠不叠 MA20 · 六腿组合层（不计费，目标带归一化）"
+    fig.suptitle("V2（BOLL 上轨突破）叠不叠 MA20 · 七腿组合层（不计费，目标带归一化）"
                  f"    |    {frame.index[0].date()} ~ {frame.index[-1].date()}",
                  x=0.055, ha="left", y=0.965, fontsize=14, color="#1b2b3a", weight="bold")
     fig.text(0.055, 0.015,

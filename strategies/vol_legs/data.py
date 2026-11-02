@@ -42,6 +42,7 @@ _LK = os.path.join(_ROOT, "data", "_long_klines.json")
 _US_LK = os.path.join(_ROOT, "data", "_us_index_klines.json")
 _OTC_LK = os.path.join(_ROOT, "data", "_otc_nav.json")
 _A500_PE = os.path.join(_ROOT, "data", "_a500_pe_hist.csv")
+_HS300_CSV = os.path.join(_ROOT, "data", "_bt_caches", "csi_000300.csv")
 _BOND10Y = os.path.join(_ROOT, "data", "_bt_caches", "bond10y_m.csv")
 _UST10Y = os.path.join(_ROOT, "data", "_bt_caches", "ust10y_m.csv")
 _VAL_INPUTS = os.path.join(_DATA_DIR, "_val_inputs.json")
@@ -228,7 +229,7 @@ def price_frame(legs=None):
 
 # ---------------------------------------------------------------- 场外净值库
 def otc_codes():
-    """所有需要用到的场外代码(六腿 + 桥接代理), 去重保序。"""
+    """所有需要用到的场外代码(七腿 + 桥接代理), 去重保序。"""
     out = []
     for k in rule.LEG_ORDER:
         for key in ("otc", "otc_proxy"):
@@ -402,19 +403,20 @@ def _monthly(ser):
     raise ValueError("本机 pandas 不支持月末重采样")
 
 
-# ---------------------------------------------------------------- A500 ERP
-def a500_erp(asof=None):
-    """A500 的 ERP 分位(月度, 近 5 年) —— 数据不足时 pct 为 None。
+# ---------------------------------------------------------------- A股 ERP(A500 / 沪深300)
+def _erp_from_pe(csv_path, asof=None):
+    """PE 日频表(`date,peg`) + 10Y 中债月末 -> ERP 分位。A500 与沪深300 共用这一条实现。
 
-    ERP = 1/PE(TTM) − 10Y 中债, 两个都取月末值。分位 = 窗口内 ≤ 当前值的比例。
+    ERP = 1/PE(TTM) − 10Y 中债, 两个都取月末值。分位 = 近 5 年窗口内 ≤ 当前值的比例;
+    月度样本不足 `PCT_MIN_MONTHS`(36) 时分位为 None(文档 §1「数据不足 → null」)。
     """
     out = dict(pe=None, pe_asof=None, bond10y=None, bond_asof=None, erp=None,
                erp_pct=None, n_months=0, window_months=PCT_WINDOW_MONTHS,
                ok=False, why="")
-    if not os.path.exists(_A500_PE):
-        out["why"] = "缺 data/_a500_pe_hist.csv"
+    if not os.path.exists(csv_path):
+        out["why"] = f"缺 {os.path.relpath(csv_path, _ROOT)}"
         return out
-    pe = pd.read_csv(_A500_PE)
+    pe = pd.read_csv(csv_path)
     pe["date"] = pd.to_datetime(pe["date"])
     pe = pe.dropna(subset=["peg"]).sort_values("date")
     if asof is not None:
@@ -456,6 +458,23 @@ def a500_erp(asof=None):
     out["erp_pct"] = float((win <= out["erp"]).mean())
     out["ok"] = True
     return out
+
+
+def a500_erp(asof=None):
+    """中证A500 的 ERP 分位(月度, 近 5 年) —— 数据不足时 pct 为 None。
+
+    数据源 `data/_a500_pe_hist.csv`(中证官网 PE, 2024-09 起) → 月度样本不到 36 个, 分位恒 null。
+    """
+    return _erp_from_pe(_A500_PE, asof=asof)
+
+
+def hs300_erp(asof=None):
+    """沪深300 的 ERP 分位 —— 与 A500 同一算法, 但数据是**长历史真分位**。
+
+    数据源 `data/_bt_caches/csi_000300.csv`(中证官网 `index-perf`, `peg` = 滚动PE, 2005 起)。
+    这条腿的闸门因此会真的生效(不像 A500 恒 null): 分位 ≥70 → on、<30 → off、中间 → 不设限。
+    """
+    return _erp_from_pe(_HS300_CSV, asof=asof)
 
 
 def us_erp(asof=None):
@@ -507,10 +526,15 @@ def gates(calendar, asof=None):
     vi = val_inputs()
     erp = a500_erp(asof=asof)
     a500_gate = _gate_from_pct(erp.get("erp_pct"), "a500")
+    erp3 = hs300_erp(asof=asof)
+    hs300_gate = _gate_from_pct(erp3.get("erp_pct"), "hs300")
 
     st = {
         "a500_erp": a500_gate,
         "a500_erp_pct": erp.get("erp_pct"),
+        # v1.4 第七腿(沪深300): 与 A500 同一条实现, 但 PE 自 2005 年 -> 分位不是 null
+        "hs300_erp": hs300_gate,
+        "hs300_erp_pct": erp3.get("erp_pct"),
         # 美股腿(§6): 分位为人工月度复核值; 未维护 -> None(§1 不执行)
         "ndx_erp": _gate_from_pct(vi["ndx_erp_pct"], "ndx"),
         "ndx_erp_pct": vi["ndx_erp_pct"],
@@ -525,6 +549,7 @@ def gates(calendar, asof=None):
                       (None if vi["wgrc_fuse"] is None else False)),
         "fomc_blackout": False,          # 逐日覆盖
         "_erp": erp,
+        "_hs300_erp": erp3,
         "_us_erp": us_erp(asof=asof),
         "_inputs": vi,
         "_input_asof": vi.get("as_of"),
@@ -589,7 +614,7 @@ def main():
           f"{'陈旧' if stale else '已最新'}")
     print(f"场外净值库: {os.path.basename(_OTC_LK)} · "
           f"{'陈旧/缺失' if _otc_stale() else '已最新'} · 信号模式 = {mode}")
-    print("六腿价格序列:")
+    print("七腿价格序列:")
     for leg in rule.LEG_ORDER:
         try:
             s = series_for_leg(leg, mode)

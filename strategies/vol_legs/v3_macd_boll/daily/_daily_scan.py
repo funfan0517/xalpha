@@ -2,8 +2,8 @@
 """波动资产 · V3 变种（MACD + 布林通道 · 自适应窗口）· 每日买卖标的。
 
 流程：
-1. **先刷新场外复权净值**（`data.refresh_otc()`，六腿 + 桥接代理），失败沿用本地并标注；
-2. 对**六腿**（`rule.LEG_ORDER` —— 与主策略同一池）逐腿跑 `macd_boll.signal()`：
+1. **先刷新场外复权净值**（`data.refresh_otc()`，七腿 + 桥接代理），失败沿用本地并标注；
+2. 对**七腿**（`rule.LEG_ORDER` —— 与主策略同一池）逐腿跑 `macd_boll.signal()`：
    - **买入**（0→1）：`DIF>0` 且 `DIF>DEA`（零轴上金叉状态）且 布林带宽放大 且 收盘上穿上轨；
    - **卖出**（1→0）：`DIF` 下穿 `DEA`（死叉）或 收盘自上轨下穿中轨；
    - **持有** / **空仓**：未触发，维持原仓位（0/1）；
@@ -129,14 +129,14 @@ def main():
 
     L = [
         f"# 波动资产 · V3（MACD+BOLL 自适应窗口）· 每日买卖（{maxdate or '无数据'}）",
-        f"> 池 = 主策略六腿（{' / '.join(macd_boll.rule.LEGS[k]['name'] for k in macd_boll.LEGS)}），"
+        f"> 池 = 主策略七腿（{' / '.join(macd_boll.rule.LEGS[k]['name'] for k in macd_boll.LEGS)}），"
         "口径 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）。",
         "> 规则：`DIF>0 且 DIF>DEA` + 布林**开口放大** + 收盘**上穿上轨** → 买入；"
         "`死叉` 或 收盘**跌破中轨** → 卖出；其余维持 0/1 仓位。",
         f"> 布林窗口按 ER({macd_boll.ER_N}) 滞回：≥{macd_boll.ER_HI:.2f} 用 {macd_boll.W_FAST}（趋势态）/ "
         f"≤{macd_boll.ER_LO:.2f} 用 {macd_boll.W_SLOW}（震荡态）/ 中间维持上档。",
         f"> 空仓按货基 {macd_boll.CASH_ANNUAL:.2%} 计息；成交按 **T+1 净值**（T 日盘后算，T+1 15:00 前提交）。",
-        f"> 六腿 {len(rows)} 只：最新 {len(rows) - len(stale)} 只 · 滞后/失败 {len(stale)} 只。"
+        f"> 七腿 {len(rows)} 只：最新 {len(rows) - len(stale)} 只 · 滞后/失败 {len(stale)} 只。"
         "**QDII 腿（纳指 / 标普 / 恒生科技）净值本身滞后 1~2 日，信号随之延后。**",
         "> 机械规则输出，**非投资建议**。",
         "",
@@ -165,9 +165,9 @@ def main():
             s = "、".join(f"{n} {c}" for c, n in flow[d]["卖出"]) or "—"
             L.append(f"| {d} | {b} | {s} |")
     else:
-        L.append(f"| — | 最近 {RECENT} 个交易日内六腿无信号 | — |")
+        L.append(f"| — | 最近 {RECENT} 个交易日内七腿无信号 | — |")
 
-    L += ["", "## 六腿明细", "",
+    L += ["", "## 七腿明细", "",
           "| 腿 | 角色 | 目标带 | 执行代码 | 净值日 | 复权净值 | DIF/DEA | ER（窗口） | 距触发位 | 当前仓位 | 动作 | 数据 |",
           "|---|---|---:|---|---|---|---|---|---|---|---|---|"]
     for x in sorted(rows, key=lambda z: macd_boll.LEGS.index(z["leg"])):

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V3 变种：MACD + 布林通道（自适应窗口）· 六腿回测（逐腿 + 组合层）。
+"""波动资产 · V3 变种：MACD + 布林通道（自适应窗口）· 七腿回测（逐腿 + 组合层）。
 
 池与口径完全跟随 `strategies/vol_legs`：
-- 六腿 = `rule.LEG_ORDER`（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
+- 七腿 = `rule.LEG_ORDER`（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
 - 价格 = `data.series_for_leg()` 场外**复权净值**（`rule.SIGNAL_MODE`，含分红再投 / 汇率 / 跟踪误差）；
 - 成交 = T 日盘后算信号、**T+1 净值成交**（`pos = sig.shift(1)`），与主策略 §2.4 同一纪律；
 - 空仓按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益。
@@ -81,7 +81,7 @@ def portfolio_rows():
         "V3 固定窗口 w20": mb.portfolio(frame, signals=sigs20),
         "V3 固定窗口 w30": mb.portfolio(frame, signals=sigs30),
         "静态带（按带权恒定持有）": mb.portfolio(frame, signals=None),
-        "六腿等权（恒定持有）": mb.portfolio(frame, signals=None, weight=eq),
+        "七腿等权（恒定持有）": mb.portfolio(frame, signals=None, weight=eq),
     }
     inv_of = {
         "V3 自适应（按带权）": sum(mb.W[k] * mb.exposure(sigs_a[k]) for k in frame.columns),
@@ -89,7 +89,7 @@ def portfolio_rows():
         "V3 固定窗口 w20": sum(mb.W[k] * mb.exposure(sigs20[k]) for k in frame.columns),
         "V3 固定窗口 w30": sum(mb.W[k] * mb.exposure(sigs30[k]) for k in frame.columns),
         "静态带（按带权恒定持有）": 1.0,
-        "六腿等权（恒定持有）": 1.0,
+        "七腿等权（恒定持有）": 1.0,
     }
     rows = []
     for name, nav in navs.items():
@@ -132,8 +132,8 @@ def main():
     adapt_fee = prows[1]
 
     L = [
-        "# 波动资产 · V3 变种：MACD + 布林通道（自适应窗口）· 六腿回测",
-        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 六腿（A500 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）",
+        "# 波动资产 · V3 变种：MACD + 布林通道（自适应窗口）· 七腿回测",
+        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）",
         "> 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）· T 日盘后算信号、**T+1 净值成交** · "
         f"空仓按货基 {mb.CASH_ANNUAL:.2%} 计息 · 未计申赎费（成本另算，见文末）",
         "> 来源：`strategies/tech_indicators/v3_macd_boll`，只换池与口径，规则本体一条没改",
@@ -174,7 +174,7 @@ def main():
         f"**{pd.Series([r['edge_pp'] for r in rows]).median():+.2f}pp**，"
         f"扣费后仍跑赢 **{n_fee}/{len(rows)}**。",
         "",
-        f"## 组合层（六腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
+        f"## 组合层（七腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
         "",
         "| 组合 | 累计 | 年化 | 波动 | 最大回撤 | 夏普 | 平均投入 |",
         "|---|---:|---:|---:|---:|---:|---:|",
@@ -195,7 +195,7 @@ def main():
     ]
 
     # 自适应 vs 固定窗口（组合层分段）
-    L += ["", "## 自适应窗口 vs 固定窗口（组合层分段 · 同一六腿池）", "",
+    L += ["", "## 自适应窗口 vs 固定窗口（组合层分段 · 同一七腿池）", "",
           "| 期间 | 自适应(20↔30) 年化 / 夏普 | 固定 w20 年化 / 夏普 | 固定 w30 年化 / 夏普 |",
           "|---|---|---|---|"]
     for name, d0, d1 in segments(frame):
@@ -243,7 +243,7 @@ def main():
         "- **信号是「突破追涨型」**：只在开口突破时进场，与主策略「下跌才有加仓路径」的阶梯逻辑方向相反，"
         "两条规则**不可叠加在同一份额度上**（叠加前先定谁的额度优先）。",
         "- **组合层只有共同窗口**：受恒生科技联接（`012805`，2021-08 成立）限制，"
-        "六腿同日有净值的时间远短于单腿样本。",
+        "七腿同日有净值的时间远短于单腿样本。",
         "- **未计**：大额限购、QDII 额度关闭时的顺延、赎回确认时滞、C 类销售服务费。",
         "",
         "> **模拟结果，非投资建议。**",

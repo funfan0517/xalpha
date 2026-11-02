@@ -1,16 +1,25 @@
 {
-  "strategy": "波动资产操作规则 v1.3",
-  "as_of": "2026-10-29",
+  "strategy": "波动资产操作规则 v1.4",
+  "as_of": "2026-10-30",
   "sleeve_pp": 40.0,
   "legs": [
     {
       "key": "a500",
       "name": "中证A500",
       "role": "核心腿",
-      "band": 5.0,
+      "band": 2.5,
       "signal": "563360",
       "exec": "023299",
       "exec_name": "汇添富中证A500指数增强C"
+    },
+    {
+      "key": "hs300",
+      "name": "沪深300",
+      "role": "核心腿",
+      "band": 2.5,
+      "signal": "510300",
+      "exec": "000051",
+      "exec_name": "华夏沪深300ETF联接A"
     },
     {
       "key": "ndx",

@@ -12,6 +12,8 @@
 - backtest/_v4_erp_band_bt.md / .jsonl
 - backtest/_v4_erp_band.png         全历史的「利差 → 沪深300」双面板（复刻参考图）
 - backtest/_v4_erp_band_3y.png      近三年同一张图
+- backtest/_v4_erp_band_signals.png     全历史同款底图 + 指数上的 ▲买入/▼卖出操作点
+- backtest/_v4_erp_band_signals_3y.png  近三年操作点图
 - backtest/_v4_erp_band_nav.png     净值对比
 
 模拟结果，非投资建议。
@@ -70,15 +72,23 @@ def bond_series(kind="synth", duration=None, start=None):
 
 
 def evaluate(df, bond, t0=None, rebal_freq=None, hold_neutral=None, eq=None,
-             exit_frac=None, fees=True, reverse=False):
+             band_hi=None, band_lo=None, trend_source=None, trend_window=None,
+             fees=True, reverse=False):
     """按给定参数跑一遍 -> dict(nav, m, trades, w, frame, fee)。
 
-    eq = (低估, 中性, 高估) 的沪深300 占比；reverse=True 把仓位对调（对照「方向是不是噪声」）。
+    eq = (买入, 中性, 卖出) 的沪深300 占比；reverse=True 把仓位对调（对照「方向是不是噪声」）。
+    band_hi/band_lo/trend_source/trend_window 若给定，则**在给定 df 上重算状态机**
+    （通道/MA/STD 不变，只改百分位触发与趋势过滤），用于这几个参数的敏感性。
     """
     d = align(df, t0)
     ec, en, ex = eq or (erp.CFG["eq_cheap"], erp.CFG["eq_neutral"], erp.CFG["eq_expan"])
     if reverse:
         ec, ex = ex, ec
+    if any(p is not None for p in (band_hi, band_lo, trend_source, trend_window)):
+        d = d.copy()
+        d["state"] = erp.signal_series(
+            d, band_hi=band_hi, band_lo=band_lo,
+            trend_source=trend_source, trend_window=trend_window)["state"]
     tgt = erp.target_weight(d["state"], eq_cheap=ec, eq_neutral=en, eq_expan=ex,
                             hold_neutral=hold_neutral)
     pe = d["tr"].astype("float64")                     # 股票腿 = 全收益指数（含分红再投）
@@ -123,7 +133,8 @@ def row(name, nav, note="", r=None):
 
 # ---------------------------------------------------------------- 敏感性
 def sens(df, bond, t0, key, values, base_kw=None):
-    """逐档重算 -> rows。key ∈ window/k/exit_frac/rebal_freq/hold_neutral/bond。
+    """逐档重算 -> rows。key ∈ window/k/band_hi/band_lo/trend_window/trend_source/
+    rebal_freq/hold_neutral/bond。
 
     ⚠ 窗口/轨宽变体会改变 `ready` 首日：长窗口的样本**起点更晚**（要预热更多天）。
     所以每一档都必须在**它自己的窗口**上重算静态 50/50 作为对照（`b50`），
@@ -145,9 +156,14 @@ def sens(df, bond, t0, key, values, base_kw=None):
             label = v[2]
         else:
             kw[key] = v
-            if key == "exit_frac":
-                kw["df"] = erp.erp_frame(exit_frac=v)
-                label = ("回穿均线" if not v else f"MA+{v:g}σ 才退出")
+            if key == "band_hi":
+                label = f"z≥{v:g} 买入"
+            elif key == "band_lo":
+                label = f"z≤{v:g} 卖出"
+            elif key == "trend_window":
+                label = f"趋势窗口 {v} 日"
+            elif key == "trend_source":
+                label = f"趋势源 {v}"
         d = kw.pop("df", df)
         bd = kw.pop("bond", bond)
         r = evaluate(d, bd, t0=t0, **kw)
@@ -185,9 +201,9 @@ def main():
     nofee = evaluate(df, bond, t0=t0, fees=False)
 
     rows = [
-        row("**策略（ERP 通道 80/50/20）**", nav_s, "默认参数：250 日 / ±2σ / 回穿均线 / 月末回锚", base),
+        row("**策略（ERP 百分位 0.9/0.1 + 趋势）**", nav_s, "默认参数：250 日 / ±2σ / z≥0.9 买 / z≤0.1 卖 / 月末回锚", base),
         row("策略（不计费）", nofee["nav"], "同规则，费率置 0 → 单看摩擦成本", nofee),
-        row("**反向信号（低估 20 / 高估 80）**", rev["nav"], "把仓位对调：检验「方向是不是噪声」", rev),
+        row("**反向信号（买入 20 / 卖出 80）**", rev["nav"], "把仓位对调：检验「方向是不是噪声」", rev),
         row("静态 50/50（月末回锚）", st50["nav"], "不择时的基准", st50),
         row("静态 80/20（月末回锚）", st80["nav"], "一直满仓股票端", st80),
         row("买入持有沪深300（全收益）", bh_eq, "纯股票，含分红再投"),
@@ -225,7 +241,10 @@ def main():
 
     sens_win = sens(df, bond, t0, "window", [120, 250, 500, 750, 1250])
     sens_k = sens(df, bond, t0, "k", [1.5, 2.0, 2.5, 3.0])
-    sens_exit = sens(df, bond, t0, "exit_frac", [0.0, 0.5])
+    sens_bhi = sens(df, bond, t0, "band_hi", [0.80, 0.90, 0.95, 1.00])
+    sens_blo = sens(df, bond, t0, "band_lo", [0.05, 0.10, 0.20, 0.30])
+    sens_tw = sens(df, bond, t0, "trend_window", [10, 20, 60, 120])
+    sens_ts = sens(df, bond, t0, "trend_source", ["erp", "price"])
     sens_rebal = sens(df, bond, t0, "rebal_freq", ["M", "Q", None])
     sens_nh = sens(df, bond, t0, "hold_neutral", [False, True])
     sens_bond = sens(df, bond, t0, "bond",
@@ -243,6 +262,16 @@ def main():
     p_3y = os.path.join(OUTDIR, "_v4_erp_band_3y.png")
     erp.plot_overlay(df, p_3y, title="近三年：股债利差 vs 沪深300", start=cut,
                      subtitle=f"{cut:%Y-%m-%d} 至 {df.index[-1]:%Y-%m-%d}（日线 · 局部放大）")
+    # 操作点图：同款底图 + 指数上的 ▲买入 / ▼卖出（T+1 收盘成交）
+    p_sig = os.path.join(OUTDIR, "_v4_erp_band_signals.png")
+    erp.plot_overlay_signals(df, p_sig, title="股债利差 vs 沪深300 · 操作点",
+                             subtitle=f"{df.index[0]:%Y-%m-%d} 至 {df.index[-1]:%Y-%m-%d}（日线）"
+                                      f" · 通道 {erp.CFG['window']} 日 / ±{erp.CFG['k']:g}σ"
+                                      f" · 买入 z≥{erp.CFG['band_hi']:.2f} 且上行 / "
+                                      f"卖出 z≤{erp.CFG['band_lo']:.2f} 且下行")
+    p_sig3y = os.path.join(OUTDIR, "_v4_erp_band_signals_3y.png")
+    erp.plot_overlay_signals(df, p_sig3y, title="近三年：股债利差 vs 沪深300 · 操作点", start=cut,
+                             subtitle=f"{cut:%Y-%m-%d} 至 {df.index[-1]:%Y-%m-%d}（日线 · 局部放大）")
 
     # ---------------------------------------------------------------- 落地
     jl = os.path.join(OUTDIR, "_v4_erp_band_bt.jsonl")
@@ -252,7 +281,9 @@ def main():
                                 years=round(yrs, 2), days=len(d),
                                 state_share={str(k): round(v / tot, 4) for k, v in vc.items()},
                                 window=erp.CFG["window"], k=erp.CFG["k"],
-                                exit_frac=erp.CFG["exit_frac"],
+                                band_hi=erp.CFG["band_hi"], band_lo=erp.CFG["band_lo"],
+                                trend_source=erp.CFG["trend_source"],
+                                trend_window=erp.CFG["trend_window"],
                                 params={k: v for k, v in erp.CFG.items()
                                         if not isinstance(v, tuple)},
                                 source=dict(erp.SOURCE)), ensure_ascii=False) + "\n")
@@ -260,18 +291,18 @@ def main():
             f.write(json.dumps({k: (round(v, 6) if isinstance(v, float) else v)
                                 for k, v in r.items()}, ensure_ascii=False) + "\n")
         for e in eps:
-            f.write(json.dumps({**e, "kind": ("低估" if e["kind"] == 1 else "高估")},
+            f.write(json.dumps({**e, "kind": ("买入持有" if e["kind"] == 1 else "卖出空仓")},
                                ensure_ascii=False) + "\n")
 
-    exit_txt = ("回穿均线（MA）" if not erp.CFG["exit_frac"]
-                else f"回到 MA+{erp.CFG['exit_frac']:g}σ")
+    trig_txt = (f"归一化位置 z = (ERP−下轨)/(上轨−下轨)；买入 = z≥{erp.CFG['band_hi']:.2f} 且趋势上行，"
+                f"卖出 = z≤{erp.CFG['band_lo']:.2f} 且趋势下行")
 
     L = [
         "# 波动资产 · V4 变种：股债利差（ERP）通道 —— 沪深300 × 10Y 国债",
         "",
         f"> 样本 **{d.index[0]:%Y-%m-%d} ~ {d.index[-1]:%Y-%m-%d}（{yrs:.1f} 年）**"
         f" · 数据：{erp.SOURCE.get('hs300')} / {erp.SOURCE.get('bond')}",
-        "> 信号：`ERP = 100/PE − 10Y`，滚动 250 日 MA ± 2σ 通道；"
+        "> 信号：`ERP = 100/PE − 10Y`，滚动 250 日 MA ± 2σ 通道，再把**下轨→上轨归一化到 0→1**；"
         "**T 日收盘算信号 → T+1 收盘成交**，买卖两侧扣申赎费，月末偏离 >5pp 才回锚。",
         "> 机械规则输出，**非投资建议**。",
         "",
@@ -280,10 +311,15 @@ def main():
         "| 项 | 取值 | 说明 |",
         "|---|---|---|",
         f"| 通道窗口 | {erp.CFG['window']} 交易日 | 视频没披露，先用 ≈1 年；敏感性见 §5 |",
-        f"| 轨宽 | ±{erp.CFG['k']:g}σ（总体标准差） | 低估：ERP ≥ 上轨；高估：ERP ≤ 下轨（对称） |",
-        f"| 退出 | {exit_txt} | 滞回带 = 进 2σ / 出 0σ，防止轨道附近反复翻信号 |",
-        f"| 仓位 | 低估 **{erp.CFG['eq_cheap']:.0%}** / 中性 **{erp.CFG['eq_neutral']:.0%}** / "
-        f"高估 **{erp.CFG['eq_expan']:.0%}** | 沪深300 占比（of 股债两部分） |",
+        f"| 轨宽 | ±{erp.CFG['k']:g}σ（总体标准差） | 定义通道上下边界，供 z 归一化 |",
+        f"| 买入触发 | z ≥ **{erp.CFG['band_hi']:.2f}** 且趋势上行 | "
+        f"z 把「下轨→上轨」看成 0→1，z≥0.9 = 利差落在通道上 90% 区间（极便宜） |",
+        f"| 卖出触发 | z ≤ **{erp.CFG['band_lo']:.2f}** 且趋势下行 | "
+        f"z≤0.1 = 通道下 10% 区间（极贵） |",
+        f"| 趋势过滤 | 源 **{erp.CFG['trend_source']}** / 窗口 **{erp.CFG['trend_window']}** 日 | "
+        f"序列 > 其均线 = 上行；避免「够低但还在跌 / 够高但还在涨」时误动手 |",
+        f"| 仓位 | 买入 **{erp.CFG['eq_cheap']:.0%}** / 中性 **{erp.CFG['eq_neutral']:.0%}** / "
+        f"卖出 **{erp.CFG['eq_expan']:.0%}** | 沪深300 占比（of 股债两部分） |",
         f"| 再平衡 | 信号切换日必动；{erp.CFG['rebal_freq']} 末偏离 >{erp.CFG['rebal_tol']:.0%} 才回锚 |"
         " 「避免日内频繁交易」 |",
         f"| 成本 | 申购 {erp.CFG['fee_eq'][0]:.2%} / 赎回 {erp.CFG['fee_eq'][1]:.2%}（两条腿各自） | "
@@ -292,9 +328,10 @@ def main():
         "与信号同一个 instrument；真实债基对照见 §5 |",
         "",
         f"> 状态占比（{tot} 个交易日）：" + " / ".join(
-            f"{n} **{vc.get(k, 0) / tot:.1%}**" for k, n in ((1, "低估"), (0, "中性"), (-1, "高估")))
-        + "。换句话说，多数时间仓位并不在 50% 这个「中性」档上 —— 这条规则的"
-        "**换手不高，但仓位会长期停在极端档**。",
+            f"{n} **{vc.get(k, 0) / tot:.1%}**" for k, n in
+            ((1, "买入持有"), (0, "中性（未触发）"), (-1, "卖出空仓")))
+        + "。一旦触发即长期停在买入/卖出态，**换手很低、仓位长期停在极端档**"
+        "（与「触上轨=低估、触下轨=高估」的硬门槛相比，多了一道趋势确认）。",
         "",
         "## 2. 主回测（同一样本、同一债券腿、含费）",
         "",
@@ -319,13 +356,13 @@ def main():
         f"{erp.fmt_pct(st50['m']['mdd'])}，夏普 {m_s['sharpe']:.2f} vs "
         f"{st50['m']['sharpe']:.2f}）。",
         f"> **策略 vs 买入持有沪深300：{d_eq:+.2f}pp/年**。",
-        f"> **方向检验**：反向信号（低估 20 / 高估 80）{erp.perf(rev['nav'])['ann']:+.2%}，"
+        f"> **方向检验**：反向信号（买入态 20% / 卖出态 80%）{erp.perf(rev['nav'])['ann']:+.2%}，"
         f"与正方向差 **{d_rev:+.2f}pp/年** —— "
         + ("两者差距明显，说明「利差高 → 多配股票」这个方向不是噪声。"
            if abs(d_rev) > 1.0 else
            "差距不到 1pp，说明在本样本里**这个方向基本是噪声**，请只把它当情绪刻度。"),
         "",
-        "## 3. 「低估 ≠ 立刻上涨」：各状态下的未来收益（沪深300 全收益）",
+        "## 3. 「买入持有 ≠ 立刻上涨」：各状态下的未来收益（沪深300 全收益）",
         "",
         "| 未来 | 状态 | 样本数 | 平均 | 中位 | 上涨概率 | 10% 分位 | 90% 分位 |",
         "|---|---|---:|---:|---:|---:|---:|---:|",
@@ -335,17 +372,19 @@ def main():
                  f"{erp.fmt_pct(r['mean'])} | {erp.fmt_pct(r['median'])} | {r['win']:.0%} | "
                  f"{erp.fmt_pct(r['p10'])} | {erp.fmt_pct(r['p90'])} |")
 
-    ch = fwd[(fwd["state"] == "低估(+1)") & (fwd["horizon"] == 60)]
-    ex = fwd[(fwd["state"] == "高估(-1)") & (fwd["horizon"] == 60)]
+    ch = fwd[(fwd["state"] == "买入持有(+1)") & (fwd["horizon"] == 60)]
+    ex = fwd[(fwd["state"] == "卖出空仓(-1)") & (fwd["horizon"] == 60)]
     ch60 = float(ch["mean"].iloc[0]) if len(ch) else 0.0
     ex60 = float(ex["mean"].iloc[0]) if len(ex) else 0.0
+    ch_win = f"{float(ch['win'].iloc[0]):.0%}" if len(ch) else "—"
+    ex_win = f"{float(ex['win'].iloc[0]):.0%}" if len(ex) else "—"
     L += [
         "",
-        f"> 60 日口径：低估态平均 **{erp.fmt_pct(ch60)}**（上涨概率 "
-        f"{float(ch['win'].iloc[0]):.0%}）vs 高估态 **{erp.fmt_pct(ex60)}**"
-        f"（{float(ex['win'].iloc[0]):.0%}）—— 差 **{(ch60 - ex60) * 100:+.2f}pp**。"
+        f"> 60 日口径：买入持有态平均 **{erp.fmt_pct(ch60)}**（上涨概率 {ch_win}）"
+        f" vs 卖出空仓态 **{erp.fmt_pct(ex60)}**（{ex_win}）—— 差 **{(ch60 - ex60) * 100:+.2f}pp**。"
         "这个差值就是「利差择时」的全部原料，它并不大，且方差很宽（看 10%/90% 分位）。",
-        "> 换句话说：低估只说明**赔率**变好，不保证**胜率**；历史上低估态持续一年以上是常态（见 §4 区间表）。",
+        "> 换句话说：买入持有只说明**赔率**变好，不保证**胜率**；历史上买入持有态持续一年以上是常态"
+        "（见 §4 区间表）。",
         "",
         "## 4. 历史信号区间（最近的 12 段）",
         "",
@@ -353,7 +392,7 @@ def main():
         "|---|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for e in eps[:12]:
-        L.append(f"| {'低估' if e['kind'] == 1 else '高估'} | {e['start']} | {e['end']} | "
+        L.append(f"| {'买入持有' if e['kind'] == 1 else '卖出空仓'} | {e['start']} | {e['end']} | "
                  f"{e['days']} | {e['erp_mean']:.2f}% | "
                  f"{erp.fmt_x(e['erp_max'] if e['kind'] == 1 else e['erp_min'])}% | "
                  f"{e['px_start']:.0f} | {e['px_end']:.0f} | "
@@ -362,7 +401,7 @@ def main():
     L += [
         "",
         f"> 共 {len(eps)} 段信号区间；当前（{d.index[-1]:%Y-%m-%d}）处于"
-        f"**{'低估' if int(d['state'].iloc[-1]) == 1 else ('高估' if int(d['state'].iloc[-1]) == -1 else '中性')}**"
+        f"**{'买入持有' if int(d['state'].iloc[-1]) == 1 else ('卖出空仓' if int(d['state'].iloc[-1]) == -1 else '中性（未触发）')}**"
         f" 第 {int((d['state'] == d['state'].iloc[-1])[::-1].cumprod().sum())} 个交易日。",
         "",
         "## 5. 参数敏感性",
@@ -404,15 +443,52 @@ def main():
         + ("**交易更多、超额没变多** —— 这就是「过路费换噪声」。"
            if k1["edge"] <= k2["edge"] else "这一档里收窄轨道反而更好，但差异在噪声量级内。"),
         "",
-        "### 5.3 退出规则 / 再平衡频率 / 中性态处理",
+        "### 5.3 百分位触发阈值（买 z 高 / 卖 z 低）",
+        "",
+        "| 买阈值 z≥ | 起点 | 年化 | 同窗口 50/50 | 超额 | 最大回撤 | 夏普 | 平均股票仓位 | 交易次数 |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for s in sens_bhi:
+        L.append(f"| {s['label']} | {s['start']:%Y-%m-%d} | {erp.fmt_pct(s['ann'])} | "
+                 f"{erp.fmt_pct(s['b50'])} | **{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | "
+                 f"{s['sharpe']:.2f} | {s['w_avg']:.0%} | {s['trades']} |")
+    L += [
+        f"> 买阈值从 z≥1.00（= 触上轨才买）放宽到 z≥0.80，交易次数与股票仓位略升、超额变化在噪声内。"
+        "**别按这张表去挑阈值**，那是最标准的过拟合。",
+        "",
+        "| 卖阈值 z≤ | 起点 | 年化 | 同窗口 50/50 | 超额 | 最大回撤 | 夏普 | 平均股票仓位 | 交易次数 |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for s in sens_blo:
+        L.append(f"| {s['label']} | {s['start']:%Y-%m-%d} | {erp.fmt_pct(s['ann'])} | "
+                 f"{erp.fmt_pct(s['b50'])} | **{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | "
+                 f"{s['sharpe']:.2f} | {s['w_avg']:.0%} | {s['trades']} |")
+    L += [
+        f"> 卖阈值从 z≤0.05（= 触下轨才卖）放宽到 z≤0.30，卖出更早、股票仓位更低、回撤略小。",
+        "",
+        "### 5.4 趋势过滤（窗口 / 判据源）",
+        "",
+        "| 趋势窗口 | 起点 | 年化 | 同窗口 50/50 | 超额 | 最大回撤 | 夏普 | 平均股票仓位 | 交易次数 |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for s in sens_tw:
+        L.append(f"| {s['label']} | {s['start']:%Y-%m-%d} | {erp.fmt_pct(s['ann'])} | "
+                 f"{erp.fmt_pct(s['b50'])} | **{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | "
+                 f"{s['sharpe']:.2f} | {s['w_avg']:.0%} | {s['trades']} |")
+    for s in sens_ts:
+        L.append(f"| {s['label']} | {s['start']:%Y-%m-%d} | {erp.fmt_pct(s['ann'])} | "
+                 f"{erp.fmt_pct(s['b50'])} | **{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | "
+                 f"{s['sharpe']:.2f} | {s['w_avg']:.0%} | {s['trades']} |")
+    L += [
+        "> 趋势判据用「利差自身(erp)」还是「沪深300 收盘(price)」会显著改变买卖时点："
+        "erp 趋势更贴近本规则的「估值动量」意图，price 趋势是更直接的「价格动量」。"
+        "两者超额差异属于样本运气，**默认用 erp**，但你若相信价格动量更可靠，改 `trend_source` 即可。",
+        "",
+        "### 5.5 再平衡频率 / 中性态处理",
         "",
         "| 档 | 年化 | 同窗口 50/50 | 超额 | 最大回撤 | 夏普 | 平均股票仓位 | 交易次数 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for s in sens_exit:
-        L.append(f"| 退出＝{s['label']} | {erp.fmt_pct(s['ann'])} | {erp.fmt_pct(s['b50'])} | "
-                 f"**{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | {s['sharpe']:.2f} | "
-                 f"{s['w_avg']:.0%} | {s['trades']} |")
     for s, nm in zip(sens_rebal, ("月末回锚", "季末回锚", "只在信号切换时动")):
         L.append(f"| 再平衡＝{nm} | {erp.fmt_pct(s['ann'])} | {erp.fmt_pct(s['b50'])} | "
                  f"**{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | {s['sharpe']:.2f} | "
@@ -422,11 +498,9 @@ def main():
                  f"**{s['edge']:+.2f}pp** | {erp.fmt_pct(s['mdd'])} | {s['sharpe']:.2f} | "
                  f"{s['w_avg']:.0%} | {s['trades']} |")
     L += [
-        "> 「退出＝回穿均线」与「回到 MA+0.5σ 才退出」的差别就是**滞回带宽度**："
-        "退得更早 → 仓位更早回到 50% → 交易更多、极端仓位更少。"
-        "这两种口径的差异通常小于窗口/轨宽的差异，**不值得为它调参**。",
+        "> 再平衡频率与中性态处理对超额的影响远小于窗口/阈值/趋势，**不值得为它调参**。",
         "",
-        "### 5.4 债券腿口径（这是最容易被忽略、但影响最大的一档）",
+        "### 5.6 债券腿口径（这是最容易被忽略、但影响最大的一档）",
         "",
         "| 债券腿 | 年化 | 同窗口 50/50 | 超额 | 最大回撤 | 夏普 | 平均股票仓位 |",
         "|---|---:|---:|---:|---:|---:|---:|",
@@ -489,14 +563,14 @@ def main():
         f"{d_ann:+.2f}pp、相对买入持有沪深300 {d_eq:+.2f}pp（回撤 "
         f"{erp.fmt_pct(m_s['mdd'])} vs {erp.fmt_pct(erp.perf(bh_eq)['mdd'])}）。"
         "它买到的是**仓位纪律**——利差高就敢多拿股票、利差低就主动降下来，而不是预测涨跌。",
-        f"2. **低估 ≠ 立刻上涨**：低估态下 60 日平均 {erp.fmt_pct(ch60)}、上涨概率 "
+        f"2. **买入持有 ≠ 立刻上涨**：买入持有态下 60 日平均 {erp.fmt_pct(ch60)}、上涨概率 "
         f"{float(ch['win'].iloc[0]):.0%}，10% 分位仍有 {erp.fmt_pct(float(ch['p10'].iloc[0]))} —— "
-        "历史上低估态动辄持续一年以上（§4 有区间长度），中途还会继续下跌。",
+        "历史上买入持有态动辄持续一年以上（§4 有区间长度），中途还会继续下跌。",
         "3. **PE 口径会平移整条曲线**：本实现用中证官网 `peg`（滚动 PE，2011-06 起）。"
         "换静态 PE 或换 Wind 数据，ERP 的水平会变，但**通道是相对自己的 MA±2σ**，"
         "平移在 MA/STD 里相互抵消 → 信号与时点基本不变。真正会变的是「ERP 的绝对读数」。",
         "4. **10Y 国债 vs 你的债券腿是两回事**：信号用 10Y 收益率，回测债券腿用 D=8 的合成国债指数。"
-        "若你实际持有短债/货币，回测里的债券腿波动被**放大**了（§5.4）。",
+        "若你实际持有短债/货币，回测里的债券腿波动被**放大**了（§5.6）。",
         f"5. **样本只有 {yrs:.1f} 年，且起点 2011-06（PE 最早可得的日期）** —— "
         "参考图从 2005 年起（Wind 数据），含 2008 年那种「利差飙到天上」的极端低估区，"
         "本样本**没有**覆盖到。所以图中的历史结构比本报告更极端，别把本报告的结论外推到 2008 型危机。",
@@ -519,6 +593,7 @@ def main():
         print(f"  {r['name'][:34]:34s} 年化 {erp.fmt_pct(r['ann']):>9s} · "
               f"回撤 {erp.fmt_pct(r['mdd']):>9s} · 夏普 {r['sharpe']:5.2f} · 仓位 {w_txt}")
     print("图:", p_full, "|", p_3y)
+    print("操作点图:", p_sig, "|", p_sig3y)
 
 
 if __name__ == "__main__":

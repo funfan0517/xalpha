@@ -1,0 +1,37 @@
+{"summary": {"cagr": 0.059668, "mdd": -0.471079, "sharpe": 0.245302, "sortino": 0.299328, "calmar": 0.126662, "n_trades": 19, "avg_hold_days": 286.333333, "exposure": 0.80913, "win_rate": 0.777778, "avg_win": 0.196656, "avg_loss": -0.124671, "payoff": 1.577396, "bh_cagr": 0.057245, "bh_mdd": -0.460589, "excess_cagr": 0.002423, "calmar_delta": 0.002376, "exit_trend_n": 0, "exit_dev_n": 7, "exit_vol_n": 3, "max_gain_after_exit_p50": 0.052526, "max_gain_after_exit_p90": 0.196442, "start": "2012-05-28", "end": "2026-10-29", "verdict_pass": true}}
+{"signal_date": "2013-06-24", "exec_date": "2013-06-25", "side": "SELL", "price": 2392.49, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.127819, "vol20": 0.287708, "ma120": 2784.51}
+{"signal_date": "2013-09-09", "exec_date": "2013-09-10", "side": "BUY", "price": 2772.36, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.076248, "vol20": 0.17818, "ma120": 2652.87}
+{"signal_date": "2015-01-19", "exec_date": "2015-01-20", "side": "SELL", "price": 3911.39, "state_before": 1, "state_after": 0, "reason": "vol20", "dev60": 0.117086, "vol20": 0.41275, "ma120": 3104.22}
+{"signal_date": "2015-02-16", "exec_date": "2015-02-17", "side": "BUY", "price": 4056.62, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.054056, "vol20": 0.258137, "ma120": 3319.72}
+{"signal_date": "2015-06-01", "exec_date": "2015-06-02", "side": "SELL", "price": 5959.84, "state_before": 1, "state_after": 0, "reason": "vol20", "dev60": 0.159709, "vol20": 0.430814, "ma120": 4499.43}
+{"signal_date": "2015-12-17", "exec_date": "2015-12-18", "side": "BUY", "price": 4405.58, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.050503, "vol20": 0.293129, "ma120": 4319.6}
+{"signal_date": "2016-01-07", "exec_date": "2016-01-08", "side": "SELL", "price": 3930.48, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.101975, "vol20": 0.420029, "ma120": 4257.08}
+{"signal_date": "2016-06-27", "exec_date": "2016-06-28", "side": "BUY", "price": 3700.45, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": -0.002676, "vol20": 0.19382, "ma120": 3678.93}
+{"signal_date": "2018-06-27", "exec_date": "2018-06-28", "side": "SELL", "price": 4215.85, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.08413, "vol20": 0.20145, "ma120": 4836.03}
+{"signal_date": "2019-02-01", "exec_date": "2019-02-11", "side": "BUY", "price": 4124.96, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.032807, "vol20": 0.139782, "ma120": 3998.17}
+{"signal_date": "2020-03-17", "exec_date": "2020-03-18", "side": "SELL", "price": 4640.3, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.081616, "vol20": 0.322444, "ma120": 5065.08}
+{"signal_date": "2020-05-06", "exec_date": "2020-05-07", "side": "BUY", "price": 5010.15, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.014408, "vol20": 0.145722, "ma120": 5017.59}
+{"signal_date": "2022-03-07", "exec_date": "2022-03-08", "side": "SELL", "price": 5656.47, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.087803, "vol20": 0.18103, "ma120": 6405.84}
+{"signal_date": "2022-06-23", "exec_date": "2022-06-24", "side": "BUY", "price": 5876.26, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.064813, "vol20": 0.153476, "ma120": 5789.28}
+{"signal_date": "2022-10-10", "exec_date": "2022-10-11", "side": "SELL", "price": 5044.76, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.090828, "vol20": 0.161617, "ma120": 5531.26}
+{"signal_date": "2023-01-05", "exec_date": "2023-01-06", "side": "BUY", "price": 5400.17, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.042819, "vol20": 0.134511, "ma120": 5338.27}
+{"signal_date": "2024-10-08", "exec_date": "2024-10-09", "side": "SELL", "price": 5652.7, "state_before": 1, "state_after": 0, "reason": "vol20", "dev60": 0.264067, "vol20": 0.418204, "ma120": 4894.51}
+{"signal_date": "2024-11-06", "exec_date": "2024-11-07", "side": "BUY", "price": 5934.58, "state_before": 0, "state_after": 1, "reason": "entry", "dev60": 0.136264, "vol20": 0.249946, "ma120": 5009.23}
+{"signal_date": "2026-10-15", "exec_date": "2026-10-16", "side": "SELL", "price": 6270.45, "state_before": 1, "state_after": 0, "reason": "dev60", "dev60": -0.082171, "vol20": 0.133619, "ma120": 7012.13}
+{"semantics": "§5 伪代码：只 dev60/vol20 退出（**默认**）", "cagr": 0.059668, "mdd": -0.471079, "calmar": 0.126662, "sortino": 0.299328, "exp": 0.80913, "n": 19, "hold": 286.333333, "win": 0.777778, "et": 0, "ed": 7, "ev": 3}
+{"semantics": "R-B03 字面：dev60/vol20 + 趋势破位", "cagr": 0.072946, "mdd": -0.344598, "calmar": 0.211686, "sortino": 0.38194, "exp": 0.507561, "n": 93, "hold": 38.26087, "win": 0.326087, "et": 44, "ed": 0, "ev": 3}
+{"semantics": "纯 MA120 趋势（关掉急跌退出）", "cagr": 0.058089, "mdd": -0.3236, "calmar": 0.179508, "sortino": 0.256267, "exp": 0.525535, "n": 89, "hold": 41.431818, "win": 0.318182, "et": 45, "ed": 0, "ev": 0}
+{"semantics": "纯 MA250 趋势", "cagr": 0.041199, "mdd": -0.460632, "calmar": 0.089439, "sortino": 0.129666, "exp": 0.5398, "n": 68, "hold": 55.647059, "win": 0.323529, "et": 34, "ed": 0, "ev": 0}
+{"semantics": "纯 dual 趋势", "cagr": 0.046735, "mdd": -0.331089, "calmar": 0.141156, "sortino": 0.180439, "exp": 0.455635, "n": 88, "hold": 36.295455, "win": 0.295455, "et": 44, "ed": 0, "ev": 0}
+{"semantics": "只 dev60 退出（vol 关掉）", "cagr": 0.050513, "mdd": -0.471079, "calmar": 0.107229, "sortino": 0.223782, "exp": 0.825963, "n": 15, "hold": 376.571429, "win": 0.714286, "et": 0, "ed": 8, "ev": 0}
+{"semantics": "只 vol20 退出（dev 关掉）", "cagr": 0.079666, "mdd": -0.41561, "calmar": 0.191684, "sortino": 0.439882, "exp": 0.917546, "n": 8, "hold": 697.666667, "win": 0.666667, "et": 0, "ed": 0, "ev": 4}
+{"check": "V-B01 预热期（前 250 日）必须全 FLAT 且不交易", "pass": true, "detail": "预热期持仓日数 = 0"}
+{"check": "V-B02 决策数 == 成交数（T 决策 → T+1 必成交）", "pass": true, "detail": "决策 46 笔 · 成交 46 笔"}
+{"check": "V-B03 恒多测试：净值与买入持有逐日差 <1e-9", "pass": true, "detail": "max|Δ| = 0.00e+00 · 曝光 100%"}
+{"check": "V-B04 恒空测试：CAGR ≈ rf（±0.3pp）", "pass": true, "detail": "曝光 0% · CAGR +1.80% vs rf 1.80%"}
+{"check": "V-B05 滞回关系违规必须抛错（RECOVER_DEV=−10% < EXIT_DEV）", "pass": true, "detail": "已拦截"}
+{"check": "V-B06 持仓日收益 == 标的日收益（剔除翻转日）且空仓期净值非减", "pass": true, "detail": "max|Δ| = 2.22e-16 · 空仓 659 日单调 True"}
+{"check": "V-B07 信号日 → 成交日 恒为 1 个交易日（无未来函数）", "pass": true, "detail": "19 笔全部满足"}
+{"check": "V-B08 成交价 == 成交日收盘（滑点与佣金在净值端扣）", "pass": true, "detail": "max|Δ| = 0.00e+00"}
+{"check": "V-B09 指标未成形（ready=False）日不得有决策", "pass": true, "detail": "0 处"}
+{"check": "V-B10 邻域稳定：年化极差 ≤1.5pp 且回撤极差 ≤5pp", "pass": false, "detail": "7 个邻域点 · 年化极差 1.16pp · 回撤极差 10.38pp"}

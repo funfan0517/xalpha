@@ -201,7 +201,8 @@ def load_a500(refresh=False, days=erp.CACHE_DAYS):
 
 
 # ---------------------------------------------------------------- 2. 框架
-def erp_frame(window=None, k=None, exit_frac=None, ffill_limit=None, refresh=False,
+def erp_frame(window=None, k=None, ffill_limit=None, refresh=False,
+              band_hi=None, band_lo=None, trend_source=None, trend_window=None,
               start=None, div_yield=None):
     """完整框架，列与 `../erp.py::erp_frame` 一致（close/pe/y10/tr/erp/ma/std/upper/
     lower/ready/state/event/target），只是标的换成中证A500。
@@ -227,8 +228,10 @@ def erp_frame(window=None, k=None, exit_frac=None, ffill_limit=None, refresh=Fal
     df["tr"] = df["close"].iloc[0] * (1.0 + (ret.fillna(0.0) + dy / 252.0)).cumprod()
     df["dy"] = dy
 
-    df = erp.add_band(df, window=window, k=k)
-    sig = erp.signal_series(df, exit_frac=exit_frac)
+    df = erp.add_band(df, window=window, k=k, trend_source=trend_source,
+                      trend_window=trend_window)
+    sig = erp.signal_series(df, band_hi=band_hi, band_lo=band_lo,
+                            trend_source=trend_source, trend_window=trend_window)
     df["state"] = sig["state"]
     df["event"] = sig["event"]
     df["target"] = erp.target_weight(df["state"]).to_numpy()
@@ -244,14 +247,18 @@ def latest(df=None):
     """当前读数（自检 / 控制台摘要用）。"""
     df = erp_frame() if df is None else df
     last = df.iloc[-1]
-    ef = float(erp.CFG["exit_frac"])
     st = int(last["state"])
-    exit_line = (float(last["ma"] + ef * last["std"]) if st == 1 else
-                 (float(last["ma"] - ef * last["std"]) if st == -1 else float(last["ma"])))
+    z = float(last["z"])
+    if bool(last["trend_up"]):
+        trend = "上行"
+    elif bool(last["trend_dn"]):
+        trend = "下行"
+    else:
+        trend = "横盘"
     return dict(date=df.index[-1], erp=float(last["erp"]), pe=float(last["pe"]),
                 y10=float(last["y10"]), ma=float(last["ma"]), std=float(last["std"]),
                 upper=float(last["upper"]), lower=float(last["lower"]), state=st,
-                exit_line=exit_line, target=float(last["target"]), df=df)
+                z=z, trend=trend, target=float(last["target"]), df=df)
 
 
 # ---------------------------------------------------------------- 3. 自检
@@ -270,11 +277,12 @@ def _self_check():
     vc = ready["state"].value_counts().to_dict()
     tot = len(ready)
     print("状态占比: " + " / ".join(
-        f"{n} {vc.get(k, 0) / tot:.1%}" for k, n in ((1, "低估"), (0, "中性"), (-1, "高估"))))
+        f"{n} {vc.get(k, 0) / tot:.1%}" for k, n in
+        ((1, "买入持有"), (0, "中性（未触发）"), (-1, "卖出空仓"))))
     print(f"最新 {r['date']:%Y-%m-%d}: PE {r['pe']:.2f} · 10Y {r['y10']:.3f}% · "
           f"ERP {r['erp']:.2f}% · MA {r['ma']:.2f} · 上轨 {r['upper']:.2f} · "
           f"下轨 {r['lower']:.2f}")
-    print(f"状态 {r['state']:+d} · 目标{IDX_NAME} {r['target']:.0%} · 退出线 {r['exit_line']:.2f}%")
+    print(f"状态 {r['state']:+d} · 目标{IDX_NAME} {r['target']:.0%} · z={r['z']:.2f} · 趋势 {r['trend']}")
     if _WARN:
         print("告警:", len(_WARN))
         for w in _WARN[:5]:

@@ -20,23 +20,28 @@
 > **平移**一个常数，而通道是「ERP 相对自己的滚动均值 ±2σ」，平移在 MA/STD 里**相互抵消** ——
 > 所以口径差异对**信号**几乎没有影响，但对**报告的 ERP 绝对读数**有影响（README §5 有量化）。
 
-## 3. 通道与信号（`signal_series`）
+## 3. 通道与信号（`signal_series`）—— 百分位 + 趋势过滤
     MA  = ERP 的 window 日滚动均值（默认 250 ≈ 1 年）
     STD = 同上滚动（总体标准差 ddof=0）
     上轨 = MA + k×STD      下轨 = MA − k×STD      （默认 k = 2）
-- **低估**（state = +1）：ERP ≥ 上轨 —— 视频里的「上轨 = 极端低估」。取**水平判定**而非
-  金叉判定：只要还在上轨上方就一直是低估态（视频说「历史低估可能持续数月」）。
-- **高估**（state = −1）：ERP ≤ 下轨 —— 视频没重点讲，按**对称**实现。
-- **退出**：ERP 回到 `MA + exit_frac×STD`（默认 `exit_frac = 0`，即回穿均线）→ state = 0。
-  高估侧对称（`MA − exit_frac×STD`）。
-- 宽滞回（进 2σ / 出 0σ 或 0.5σ）是有意的：否则 ERP 在上轨附近抖动会天天翻信号。
+- **归一化位置** `z = (ERP − 下轨) / (上轨 − 下轨)`：z = 0 在下轨（最贵）、z = 1 在上轨（最便宜）。
+  把「下轨→上轨」直接看成 0→1 一条刻度尺。
+- **买入持有**（state = +1）：`z ≥ band_hi`（默认 0.90，利差落在通道上 90% 区间）**且趋势上行**。
+  触发后**一直持有**，直到卖出条件出现（不再天天翻信号）。
+- **卖出空仓**（state = −1）：`z ≤ band_lo`（默认 0.10，通道下 10% 区间）**且趋势下行**。
+  触发后一直空仓（股票降到 `eq_expan`），直到买入条件出现。
+- **趋势过滤**：`trend_source`（默认 `"erp"` = 利差自身；亦可取 `"price"` = 沪深300 收盘）>
+  其 `trend_window` 日滚动均线，序列在均线上方=上行、下方=下行。用途：避免「利差够低但还在跌」
+  （下行趋势未止）就接飞刀买入，或「利差够高但还在涨」就过早卖出。
+- state 一旦触发即长期停在 ±1，**不会自动回到 0**（0 态只出现在历史上第一次触发信号之前）。
+  这比「触上轨=低估 / 触下轨=高估」的硬门槛更柔：只在「极端位置 + 趋势确认」两个条件下动手。
 
 ## 4. 仓位与再平衡（`target_weight` / `run`）
 | 信号 | 沪深300 | 债券 |
 |---|---|---|
-| +1（低估） | `eq_cheap = 80%` | 20% |
-| 0（中性） | `eq_neutral = 50%`（或 `hold_on_neutral=True` 则维持上期） | 50% |
-| −1（高估） | `eq_expan = 20%` | 80% |
+| +1（买入持有） | `eq_cheap = 80%` | 20% |
+| 0（未触发，默认） | `eq_neutral = 50%`（或 `hold_on_neutral=True` 则维持上期） | 50% |
+| −1（卖出空仓） | `eq_expan = 20%` | 80% |
 - **只在信号切换日动手**；同一信号内不因为涨跌微调（`rebal_freq = "M"` 月末才回锚，
   且仅当偏离 > `rebal_tol`）。这就是「避免日内频繁交易」。
 - 成交口径：**T 日收盘后算信号 → T+1 收盘净值成交**（`lag = 1`）。t 日收益不会用到
@@ -106,13 +111,19 @@ _WARN = []              # 采集告警（不静默）
 CFG = {
     # 通道
     "window": 250,          # 滚动窗口（交易日）≈ 1 年；敏感性看 120 / 500 / 750 / 1250
-    "k": 2.0,               # 上下轨 = MA ± k×STD
-    "exit_frac": 0.0,       # 退出线 MA + exit_frac×STD（0 = 回穿均线；0.5 = 回到 MA+0.5σ）
+    "k": 2.0,               # 上下轨 = MA ± k×STD（定义通道的「高低」边界）
+    # 百分位触发（核心新规则）：把下轨→上轨归一化到 0→1，记为 z
+    #   z = (ERP − 下轨) / (上轨 − 下轨)   →  z=0 在下轨（最贵）、z=1 在上轨（最便宜）
+    "band_hi": 0.90,        # z ≥ 0.90（利差位于通道上 90% 区间）且上行趋势 → 买入持有
+    "band_lo": 0.10,        # z ≤ 0.10（通道下 10% 区间）且下行趋势 → 卖出
+    # 趋势判据（避免「便宜但还在跌」时接飞刀，或「贵但还在涨」时过早下车）
+    "trend_source": "erp",  # "erp" = 利差自身趋势（默认，规则主语是利差）；"price" = 沪深300 收盘趋势
+    "trend_window": 20,     # 趋势 = 该序列 > 其 trend_window 日滚动均线 = 上行
     # 仓位（沪深300 占比 of 股债两部分）
-    "eq_cheap": 0.80,
-    "eq_neutral": 0.50,
-    "eq_expan": 0.20,
-    "hold_on_neutral": False,   # True = 信号回到 0 时维持上一次的仓位，不改单
+    "eq_cheap": 0.80,       # 买入持有态（state=+1）的目标股票仓位
+    "eq_neutral": 0.50,     # 从未触发过信号时的默认仓位（一旦触发即长期停在 ±1）
+    "eq_expan": 0.20,       # 卖出空仓态（state=−1）的目标股票仓位
+    "hold_on_neutral": False,   # True = 信号回到 0 时维持上一次的仓位（本规则 0 态只出现在首触发前）
     # 再平衡
     "rebal_freq": "M",      # "M" 月末 / "Q" 季末 / None 只在信号切换时动手
     "rebal_tol": 0.05,      # 定期回锚的最小偏离（否则不动手，省手续费）
@@ -364,32 +375,55 @@ def load_bond10y(refresh=False, days=CACHE_DAYS):
 
 
 # ---------------------------------------------------------------- 3. 指标与信号
-def add_band(df, window=None, k=None):
-    """ERP + 滚动 MA/STD + 上下轨 + ready。列: erp/ma/std/upper/lower/ready。"""
+def add_band(df, window=None, k=None, trend_source=None, trend_window=None):
+    """ERP + 滚动 MA/STD + 上下轨 + 归一化位置 z + 趋势判据 + ready。
+
+    列: erp/ma/std/upper/lower/z/trend_up/trend_dn/ready。
+    z = (erp − lower) / (upper − lower)：0=下轨, 1=上轨（把通道看成 0→1）。
+    trend_up/dn = trend_source 序列是否在其 trend_window 日均线之上/下。
+    """
     w = int(CFG["window"] if window is None else window)
     kk = float(CFG["k"] if k is None else k)
+    ts_name = CFG["trend_source"] if trend_source is None else trend_source
+    tw = int(CFG["trend_window"] if trend_window is None else trend_window)
     out = df.copy()
     out["erp"] = 100.0 / out["pe"] - out["y10"]
     out["ma"] = out["erp"].rolling(w, min_periods=w).mean()
     out["std"] = out["erp"].rolling(w, min_periods=w).std(ddof=0)
     out["upper"] = out["ma"] + kk * out["std"]
     out["lower"] = out["ma"] - kk * out["std"]
-    out["ready"] = out["ma"].notna() & out["std"].notna() & (out["std"] > 0)
+    denom = out["upper"] - out["lower"]
+    out["z"] = (out["erp"] - out["lower"]) / denom            # 0=下轨, 1=上轨（可越界）
+    tsrc = out[ts_name] if ts_name in out.columns else out["close"]
+    tma = tsrc.rolling(tw, min_periods=tw).mean()
+    out["trend_up"] = tsrc > tma
+    out["trend_dn"] = tsrc < tma
+    out["ready"] = (out["ma"].notna() & out["std"].notna() & (out["std"] > 0)
+                    & tma.notna())
     return out
 
 
-def signal_series(df, exit_frac=None):
-    """通道状态机 -> DataFrame(state, event)。
+def signal_series(df, band_hi=None, band_lo=None, trend_source=None, trend_window=None):
+    """百分位 + 趋势过滤的状态机 -> DataFrame(state, event)。
 
-    state : +1 低估 / 0 中性 / -1 高估（当日**收盘后**的状态）
-    event : +1 新进入低估 / -1 新进入高估 / 0 无（用于图上的圆点与笔数统计）
+    state : +1 买入持有 / 0 未触发（默认中性） / −1 卖出空仓（当日**收盘后**的状态）
+    event : +1 新买入 / −1 新卖出 / 0 无（用于图上的圆点与笔数统计）
+
+    规则（见 README §1 第 5~6 行）：
+      - z = (erp − lower) / (upper − lower)，把下轨→上轨看作 0→1；
+      - z ≥ band_hi（默认 0.90）**且趋势上行** → 买入持有（state=+1）；
+      - z ≤ band_lo（默认 0.10）**且趋势下行** → 卖出空仓（state=−1）；
+      - 其余日子维持上一状态（“买入持有 / 卖出空仓” 一直拿到对侧信号出现为止）。
     """
-    ef = float(CFG["exit_frac"] if exit_frac is None else exit_frac)
-    erp = df["erp"].to_numpy(dtype="float64")
-    ma = df["ma"].to_numpy(dtype="float64")
-    sd = df["std"].to_numpy(dtype="float64")
-    up = df["upper"].to_numpy(dtype="float64")
-    lo = df["lower"].to_numpy(dtype="float64")
+    bh = float(CFG["band_hi"] if band_hi is None else band_hi)
+    bl = float(CFG["band_lo"] if band_lo is None else band_lo)
+    ts_name = CFG["trend_source"] if trend_source is None else trend_source
+    tw = int(CFG["trend_window"] if trend_window is None else trend_window)
+    z = df["z"].to_numpy(dtype="float64")
+    tsrc = df[ts_name] if ts_name in df.columns else df["close"]
+    tma = tsrc.rolling(tw, min_periods=tw).mean()
+    tup = (tsrc > tma).to_numpy(dtype=bool)             # 趋势上行 = 序列在均线上方
+    tdn = (tsrc < tma).to_numpy(dtype=bool)             # 趋势下行 = 序列在均线下方
     ready = df["ready"].to_numpy(dtype=bool)
 
     state = 0
@@ -400,25 +434,21 @@ def signal_series(df, exit_frac=None):
             states.append(0)
             events.append(0)
             continue
-        e, m, s = erp[i], ma[i], sd[i]
-        if state == 0:
-            if e >= up[i]:
-                state, ev = 1, 1
-            elif e <= lo[i]:
-                state, ev = -1, -1
-        elif state == 1:
-            if e <= m + ef * s:                      # 退出低估
-                state = 0
-        else:
-            if e >= m - ef * s:                      # 退出高估
-                state = 0
+        if state <= 0 and z[i] >= bh and tup[i]:        # 触发买入（中性或空仓时）
+            state, ev = 1, 1
+        elif state >= 0 and z[i] <= bl and tdn[i]:       # 触发卖出（中性或多头时）
+            state, ev = -1, -1
         states.append(state)
         events.append(ev)
     return pd.DataFrame({"state": states, "event": events}, index=df.index)
 
 
 def target_weight(state, eq_cheap=None, eq_neutral=None, eq_expan=None, hold_neutral=None):
-    """信号 -> 沪深300 目标权重（of 股债合计）。hold_neutral=True 时 0 态沿用上期。"""
+    """信号 -> 沪深300 目标权重（of 股债合计）。
+
+    本规则 state 一旦触发即长期停在 ±1，故直接映射：+1→eq_cheap、−1→eq_expan、
+    0（首触发前）→ eq_neutral（hold_neutral=True 时 0 态沿用上期）。
+    """
     ec = float(CFG["eq_cheap"] if eq_cheap is None else eq_cheap)
     en = float(CFG["eq_neutral"] if eq_neutral is None else eq_neutral)
     ex = float(CFG["eq_expan"] if eq_expan is None else eq_expan)
@@ -436,7 +466,8 @@ def target_weight(state, eq_cheap=None, eq_neutral=None, eq_expan=None, hold_neu
     return pd.Series(out, index=s_state.index, dtype="float64")
 
 
-def erp_frame(window=None, k=None, exit_frac=None, ffill_limit=None, refresh=False,
+def erp_frame(window=None, k=None, ffill_limit=None, refresh=False,
+              band_hi=None, band_lo=None, trend_source=None, trend_window=None,
               start="2011-06-01"):
     """完整框架 -> DataFrame(index=交易日, cols: close/tr/pe/y10/erp/ma/std/upper/lower/
     ready/state/event/target)。
@@ -459,8 +490,10 @@ def erp_frame(window=None, k=None, exit_frac=None, ffill_limit=None, refresh=Fal
     df = df.dropna(subset=["close", "pe", "y10"]).set_index("date").sort_index()
     df["tr"] = tr.reindex(df.index).ffill(limit=lim)
     df = df.dropna(subset=["tr"])
-    df = add_band(df, window=window, k=k)
-    sig = signal_series(df, exit_frac=exit_frac)
+    df = add_band(df, window=window, k=k, trend_source=trend_source,
+                  trend_window=trend_window)
+    sig = signal_series(df, band_hi=band_hi, band_lo=band_lo,
+                        trend_source=trend_source, trend_window=trend_window)
     df["state"] = sig["state"]
     df["event"] = sig["event"]
     df["target"] = target_weight(df["state"]).to_numpy()
@@ -621,7 +654,7 @@ def forward_stats(df, horizons=(20, 60, 250), col="tr"):
     rows = []
     for h in horizons:
         fwd = px.shift(-h) / px - 1.0
-        for st, name in ((1, "低估(+1)"), (0, "中性(0)"), (-1, "高估(-1)")):
+        for st, name in ((1, "买入持有(+1)"), (0, "中性(0)"), (-1, "卖出空仓(-1)")):
             m = (df["state"] == st) & fwd.notna()
             r = fwd[m]
             if not len(r):
@@ -725,6 +758,100 @@ def plot_overlay(df, path, title="股债利差 vs 沪深300", start=None, end=No
     return path
 
 
+def plot_overlay_signals(df, path, title="股债利差 vs 沪深300 · 操作点", start=None, end=None,
+                         subtitle=None, note=None):
+    """`plot_overlay` 的同款底图 + **操作点标注**：在指数（右轴）上标出每次
+    买入 / 卖出成交的位置。信号 T 日收盘出 → **T+1 收盘成交**，故标记画在
+    信号日的**下一个交易日**（真实可执行的那根 K 线）。"""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from matplotlib.ticker import StrMethodFormatter
+    except Exception as exc:  # noqa: BLE001
+        print("matplotlib 不可用，跳过作图:", exc)
+        return None
+
+    plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
+    plt.rcParams["axes.unicode_minus"] = False
+
+    d = df.loc[start:end]
+    if d.empty:
+        return None
+
+    c_erp, c_px, c_ma, c_band = "#2f4b9b", "#a4302f", "#e08c33", "#4a7c3f"
+    c_buy, c_sell = "#c0122f", "#127a36"
+    fig, ax = plt.subplots(figsize=(13, 7.4))
+    ax2 = ax.twinx()
+
+    l_erp, = ax.plot(d.index, d["erp"], color=c_erp, lw=1.2, alpha=0.85, label="股债利差")
+    l_px, = ax2.plot(d.index, d["close"], color=c_px, lw=1.4, label="指数")
+    l_ma, = ax.plot(d.index, d["ma"], color=c_ma, lw=1.8, alpha=0.9, label="股债利差均线")
+    l_up, = ax.plot(d.index, d["upper"], color=c_band, lw=1.4, alpha=0.9,
+                    label="股债利差标准差 × 2")
+    l_dn, = ax.plot(d.index, d["lower"], color=c_band, lw=1.0, ls="--", alpha=0.9,
+                    label="股债利差标准差 × 2")
+
+    # 操作点：event = +1 买入 / −1 卖出（T 日信号），画在 T+1 收盘（实际成交）
+    ev = d[d["event"] != 0]
+    if not ev.empty:
+        idx = d.index
+        pos = {ts: i for i, ts in enumerate(idx)}
+        buy_dt, buy_px, sell_dt, sell_px = [], [], [], []
+        for ts, row in ev.iterrows():
+            i = pos[ts] + 1                       # T+1 收盘成交
+            if i >= len(idx):
+                continue
+            dt, px = idx[i], float(d["close"].iloc[i])
+            (buy_dt if row["event"] > 0 else sell_dt).append(dt)
+            (buy_px if row["event"] > 0 else sell_px).append(px)
+        s_buy = ax2.scatter(buy_dt, buy_px, marker="^", s=130, color=c_buy, zorder=5,
+                            edgecolor="white", lw=1.0, label="买入（T+1 收盘成交）")
+        s_sell = ax2.scatter(sell_dt, sell_px, marker="v", s=130, color=c_sell, zorder=5,
+                             edgecolor="white", lw=1.0, label="卖出（T+1 收盘成交）")
+        for dt, px in zip(buy_dt, buy_px):        # 竖参考线，方便对到左轴利差位置
+            ax.axvline(dt, color=c_buy, lw=0.7, ls=":", alpha=0.35)
+        for dt, px in zip(sell_dt, sell_px):
+            ax.axvline(dt, color=c_sell, lw=0.7, ls=":", alpha=0.35)
+    else:
+        s_buy = s_sell = None
+
+    ax.set_ylabel("股债利差（%）", color=c_erp, fontsize=11)
+    ax.tick_params(axis="y", colors=c_erp)
+    ax.yaxis.set_major_formatter(StrMethodFormatter("{x:,.1f}"))
+    ax2.set_ylabel("指数", color=c_px, fontsize=11)
+    ax2.tick_params(axis="y", colors=c_px)
+    ax2.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+
+    ax.grid(axis="y", ls="--", lw=0.6, alpha=0.45)
+    ax.grid(axis="x", ls=":", lw=0.5, alpha=0.25)
+    ax.set_axisbelow(True)
+    for s in ("top",):
+        ax.spines[s].set_visible(False)
+        ax2.spines[s].set_visible(False)
+
+    handles = [l_erp, l_px, l_ma, l_up, l_dn]
+    if s_buy is not None:
+        handles += [s_buy, s_sell]
+    ax.legend(handles, [h.get_label() for h in handles], loc="lower left",
+              bbox_to_anchor=(0.0, 1.01, 1.0, 0.12), ncol=5, mode="expand",
+              frameon=False, fontsize=10, handlelength=1.8, columnspacing=1.2)
+
+    head = title
+    if subtitle:
+        head = f"{title}    |    {subtitle}"
+    fig.suptitle(head, x=0.06, ha="left", y=0.985, fontsize=14, color="#1b2b3a", weight="bold")
+    fig.text(0.06, 0.015,
+             note or ("左轴：股债利差（%）= 100/PE(沪深300) − 10Y国债；橙线 = 250 日均线；绿线 = 均线 ± 2σ。"
+                      "右轴：沪深300 收盘（点），▲=买入 / ▼=卖出，T 日信号 → T+1 收盘成交。"
+                      "  来源：中证官网 + 东财。  ·  模拟结果，非投资建议。"),
+             fontsize=9, color="#5b6b7a")
+    fig.subplots_adjust(left=0.07, right=0.93, top=0.86, bottom=0.10)
+    fig.savefig(path, dpi=130, facecolor="white")
+    plt.close(fig)
+    return path
+
+
 # ---------------------------------------------------------------- 7. 工具
 def fmt_pct(x, nd=2):
     return "—" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x * 100:+.{nd}f}%"
@@ -734,18 +861,34 @@ def fmt_x(x, nd=2):
     return "—" if x is None else f"{x:.{nd}f}"
 
 
-def latest_reading(window=None, k=None, exit_frac=None, refresh=False):
+def latest_reading(window=None, k=None, refresh=False, band_hi=None, band_lo=None,
+                   trend_source=None, trend_window=None):
     """当前读数（每日报告 / 自检共用）。"""
-    df = erp_frame(window=window, k=k, exit_frac=exit_frac, refresh=refresh)
+    df = erp_frame(window=window, k=k, refresh=refresh, band_hi=band_hi, band_lo=band_lo,
+                   trend_source=trend_source, trend_window=trend_window)
     last = df.iloc[-1]
     st = int(last["state"])
-    ef = float(CFG["exit_frac"] if exit_frac is None else exit_frac)
-    exit_line = float(last["ma"] + ef * last["std"]) if st == 1 else (
-        float(last["ma"] - ef * last["std"]) if st == -1 else float(last["ma"]))
+    z = float(last["z"])
+    if bool(last["trend_up"]):
+        trend = "上行"
+    elif bool(last["trend_dn"]):
+        trend = "下行"
+    else:
+        trend = "横盘"
+    # 下一对立信号还需满足的条件（用于每日报告的「下一步」）
+    if st == 1:
+        flip = (f"z 降到 ≤ {CFG['band_lo']:.2f} 且趋势转下行 → 卖出空仓"
+                f"（当前 z={z:.2f}）")
+    elif st == -1:
+        flip = (f"z 升到 ≥ {CFG['band_hi']:.2f} 且趋势转上行 → 买入持有"
+                f"（当前 z={z:.2f}）")
+    else:
+        flip = (f"z≥{CFG['band_hi']:.2f} 且上行 → 买入；z≤{CFG['band_lo']:.2f} 且下行 → 卖出"
+                f"（当前 z={z:.2f}）")
     return dict(date=df.index[-1], df=df, erp=float(last["erp"]), pe=float(last["pe"]),
                 y10=float(last["y10"]), ma=float(last["ma"]), std=float(last["std"]),
-                upper=float(last["upper"]), lower=float(last["lower"]), state=st,
-                exit_line=exit_line, target=float(last["target"]),
+                upper=float(last["upper"]), lower=float(last["lower"]), state=st, z=z,
+                trend=trend, flip=flip, target=float(last["target"]),
                 days_in_state=int(_days_in_state(df["state"])), ep=episodes(df),
                 source=dict(SOURCE))
 
@@ -770,16 +913,16 @@ def _self_check():
     vc = ready["state"].value_counts().to_dict()
     tot = len(ready)
     print("状态占比: " + " / ".join(
-        f"{n} {vc.get(k, 0) / tot:.1%}" for k, n in ((1, "低估"), (0, "中性"), (-1, "高估"))))
+        f"{n} {vc.get(k, 0) / tot:.1%}" for k, n in ((1, "买入持有"), (0, "中性"), (-1, "卖出空仓"))))
     r = latest_reading()
     print(f"最新 {r['date']:%Y-%m-%d}: PE {r['pe']:.2f} · 10Y {r['y10']:.3f}% · "
           f"ERP {r['erp']:.2f}% · MA {r['ma']:.2f} · 上轨 {r['upper']:.2f} · 下轨 {r['lower']:.2f}")
     print(f"状态 {r['state']:+d} · 已持续 {r['days_in_state']} 日 · 目标沪深300 {r['target']:.0%} "
-          f"· 退出线 {r['exit_line']:.2f}%")
+          f"· 归一化位置 z={r['z']:.2f} · 趋势 {r['trend']}")
     eps = r["ep"][:5]
     print("最近 5 段信号区间:")
     for e in eps:
-        print(f"  {'低估' if e['kind'] == 1 else '高估'} {e['start']} ~ {e['end']} "
+        print(f"  {'买入持有' if e['kind'] == 1 else '卖出空仓'} {e['start']} ~ {e['end']} "
               f"({e['days']} 日) ERP 均值 {e['erp_mean']:.2f}% "
               f"沪深300 {e['px_start']:.0f} → {e['px_end']:.0f}")
     y = load_bond10y()

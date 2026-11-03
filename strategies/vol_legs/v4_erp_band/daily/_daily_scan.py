@@ -54,7 +54,7 @@ def _f(name, default=None):
 
 
 def state_text(st):
-    return {1: "**低估（+1）**", 0: "中性（0）", -1: "**高估（−1）**"}[int(st)]
+    return {1: "**买入持有（+1）**", 0: "中性（0，未触发）", -1: "**卖出空仓（−1）**"}[int(st)]
 
 
 def plan_row(name, w_now, w_target, capital):
@@ -71,14 +71,19 @@ def main():
     capital = float(arg("--capital", 1000000) or 1000000)
     window = _f("--window", erp.CFG["window"])
     kk = _f("--k", erp.CFG["k"])
-    ef = _f("--exit-frac", erp.CFG["exit_frac"])
+    band_hi = _f("--band-hi", erp.CFG["band_hi"])
+    band_lo = _f("--band-lo", erp.CFG["band_lo"])
+    trend_source = arg("--trend-source", erp.CFG["trend_source"])
+    trend_window = _f("--trend-window", erp.CFG["trend_window"])
     eq_cheap = _f("--eq-cheap", erp.CFG["eq_cheap"])
     eq_neutral = _f("--eq-neutral", erp.CFG["eq_neutral"])
     eq_expan = _f("--eq-expan", erp.CFG["eq_expan"])
     hold = "--hold-neutral" in sys.argv
     refresh = "--refresh" in sys.argv
 
-    df = erp.erp_frame(window=window, k=kk, exit_frac=ef, refresh=refresh)
+    df = erp.erp_frame(window=window, k=kk, refresh=refresh, band_hi=band_hi,
+                      band_lo=band_lo, trend_source=trend_source,
+                      trend_window=trend_window)
     df["target"] = erp.target_weight(df["state"], eq_cheap=eq_cheap, eq_neutral=eq_neutral,
                                      eq_expan=eq_expan, hold_neutral=hold).to_numpy()
     ready = df[df["ready"]]
@@ -87,23 +92,30 @@ def main():
     tgt = float(last["target"])
     days = erp._days_in_state(df["state"])                      # noqa: SLF001 - 内部工具
     eps = erp.episodes(ready)
-    exit_line = float(last["ma"] + ef * last["std"]) if st == 1 else (
-        float(last["ma"] - ef * last["std"]) if st == -1 else float(last["ma"]))
-
-    # 下一个可能的动作：状态切换线（低估值退出线 / 高估值退出线）
-    if st == 1:
-        next_act = f"利差回落到 **{exit_line:.2f}%** 以下 → 退出低估，沪深300 降至 {eq_neutral:.0%}"
-        gap_txt = (f"当前距退出线 **{last['erp'] - exit_line:+.2f}pp**"
-                   f"（利差 {last['erp']:.2f}% vs 退出线 {exit_line:.2f}%）")
-    elif st == -1:
-        next_act = f"利差回升到 **{exit_line:.2f}%** 以上 → 退出高估，沪深300 升至 {eq_neutral:.0%}"
-        gap_txt = (f"当前距退出线 **{last['erp'] - exit_line:+.2f}pp**"
-                   f"（利差 {last['erp']:.2f}% vs 退出线 {exit_line:.2f}%）")
+    z = float(last["z"])
+    if bool(last["trend_up"]):
+        trend = "上行"
+    elif bool(last["trend_dn"]):
+        trend = "下行"
     else:
-        next_act = (f"利差 ≥ **{last['upper']:.2f}%**（上轨）→ 低估，沪深300 加到 {eq_cheap:.0%}；"
-                    f"≤ **{last['lower']:.2f}%**（下轨）→ 高估，降到 {eq_expan:.0%}")
-        gap_txt = (f"利差 {last['erp']:.2f}% · 距上轨 {(last['upper'] - last['erp']):+.2f}pp · "
-                   f"距下轨 {(last['erp'] - last['lower']):+.2f}pp")
+        trend = "横盘"
+
+    # 下一对立信号还需满足的触发条件
+    if st == 1:
+        next_act = (f"z 降到 **≤ {band_lo:.2f}** 且趋势转**下行** → 卖出空仓，"
+                    f"沪深300 降至 {eq_expan:.0%}")
+        gap_txt = (f"当前 z = **{z:.2f}**（≥ {band_hi:.2f} 买入、≤ {band_lo:.2f} 卖出），"
+                   f"趋势 **{trend}**；z 距卖出线还有 {(z - band_lo):+.2f}")
+    elif st == -1:
+        next_act = (f"z 升到 **≥ {band_hi:.2f}** 且趋势转**上行** → 买入持有，"
+                    f"沪深300 加到 {eq_cheap:.0%}")
+        gap_txt = (f"当前 z = **{z:.2f}**（≥ {band_hi:.2f} 买入、≤ {band_lo:.2f} 卖出），"
+                   f"趋势 **{trend}**；z 距买入线还有 {(z - band_hi):+.2f}")
+    else:
+        next_act = (f"z ≥ **{band_hi:.2f}** 且趋势**上行** → 买入持有（沪深300 {eq_cheap:.0%}）；"
+                    f"z ≤ **{band_lo:.2f}** 且趋势**下行** → 卖出空仓（{eq_expan:.0%}）")
+        gap_txt = (f"当前 z = **{z:.2f}**，趋势 **{trend}**；"
+                   f"距买入线 {(z - band_hi):+.2f} / 距卖出线 {(z - band_lo):+.2f}")
 
     # 当前仓位：默认 = **上一交易日的目标位**（即「已按上期信号持仓」），
     # 于是「不动 / 今天要动多少」只在信号切换的那一天才非零。真实持仓用 --hold 覆盖。
@@ -120,8 +132,10 @@ def main():
         f"> 标的：**沪深300**（信号 = 中证 000300 的 PE；回测股票腿 = 全收益 H00300）× "
         f"**10Y 国债**（东财日频收益率 → 合成国债指数）。",
         f"> 通道：ERP = 100/PE − 10Y，**{window:.0f} 日**滚动 MA ± {kk:g}σ；"
-        f"退出＝回到 MA{'' if not ef else f'+{ef:g}σ'}。**T 日盘后算信号 → T+1 收盘净值成交。**",
-        f"> 仓位：低估 {eq_cheap:.0%} / 中性 {eq_neutral:.0%} / 高估 {eq_expan:.0%}"
+        f"再把**下轨→上轨归一化到 0→1（z）**。买入 = z≥**{band_hi:.2f}** 且趋势**上行**；"
+        f"卖出 = z≤**{band_lo:.2f}** 且趋势**下行**（趋势源 {trend_source}，窗口 {trend_window:.0f} 日）。"
+        f"**T 日盘后算信号 → T+1 收盘净值成交。**",
+        f"> 仓位：买入 {eq_cheap:.0%} / 中性 {eq_neutral:.0%} / 卖出 {eq_expan:.0%}"
         f"（沪深300 占比 of 股债合计，总资产 {capital:,.0f} 元）"
         + ("；中性态维持上期仓位。" if hold else "。"),
         "> 机械规则输出，**非投资建议**。",
@@ -139,6 +153,8 @@ def main():
         f"| 上轨（MA+{kk:g}σ） | {last['upper']:.2f}% |",
         f"| 下轨（MA−{kk:g}σ） | {last['lower']:.2f}% |",
         f"| 滚动标准差 σ | {last['std']:.3f}pp |",
+        f"| **归一化位置 z** | **{z:.2f}**（0=下轨/最贵，1=上轨/最便宜） |",
+        f"| **趋势** | {trend}（源 {trend_source} / 窗口 {trend_window:.0f} 日） |",
         f"| **当前状态** | {state_text(st)} · 已持续 **{days}** 个交易日 |",
         "",
         "## 2. 下一交易日的动作",
@@ -165,7 +181,7 @@ def main():
         "|---|---|---|---:|---:|---:|---:|---:|",
     ]
     for e in eps_rows:
-        L.append(f"| {'低估' if e['kind'] == 1 else '高估'} | {e['start']} | {e['end']} | "
+        L.append(f"| {'买入持有' if e['kind'] == 1 else '卖出空仓'} | {e['start']} | {e['end']} | "
                  f"{e['days']} | {e['erp_mean']:.2f}% | {e['px_start']:.0f} | "
                  f"{e['px_end']:.0f} | {erp.fmt_pct(e['px_end'] / e['px_start'] - 1.0)} |")
 
@@ -173,24 +189,31 @@ def main():
         "",
         "## 4. 近 %d 个交易日流水" % RECENT_DAYS,
         "",
-        "| 日期 | 收盘 | PE | 10Y | ERP | MA | 上轨 | 下轨 | 状态 | 目标仓位 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---|---:|",
+        "| 日期 | 收盘 | PE | 10Y | ERP | MA | 上轨 | 下轨 | z | 趋势 | 状态 | 目标仓位 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|",
     ]
     for d, r in flow.iterrows():
+        if bool(r["trend_up"]):
+            tr_txt = "↑"
+        elif bool(r["trend_dn"]):
+            tr_txt = "↓"
+        else:
+            tr_txt = "—"
         L.append(f"| {d:%Y-%m-%d} | {r['close']:.0f} | {r['pe']:.2f} | {r['y10']:.3f} | "
                  f"{r['erp']:.2f} | {r['ma']:.2f} | {r['upper']:.2f} | {r['lower']:.2f} | "
-                 f"{int(r['state']):+d} | {r['target']:.0%} |")
+                 f"{r['z']:.2f} | {tr_txt} | {int(r['state']):+d} | {r['target']:.0%} |")
 
     L += [
         "",
         "## 5. 提醒",
         "",
-        "- **低估 ≠ 立刻上涨**：回测里低估态 60 日平均 +3.1%、上涨概率 63%，但 10% 分位仍 -10.5%；"
-        "低估态持续一年以上是常态（见 `../backtest/_v4_erp_band_bt.md` §3/§4）。",
-        "- **这条规则不产生稳定超额**（2012-08~2026-10：+4.88% vs 同窗口静态 50/50 +4.94%），"
-        "它买的是「仓位纪律」和略小的回撤（-23.5% vs -24.4%）。别指望它择时赚钱。",
+        "- **买入持有 ≠ 立刻上涨**：回测里买入持有态 60 日平均收益有限、上涨概率约 6 成，"
+        "但 10% 分位仍明显为负；买入持有态持续一年以上是常态（见 `../backtest/_v4_erp_band_bt.md` §3/§4）。",
+        "- **这条规则不产生稳定超额**——它买的是「仓位纪律」（极便宜且趋势转好才重仓、极贵且趋势转差才降仓）"
+        "和略小的回撤，别指望它择时赚钱。",
         "- PE 口径（滚动 vs 静态）只平移整条曲线，通道是相对自己的 MA±2σ，信号基本不变；"
         "但报告的 ERP 绝对读数会变。",
+        "- 触发是「百分位 + 趋势」双条件：z 到了还不够，必须趋势同方向确认，避免接飞刀 / 过早下车。",
         "- 数据日期：沪深300 至 "
         + erp.SOURCE.get("hs300", "—") + "；10Y 至 " + erp.SOURCE.get("bond", "—") + "。",
         "",
@@ -202,7 +225,9 @@ def main():
     with open(OUT_JSON, "w", encoding="utf-8") as f:
         json.dump({
             "strategy": erp.LABEL, "as_of": df.index[-1].date().isoformat(),
-            "rule": {"window": window, "k": kk, "exit_frac": ef,
+            "rule": {"window": window, "k": kk,
+                     "band_hi": band_hi, "band_lo": band_lo,
+                     "trend_source": trend_source, "trend_window": trend_window,
                      "eq_cheap": eq_cheap, "eq_neutral": eq_neutral, "eq_expan": eq_expan,
                      "hold_neutral": hold, "rebal_freq": erp.CFG["rebal_freq"],
                      "trade_at": "T+1 收盘净值"},
@@ -210,8 +235,9 @@ def main():
                          "pe": float(last["pe"]), "y10": float(last["y10"]),
                          "erp": float(last["erp"]), "ma": float(last["ma"]),
                          "upper": float(last["upper"]), "lower": float(last["lower"]),
-                         "std": float(last["std"]), "state": st, "days_in_state": days,
-                         "exit_line": exit_line, "target_equity": tgt},
+                         "std": float(last["std"]), "z": z, "trend": trend,
+                         "state": st, "days_in_state": days,
+                         "target_equity": tgt},
             "action": {"capital": capital, "current_equity": w_eq,
                        "delta_amount": plan_pp, "next_trigger": next_act},
             "episodes": eps_rows, "source": dict(erp.SOURCE), "warn": list(erp._WARN),
@@ -222,7 +248,7 @@ def main():
     print(f"{df.index[-1]:%Y-%m-%d} · PE {last['pe']:.2f} · 10Y {last['y10']:.3f}% · "
           f"ERP {last['erp']:.2f}% · MA {last['ma']:.2f} · 上轨 {last['upper']:.2f} · "
           f"下轨 {last['lower']:.2f}")
-    print(f"状态 {st:+d}（已持续 {days} 日）· 目标沪深300 {tgt:.0%} · 动作 {plan_pp:+,.0f} 元")
+    print(f"状态 {st:+d}（已持续 {days} 日）· z={z:.2f} · 趋势 {trend} · 目标沪深300 {tgt:.0%} · 动作 {plan_pp:+,.0f} 元")
     print(f"下一步：{next_act}")
     if erp._WARN:                                          # noqa: SLF001
         print("告警:", erp._WARN[:3])

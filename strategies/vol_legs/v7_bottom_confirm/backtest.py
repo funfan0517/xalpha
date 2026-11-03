@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V9 抄底确认 · 回测、归因与稳健性检验。
+"""V7 抄底确认 · 回测、归因与稳健性检验。
 
 **这个脚本要回答的不是「赚多少」，而是「这套确认到底有没有信息量」**。四个层次：
 
@@ -13,13 +13,13 @@
    恒空等于货基、仓位边界 —— 这几条不过，上面的数字一律不看。
 
 产物（策略类，落 `backtest/`）：
-- `_v9_bottom_report.md` 报告
-- `_v9_bottom_bt.jsonl` 逐腿 + 组合的机读结果
-- `_v9_bottom_hs300.png` / `_v9_bottom_portfolio.png` 图
+- `_v7_bottom_report.md` 报告
+- `_v7_bottom_bt.jsonl` 逐腿 + 组合的机读结果
+- `_v7_bottom_hs300.png` / `_v7_bottom_portfolio.png` 图
 
 用法：
-    python strategies/vol_legs/v9_bottom_confirm/backtest.py            # 全量
-    python strategies/vol_legs/v9_bottom_confirm/backtest.py --quick    # 跳过敏感性扫描
+    python strategies/vol_legs/v7_bottom_confirm/backtest.py            # 全量
+    python strategies/vol_legs/v7_bottom_confirm/backtest.py --quick    # 跳过敏感性扫描
 """
 import json
 import math
@@ -55,10 +55,10 @@ for _f in ("Microsoft YaHei", "SimHei", "DejaVu Sans"):
 plt.rcParams["axes.unicode_minus"] = False
 
 OUTDIR = os.path.join(_HERE, "backtest")
-OUT_MD = os.path.join(OUTDIR, "_v9_bottom_report.md")
-OUT_JSONL = os.path.join(OUTDIR, "_v9_bottom_bt.jsonl")
-OUT_PNG_LEG = os.path.join(OUTDIR, "_v9_bottom_hs300.png")
-OUT_PNG_PORT = os.path.join(OUTDIR, "_v9_bottom_portfolio.png")
+OUT_MD = os.path.join(OUTDIR, "_v7_bottom_report.md")
+OUT_JSONL = os.path.join(OUTDIR, "_v7_bottom_bt.jsonl")
+OUT_PNG_LEG = os.path.join(OUTDIR, "_v7_bottom_hs300.png")
+OUT_PNG_PORT = os.path.join(OUTDIR, "_v7_bottom_portfolio.png")
 
 LEGS = bt.LEGS
 PLEGS = bt.PORTFOLIO_LEGS
@@ -331,7 +331,7 @@ def main(quick=False):
     add(f"# {bt.LABEL} · 回测报告")
     add("")
     add(f"> 生成：`backtest.py` · 数据截至 **{runs['hs300']['df'].index[-1]:%Y-%m-%d}** · "
-        f"行情 `data/_v9_klines.json`（前复权，成交量原始）")
+        f"行情 `data/_v7_klines.json`（前复权，成交量原始）")
     add(f"> 规则权威源：`bottom.py::CFG` · 参数：窗口 {p0['window']} 日 / 背离 "
         f"{p0['div_window']} 日 / 时间窗 {p0['ctx_recall']} 日 / 放量 {p0['vol_mult']}× / "
         f"地量有效期 {p0['dry_max_age']} 日 / 回撤门槛 {p0['drop_min']:.0%} / "
@@ -422,7 +422,7 @@ def main(quick=False):
     add("")
     add("| 方案 | 年化 | 累计 | 波动 | 回撤 | 夏普 | Calmar | 平均仓位 |")
     add("|---|---|---|---|---|---|---|---|")
-    for name, m, ex in (("V9 抄底确认（默认）", port["m"], port["expo"]),
+    for name, m, ex in (("V7 抄底确认（默认）", port["m"], port["expo"]),
                         ("货基（纯现金）", port["cm"], 0.0),
                         ("静态带（恒满）", port["sm_"], 1.0),
                         ("等权买入持有（首日建仓）", port["hm"], 1.0)):
@@ -736,7 +736,7 @@ def plot_leg(r, leg):
                   f"{bt.LABEL} 操作点", fontsize=11)
     ax1.legend(loc="upper left", fontsize=8, frameon=False)
     ax1.grid(alpha=0.25)
-    ax2.plot(r["nav"].index, r["nav"], lw=1.4, color="#dc2626", label="V9 抄底确认")
+    ax2.plot(r["nav"].index, r["nav"], lw=1.4, color="#dc2626", label="V7 抄底确认")
     ax2.plot(r["bh"].index, r["bh"], lw=1.0, color="#64748b", label="买入持有")
     ax2.set_yscale("log")
     ax2.legend(loc="upper left", fontsize=8, frameon=False)
@@ -751,7 +751,7 @@ def plot_port(port):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 7.5), height_ratios=[2, 1],
                                    sharex=True)
     ax1.plot(port["nav"].index, port["nav"], lw=1.6, color="#dc2626",
-             label=f"V9 抄底确认（年化 {pct(port['m']['ann'])}）")
+             label=f"V7 抄底确认（年化 {pct(port['m']['ann'])}）")
     ax1.plot(port["static"].index, port["static"], lw=1.0, color="#2563eb",
              label=f"静态带恒满（年化 {pct(port['sm_']['ann'])}）")
     ax1.plot(port["hold"].index, port["hold"], lw=1.0, color="#64748b",

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V9 抄底确认 · 行情装载（OHLCV，本变种自带缓存）。
+"""V7 抄底确认 · 行情装载（OHLCV，本变种自带缓存）。
 
 **为什么本变种不能用 `../data.py`**：抄底四要素里有三条要 `open` / `low` / `high`：
 - 「放量**阳**」= `close > open`（只有收盘价就只能拿「涨了」近似，口径不同）；
@@ -8,7 +8,7 @@
 
 而仓库共享库里 `data/_long_klines.json` 只存 `close`、`data/_indicators_hist.json` 只存
 `volume`。所以本变种自己取一次 `xa.get_daily`（雪球，**前复权**），落到
-`<本目录>/data/_v9_klines.json`（策略类行情缓存，AGENTS §8.4 ②）。
+`<本目录>/data/_v7_klines.json`（策略类行情缓存，AGENTS §8.4 ②）。
 
 口径三条：
 1. **前复权**：`get_daily` 默认前复权，OHLC 同比例缩放，`close>open` 与 `low<close` 的
@@ -39,7 +39,7 @@ _ROOT = os.path.dirname(os.path.dirname(_VL))                 # 仓库根
 if _VL not in sys.path:
     sys.path.insert(0, _VL)
 
-CACHE = os.path.join(_HERE, "data", "_v9_klines.json")
+CACHE = os.path.join(_HERE, "data", "_v7_klines.json")
 SHARED_LK = os.path.join(_ROOT, "data", "_long_klines.json")
 
 # 七腿 -> 场内 OHLCV 代码。a500 的 563360 上市 2024-10，只有 2 年样本，

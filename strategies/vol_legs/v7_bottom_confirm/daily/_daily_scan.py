@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V9 变种（抄底确认）· 每日读数。
+"""波动资产 · V7 变种（抄底确认）· 每日读数。
 
 流程：
 1. **先刷行情**（`klines.refresh()`，七腿 OHLCV，前复权），失败沿用本地并标注；
@@ -14,7 +14,7 @@
 
 成交提醒：T 日盘后算出的信号，**T+1 收盘前**成交（回测口径 = T+1 收盘；实盘可 T+1 开盘或收盘）。
 
-产物（相对本文件）：`_v9_bottom_daily.md` / `_v9_bottom_daily.json`。
+产物（相对本文件）：`_v7_bottom_daily.md` / `_v7_bottom_daily.json`。
 机械规则输出，非投资建议。
 """
 import json
@@ -28,16 +28,16 @@ except Exception:  # noqa: BLE001
     pass
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_V9 = os.path.dirname(_HERE)
-_VL = os.path.dirname(_V9)
-for _p in (_V9, _VL):
+_V7 = os.path.dirname(_HERE)
+_VL = os.path.dirname(_V7)
+for _p in (_V7, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 import bottom as bt   # noqa: E402
 
-OUT_MD = os.path.join(_HERE, "_v9_bottom_daily.md")
-OUT_JSON = os.path.join(_HERE, "_v9_bottom_daily.json")
+OUT_MD = os.path.join(_HERE, "_v7_bottom_daily.md")
+OUT_JSON = os.path.join(_HERE, "_v7_bottom_daily.json")
 RECENT = 250
 
 COND_KEYS = ("filt", "c1", "c2_recent", "c3_recent", "c4")
@@ -116,7 +116,7 @@ def main():
     p = bt.params()
 
     L = [
-        f"# 波动资产 · V9（抄底确认）· 每日读数（{asof}）",
+        f"# 波动资产 · V7（抄底确认）· 每日读数（{asof}）",
         "",
         f"> 池 = 主策略七腿的**场内 OHLCV**（{' / '.join(x['name'] for x in rows)}）。"
         "抄底判定要开/高/低/量，场外净值只有收盘价，所以这里用场内代码；"

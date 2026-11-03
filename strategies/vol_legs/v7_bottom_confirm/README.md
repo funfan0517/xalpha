@@ -1,4 +1,4 @@
-# V9 变种 · 抄底确认（地量 + 背离 + 跌速放缓 + 站回成本线）
+# V7 变种 · 抄底确认（地量 + 背离 + 跌速放缓 + 站回成本线）
 
 `vol_legs` 的**抄底家族**第一支，来源是用户 2026-11-03 给出的「下跌后四条件齐现才允许试仓」规则。
 
@@ -63,7 +63,7 @@
 
 | 用途 | 端点 | 落到 |
 |---|---|---|
-| 七腿场内 OHLCV（**必须**有开高低量） | `xa.get_daily`（雪球，前复权） | 本变种 `data/_v9_klines.json`（策略类行情缓存） |
+| 七腿场内 OHLCV（**必须**有开高低量） | `xa.get_daily`（雪球，前复权） | 本变种 `data/_v7_klines.json`（策略类行情缓存） |
 
 **为什么本变种不能用 `../data.py`**：抄底要素里「阳线」要 `open`、「阶段最低点」要 `low`、
 「速度阻力扇」要 `high`，而仓库共享库里 `data/_long_klines.json` 只有收盘价、
@@ -87,9 +87,9 @@
 
 ## 4. 回测结论
 
-完整报告：`backtest/_v9_bottom_report.md`（含敏感性、消融、断言明细）；
-图：`backtest/_v9_bottom_hs300.png`、`_v9_bottom_portfolio.png`；
-机读：`backtest/_v9_bottom_bt.jsonl`。复现：`python backtest.py`（加 `--quick` 跳过扫描）。
+完整报告：`backtest/_v7_bottom_report.md`（含敏感性、消融、断言明细）；
+图：`backtest/_v7_bottom_hs300.png`、`_v7_bottom_portfolio.png`；
+机读：`backtest/_v7_bottom_bt.jsonl`。复现：`python backtest.py`（加 `--quick` 跳过扫描）。
 
 ### 4.1 逐腿（全历史，风险预算 5%，含费）
 
@@ -154,7 +154,7 @@
 ### 4.4 漏底诊断：7 次历史大底，现在接住 3 次
 
 图上肉眼可见的 7 次底部上涨起点（事后确认）。绿圈=接住、红圈=漏掉，直接画在
-`backtest/_v9_bottom_hs300.png` 上。**每底缺的不是同一条**：
+`backtest/_v7_bottom_hs300.png` 上。**每底缺的不是同一条**：
 
 | 底部 | 当日回撤 | 当天缺什么 | 现在 |
 |---|---|---|---|
@@ -186,7 +186,7 @@
 
 **所以漏底不是 bug，是「用成本线做确认」的定义代价**：它买的是「跌势已修复到多数人回本」的时刻，
 不是最低点。要更高覆盖，正确做法是**分层**：主策略的回撤阶梯管「跌多少买多少」（不需要确认），
-趋势类变种管「涨起来跟一段」，v9 只管「极端超跌后的高置信许可」。
+趋势类变种管「涨起来跟一段」，v7 只管「极端超跌后的高置信许可」。
 
 ### 4.5 信号质量：是「确认回升」还是「又一次反弹」
 
@@ -211,14 +211,14 @@
 
 ```bash
 # 每日读数（七腿四条件打勾 + 只缺哪一条 + 近期动作流水）
-python strategies/vol_legs/v9_bottom_confirm/daily/_daily_scan.py
+python strategies/vol_legs/v7_bottom_confirm/daily/_daily_scan.py
 # 不联网（用本地缓存）
 python .../_daily_scan.py --no-refresh
 # 回测 / 参数扫描
-python strategies/vol_legs/v9_bottom_confirm/backtest.py
+python strategies/vol_legs/v7_bottom_confirm/backtest.py
 ```
 
-产物：`daily/_v9_bottom_daily.md` / `.json`，`backtest/_v9_bottom_report.md` / `.jsonl` / `.png`。
+产物：`daily/_v7_bottom_daily.md` / `.json`，`backtest/_v7_bottom_report.md` / `.jsonl` / `.png`。
 
 **判定流程（照这个顺序看，别跳）**：
 
@@ -259,11 +259,11 @@ python strategies/vol_legs/v9_bottom_confirm/backtest.py
 ## 7. 文件
 
 ```
-v9_bottom_confirm/
+v7_bottom_confirm/
 ├── bottom.py            # 规则本体：CFG（权威源）+ 指标 + 状态机 + 回测/组合/读数
 ├── klines.py            # OHLCV 装载与增量缓存（本变种自建）
 ├── backtest.py          # 逐腿 + 组合 + 止盈对比 + 消融 + 敏感性 + 硬断言 + 图
-├── data/_v9_klines.json # 七腿前复权 OHLCV 缓存
-├── backtest/            # _v9_bottom_report.md / _v9_bottom_bt.jsonl / *.png
-└── daily/_daily_scan.py # 每日读数 -> _v9_bottom_daily.{md,json}
+├── data/_v7_klines.json # 七腿前复权 OHLCV 缓存
+├── backtest/            # _v7_bottom_report.md / _v7_bottom_bt.jsonl / *.png
+└── daily/_daily_scan.py # 每日读数 -> _v7_bottom_daily.{md,json}
 ```

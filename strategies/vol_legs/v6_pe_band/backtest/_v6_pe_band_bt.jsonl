@@ -1,0 +1,850 @@
+{"summary": {"universe": "hs300", "freq": "weekly", "start": "2012-10-15", "end": "2026-11-02", "cagr": 0.050883, "mdd": -0.159503, "calmar": 0.31901, "sharpe": 0.381474, "exposure": 0.435453, "n_trades": 34, "turnover": 7.7, "bh_cagr": 0.067174, "bh_mdd": -0.460589, "excess": -0.016291, "n_decisions": 720}}
+{"universe": "hs300", "signal_date": "2012-10-19", "exec_date": "2012-10-22", "side": "buy", "w_from": 0.0, "w_to": 1.0, "reason": "起手摆到带位"}
+{"universe": "hs300", "signal_date": "2012-12-14", "exec_date": "2012-12-17", "side": "sell", "w_from": 1.0, "w_to": 0.7, "reason": "季末降带 100%→70%"}
+{"universe": "hs300", "signal_date": "2012-12-28", "exec_date": "2012-12-31", "side": "sell", "w_from": 0.7, "w_to": 0.5, "reason": "季末降带 70%→50%"}
+{"universe": "hs300", "signal_date": "2013-03-29", "exec_date": "2013-04-01", "side": "buy", "w_from": 0.5, "w_to": 0.7, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2013-04-19", "exec_date": "2013-04-22", "side": "sell", "w_from": 0.7, "w_to": 0.5, "reason": "季末降带 70%→50%"}
+{"universe": "hs300", "signal_date": "2013-06-24", "exec_date": "2013-06-25", "side": "buy", "w_from": 0.5, "w_to": 0.8, "reason": "阶梯 dd≥16% 加 1.5 份"}
+{"universe": "hs300", "signal_date": "2014-08-01", "exec_date": "2014-08-04", "side": "sell", "w_from": 0.8, "w_to": 0.7, "reason": "季末降带 80%→70%"}
+{"universe": "hs300", "signal_date": "2014-10-31", "exec_date": "2014-11-03", "side": "sell", "w_from": 0.7, "w_to": 0.5, "reason": "季末降带 70%→50%"}
+{"universe": "hs300", "signal_date": "2014-12-05", "exec_date": "2014-12-08", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2015-08-21", "exec_date": "2015-08-24", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥24% 加 2 份"}
+{"universe": "hs300", "signal_date": "2015-11-06", "exec_date": "2015-11-09", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2016-01-04", "exec_date": "2016-01-05", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥16% 加 1.5 份"}
+{"universe": "hs300", "signal_date": "2016-11-25", "exec_date": "2016-11-28", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2016-12-14", "exec_date": "2016-12-15", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2017-01-26", "exec_date": "2017-02-03", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2018-04-04", "exec_date": "2018-04-09", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2018-08-03", "exec_date": "2018-08-06", "side": "buy", "w_from": 0.5, "w_to": 0.7, "reason": "阶梯 dd≥16% 加 1.5 份"}
+{"universe": "hs300", "signal_date": "2018-08-10", "exec_date": "2018-08-13", "side": "sell", "w_from": 0.7, "w_to": 0.5, "reason": "季末降带 70%→50%"}
+{"universe": "hs300", "signal_date": "2018-09-10", "exec_date": "2018-09-11", "side": "buy", "w_from": 0.5, "w_to": 0.7, "reason": "阶梯 dd≥24% 加 2 份"}
+{"universe": "hs300", "signal_date": "2018-09-21", "exec_date": "2018-09-25", "side": "sell", "w_from": 0.7, "w_to": 0.5, "reason": "季末降带 70%→50%"}
+{"universe": "hs300", "signal_date": "2020-03-20", "exec_date": "2020-03-23", "side": "buy", "w_from": 0.5, "w_to": 0.7, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2020-03-27", "exec_date": "2020-03-30", "side": "sell", "w_from": 0.7, "w_to": 0.5, "reason": "季末降带 70%→50%"}
+{"universe": "hs300", "signal_date": "2020-05-08", "exec_date": "2020-05-11", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2020-08-07", "exec_date": "2020-08-10", "side": "sell", "w_from": 0.3, "w_to": 0.1, "reason": "季末降带 30%→10%"}
+{"universe": "hs300", "signal_date": "2021-03-08", "exec_date": "2021-03-09", "side": "buy", "w_from": 0.1, "w_to": 0.3, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2021-06-04", "exec_date": "2021-06-07", "side": "sell", "w_from": 0.3, "w_to": 0.1, "reason": "季末降带 30%→10%"}
+{"universe": "hs300", "signal_date": "2021-07-27", "exec_date": "2021-07-28", "side": "buy", "w_from": 0.1, "w_to": 0.3, "reason": "阶梯 dd≥16% 加 1.5 份"}
+{"universe": "hs300", "signal_date": "2022-04-21", "exec_date": "2022-04-22", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥24% 加 2 份"}
+{"universe": "hs300", "signal_date": "2024-09-27", "exec_date": "2024-09-30", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2025-01-03", "exec_date": "2025-01-06", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2025-01-24", "exec_date": "2025-01-27", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "hs300", "signal_date": "2026-05-08", "exec_date": "2026-05-11", "side": "sell", "w_from": 0.3, "w_to": 0.1, "reason": "季末降带 30%→10%"}
+{"universe": "hs300", "signal_date": "2026-07-17", "exec_date": "2026-07-20", "side": "buy", "w_from": 0.1, "w_to": 0.3, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "hs300", "signal_date": "2026-10-23", "exec_date": "2026-10-26", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥16% 加 1.5 份"}
+{"universe": "hs300", "band_row": {"date": "2012-10-19", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-10-26", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-11-02", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-11-09", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-11-16", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-11-23", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-11-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-12-07", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-12-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-12-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2012-12-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-01-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-01-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-01-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-01-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-02-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-02-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-02-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-03-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-03-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-03-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-03-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-03-29", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-04-03", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-04-12", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-04-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-04-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-05-03", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-05-10", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-05-17", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-05-24", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-05-31", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-06-07", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-06-14", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-06-21", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-06-28", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-07-05", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-07-12", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-07-19", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-07-26", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-08-02", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-08-09", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-08-16", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-08-23", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-08-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-09-06", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-09-13", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-09-18", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-09-27", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-09-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-10-11", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-10-18", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-10-25", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-11-01", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-11-08", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-11-15", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-11-22", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-11-29", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-12-06", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-12-13", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-12-20", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2013-12-27", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-01-03", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-01-10", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-01-17", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-01-24", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-01-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-02-07", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-02-14", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-02-21", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-02-28", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-03-07", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-03-14", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-03-21", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-03-28", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-04-04", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-04-11", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-04-18", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-04-25", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-04-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-05-09", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-05-16", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-05-23", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-05-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-06-06", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-06-13", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-06-20", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-06-27", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-07-04", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-07-11", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-07-18", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-07-25", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-08-01", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-08-08", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-08-15", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-08-22", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-08-29", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-09-05", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-09-12", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-09-19", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-09-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-09-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-10-10", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-10-17", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-10-24", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-10-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-11-07", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-11-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-11-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-11-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-12-05", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-12-12", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-12-19", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-12-26", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2014-12-31", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-01-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-01-16", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-01-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-01-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-02-06", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-02-13", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-02-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-02-27", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-03-06", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-03-13", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-03-20", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-03-27", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-04-03", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-04-10", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-04-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-04-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-04-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-05-08", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-05-15", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-05-22", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-05-29", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-06-05", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-06-12", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-06-19", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-06-26", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-07-03", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-07-10", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-07-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-07-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-07-31", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-08-07", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-08-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-08-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-08-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-09-02", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-09-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-09-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-09-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-10-09", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-10-16", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-10-23", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-10-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-11-06", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-11-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-11-20", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-11-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-12-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-12-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-12-18", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-12-25", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2015-12-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-01-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-01-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-01-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-01-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-02-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-02-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-02-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-03-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-03-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-03-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-03-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-04-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-04-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-04-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-04-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-04-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-05-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-05-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-05-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-05-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-06-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-06-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-06-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-06-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-07-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-07-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-07-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-07-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-07-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-08-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-08-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-08-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-08-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-09-02", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-09-09", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-09-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-09-23", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-10-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-10-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-10-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-11-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-11-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-11-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-11-25", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-12-02", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-12-09", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-12-16", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-12-23", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2016-12-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-01-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-01-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-01-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-01-26", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-02-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-02-10", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-02-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-02-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-03-03", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-03-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-03-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-03-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-03-31", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-04-07", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-04-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-04-21", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-04-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-05-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-05-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-05-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-05-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-06-02", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-06-09", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-06-16", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-06-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-06-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-07-07", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-07-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-07-21", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-07-28", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-08-04", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-08-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-08-18", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-08-25", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-09-01", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-09-08", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-09-15", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-09-22", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-09-29", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-10-13", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-10-20", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-10-27", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-11-03", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-11-10", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-11-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-11-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-12-01", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-12-08", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-12-15", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-12-22", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2017-12-29", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-01-05", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-01-12", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-01-19", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-01-26", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-02-02", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-02-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-02-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-02-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-03-02", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-03-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-03-16", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-03-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-03-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-04-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-04-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-04-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-04-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-05-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-05-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-05-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-05-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-06-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-06-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-06-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-06-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-06-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-07-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-07-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-07-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-07-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-08-03", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-08-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-08-17", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-08-24", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-08-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-09-07", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-09-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-09-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-09-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-10-12", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-10-19", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-10-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-11-02", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-11-09", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-11-16", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-11-23", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-11-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-12-07", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-12-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-12-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2018-12-28", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-01-04", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-01-11", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-01-18", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-01-25", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-02-01", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-02-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-02-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-03-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-03-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-03-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-03-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-03-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-04-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-04-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-04-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-04-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-04-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-05-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-05-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-05-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-05-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-06-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-06-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-06-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-06-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-07-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-07-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-07-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-07-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-08-02", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-08-09", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-08-16", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-08-23", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-08-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-09-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-09-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-09-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-09-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-10-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-10-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-10-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-11-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-11-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-11-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-11-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-11-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-12-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-12-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-12-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2019-12-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-01-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-01-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-01-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-01-23", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-02-07", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-02-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-02-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-02-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-03-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-03-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-03-20", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-03-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-04-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-04-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-04-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-04-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-04-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-05-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-05-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-05-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-05-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-06-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-06-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-06-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-06-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2020-07-03", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2020-07-10", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2020-07-17", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2020-07-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2020-07-31", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2020-08-07", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-08-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-08-21", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-08-28", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-09-04", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-09-11", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-09-18", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-09-25", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-09-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-10-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-10-16", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-10-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-10-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2020-11-06", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-11-13", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-11-20", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-11-27", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-12-04", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-12-11", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-12-18", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-12-25", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2020-12-31", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-01-08", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-01-15", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-01-22", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-01-29", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-02-05", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-02-10", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-02-19", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-02-26", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-03-05", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-03-12", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-03-19", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-03-26", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-04-02", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-04-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-04-16", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-04-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-04-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-05-07", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-05-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-05-21", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-05-28", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-06-04", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2021-06-11", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2021-06-18", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2021-06-25", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2021-07-02", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-07-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-07-16", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-07-23", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-07-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-08-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-08-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-08-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-08-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-09-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-09-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-09-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-09-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-10-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-10-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-10-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-10-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-11-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-11-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-11-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-11-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2021-12-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2021-12-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2021-12-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2021-12-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2021-12-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-01-07", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-01-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-01-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-01-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-02-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-02-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-02-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-03-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-03-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-03-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-03-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2022-04-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-04-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-04-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-04-22", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-04-29", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-05-06", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-05-13", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-05-20", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-05-27", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-06-02", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-06-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-06-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-06-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-07-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-07-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-07-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-07-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-07-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-08-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-08-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-08-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-08-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-09-02", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-09-09", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-09-16", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-09-23", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-09-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-10-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-10-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-10-28", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-11-04", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-11-11", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-11-18", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-11-25", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-12-02", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-12-09", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-12-16", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-12-23", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2022-12-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-01-06", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-01-13", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-01-20", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-02-03", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-02-10", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-02-17", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-02-24", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-03-03", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-03-10", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-03-17", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-03-24", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-03-31", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-04-07", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-04-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-04-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-04-28", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-05-05", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-05-12", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-05-19", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-05-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-06-02", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-06-09", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-06-16", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-06-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-06-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-07-07", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-07-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-07-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-07-28", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-08-04", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-08-11", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-08-18", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-08-25", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-09-01", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-09-08", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-09-15", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-09-22", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-09-28", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-10-13", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-10-20", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-10-27", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-11-03", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-11-10", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-11-17", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-11-24", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-12-01", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-12-08", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-12-15", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-12-22", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2023-12-29", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-01-05", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-01-12", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-01-19", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-01-26", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-02-02", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-02-08", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-02-23", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-03-01", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-03-08", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-03-15", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-03-22", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-03-29", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-04-03", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-04-12", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-04-19", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 1.0, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-04-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-04-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-05-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-05-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-05-24", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-05-31", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "hs300", "band_row": {"date": "2024-06-07", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-06-14", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-06-21", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-06-28", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-07-05", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-07-12", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-07-19", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-07-26", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-08-02", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-08-09", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 0.7, "veto": true, "note": "利差否决 100%→70%"}}
+{"universe": "hs300", "band_row": {"date": "2024-08-16", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-08-23", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-08-30", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 0.7, "veto": true, "note": "利差否决 100%→70%"}}
+{"universe": "hs300", "band_row": {"date": "2024-09-06", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 0.7, "veto": true, "note": "利差否决 100%→70%"}}
+{"universe": "hs300", "band_row": {"date": "2024-09-13", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 0.7, "veto": true, "note": "利差否决 100%→70%"}}
+{"universe": "hs300", "band_row": {"date": "2024-09-20", "action": "定档", "w_self": 1.0, "w_cross": null, "w": 0.7, "veto": true, "note": "利差否决 100%→70%"}}
+{"universe": "hs300", "band_row": {"date": "2024-09-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-10-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-10-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-10-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-11-01", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-11-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-11-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-11-22", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2024-11-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-12-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-12-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-12-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2024-12-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-01-03", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-01-10", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-01-17", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-01-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-01-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-02-07", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-02-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-02-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-02-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-03-07", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-03-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-03-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-03-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-04-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-04-11", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-04-18", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-04-25", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-04-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-05-09", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-05-16", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-05-23", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-05-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-06-06", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-06-13", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-06-20", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-06-27", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-07-04", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-07-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-07-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-07-25", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-08-01", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2025-08-08", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-08-15", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-08-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-08-29", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-09-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-09-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-09-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-09-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-10-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-10-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-10-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2025-10-31", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2025-11-07", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2025-11-14", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2025-11-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-11-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-12-05", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2025-12-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-12-19", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-12-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2025-12-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-01-09", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2026-01-16", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-01-23", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-01-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-02-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-02-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-02-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-03-06", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-03-13", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-03-20", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-03-27", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-04-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-04-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-04-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-04-24", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2026-04-30", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 30%→10% · 高估未确认(>2 月)"}}
+{"universe": "hs300", "band_row": {"date": "2026-05-08", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2026-05-15", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2026-05-22", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-05-29", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2026-06-05", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-06-12", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-06-18", "action": "定档", "w_self": 0.3, "w_cross": null, "w": 0.1, "veto": true, "note": "利差否决 30%→10%"}}
+{"universe": "hs300", "band_row": {"date": "2026-06-26", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-07-03", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-07-10", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-07-17", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-07-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-07-31", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-08-07", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-08-14", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-08-21", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-08-28", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-09-04", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-09-11", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-09-18", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-09-24", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-09-30", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-10-09", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-10-16", "action": "定档", "w_self": 0.5, "w_cross": null, "w": 0.3, "veto": true, "note": "利差否决 50%→30%"}}
+{"universe": "hs300", "band_row": {"date": "2026-10-23", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"universe": "hs300", "band_row": {"date": "2026-10-30", "action": "定档", "w_self": 0.7, "w_cross": null, "w": 0.5, "veto": true, "note": "利差否决 70%→50%"}}
+{"summary": {"universe": "a500", "freq": "weekly", "start": "2025-09-12", "end": "2026-11-02", "cagr": -0.016878, "mdd": -0.08881, "calmar": -0.19005, "sharpe": -0.424808, "exposure": 0.334926, "n_trades": 7, "turnover": 1.5, "bh_cagr": -0.078258, "bh_mdd": -0.241323, "excess": 0.06138, "n_decisions": 59}}
+{"universe": "a500", "signal_date": "2025-09-12", "exec_date": "2025-09-15", "side": "buy", "w_from": 0.0, "w_to": 0.3, "reason": "起手摆到带位"}
+{"universe": "a500", "signal_date": "2026-03-23", "exec_date": "2026-03-24", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "a500", "signal_date": "2026-04-10", "exec_date": "2026-04-13", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "a500", "signal_date": "2026-07-17", "exec_date": "2026-07-20", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥8% 加 1 份"}
+{"universe": "a500", "signal_date": "2026-08-07", "exec_date": "2026-08-10", "side": "sell", "w_from": 0.5, "w_to": 0.3, "reason": "季末降带 50%→30%"}
+{"universe": "a500", "signal_date": "2026-09-28", "exec_date": "2026-09-29", "side": "buy", "w_from": 0.3, "w_to": 0.5, "reason": "阶梯 dd≥16% 加 1.5 份"}
+{"universe": "a500", "signal_date": "2026-10-30", "exec_date": "2026-11-02", "side": "buy", "w_from": 0.5, "w_to": 0.7, "reason": "阶梯 dd≥24% 加 2 份"}
+{"universe": "a500", "band_row": {"date": "2025-09-12", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-09-19", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-09-26", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-09-30", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-10-10", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-10-17", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-10-24", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2025-10-31", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2025-11-07", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2025-11-14", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2025-11-21", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-11-28", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-12-05", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2025-12-12", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-12-19", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-12-26", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2025-12-31", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-01-09", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-01-16", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-01-23", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-01-30", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-02-06", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-02-13", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-02-27", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-03-06", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-03-13", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-03-20", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-03-27", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-04-03", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-04-10", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-04-17", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-04-24", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-04-30", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-05-08", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-05-15", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-05-22", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-05-29", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-06-05", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-06-12", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-06-18", "action": "定档", "w_self": 0.3, "w_cross": 0.3, "w": 0.3, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-06-26", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-07-03", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-07-10", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-07-17", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-07-24", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-07-31", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-08-07", "action": "定档", "w_self": 0.3, "w_cross": 0.5, "w": 0.3, "veto": false, "note": "交叉不一致(中证A500 30% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-08-14", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-08-21", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-08-28", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-09-04", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-09-11", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-09-18", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-09-24", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-09-30", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-10-09", "action": "定档", "w_self": 0.5, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-10-16", "action": "定档", "w_self": 0.7, "w_cross": 0.5, "w": 0.5, "veto": false, "note": "交叉不一致(中证A500 70% / 沪深300 50%)"}}
+{"universe": "a500", "band_row": {"date": "2026-10-23", "action": "定档", "w_self": 0.7, "w_cross": 0.7, "w": 0.7, "veto": false, "note": "同档"}}
+{"universe": "a500", "band_row": {"date": "2026-10-30", "action": "定档", "w_self": 0.7, "w_cross": 0.7, "w": 0.7, "veto": false, "note": "同档"}}
+{"freq_table": {"univ": "hs300", "freq": "weekly", "ann": 0.050883, "mdd": -0.159503, "calmar": 0.31901, "sharpe": 0.381474, "exp": 0.435453, "n_trades": 34, "turnover": 7.7, "n_dec": 720, "n_change": 85, "bh_ann": 0.067174, "bh_mdd": -0.460589, "start": "2012-10-15T00:00:00", "end": "2026-11-02T00:00:00", "years": 14.047912}}
+{"freq_table": {"univ": "hs300", "freq": "monthly", "ann": 0.056436, "mdd": -0.179487, "calmar": 0.31443, "sharpe": 0.410464, "exp": 0.457369, "n_trades": 26, "turnover": 6.7, "n_dec": 169, "n_change": 36, "bh_ann": 0.067174, "bh_mdd": -0.460589, "start": "2012-10-15T00:00:00", "end": "2026-11-02T00:00:00", "years": 14.047912}}
+{"freq_table": {"univ": "hs300", "freq": "quarterly", "ann": 0.060049, "mdd": -0.176318, "calmar": 0.340572, "sharpe": 0.440311, "exp": 0.467096, "n_trades": 14, "turnover": 4.1, "n_dec": 28, "n_change": 13, "bh_ann": 0.067174, "bh_mdd": -0.460589, "start": "2012-10-15T00:00:00", "end": "2026-11-02T00:00:00", "years": 14.047912}}
+{"freq_table": {"univ": "a500", "freq": "weekly", "ann": -0.016878, "mdd": -0.08881, "calmar": -0.19005, "sharpe": -0.424808, "exp": 0.334926, "n_trades": 7, "turnover": 1.5, "n_dec": 59, "n_change": 6, "bh_ann": -0.078258, "bh_mdd": -0.241323, "start": "2025-09-12T00:00:00", "end": "2026-11-02T00:00:00", "years": 1.138946}}
+{"freq_table": {"univ": "a500", "freq": "monthly", "ann": -0.018828, "mdd": -0.089516, "calmar": -0.210327, "sharpe": -0.467628, "exp": 0.326838, "n_trades": 6, "turnover": 1.3, "n_dec": 14, "n_change": 6, "bh_ann": -0.078258, "bh_mdd": -0.241323, "start": "2025-09-12T00:00:00", "end": "2026-11-02T00:00:00", "years": 1.138946}}
+{"freq_table": {"univ": "a500", "freq": "quarterly", "ann": -0.046102, "mdd": -0.12462, "calmar": -0.369942, "sharpe": -0.673263, "exp": 0.388603, "n_trades": 2, "turnover": 0.5, "n_dec": 3, "n_change": 1, "bh_ann": -0.078258, "bh_mdd": -0.241323, "start": "2025-09-12T00:00:00", "end": "2026-11-02T00:00:00", "years": 1.138946}}
+{"check": "C1 恒满仓 → 净值与买入持有逐日一致（差 <1e-9）", "universe": "hs300", "pass": true, "detail": "max|Δ| = 1.29e-14"}
+{"check": "C2 恒空仓 → 年化 ≈ rf（±0.3pp）", "universe": "hs300", "pass": true, "detail": "年化 +1.40% vs rf 1.40%"}
+{"check": "C3 阶梯同月最多 1 档", "universe": "hs300", "pass": true, "detail": "最多 1 档/月 · 共 15 档"}
+{"check": "C4 仓位不超过目标带（不顶穿带）", "universe": "hs300", "pass": true, "detail": "max(w − target[−1]) = 0.00e+00"}
+{"check": "C5 未连续 2 个月 ≥80% → 不得降到 10% 观察仓", "universe": "hs300", "pass": true, "detail": "确认期 99 个月时出现 10% 档: False"}
+{"check": "C6 决策日 → 成交日 恒为 1 个交易日（无前视）", "universe": "hs300", "pass": true, "detail": "34 笔"}
+{"check": "C7 定档频率 weekly：6/12 月照常定档（顺延只对 quarterly 生效）", "universe": "hs300", "pass": true, "detail": "出现定档的月份 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"}
+{"check": "C8 PE 样本不足（分位为 null）不产生交易", "universe": "hs300", "pass": true, "detail": "首有效分位 2012-10-15 · 早于它的交易 0 笔"}
+{"check": "C9 分位口径（含当日、<= 比较）自洽", "universe": "hs300", "pass": true, "detail": "pct ∈ [0.002, 1.000]"}
+{"check": "C10 净值 = 加权收益 + 现金利息 − 费用（无隐藏加减仓）", "universe": "hs300", "pass": true, "detail": "max|相对差| = 3.89e-14"}
+{"check": "C11 定档频率 weekly → 每年 ≈52 次（±10%）", "universe": "hs300", "pass": true, "detail": "720 次 / 14.0 年 = 51.3 次/年"}
+{"check": "C1 恒满仓 → 净值与买入持有逐日一致（差 <1e-9）", "universe": "a500", "pass": true, "detail": "max|Δ| = 2.22e-15"}
+{"check": "C2 恒空仓 → 年化 ≈ rf（±0.3pp）", "universe": "a500", "pass": true, "detail": "年化 +1.40% vs rf 1.40%"}
+{"check": "C3 阶梯同月最多 1 档", "universe": "a500", "pass": true, "detail": "最多 1 档/月 · 共 4 档"}
+{"check": "C4 仓位不超过目标带（不顶穿带）", "universe": "a500", "pass": true, "detail": "max(w − target[−1]) = 0.00e+00"}
+{"check": "C5 未连续 2 个月 ≥80% → 不得降到 10% 观察仓", "universe": "a500", "pass": true, "detail": "确认期 99 个月时出现 10% 档: False"}
+{"check": "C6 决策日 → 成交日 恒为 1 个交易日（无前视）", "universe": "a500", "pass": true, "detail": "7 笔"}
+{"check": "C7 定档频率 weekly：6/12 月照常定档（顺延只对 quarterly 生效）", "universe": "a500", "pass": true, "detail": "出现定档的月份 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"}
+{"check": "C8 PE 样本不足（分位为 null）不产生交易", "universe": "a500", "pass": true, "detail": "首有效分位 2025-09-12 · 早于它的交易 0 笔"}
+{"check": "C9 分位口径（含当日、<= 比较）自洽", "universe": "a500", "pass": true, "detail": "pct ∈ [0.210, 1.000]"}
+{"check": "C10 净值 = 加权收益 + 现金利息 − 费用（无隐藏加减仓）", "universe": "a500", "pass": true, "detail": "max|相对差| = 4.22e-15"}
+{"check": "C11 定档频率 weekly → 每年 ≈52 次（±10%）", "universe": "a500", "pass": true, "detail": "59 次 / 1.1 年 = 51.8 次/年"}

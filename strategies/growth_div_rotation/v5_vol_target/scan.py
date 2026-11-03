@@ -16,6 +16,8 @@
 产物（AGENTS §8.4 ⑤）：
 * `daily/_gd_v5_daily.md`    —— 人读
 * `daily/_gd_v5_signal.json` —— pipeline 每日看板读取（`pipeline/daily_digest.py`）
+* `backtest/_v5_alloc.png`   —— **每日重画**「三资产仓位 + 创业板指/中证红利点位 + 比值 R」，
+  看板板块3 的 v5 卡片直接引用它（画图逻辑只在 `backtest.plot_alloc`，这里只喂当日权重）
 
 用法::
 
@@ -49,6 +51,7 @@ import rule  # noqa: E402  pylint: disable=wrong-import-position
 
 OUT_MD = os.path.join(_DIR, "daily", "_gd_v5_daily.md")
 OUT_JSON = os.path.join(_DIR, "daily", "_gd_v5_signal.json")
+CHART = os.path.join(_DIR, "backtest", "_v5_alloc.png")
 
 _COLS = ["growth", "div", "cash"]
 _CN = {"growth": "成长（创业板）", "div": "红利（中证红利）", "cash": "现金（货基/短债）"}
@@ -60,6 +63,12 @@ def _w(row) -> dict:
 
 def _next_bday(idx):
     return idx[-1] + pd.tseries.offsets.BDay(1)
+
+
+def _redraw(g, d, r, W):
+    """重画 backtest/_v5_alloc.png（画图逻辑只写在 backtest.plot_alloc 里，这里喂当日权重）。"""
+    import backtest  # 延迟导入：只有出图时才拉起 matplotlib
+    return backtest.draw_main_chart(g, d, r, W)
 
 
 def _action(base_cur, base_next, cur, nxt, tgt) -> tuple:
@@ -92,6 +101,9 @@ def build() -> dict:
     W = engine.target_weights(r, g, d)
     res = engine.run(g, d, W)
     Ws, scale, vol, base = res["W"], res["scale"], res["vol"], res["base_W"]
+
+    # 每日重画板块3 的那张图（仓位堆叠 + 两条点位 + 比值 R），喂的就是这份 Ws
+    _redraw(g, d, r, Ws)
 
     cur = Ws.iloc[-1]
     base_cur = base.iloc[-1]
@@ -141,6 +153,7 @@ def build() -> dict:
         "high": rule.RATIO_HIGH,
         "weights": _w(cur),
         "base_weights": _w(base_cur),
+        "chart": os.path.relpath(CHART, os.path.dirname(os.path.dirname(_DIR))).replace("\\", "/"),
         "next": {"weights": _w(nxt), "base": _w(base_next), "scale": round(scale_next, 3),
                  "throttled": not np.allclose(nxt.values, tgt.iloc[0].values),
                  "gap": gap, "wait": max(0, rule.MIN_REBALANCE - gap)},
@@ -175,6 +188,7 @@ def render(d: dict) -> str:
          f"> 三层叠加：R 水位（{d['low']:.2f}/{d['high']:.2f}）+ 双侧 MA{rule.MA_TREND} 闸门"
          f"（破线该侧 ×{1 - rule.TREND_CUT:.1f}）+ 波动率目标 {d['target_vol']:.0%}"
          f"（{rule.VOL_WINDOW} 日，死区 {d['deadband']:.2f}），全局限速 {rule.MIN_REBALANCE} 日。", "",
+         "![v5 三资产仓位 · 创业板指/中证红利点位 · 比值 R](../backtest/_v5_alloc.png)", "",
          "## 一、今日状态", "",
          f"- 当前权重：成长 **{w['growth']:.0%}** / 红利 **{w['div']:.0%}** / 现金 **{w['cash']:.0%}**"
          f"（总暴露 {w['growth'] + w['div']:.0%}）",
@@ -234,6 +248,7 @@ def main() -> None:
           f" · {d['action']}")
     print(f"[v5] {os.path.relpath(OUT_MD, root)}")
     print(f"[v5] {os.path.relpath(OUT_JSON, root)}")
+    print(f"[v5] {os.path.relpath(CHART, root)}（图已按当日数据重画）")
 
 
 if __name__ == "__main__":

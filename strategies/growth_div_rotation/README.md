@@ -60,8 +60,8 @@ growth_div_rotation/
 │  └─ README.md
 └─ v5_vol_target/         ← 研究变种（v3 + 18% 波动率目标，**全家族风险调整最优**）
    ├─ rule.py / factors.py / engine.py / data.py / backtest.py / scan.py
-   ├─ backtest/           ← _v5_report.md / _v5_bt.json(l) / _v5_nav.png / _v5_vol.png / _v5_alloc.png
-   └─ daily/              ← _gd_v5_signal.json / _gd_v5_daily.md（板块3 第三张卡）
+   ├─ backtest/           ← _v5_report.md / _v5_bt.json(l) / _v5_nav.png / _v5_vol.png / _v5_alloc.png（每日重画）
+   └─ daily/              ← _gd_v5_signal.json / _gd_v5_daily.md（板块3 第三张卡，卡片内嵌上面的 _v5_alloc.png）
 ```
 
 ## 运行
@@ -101,7 +101,13 @@ python strategies/growth_div_rotation/v5_vol_target/backtest.py
 |---|---|---|---|
 | v0 | R 相对 MA20±1% 缓冲带 + 250 日分位（主线） | `v0/scan.py` | `v0/daily/_gd_signal.json` + `_signal_report.md` |
 | v2 | R 绝对水位 0.35/0.65，一次性整仓切换（信号层裸基准） | `v2_absolute_bands/scan.py` | `v2_absolute_bands/daily/_gd_v2_signal.json` + `_gd_v2_daily.md` |
-| v5 | R 水位 + 双侧 MA200 闸门 + 18% 波动率目标（风险调整最优） | `v5_vol_target/scan.py` | `v5_vol_target/daily/_gd_v5_signal.json` + `_gd_v5_daily.md` |
+| v5 | R 水位 + 双侧 MA200 闸门 + 18% 波动率目标（风险调整最优） | `v5_vol_target/scan.py` | `v5_vol_target/daily/_gd_v5_signal.json` + `_gd_v5_daily.md` + **`v5_vol_target/backtest/_v5_alloc.png`（每日重画）** |
+
+> v5 的仓位图（三资产堆叠 + 创业板指/中证红利点位 + 比值 R）**每天随 `scan.py` 重画**：
+> 画图逻辑只写在 `backtest.py::plot_alloc`，`scan.py` 把当日那份权重喂给它，不给每日流程
+> 另写一套口径；图落在 `backtest/_v5_alloc.png`，`pipeline/strategies.json` 的
+> `daily.chart` 指向它，看板板块3 的 v5 卡片直接内嵌显示。
+> 只想重画这张图：`python strategies/growth_div_rotation/v5_vol_target/backtest.py --chart`。
 
 > "明日"的权重靠**追加一个占位 bar** 让状态机自己再走一步得到（复制最新收盘成下一交易日，
 > 重跑 `signal_weights` / `target_weights` / `vol_scale` / `throttle`），

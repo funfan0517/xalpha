@@ -6,6 +6,12 @@
 （代码 / 名称 / 动作 / 说明），按运行日归档到 ``data/_daily_digest.json``，
 并渲染 ``data/_daily_digest.html``（单文件、无外链，双击可看）。
 
+卡片可选带图：策略在 ``daily.chart`` 里声明产物图（仓库相对路径），卡片就在表格下方
+内嵌显示。历史库（``_daily_digest.json``）**只记路径**，图随策略脚本每日重画；
+HTML 渲染时按路径读一次、base64 内嵌（按路径去重），这样 ``data/_daily_digest.html``
+是真正自包含的单文件 —— IDE 预览 / 内嵌浏览器的 base 路径不是仓库根时，相对路径
+会 404 显示破图，内嵌可避免。
+
 看板按 ``strategies.json`` 顶层 ``blocks`` 分节（每日操作板块 1→5：总策略 → 波动类 →
 风格轮动 → 稳健红利 → 技术指标），策略通过自己的 ``daily.block`` 认领板块；
 未认领的归入末尾「其他」。板块定义里不存策略清单，加策略只改那一处 ``daily.block``。
@@ -24,7 +30,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import mimetypes
 import os
 import re
 import sys
@@ -35,6 +43,8 @@ _ROOT = os.path.dirname(_DIR)
 CFG = os.path.join(_DIR, "strategies.json")
 DB = os.path.join(_ROOT, "data", "_daily_digest.json")
 HTML = os.path.join(_ROOT, "data", "_daily_digest.html")
+# 看板卡片图的同目录副本（部分预览器只 serve 与 HTML 同目录的文件）
+_IMG_DIR = os.path.join(_ROOT, "data", "_daily_digest_assets")
 
 DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 CODE_RE = re.compile(r"`([0-9A-Za-z]{5,6})`")
@@ -135,14 +145,19 @@ def _blocks(doc):
             "title": b.get("title") or key,
             "desc": b.get("desc") or "",
             "note": b.get("note") or "",
+            # daily.enabled=false 的策略不进本板块（否则看板会渲染早已撤掉的卡）
             "keys": [k for k, m in cfg.items()
-                     if ((m.get("daily") or {}).get("block") or "") == key],
+                     if ((m.get("daily") or {}).get("block") or "") == key
+                     and (m.get("daily") or {}).get("enabled") is not False],
         })
     return out
 
 
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
-           note="", src="", error="", cols=None):
+           note="", src="", error="", cols=None, img="", img_cap="", all_rows=False):
+    """``all_rows=True``: 该卡不受看板「只看有动作」筛选影响 —— 用于「池子本身就小、
+    空仓标的的读数（RSI/温度）也是决策依据」的卡片，例如红利 V4 的 5 只择时池。
+    """
     return {
         "key": key,
         "name": name,
@@ -156,6 +171,9 @@ def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
         "note": note,
         "src": src,
         "error": error,
+        "img": img,
+        "img_cap": img_cap,
+        "all_rows": bool(all_rows),
     }
 
 
@@ -194,24 +212,28 @@ def parse_dividend(_cfg):
             r = rsi.get(code)
         pv = p.get("preview_weight")
         if pv is None:
-            dec = f"下次决策 {nd} 待定"
+            dec = "待定"
         elif float(pv) > 1e-9:
-            dec = f"下次决策 {nd} 预计入选 {float(pv) * 100:.0f}%"
+            dec = f"预计入选 {float(pv) * 100:.0f}%"
         else:
-            dec = f"下次决策 {nd} 预计落选"
-        detail = (f"RSI14 {r:.1f} · 板块均值 {d.get('board_rsi', '—')} · "
-                  if r is not None else
-                  f"RSI14 —（今日无快照） · 板块均值 {d.get('board_rsi', '—')} · ")
-        detail += f"权重 {w * 100:.0f}% · {dec}"
+            dec = "预计落选"
+        # 池子只有 5 只，逐只 RSI 本身就是「为什么选这 2 只」的依据 —— 空仓行的读数也要给全。
+        detail = (f"RSI14 {r:.1f}" if r is not None else "RSI14 —（今日无快照）")
+        detail += f" · 权重 {w * 100:.0f}% · 下次 {nd} {dec}"
         rows.append(_row(code, p.get("name"), act, label, detail))
 
     holds = "、".join(f"`{p.get('code')}` {float(p.get('weight') or 0) * 100:.0f}%"
                      for p in positions) or "空仓"
-    preview = ""
+    # 「下次预计」是策略自带的预演（用未走完的本月数据，非前瞻）—— 直接摆到卡片摘要与 chip 上，
+    # 否则它只藏在明细表第四列，容易被读成「今天没有建议」。
+    prev_tier = prev.get("tier") or "—"
+    preview = f" · 下次 {nd} 预计 {prev_tier}"
     if prev.get("changed"):
         tgt = "、".join(f"`{t.get('code')}` {float(t.get('weight') or 0) * 100:.0f}%"
                        for t in prev.get("target") or []) or "空仓"
-        preview = f" · 预览会变 → {tgt}"
+        preview += f"，会换仓 → {tgt}"
+    else:
+        preview += "，持仓不变"
 
     # 2026-10-30 起 V9 估值温度独立成卡（见 parse_dividend_v9）：V4 只管「仓位怎么摆」，
     # V9 只管「贵不贵、额度给谁」，混在一张表里会被读成同一层决策。
@@ -221,11 +243,15 @@ def parse_dividend(_cfg):
         f"板块 RSI {d.get('board_rsi', '—')} · 持 {holds}{preview}", rows,
         [["板块 RSI", str(d.get("board_rsi", "—"))], ["档位", tier],
          ["持仓", f"{len(positions)} 只 · {sum(pos.values()) * 100:.0f}%"],
-         ["下次决策", str(d.get("next_decision") or "—")]],
+         ["下次决策", f"{nd} · 预计 {prev_tier}"]],
         note="V4 · RSI14 择时（月末收盘确认、次日开盘执行；月中为预览）：板块(池内 5 只)RSI 均值 ≥70 清仓 / ≥50 减半，"
              "横截面取 RSI 最低 2 只等权。2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。"
              "V9 五因子估值温度已拆成板块4 的第二张卡。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
+        cols=["代码", "名称", "本月动作", "RSI / 权重 / 下次预计"],
+        # 池内只有 5 只、且「空仓那 3 只的 RSI」正是横截面选 2 只的依据 —— 这一卡不吃
+        # 「只看有动作」筛选，否则每天只剩 2 行，看不出档位是怎么来的。
+        all_rows=True,
     )
 
 
@@ -400,6 +426,10 @@ def parse_gd_v5(_cfg):
              "2010~2021 有效（v3 反超 v2 +0.97pp），2021~2026 拖累（v3 落后 v2 6.07pp）。",
         src=_rel(os.path.join(_ROOT, daily["signal_report"])),
         cols=["执行代码", "资产", "动作", "目标仓位"],
+        # 仓位图由 scan.py 每日按当日权重重画，卡片里直接内嵌（缺图时留空，不影响卡片）
+        img=daily.get("chart") or "",
+        img_cap="三资产仓位（堆叠）+ 创业板指 / 中证红利点位（右轴 1 / 右轴 2）+ 风格比值 R"
+                "（下栏，0.35 / 0.65 为切换阈值）· 每日随 scan.py 重画",
     )
 
 
@@ -804,14 +834,61 @@ def archive(entries, day):
     return db
 
 
+def _img_assets(runs):
+    """把卡片声明的产物图内嵌成 data URI（只进 HTML，历史库仍只记路径）。
+
+    IDE 预览 / 内嵌浏览器打开 ``data/_daily_digest.html`` 时，页面的 base 路径常常不是
+    仓库根，``../strategies/...`` 会 404，页面显示破图；内嵌后单文件自包含。
+    按路径去重，同一张图只嵌一次，历史多天不会把 HTML 撑成多份大小。
+    """
+    assets = {}
+    os.makedirs(_IMG_DIR, exist_ok=True)
+    for run in runs.values():
+        for key, ent in (run.get("strategies") or {}).items():
+            rel = (ent or {}).get("img") or ""
+            if not rel or rel in assets:
+                continue
+            full = os.path.join(_ROOT, rel.replace("/", os.sep))
+            if not os.path.exists(full):
+                print(f"[digest] 卡片图缺失，退回路径引用: {rel}")
+                continue
+            with open(full, "rb") as fh:
+                blob = fh.read()
+            mime = mimetypes.guess_type(full)[0] or "image/png"
+            assets[rel] = "data:%s;base64,%s" % (mime, base64.b64encode(blob).decode("ascii"))
+            # 同目录副本：有些预览器只 serve 看板所在目录（不许 ../ 越界），或对超长
+            # data URI 直接拒绝；卡片 onerror 会依次退到这份副本、再退到原产物路径。
+            dst = os.path.join(_IMG_DIR, "%s__%s" % (key, os.path.basename(full)))
+            if not os.path.exists(dst) or os.path.getsize(dst) != len(blob):
+                with open(dst, "wb") as fh:
+                    fh.write(blob)
+            print(f"[digest] 内嵌卡片图 {rel}（{len(assets[rel]) / 1024:.0f} KB base64）"
+                  f" + 副本 {_rel(dst)}")
+    return assets
+
+
 def render(db):
     dates = sorted(db.get("runs") or {})
     # 板块定义每次渲染都从 strategies.json 读：老归档（entry 里没有板块字段）也能按
     # 当前归属重新分节，不必重建历史库。
-    blocks = _blocks(json.loads(_read(CFG)))
+    doc = json.loads(_read(CFG))
+    blocks = _blocks(doc)
+    # 停用策略连历史归档也不渲染：看板是「当前每日操作」的视图，翻历史日期时看到
+    # 早就撤掉的卡（如板块3 的 v2）只会让人以为它还在流程里。原始记录仍留在 json 里。
+    disabled = {k for k, m in doc["strategies"].items()
+                if (m.get("daily") or {}).get("enabled") is False}
+    runs = {}
+    for d in dates:
+        run = db["runs"][d]
+        runs[d] = {"run_at": run.get("run_at"),
+                   "strategies": {k: v for k, v in (run.get("strategies") or {}).items()
+                                  if k not in disabled}}
     payload = {"generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "dates": dates,
                "blocks": blocks,
-               "runs": {d: db["runs"][d] for d in dates}}
+               # HTML 在 data/ 下，卡片里的图优先用内嵌 data URI，其次退回「仓库相对路径」
+               "root": os.path.relpath(_ROOT, os.path.dirname(HTML)).replace("\\", "/"),
+               "assets": _img_assets(runs),
+               "runs": runs}
     data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     html = _HTML_TMPL.replace("__DATA__", data)
     with open(HTML, "w", encoding="utf-8") as fh:
@@ -906,6 +983,10 @@ td.d{color:#5f6b80;font-size:12.5px}
 code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f2f5fa;
   border-radius:4px;padding:0 4px;font-size:12px}
 .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+.fig{padding:4px 18px 14px;margin:0}
+.fig img{display:block;width:100%;height:auto;border:1px solid var(--line);
+  border-radius:12px;background:#fff}
+.figcap{font-size:11.5px;color:var(--muted);padding-top:6px}
 .note{padding:9px 18px 14px;font-size:12px;color:var(--muted)}
 .src{padding:0 18px 14px;font-size:11.5px;color:#a3abbd;font-family:ui-monospace,Consolas,monospace}
 footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:12px}
@@ -968,7 +1049,10 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       var hit = !q || (r.c + ' ' + r.n + ' ' + r.a + ' ' + r.d).toLowerCase().indexOf(q) >= 0;
       if(!hit) return false;
       if(q) return true;                      // 搜索时忽略「只看有动作」
-      if(onlyAct.checked && r.act === 'none') return false;
+      // 小表不筛选：池子固定的策略（7 腿 / 5 只红利 / 8 项基准）空仓行的读数本身就是
+      // 决策依据，且一共才几行；老归档没有 all_rows 字段也按小表处理。
+      // 大表（如 54 只全池）才需要「只看有动作」把噪声收起来。
+      if(onlyAct.checked && r.act === 'none' && !s.all_rows && (s.rows || []).length > 10) return false;
       return true;
     });
     return rows;
@@ -990,7 +1074,25 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
                  '</td><td class="d">' + md(r.d) + '</td></tr>';
         }).join('') + '</tbody></table></div>'
       : '<div class="empty">' + (s.rows && s.rows.length ? '当前筛选下无明细' : '无明细产物') + '</div>';
-    var open = (q || (s.rows || []).some(function(r){ return r.act !== 'none'; })) ? ' open' : '';
+    // 带图的卡片默认展开（图是该策略的正文，不该藏在折叠里）
+    // file:// 下不能带查询串（Chrome 会拒绝加载 file 路径 + ?d=），所以只在 http 下做防缓存
+    var bust = location.protocol === 'file:' ? '' : ('?d=' + encodeURIComponent(cur));
+    // 图三级来源，任一可用即显示：
+    //  ① data URI（内嵌，单文件自包含）
+    //  ② data/_daily_digest_assets/<key>__<文件名>（与看板同目录，预览器把 data/ 当根时也取得到）
+    //  ③ 原产物路径 ../strategies/...
+    // 不用 loading="lazy"：滚动容器 / 内嵌预览器里 IntersectionObserver 常不触发，
+    // 图会停在占位破图。图只有一张，直接加载。
+    var local = '_daily_digest_assets/' + s.key + '__' + String(s.img || '').split('/').pop();
+    var isrc = (D.assets && D.assets[s.img]) || local;
+    var fig = s.img ? '<figure class="fig"><img alt="' + esc(s.name) + '" src="' + esc(isrc) +
+        '" data-fb1="' + esc(local) + '" data-fb2="' + esc((D.root || '.') + '/' + s.img) +
+        '" onerror="var f=[this.dataset.fb1,this.dataset.fb2];var n=+(this.dataset.n||0);' +
+        'if(n<2){this.dataset.n=n+1;this.src=f[n];}else{this.onerror=null;}">' +
+        (s.img_cap ? '<figcaption class="figcap">' + md(s.img_cap) + '</figcaption>' : '') +
+        '</figure>' : '';
+    var open = (q || s.img || (s.rows || []).some(function(r){ return r.act !== 'none'; }))
+      ? ' open' : '';
     var cls = s.error ? ' card err' : ' card';
     return '<div class="' + cls.trim() + '"><details' + open + '>' +
       '<summary><div class="ttl"><h2>' + esc(s.name) + '</h2>' +
@@ -999,7 +1101,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       '<div class="meta">' + (s.as_of ? ('数据日 ' + esc(s.as_of)) : '无数据') +
       (s.rows ? (' · ' + s.rows.length + ' 行') : '') + '</div></summary>' +
       (chips ? '<div class="chips">' + chips + '</div>' : '') +
-      body + (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') +
+      body + fig + (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') +
       (s.src ? '<div class="src">' + esc(s.src) + '</div>' : '') +
       '</details></div>';
   }

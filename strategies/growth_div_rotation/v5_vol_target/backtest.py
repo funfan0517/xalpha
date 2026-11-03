@@ -16,9 +16,12 @@
 
 产物：backtest/_v5_report.md · _v5_bt.json · _v5_bt.jsonl
       backtest/_v5_nav.png    净值 + 回撤（v5 vs v3 vs 买入持有）
-      backtest/_v5_alloc.png  三资产仓位堆叠 + 创业板指
+      backtest/_v5_alloc.png  三资产仓位堆叠 + 创业板指 / 中证红利点位（各一根右轴）
+                              + 风格比值 R（下栏，含 0.35 / 0.65 阈值带）
       backtest/_v5_vol.png    滚动波动 vs 目标 + 缩放系数 + 回撤
 用法：python strategies/growth_div_rotation/v5_vol_target/backtest.py [--refresh]
+      python strategies/growth_div_rotation/v5_vol_target/backtest.py --chart
+          ↑ 只重画 _v5_alloc.png（不跑敏感性网格，秒级完成；每日流程走这条）
 """
 import io
 import json
@@ -455,8 +458,10 @@ def plot_nav(C):
 # ============================================================ 图：三资产仓位
 def plot_alloc(C):
     W = C["main"]["W"]
-    g = C["g"]
-    fig, ax = plt.subplots(figsize=(13, 6.2))
+    g, d, r = C["g"], C["d"], C["r"]
+    fig, (ax, axr) = plt.subplots(
+        2, 1, figsize=(13, 7.6), sharex=True,
+        gridspec_kw=dict(height_ratios=[3.5, 1.0], hspace=0.08))
     ax.stackplot(W.index, W["growth"] * 100, W["div"] * 100, W["cash"] * 100,
                  colors=["#d95f02", "#4a7fb5", "#bdbdbd"],
                  labels=["成长（创业板）", "红利（中证红利）", "现金"],
@@ -465,16 +470,57 @@ def plot_alloc(C):
     ax.set_ylabel("仓位 (%)")
     ax.set_title(f"v5 三资产仓位：成长 / 红利 / 现金（v3 层级 × 波动率目标 "
                  f"{rule.VOL_TARGET:.0%}）")
-    ax.legend(loc="upper left", ncol=3, fontsize=9, framealpha=0.9)
     ax.grid(alpha=0.25, axis="y")
-    ax.xaxis.set_major_locator(mdates.YearLocator(2, month=1, day=1))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.tick_params(axis="x", labelbottom=False)
 
+    # 两条点位曲线各给一根右轴：创业板指 594~4372、中证红利 2096~6227，量级不同，
+    # 挤在一根轴上会把创业板指压扁；左轴专心显示仓位。
     ax2 = ax.twinx()
-    ax2.plot(g.index, g.values, color="#333333", lw=0.9, alpha=0.55, zorder=5)
-    ax2.set_ylabel("创业板指点位（灰线，右轴）", fontsize=10, color="#333333")
-    ax2.tick_params(axis="y", colors="#333333")
-    fig.tight_layout()
+    ax2.plot(g.index, g.values, color="#2b2b2b", lw=1.0, alpha=0.65, zorder=5,
+             label=f"{rule.GROWTH_NAME} {rule.GROWTH_INDEX}")
+    ax2.set_ylabel(f"{rule.GROWTH_NAME}点位（右轴 1，黑）", fontsize=10, color="#2b2b2b")
+    ax2.tick_params(axis="y", colors="#2b2b2b")
+
+    ax3 = ax2.twinx()
+    ax3.spines["right"].set_position(("outward", 56))
+    # ax2.twinx() 会把 ax2 自己的刻度拨到左侧（与仓位轴打架），显式拨回右侧
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position("right")
+    ax2.spines["right"].set_visible(True)
+    ax3.plot(d.index, d.values, color="#8c2d19", lw=1.0, alpha=0.65, zorder=5,
+             label=f"{rule.DIV_NAME} {rule.DIV_INDEX}")
+    ax3.set_ylabel(f"{rule.DIV_NAME}点位（右轴 2，暗红）", fontsize=10, color="#8c2d19")
+    ax3.tick_params(axis="y", colors="#8c2d19")
+
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    h3, l3 = ax3.get_legend_handles_labels()
+    ax.legend(h1 + h2 + h3, l1 + l2 + l3, loc="upper left", ncol=3,
+              fontsize=8.5, framealpha=0.9)
+
+    # ---- 下栏：风格比值 R（仓位切换的驱动量），点位的另一种读法 ----
+    lo, hi = rule.RATIO_LOW, rule.RATIO_HIGH
+    axr.plot(r.index, r.values, color="#12395e", lw=1.0,
+             label=f"风格比值 R = {rule.GROWTH_NAME} ÷ {rule.DIV_NAME}")
+    axr.fill_between(r.index, r.values, lo, where=r.values <= lo, interpolate=True,
+                     color="#d95f02", alpha=0.22, lw=0)
+    axr.fill_between(r.index, r.values, hi, where=r.values >= hi, interpolate=True,
+                     color="#4a7fb5", alpha=0.22, lw=0)
+    axr.axhline(lo, color="#d95f02", ls="--", lw=1.0)
+    axr.axhline(hi, color="#4a7fb5", ls="--", lw=1.0)
+    axr.text(r.index[2], lo, f" R≤{lo:.2f} → 目标满仓成长", va="top", ha="left",
+             fontsize=8, color="#a34700")
+    axr.text(r.index[2], hi, f" R≥{hi:.2f} → 目标满仓红利", va="bottom", ha="left",
+             fontsize=8, color="#2f5580")
+    axr.set_ylim(min(float(r.min()), lo) * 0.9, max(float(r.max()), hi) * 1.08)
+    axr.set_yticks([lo, (lo + hi) / 2, hi])       # 刻度对齐阈值，读图不用估算
+    axr.set_ylabel("比值 R")
+    axr.grid(alpha=0.25, axis="y")
+    axr.legend(loc="upper right", fontsize=8.5, framealpha=0.9)
+    axr.xaxis.set_major_locator(mdates.YearLocator(2, month=1, day=1))
+    axr.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+
+    fig.subplots_adjust(left=0.065, right=0.875, top=0.94, bottom=0.07)
     path = os.path.join(OUT, "_v5_alloc.png")
     fig.savefig(path, dpi=140, facecolor="white")
     plt.close(fig)
@@ -595,7 +641,29 @@ def write_products(C):
     return summary
 
 
+def draw_main_chart(g, d, r, W):
+    """用给定的对齐序列与（已缩放的）权重重画仓位图。
+
+    回测（`compute` 的 main）与每日流程（`scan.py` 的当日状态）共用这一份画图逻辑，
+    保证「看板上的图」与「产物里的权重」是同一批数据，不会各画一套。
+    """
+    return plot_alloc(dict(g=g, d=d, r=r, main=dict(W=W)))
+
+
+def main_chart():
+    """只算 v5 默认档的目标权重并重画 _v5_alloc.png（跳过敏感性网格，秒级）。"""
+    wide = datamod.load_wide()
+    g, d = wide[rule.GROWTH_INDEX], wide[rule.DIV_INDEX]
+    r = factors.ratio_series(g, d)
+    g, d = g.reindex(r.index), d.reindex(r.index)
+    W = engine.run(g, d, engine.target_weights(r, g, d))["W"]
+    return draw_main_chart(g, d, r, W)
+
+
 def main():
+    if "--chart" in sys.argv:
+        print("图:", main_chart())
+        return
     write_products(compute(refresh="--refresh" in sys.argv))
 
 

@@ -139,8 +139,10 @@ def main():
         f"> 档位：上涨趋势 → 满带；反弹 → 只持有；高位回调 → 降一档（半仓）；下跌趋势 → "
         f"满 {tg.REDUCE_DAYS} 日减半、满 {tg.CLEAR_DAYS} 日清至观察仓。"
         f"同一腿两次调仓间隔 ≥{tg.ACTION_GAP} 个交易日（频率帽）。",
-        f"> 作用域：只套 **{' / '.join(tg.rule.LEGS[k]['name'] for k in tg.GATE_LEGS)}**"
-        "（无现金流锚）；中证A500 / 沪深300 / 纳指100 / 标普500 有估值锚，不套闸门、维持满带。",
+        f"> 作用域：**全部七腿**均套闸门（{' / '.join(tg.rule.LEGS[k]['name'] for k in tg.LEGS)}；"
+        "2026-11-03 起默认七腿全套，`GATE_ALL=True`）。宽基（中证A500 / 沪深300 / 纳指100 / 标普500）"
+        "套上趋势过滤会与估值锚的均值回归互相抵消 —— 实测让渡约 2.4pp 年化、回撤无改善；要回到"
+        "「只套无现金流锚三腿」的老口径，把 `trend_gate.GATE_ALL` 设 False。",
         f"> 空仓部分按货基 {tg.CASH_ANNUAL:.2%} 计息；成交按 **T+1 净值**（T 日盘后算，"
         "T+1 15:00 前提交）。",
         f"> 七腿 {len(rows)} 只：最新 {len(rows) - len(stale)} 只 · 滞后/失败 {len(stale)} 只。"
@@ -211,9 +213,9 @@ def main():
         "—— 两者可叠加，但不要互相替代：主策略定带位，本变种定带内档位。",
         "- **滞后是设计特性**：年线确认「进入下跌趋势」时，价格通常已从高点跌掉两位数"
         "（回测实测中位 −13.5%）。它的目标是避开以年为单位的阴跌段，不是躲三个月的回调。",
-        "- 宽基四条腿不套闸门是**规则的一部分**：回测里给七腿全套闸门，年化让渡 2.44pp、回撤"
-        "没有改善（与用户给的 510300 证据同向）。要强行套全部七腿，把 "
-        "`trend_gate.GATE_ALL` 设 True 再跑。",
+        "- **默认已套全部七腿**（2026-11-03 起 `GATE_ALL=True`）：回测里给七腿全套闸门，"
+        "年化让渡约 2.4pp、回撤没有改善（与用户给的 510300 证据同向）—— 收益效率上「只套三腿」更优，"
+        "当前七腿默认是按需求改的。回到三腿版：把 `trend_gate.GATE_ALL` 设 False 再跑。",
         "- 档位变化很少（七腿合计 4 年约 25 次），长期「满带」是常态，不是脚本坏了。",
         "",
         "> 机械规则输出，**非投资建议**。",
@@ -224,7 +226,9 @@ def main():
     with open(OUT_JSON, "w", encoding="utf-8") as f:
         json.dump({
             "strategy": tg.LABEL, "as_of": maxdate or (rows[0]["date"] if rows else ""),
-            "pool": list(tg.LEGS), "gate_legs": list(tg.GATE_LEGS),
+            "pool": list(tg.LEGS), "gate_all": tg.GATE_ALL,
+            "gate_legs_fallback": list(tg.GATE_LEGS),
+            "gate_effective": list(tg.LEGS) if tg.GATE_ALL else list(tg.GATE_LEGS),
             "rule": {"ma": tg.MA_WIN, "slope_n": tg.SLOPE_N,
                      "reduce_days": tg.REDUCE_DAYS, "clear_days": tg.CLEAR_DAYS,
                      "action_gap": tg.ACTION_GAP,

@@ -7,7 +7,7 @@
 `v3_macd_boll`（**板块2 变种**·六腿 **MACD+BOLL 自适应窗口**逐腿进出时点，随 `run_daily_vol_legs.ps1` 第 2 步运行，全腿出信号，不走 backtest/select；2026-10-30 顶替 V1/V4 进入本板块）、
 `v1_ma20`（**板块2 变种（已退出看板）**·六腿 **MA20 穿越**逐腿进出时点，`daily.enabled=false`，脚本与产物仍可手跑）、
 `v2_boll_breakout`（**板块2 变种（已退出看板）**·六腿 **BOLL(35,2) 上轨突破**逐腿进出时点，**只有回测入口**，`daily.enabled=false` 不参与每日操作；原 `tech_indicators/v16_boll_breakout`）、
-`v4_erp_band`（**板块2 变种（已退出看板）**·股债利差 ERP 通道，沪深300 × 10Y 国债 80/50/20 刻度；`daily.enabled=false`，脚本仍可手跑）、
+`v4_erp_band`（**板块2 变种（已退出看板）**·股债利差 ERP 通道两带滞回，沪深300 × 10Y 国债 0/100 刻度，2026-11-03 起旧 v4/v8 变种已删除、由原 v10 接任；`daily.enabled=false`，脚本仍可手跑）、
 `growth_div_rotation`（**板块3** 成长/红利二元轮动 v0：MA20 缓冲带 + 250 日分位）、
 `gd_v2`（**板块3 变种**·R 的**绝对水位** 0.35/0.65，一次性整仓切换；**信号层裸基准**，随 `run_daily_growth_div_rotation.ps1` 第 3 步运行）、
 `gd_v5`（**板块3 变种**·v3 的 R 水位 + 双侧 MA200 闸门 + **18% 波动率目标**，家族风险调整最优，随同一脚本第 4 步运行）、
@@ -96,7 +96,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | 2 | v4_erp_band | （空，`daily.enabled=false` → 2026-10-30 起退出默认流程与看板；手跑 `v4_erp_band/daily/_daily_scan.py`） | `strategies/vol_legs/v4_erp_band/daily/_v4_erp_band_daily.md` |
 | 3 | growth_div_rotation | `run_daily_growth_div_rotation.ps1` | `strategies/growth_div_rotation/v0/daily/_signal_report.md` |
 | 3 | gd_v2 | （空，由 `run_daily_growth_div_rotation.ps1` 第 3 步带上） | `strategies/growth_div_rotation/v2_absolute_bands/daily/_gd_v2_daily.md` |
-| 3 | gd_v5 | （空，由 `run_daily_growth_div_rotation.ps1` 第 4 步带上） | `strategies/growth_div_rotation/v5_vol_target/daily/_gd_v5_daily.md` |
+| 3 | gd_v5 | （空，由 `run_daily_growth_div_rotation.ps1` 第 4 步带上） | `strategies/growth_div_rotation/v5_vol_target/daily/_gd_v5_daily.md` · 另见 `daily.chart` 的仓位图（`backtest/_v5_alloc.png`，每日重画并内嵌进卡片） |
 | 3 | gd_v1 | （空，`daily.enabled=false` → 2026-11-02 起退出看板；手跑 `v1_ratio_bands/scan.py`） | `strategies/growth_div_rotation/v1_ratio_bands/daily/_gd_v1_daily.md` |
 | 4 | dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
 | 4 | dividend_v9 | （空，由 `run_daily_dividend.ps1` 第 2 步带上） | `strategies/dividend/v9_temp5/daily/_v9_signal.md` |
@@ -134,6 +134,7 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 ```
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
+- **卡片可带图**：策略在 `daily.chart` 填产物图的**仓库相对路径**，看板就在该卡片的表格下方内嵌显示（带图卡片默认展开）。图片按原产物路径引用、不复制不进历史库 —— 图由策略自己的脚本每日重画（当前只有 `gd_v5` 用：`backtest/_v5_alloc.png`，由 `v5_vol_target/scan.py` 每日重画）。HTML 在 `data/` 下，渲染时用 `payload.root` 换算相对路径，换机器/换盘符仍能打开。
 - 看板按 **每日操作板块 1→5** 分节（见上文「每日操作板块」），每节标题旁给出该板块的买/卖/观察计数与策略数；老归档无需重建 —— 板块定义每次渲染都从 `strategies.json` 读，按策略 key 重新归组。
 - 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格（**列宽按 `daily.strategies` 动态取**，增删策略只改 json）；`v1_ma20` / `v3_macd_boll` 读各自的 `_*_daily.json`（`as_of` / `summary` / `legs`，v3 的 leg 多带 `dif`/`dea`/`er`/`window`/`dist_kind`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。

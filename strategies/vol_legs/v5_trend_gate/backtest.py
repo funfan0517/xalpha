@@ -4,8 +4,9 @@
 池与口径完全跟随 `strategies/vol_legs`：
 - 七腿 = `rule.LEG_ORDER`（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
 - 价格 = `data.series_for_leg()` 场外**复权净值**（`rule.SIGNAL_MODE`，含分红再投 / 汇率 / 跟踪误差）；
-- 闸门默认只套 `GATE_LEGS`（科创50 / 恒生科技 / 黄金 —— 无现金流锚的三条腿），
-  宽基四条腿维持带内满仓；`GATE_ALL=True` 只作对照；
+- 闸门默认套**全部七条腿**（`GATE_ALL=True`，2026-11-03 起按用户要求「标的池改为全部 7 条腿」）；
+  历史设计只套无现金流锚的三条腿（kc50 / hkt / gold）、宽基维持带内满仓，该取舍仍成立
+  （给宽基叠趋势过滤让渡约 2.4pp 年化、回撤无改善），故**三腿版在本报告降为对照**，但结论不变。
 - 成交 = T 日盘后算信号、**T+1 收盘净值成交**；空仓按货基 `rule.CASH_ANNUAL` 逐日计息。
 
 产出：
@@ -37,7 +38,7 @@ OUT_JSONL = os.path.join(OUTDIR, "_v5_trend_gate_bt.jsonl")
 
 # 敏感性档：(标签, 参数覆盖)
 SENS = [
-    ("基准（MA250 · 斜率20日 · 5/20 日阶梯 · 间隔帽5日 · 三腿）", {}),
+    ("基准（MA250 · 斜率20日 · 5/20 日阶梯 · 间隔帽5日 · 七腿全套）", {}),
     ("年线改 MA120", dict(MA_WIN=120)),
     ("年线改 MA200（美股口径）", dict(MA_WIN=200)),
     ("斜率回看 5 日", dict(SLOPE_N=5)),
@@ -51,7 +52,7 @@ SENS = [
     ("间隔帽 10 日", dict(ACTION_GAP=10)),
     ("观察仓改 0.3（不清到 0.2）", dict(OBSERVE=0.3)),
     ("空仓起步（不继承底仓）", dict(START="flat")),
-    ("七腿全套闸门", dict(GATE_ALL=True)),
+    ("三腿套闸门（旧默认 · 对照）", dict(GATE_LEGS=("kc50", "hkt", "gold"), GATE_ALL=False)),
     ("只看 close 在年线上/下（无斜率）", dict(MODE="ma_only")),
 ]
 
@@ -101,8 +102,8 @@ def build_states(frame, **kw):
 
 def portfolio_rows(frame):
     """-> (rows, navs)。每档自带平均带内曝光。"""
-    base = build_states(frame)
-    allg = build_states(frame, GATE_ALL=True)
+    base = build_states(frame)                                    # 默认 = 七腿全套闸门
+    base3 = build_states(frame, GATE_LEGS=("kc50", "hkt", "gold"), GATE_ALL=False)  # 历史三腿版对照
     maonly = build_states(frame, MODE="ma_only")
     noladder = build_states(frame, REDUCE_DAYS=1, CLEAR_DAYS=10 ** 6)
     flat = build_states(frame, START="flat")
@@ -112,9 +113,9 @@ def portfolio_rows(frame):
     specs = [
         ("静态带（七腿恒持满带）", None, True, "对照基准：本变种的默认满仓态"),
         ("静态带 · 成本另列", None, False, ""),
-        ("**V5 默认（三腿套闸门）**", base, True, "科创50 / 恒生科技 / 黄金；宽基不套"),
+        ("**V5 默认（七腿全套闸门）**", base, True, "全部七条腿均套年线 + 年线斜率闸门（2026-11-03 起默认）"),
         ("V5 默认 · 成本另列", base, False, ""),
-        ("V5 七腿全套闸门", allg, True, "对照：验证「宽基不该叠加趋势过滤」"),
+        ("V5 三腿套闸门（旧默认 · 对照）", base3, True, "仅科创50 / 恒生科技 / 黄金；宽基不套（历史取舍版）"),
         ("V5 只看 close 在年线上/下", maonly, True, "对照：去掉斜率与阶梯"),
         ("V5 无阶梯（跌破即减半、不清仓）", noladder, True, "对照：只保留减半"),
         ("V5 空仓起步", flat, True, "起点无底仓，靠右侧信号建仓"),
@@ -260,7 +261,7 @@ def lag_table(frame, **kw):
         ))
         allrows += rows
     pooled = dict(
-        leg="pooled", name="三条闸门腿合计", n=len(allrows),
+        leg="pooled", name="七条闸门腿合计", n=len(allrows),
         dd_med=float(np.median([r["dd_at_confirm"] for r in allrows])) if allrows else None,
         dd_worst=float(np.min([r["dd_at_confirm"] for r in allrows])) if allrows else None,
         after_med=float(np.median([r["mdd_after"] for r in allrows])) if allrows else None,
@@ -305,6 +306,10 @@ def main():
     prows, navs = portfolio_rows(frame)
     df = long_table(frame)
     quads = quad_table(df)
+    # 三腿子集（kc50/hkt/gold）单独再算一遍：宽基并入前后四象限「反弹格」的定价会明显不同，
+    # 报告里两档并列，避免用 7 腿聚合去掩盖/夸大单一子集的结论。
+    df3 = long_table(frame, GATE_LEGS=("kc50", "hkt", "gold"), GATE_ALL=False)
+    quads3 = quad_table(df3)
     moms = mom_table(df)
     agree = mom_agree(df)
     lags, lag_rows = lag_table(frame)
@@ -328,9 +333,9 @@ def main():
     def pick(prefix):
         return next(p for p in prows if p["name"].startswith(prefix))
 
-    base, base_nc = pick("**V5 默认（三腿套闸门）**"), pick("V5 默认 · 成本另列")
+    base, base_nc = pick("**V5 默认（七腿全套闸门）**"), pick("V5 默认 · 成本另列")
     static, static_nc = pick("静态带（七腿恒持满带）"), pick("静态带 · 成本另列")
-    allg, maonly, noladder = pick("V5 七腿全套"), pick("V5 只看 close"), pick("V5 无阶梯")
+    base3, maonly, noladder = pick("V5 三腿套闸门"), pick("V5 只看 close"), pick("V5 无阶梯")
     flat, gap0 = pick("V5 空仓起步"), pick("V5 无间隔帽")
     eqw = pick("七腿等权")
     gated_rows = [r for r in rows if r["gate"] == "是"]
@@ -339,15 +344,15 @@ def main():
 
     L = [
         "# 波动资产 · V5 变种：趋势四象限闸门 · 七腿回测",
-        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 七腿（A500 / 纳指100 / 标普500 / 科创50 / "
-        "恒生科技 / 黄金）",
+        "> 池与主策略**完全一致**：`rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / "
+        "标普500 / 科创50 / 恒生科技 / 黄金）",
         "> 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）· T 日盘后算信号、"
         "**T+1 收盘净值成交** · "
         f"空仓按货基 {tg.CASH_ANNUAL:.2%} 计息 · 成本 = 真实申赎费 + 单边滑点 {tg.SLIP:.2%}",
         "> 规则来源：用户 2026-11-02 的「趋势判断」说明；实现口径见 "
         "`v5_trend_gate/trend_gate.py` 模块 docstring 与 README",
-        "> 趋势线 + 操作点图：`research/_v5_trend_kc50.png`（真实操作点）、"
-        "`research/_v5_trend_a500.png`（A500 默认不套闸门，图上为「若套」的对照）",
+        "> 趋势线 + 操作点图：`research/_v5_trend_kc50.png`、`research/_v5_trend_a500.png`"
+        "（现均为真实操作点，A500 也已套闸门）",
         "",
         "## 1. 规则（可执行版）",
         "",
@@ -374,8 +379,9 @@ def main():
         f"| 间隔帽 | `ACTION_GAP={tg.ACTION_GAP}` | 同一腿两次调仓最小间隔（交易日） |",
         f"| 档位 | `FULL={tg.FULL:g}` / `HALF={tg.HALF:g}` / `OBSERVE={tg.OBSERVE:g}` | "
         "是**占本腿目标带的比例**，不是 pp；观察仓与主策略 `rule.OBSERVE_PP` 同比例 |",
-        f"| 作用域 | `GATE_LEGS={list(tg.GATE_LEGS)}` | 只套没有现金流锚的三条腿；"
-        "宽基（A500/纳指/标普）有估值锚，套上会与均值回归互相抵消（见 §3） |",
+        f"| 作用域 | `GATE_ALL={tg.GATE_ALL}`（生效 = 全部七腿） | "
+        "2026-11-03 起默认七条腿全套装年线闸门；`GATE_LEGS`（kc50/hkt/gold）仅作 GATE_ALL=False 的回落"
+        "三腿子集。历史上默认只套三腿，三腿版在 §3 作对照保留（宽基有估值锚，套上会与均值回归互相抵消） |",
         "",
         "> **三个坑**：①滞后是设计特性不是 bug（§5 给出实测滞后成本）；②250 与 200 不是一回事；"
         "③震荡市假信号一定存在，解法是频率帽（5/20 阶梯 + 间隔帽），不是再叠一个指标。",
@@ -402,13 +408,13 @@ def main():
     worst = min(gated_rows, key=lambda z: z["edge_pp"])
     L += [
         "",
-        f"> 三条闸门腿：扣费后跑赢「恒持满带」**{g_beat}/{len(gated_rows)}**，"
-        f"回撤更小 **{g_dd}/{len(gated_rows)}**；三条宽基腿不套闸门，与恒持满带完全相同。",
+        f"> 七条闸门腿：扣费后跑赢「恒持满带」**{g_beat}/{len(gated_rows)}**，"
+        f"回撤更小 **{g_dd}/{len(gated_rows)}**（默认已套全部七腿）。",
         f"> 逐腿高低：最好的是 **{best['name']}**（{best['edge_pp']:+.2f}pp，"
         f"回撤 {tg.fmt_pct(best['mdd_fee'])} vs {tg.fmt_pct(best['hold_mdd'])}），"
         f"最差的是 **{worst['name']}**（{worst['edge_pp']:+.2f}pp，"
         f"回撤 {tg.fmt_pct(worst['mdd_fee'])} vs {tg.fmt_pct(worst['hold_mdd'])}）。"
-        "**闸门不是收益引擎**：它把三条腿的曝光从 100% 压到 50%~73%，换回撤，赚不赚取决于该腿"
+        "**闸门不是收益引擎**：它把各腿曝光从 100% 压低，换回撤，赚不赚取决于该腿"
         "在这段样本里是「先在年线下阴跌很久」还是「跌破年线就 V 型反转」—— 前者它赚，后者它亏。",
         "> 平均曝光是**带内占比**：100% = 一直满带，50% = 长期只露一半带。"
         "它比收益更能说明这条规则在做什么 —— 它不是择时进出，而是**把带切开按趋势分档**。",
@@ -438,12 +444,13 @@ def main():
         f"{base_nc['sharpe']:.2f}（vs 静态带 {tg.fmt_pct(static_nc['ann'])} / "
         f"{tg.fmt_pct(static_nc['mdd'])} / {static_nc['sharpe']:.2f}）—— 成本吃掉的年化"
         f" = {(base_nc['ann'] - base['ann']) * 100:.2f}pp（调仓少，成本不是主要矛盾）。",
-        f"> **七腿全套闸门（对照）**：{tg.fmt_pct(allg['ann'])} / {tg.fmt_pct(allg['mdd'])} / "
-        f"{allg['sharpe']:.2f}，平均曝光 {allg['invested']:.0%}；相对三腿口径 "
-        f"**{(allg['ann'] - base['ann']) * 100:+.2f}pp**、回撤 "
-        f"{(allg['mdd'] - base['mdd']) * 100:+.2f}pp。用户给的 510300 证据是「叠 200 日均线过滤后"
+        f"> **三腿套闸门（旧默认 · 对照）**：{tg.fmt_pct(base3['ann'])} / {tg.fmt_pct(base3['mdd'])} / "
+        f"{base3['sharpe']:.2f}，平均曝光 {base3['invested']:.0%}；相对当前七腿默认 "
+        f"**{(base3['ann'] - base['ann']) * 100:+.2f}pp**、回撤 "
+        f"{(base3['mdd'] - base['mdd']) * 100:+.2f}pp。用户给的 510300 证据是「叠 200 日均线过滤后"
         "年化 6.45%→4.10%、回撤 18.24%→16.47%」—— **本库净值给出同一个方向**：给宽基叠加趋势过滤，"
-        "让掉的收益远大于省下的回撤。这条对照就是本变种默认只套三腿的依据。",
+        "让掉的收益大于省下的回撤。当前七腿默认是按用户 2026-11-03 要求改成全套的；"
+        "若只看收益效率，历史「只套三腿」更优，本行即保留该对照。",
         f"> **只看 close 在年线上/下（去斜率、去阶梯）**：{tg.fmt_pct(maonly['ann'])} / "
         f"{tg.fmt_pct(maonly['mdd'])} / {maonly['sharpe']:.2f}，曝光 {maonly['invested']:.0%}；"
         f"**无阶梯（跌破即减半、不清仓）**：{tg.fmt_pct(noladder['ann'])} / "
@@ -461,7 +468,7 @@ def main():
         "",
         "## 4. 四象限的未来收益（回答「判断错了分别亏多少」）",
         "",
-        f"三条闸门腿按带权聚合（{len(df)} 个腿·日）。未来收益用**价格本身**、不看仓位 —— "
+        f"七条闸门腿按带权聚合（{len(df)} 个腿·日）。未来收益用**价格本身**、不看仓位 —— "
         "即「在这一格里买入并持有 h 日」的结果，用来给每格定价。",
         "",
         "| 象限 | 交易日占比 | 平均年线乖离 | 未来20日 | 20日胜率 | 未来60日 | 60日胜率 | "
@@ -473,19 +480,22 @@ def main():
                  f"{tg.fmt_pct(q['f20'])} | {q['w20']:.0%} | {tg.fmt_pct(q['f60'])} | "
                  f"{q['w60']:.0%} | {tg.fmt_pct(q['worst20'])} |")
     q1, q2, q3, q4 = quads
+    q1_3, q2_3, q3_3, q4_3 = quads3
     L += [
         "",
-        f"> **最关键的一格验住了**：「反弹」（close 已在年线上、年线还在下行）未来 20 日 "
-        f"{tg.fmt_pct(q2['f20'])}、60 日 {tg.fmt_pct(q2['f60'])}、20 日胜率 {q2['w20']:.0%}"
-        f"（占 {q2['share']:.0%} 的交易日）；对比「上涨趋势」{tg.fmt_pct(q1['f20'])} / "
-        f"{tg.fmt_pct(q1['f60'])}、胜率 {q1['w20']:.0%}。两格的差别就是「站上年线」与"
-        "「趋势反转」的差别 —— 前者只值一个持有，不值一个加仓。这也是四象限唯一的强势结论。",
-        f"> **但「下跌趋势」那格在本样本里没验住**：未来 20 日 {tg.fmt_pct(q4['f20'])}、"
-        f"60 日 {tg.fmt_pct(q4['f60'])}（{q4['share']:.0%} 的交易日），居然是四格里第二好的 —— "
-        "因为 2024-2026 黄金与恒生科技都出现「跌破年线后 V 型反转」"
-        f"（黄金腿闸门 {worst['edge_pp']:+.2f}pp 就来自这里）。"
-        f"它的代价在那条尾巴上：最差单次 20 日 {tg.fmt_pct(q4['worst20'])}。"
-        "所以这一格的作用是**砍尾部**，不是提高均值 —— 样本里没出现长阴跌，它就只显得白付成本。",
+        f"> **「反弹」格（三腿子集 vs 七腿全套，结论会翻转）**：三腿子集（科创50/恒生科技/黄金）里，"
+        f"「反弹」未来 20 日 {tg.fmt_pct(q2_3['f20'])}、60 日 {tg.fmt_pct(q2_3['f60'])}、"
+        f"20 日胜率 {q2_3['w20']:.0%}，明显弱于「上涨趋势」{tg.fmt_pct(q1_3['f20'])} / "
+        f"{tg.fmt_pct(q1_3['f60'])} / {q1_3['w20']:.0%} —— 「站上年线 ≠ 趋势反转」在该子集成立。"
+        f"但并入宽基后（七腿全套），「反弹」格变成 {tg.fmt_pct(q2['f20'])} / {tg.fmt_pct(q2['f60'])} / "
+        f"{q2['w20']:.0%}，与「上涨趋势」{tg.fmt_pct(q1['f20'])} / {tg.fmt_pct(q1['f60'])} / "
+        f"{q1['w20']:.0%} 几乎没有差别 —— **「反弹不该加仓」只是无现金流锚子集的结论，"
+        "不能外推到宽基**。",
+        f"> **「下跌趋势」格在本样本里也没验住**：七腿聚合下未来 20 日 {tg.fmt_pct(q4['f20'])}、"
+        f"60 日 {tg.fmt_pct(q4['f60'])}（{q4['share']:.0%} 的交易日），并不差 —— 因为 2024-2026 "
+        "黄金与恒生科技都出现「跌破年线后 V 型反转」（黄金腿闸门 "
+        f"{worst['edge_pp']:+.2f}pp 就来自这里）。它的代价在尾巴上：最差单次 20 日 "
+        f"{tg.fmt_pct(q4['worst20'])}。这一格的作用是**砍尾部**，不是提高均值。",
         "> ⚠ 这些是**事后分桶**的条件收益，不是可交易的 alpha：同一格内部的离散度远大于格间差异，"
         "「最差 20 日」那一列就是提醒。",
         "",
@@ -573,7 +583,7 @@ def main():
         L.append(f"| {r['name']} | {tg.fmt_pct(r['ann'])} | {tg.fmt_pct(r['mdd'])} | "
                  f"{r['sharpe']:.2f} | {r['invested']:.0%} | {r['actions']} |")
 
-    anns = [r["ann"] for r in sens if not r["name"].startswith("七腿全套")]
+    anns = [r["ann"] for r in sens if not r["name"].startswith("三腿套闸门")]
 
     def _sens(prefix):
         return next(r for r in sens if r["name"].startswith(prefix))
@@ -581,7 +591,7 @@ def main():
     s_base, s_ma120, s_ma200 = _sens("基准"), _sens("年线改 MA120"), _sens("年线改 MA200")
     L += [
         "",
-        f"> 除「七腿全套」那一档（口径变了，见 §3），其余 {len(anns)} 档的年化全部落在 "
+        f"> 除「三腿套闸门（旧默认 · 对照）」那一档（口径变了，见 §3），其余 {len(anns)} 档的年化全部落在 "
         f"{tg.fmt_pct(min(anns))} ~ {tg.fmt_pct(max(anns))}（宽度 "
         f"{(max(anns) - min(anns)) * 100:.2f}pp）、回撤落在 "
         f"{tg.fmt_pct(max(r['mdd'] for r in sens))} ~ {tg.fmt_pct(min(r['mdd'] for r in sens))}。"
@@ -605,10 +615,12 @@ def main():
         "",
         "## 11. 口径与已知边界",
         "",
-        "- **作用域是规则的一部分**：只套科创50 / 恒生科技 / 黄金（无现金流锚）。宽基四条腿"
-        "不套，因为估值锚本身已隐含均值回归，再叠趋势过滤等于同一信号用两次并互相抵消"
-        "（用户给的 510300 实测：6.45%/18.24% → 4.10%/16.47%，2.35pp 年化换 1.77pp 回撤）。"
-        "§3 的「七腿全套」就是这条判断在本库净值上的复核。",
+        "- **作用域是规则的一部分**：2026-11-03 起默认套全部七条腿（`GATE_ALL=True`）。"
+        "历史默认只套科创50 / 恒生科技 / 黄金（无现金流锚），宽基四条腿不套 —— 因为估值锚本身已隐含"
+        "均值回归，再叠趋势过滤等于同一信号用两次并互相抵消（用户给的 510300 实测：6.45%/18.24% → "
+        "4.10%/16.47%，2.35pp 年化换 1.77pp 回撤）。§3 的「三腿套闸门（旧默认 · 对照）」就是这条判断"
+        "在本库净值上的复核（年化让渡约 2.4pp、回撤无改善），收益效率上三腿仍更优，当前七腿默认是"
+        "按用户要求改的。",
         "- **滞后是设计特性**：§5 给出实测（确认时已跌掉多少、之后还会跌多少）。目标不是躲回调，"
         "是避开年单位阴跌；拿它躲三个月的波动会被反复打脸（§2 打脸列 = 减仓后 20 日内又加回的次数）。",
         "- **250 与 200 不是一回事**：A 股一年约 240–245 个交易日，中文语境的年线取 250；"

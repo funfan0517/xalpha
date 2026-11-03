@@ -1,11 +1,11 @@
 {
  "strategy": "growth_div_rotation/v5_vol_target",
- "as_of": "2026-11-02",
- "generated": "2026-11-02 14:36",
- "bars": 3986,
+ "as_of": "2026-11-03",
+ "generated": "2026-11-03 14:39",
+ "bars": 3987,
  "start": "2010-06-01",
- "R": 0.4417,
- "R_prev": 0.4386,
+ "R": 0.4289,
+ "R_prev": 0.4417,
  "low": 0.35,
  "high": 0.65,
  "weights": {
@@ -18,6 +18,7 @@
   "div": 0.5,
   "cash": 0.5
  },
+ "chart": "growth_div_rotation/v5_vol_target/backtest/_v5_alloc.png",
  "next": {
   "weights": {
    "growth": 0.0,
@@ -31,20 +32,20 @@
   },
   "scale": 0.985,
   "throttled": false,
-  "gap": 23,
+  "gap": 24,
   "wait": 0
  },
  "scale": 0.985,
- "vol": 0.0979,
+ "vol": 0.0978,
  "target_vol": 0.18,
  "deadband": 0.15,
  "trend": {
   "growth_broken": true,
   "div_broken": true,
-  "ma_growth": 3481.44,
-  "ma_div": 5596.05,
-  "growth_close": 2461.05,
-  "div_close": 5572.34
+  "ma_growth": 3477.39,
+  "ma_div": 5596.43,
+  "growth_close": 2393.15,
+  "div_close": 5579.1
  },
  "action": "不动",
  "reason": "三层目标与当前权重一致，无需调仓",

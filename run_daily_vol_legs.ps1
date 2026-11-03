@@ -44,6 +44,6 @@ Write-Host "            if the QDII quota is closed, the tier is deferred, not c
 Write-Host "  Note    : NAV cache = data\_otc_nav.json; codes 023299 / 000051 / 270042 / 017641 / 011609 /"
 Write-Host "            012805 / 000216; 000051 is BOTH the HS300 leg itself and the A500 warm-up series"
 Write-Host "            (they are identical before 2025-03-27), 050025 is the SPX warm-up."
-Write-Host "  Note    : V1 (MA20) / V4 (ERP band) / V5 (trend quadrant gate) are out of the daily"
+Write-Host "  Note    : V1 (MA20) / V4 (ERP two-band hysteresis) / V5 (trend quadrant gate) are out of the daily"
 Write-Host "            flow; run their daily\_daily_scan.py by hand if needed (V5: add --no-refresh"
 Write-Host "            to skip the OTC NAV refresh)."

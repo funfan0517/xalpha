@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · v1–v7 横向对比（统一口径）。
+"""波动资产 · v1–v6 横向对比（统一口径）。
 
 池 = `rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金），
 与主策略 README.md §2.1 完全一致；价格 = 场外复权净值（含分红再投 / 汇率 / 跟踪误差）；
 成交 = T 日盘后算信号、T+1 净值成交；空仓按货基 1.40% 计息；零费率（与主策略各变种回测主表一致）。
 
 覆盖：
-- 七腿逐腿时机家族：v1 MA20 / v2 BOLL 突破 / v3 MACD+BOLL / v5 趋势闸门 / v7 抄底确认
+- 七腿逐腿时机家族：v1 MA20 / v2 BOLL 突破 / v3 MACD+BOLL / v5 趋势闸门
   （v4/v6 是沪深300 单标的方法论，只进「综合对比」与沪深300 腿图）
 - 沪深300 单标的方法论：v4 ERP 股债通道 / v6 PE 分位仓位带
 
+> v7 抄底确认（`v7_bottom_confirm/`）已于 2026-11-04 删除，本脚本同步去掉该列；
+> 产物文件名仍沿用 `_v1v7_*`（历史命名，重新运行会覆盖同名文件）。
+
 产出（本目录 research/，策略类测试调优产物）：
 - _v1v7_leg_{leg}.png           逐腿：价格趋势 + 各策略买/卖点 + 沪深300 基准
-- _v1v7_comprehensive.png       综合：v1–v7 策略净值（归一）vs 沪深300 基准
+- _v1v7_comprehensive.png       综合：各策略净值（归一）vs 沪深300 基准
 - _v1v7_compare.md              逐腿最优策略 + 综合对比（年化/回撤/夏普/Calmar vs 沪深300）
 
 模拟结果，非投资建议。
@@ -41,7 +44,7 @@ for _p in (_HERE, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 for _d in ("v1_ma20", "v2_boll_breakout", "v3_macd_boll",
-           "v5_trend_gate", "v7_bottom_confirm", "v4_erp_band", "v6_pe_band"):
+           "v5_trend_gate", "v4_erp_band", "v6_pe_band"):
     _pp = os.path.join(_VL, _d)
     if _pp not in sys.path:
         sys.path.insert(0, _pp)
@@ -57,7 +60,6 @@ import ma20
 import boll
 import macd_boll
 import trend_gate
-import bottom
 import erp as v4erp
 import band as v6band
 
@@ -69,12 +71,12 @@ NAMES = {k: rule.LEGS[k]["name"] for k in LEGS}
 SLEEVE = rule.SLEEVE_PP  # 40pp
 
 # 七腿逐腿时机家族（覆盖全部七腿、产生离散买/卖点）
-TIMING = ["v1", "v2", "v3", "v5", "v7"]
+TIMING = ["v1", "v2", "v3", "v5"]
 TIMING_COLOR = {"v1": "#1f77b4", "v2": "#d62728", "v3": "#2ca02c",
-                "v5": "#9467bd", "v7": "#ff7f0e"}
+                "v5": "#9467bd"}
 STRAT_NAME = {
     "v1": "V1 MA20下车", "v2": "V2 BOLL突破", "v3": "V3 MACD+BOLL",
-    "v5": "V5 趋势闸门", "v7": "V7 抄底确认",
+    "v5": "V5 趋势闸门",
     "v4": "V4 ERP股债通道", "v6": "V6 PE分位带",
     "BH": "买入持有",
 }
@@ -131,16 +133,8 @@ def leg_nav_v5(leg):
     return px, pos, nav
 
 
-def leg_nav_v7(leg):
-    df = bottom.klines.frame(leg)
-    sm = bottom.state_machine(df)
-    nav = bottom.run_leg(df, sm)
-    pos = sm["position"].shift(1).fillna(0).astype(float)
-    return df["close"], pos, nav
-
-
 LEG_FUNCS = {"v1": leg_nav_v1, "v2": leg_nav_v2, "v3": leg_nav_v3,
-             "v5": leg_nav_v5, "v7": leg_nav_v7}
+             "v5": leg_nav_v5}
 
 
 def agg_portfolio(navs):
@@ -199,7 +193,7 @@ def compute():
     for leg in LEGS:
         leg_navs[leg] = {}
         leg_pos[leg] = {}
-        # 趋势线一律用长期场外复权净值（含 A500/标普的桥接代理），不被 v7 的短 ETF K 线覆盖
+        # 趋势线一律用长期场外复权净值（含 A500/标普的桥接代理）
         leg_px[leg] = vdata.otc_series_for_leg(leg)
         for vx in TIMING:
             try:
@@ -290,7 +284,6 @@ def plot_leg(leg, data):
 # ---------------------------------------------------------------- 综合对比图
 def plot_comprehensive(data):
     # 统一窗口 = 全历史策略（v1/v2/v3/v5 + v4/v6 + 沪深300基准）的交集
-    # v7 因 A500 ETF K 线仅 2024-10 起而历史短，不参与窗口交集，仅在图里按自身数据绘制
     base = {}
     for vx in ("v1", "v2", "v3", "v5"):
         if vx in data["port_navs"]:
@@ -320,14 +313,7 @@ def plot_comprehensive(data):
                 lw=1.6 if name == "hs300_bh" else 1.3,
                 ls="--" if name == "hs300_bh" else "-",
                 label=f"{STRAT_NAME.get(name, name)}" + (" (基准)" if name == "hs300_bh" else ""))
-    # v7：按自身可用数据绘制（不向前填充，避免把 2024-10 之前画成平线）
-    if "v7" in data["port_navs"]:
-        r7 = data["port_navs"]["v7"].reindex(idx).dropna()
-        if len(r7) > 2:
-            r7 = r7 / r7.iloc[0]
-            ax.plot(r7.index, r7.to_numpy(), color=TIMING_COLOR["v7"], lw=1.3,
-                    label=f"{STRAT_NAME['v7']} (2024-10 起)")
-    ax.set_title("v1–v7 策略净值（归一）综合对比 · 基准 = 沪深300 买入持有")
+    ax.set_title("v1–v6 策略净值（归一）综合对比 · 基准 = 沪深300 买入持有")
     ax.set_ylabel("净值(归一=1)")
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8, loc="upper left")
@@ -352,7 +338,7 @@ def leg_best(leg, data):
     nav_by = data["leg_navs"][leg]
     px = data["leg_px"][leg]
     bh = rebase(px)
-    # 共同窗口 = 全历史策略（v1/v2/v3/v5）的交集，避免被 v7 的短 K 线截断
+    # 共同窗口 = 全历史策略（v1/v2/v3/v5）的交集
     idx = None
     for vx in BASE_STRATS:
         if vx in nav_by:
@@ -361,21 +347,14 @@ def leg_best(leg, data):
         return None
     idx = idx.sort_values()
     rows = []
-    for vx in TIMING:   # v1/v2/v3/v5/v7
+    for vx in TIMING:   # v1/v2/v3/v5
         nav = nav_by.get(vx)
         if nav is None:
             continue
-        if vx == "v7":
-            # v7 的七腿 OHLCV K 线不全（A500 ETF 仅 2024-10 起），用自己的可用窗口，单独标注短窗
-            r = rebase(nav).dropna()
-            if len(r) < 30:
-                continue
-            short = True
-        else:
-            r = _reb_on(nav, idx)
-            if r is None:
-                continue
-            short = False
+        r = _reb_on(nav, idx)
+        if r is None:
+            continue
+        short = False
         bh_r = rebase(bh).reindex(r.index).ffill()
         bhm, _ = metrics(bh_r)
         m, cal = metrics(r)
@@ -387,8 +366,7 @@ def leg_best(leg, data):
         return None
     # 推荐只从全历史策略（v1/v2/v3/v5）中选：取同窗口年化超额最高者；
     # 若连最好的时机策略都跑输买入持有 >2pp，则诚实地回退到「买入持有」（典型如美股长牛）。
-    cand = [z for z in rows if z["vx"] != "v7"] or rows
-    best = max(cand, key=lambda z: z["edge"])
+    best = max(rows, key=lambda z: z["edge"])
     rec = best["vx"] if best["edge"] >= -2.0 else "BH"
     bhm_all, _ = metrics(rebase(bh).reindex(idx).ffill())
     return dict(bh_ann=bhm_all["ann"], bh_mdd=bhm_all["mdd"], bh_sharpe=bhm_all["sharpe"],
@@ -412,7 +390,7 @@ def fmt_pct(x, nd=2, sign=False):
 
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
-    print("计算 v1–v7 回测（七腿池，场外复权净值，T+1 成交，零费率）…")
+    print("计算 v1–v6 回测（七腿池，场外复权净值，T+1 成交，零费率）…")
     data = compute()
 
     print("画逐腿趋势+操作点图…")
@@ -432,7 +410,7 @@ def main():
     for leg in LEGS:
         best[leg] = leg_best(leg, data)
 
-    # 综合对比指标（统一窗口，排除 v7 以免被短 K 线截断）
+    # 综合对比指标（统一窗口）
     print("综合对比指标…")
     comp_rows = []
     for vx in ("v1", "v2", "v3", "v5"):
@@ -451,29 +429,18 @@ def main():
                 comp_rows.append(dict(vx=vx, ann=m["ann"], mdd=m["mdd"],
                                       sharpe=m["sharpe"], calmar=cal, vol=m["vol"],
                                       is_port=False, short=False))
-    # v7：用自身可用窗口（A500 ETF K 线仅 2024-10 起），单独标注
-    if "v7" in data["port_navs"]:
-        r7 = rebase(data["port_navs"]["v7"]).dropna()
-        # 对齐到沪深300 同区间
-        bh7 = rebase(data["hs300_bh"]).reindex(r7.index).ffill()
-        if len(r7) > 30:
-            m, cal = metrics(r7)
-            comp_rows.append(dict(vx="v7", ann=m["ann"], mdd=m["mdd"],
-                                  sharpe=m["sharpe"], calmar=cal, vol=m["vol"],
-                                  is_port=True, short=True,
-                                  n_years=(r7.index[-1] - r7.index[0]).days / 365.25))
     bh_r = rebase(data["hs300_bh"]).reindex(comp_idx).ffill()
     bhm, bhcal = metrics(bh_r)
 
     # ---- 写报告
     L = [
-        "# 波动资产 · v1–v7 横向对比（七腿池 · 场外复权净值 · 沪深300 基准）",
+        "# 波动资产 · v1–v6 横向对比（七腿池 · 场外复权净值 · 沪深300 基准）",
         "",
         "> 池 = `rule.LEG_ORDER` 七腿（README.md §2.1）：中证A500 / 沪深300 / 纳指100 / 标普500 / "
         "科创50 / 恒生科技 / 黄金。",
         "> 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）；成交 = T 日盘后算信号、T+1 净值成交；"
         "空仓按货基 1.40% 计息；**零费率**（与各变种回测主表一致）。",
-        "> 时机家族 v1/v2/v3/v5/v7 覆盖全部七腿并产出离散买/卖点；v4(ERP 股债通道) / v6(PE 分位带) 是"
+        "> 时机家族 v1/v2/v3/v5 覆盖全部七腿并产出离散买/卖点；v4(ERP 股债通道) / v6(PE 分位带) 是"
         "沪深300 单标的方法论，只参与综合对比与沪深300 腿图。",
         "",
         f"## 1. 逐腿最优策略（同窗口内比较：年化 / 最大回撤 / 夏普 / 年化超额 vs 买入持有）",
@@ -504,13 +471,12 @@ def main():
         "> 单元格 = 该策略在**该腿上与其它策略同窗口**的年化 / 最大回撤 / 夏普（括号内 = 年化超额 pp vs 买入持有）。",
         "> 推荐 = 在 v1/v2/v3/v5 中取同窗口年化超额最高者；若连最好的时机策略都跑输买入持有 >2pp，"
         "则回退到**买入持有**（典型如美股长牛，减仓纯拖累）。",
-        "> `†` = v7 抄底确认：七腿 OHLCV K 线不全（A500 ETF 仅 2024-10 起），该列用自身可用窗口、触发极少，仅供参考、不参与推荐。",
         "> ⚠ A500 与沪深300 两列互为镜像（2025-03-27 前两条腿场外序列同源自 `000051`），不是两份独立证据。",
         "",
-        "## 2. 综合对比（v1–v7 策略净值 vs 沪深300 基准）",
+        "## 2. 综合对比（v1–v6 策略净值 vs 沪深300 基准）",
         "",
-        f"统一窗口（不含 v7）= v1/v2/v3/v5/v4/v6 ∩ 沪深300 的交集：{comp_idx[0].date()} ~ {comp_idx[-1].date()} "
-        f"（{(comp_idx[-1]-comp_idx[0]).days/365.25:.1f} 年）；v7 单独用自身窗口。",
+        f"统一窗口 = v1/v2/v3/v5/v4/v6 ∩ 沪深300 的交集：{comp_idx[0].date()} ~ {comp_idx[-1].date()} "
+        f"（{(comp_idx[-1]-comp_idx[0]).days/365.25:.1f} 年）。",
         "",
         "| 策略 | 类型 | 年化 | 最大回撤 | 夏普 | Calmar | 波动 | vs 沪深300 年化差 |",
         "|---|---|---:|---:|---:|---:|---:|---:|",
@@ -531,9 +497,8 @@ def main():
         f"{fmt_pct(bhm['vol'])} | — |")
     L += [
         "",
-        "> 七腿组合策略（v1/v2/v3/v5/v7）按 `rule` 目标带权重归一化（带权 = band/40，满仓 = 40pp）；"
+        "> 七腿组合策略（v1/v2/v3/v5）按 `rule` 目标带权重归一化（带权 = band/40，满仓 = 40pp）；"
         "v4/v6 是沪深300×国债 / 沪深300 仓位带，单标的方法论。",
-        "> 统一窗口不含 v7（v7 的 A500 ETF K 线仅 2024-10 起，短窗会截断全部策略）；v7 用自身可用窗口单独列示。",
         "> 零费率口径；含申赎费时结论会有变化（尤其 v1 MA20 年笔数最高，详见各变种 README 的成本节）。",
         "",
         "## 3. 逐腿结论与跨标的规律",
@@ -545,8 +510,6 @@ def main():
         "- **科创50**：波动大、时机红利最高（v1/v2/v3 超额 +13~16pp），但绝对回撤仍大。",
         "- **黄金**：长牛里时机略亏（v5 约 −1.6pp），回撤改善是唯一获得感。",
         "- **v4/v6**：沪深300 上的股债配置 / 估值分成思路，不是逐标的择时，只与沪深300 基准对照。",
-        "- **v7 抄底确认**：触发极稀少、长期大量时间空仓，是「尾部防护」而非收益引擎；其七腿 K 线不全，"
-        "只做定性参考（详见各变种 README）。",
         "",
         "## 4. 图表",
         "",
@@ -554,7 +517,7 @@ def main():
     for leg in LEGS:
         if leg in leg_pngs:
             L.append(f"- 逐腿趋势+操作点 · {NAMES[leg]}：`{os.path.basename(leg_pngs[leg])}`")
-    L.append(f"- 综合对比（v1–v7 vs 沪深300）：`{os.path.basename(comp_png)}`")
+    L.append(f"- 综合对比（v1–v6 vs 沪深300）：`{os.path.basename(comp_png)}`")
     L += [
         "",
         "> 模拟结果，非投资建议。",

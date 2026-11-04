@@ -10,7 +10,7 @@
 #          v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png
 #          v3_macd_boll\research\_v3_hkt.png / _v3_kc50.png
 #          v4_erp_band\backtest\_v4_erp_band_signals.png (走 research\_plot_signals.py, 不碰回测报告)
-#          v5_trend_gate\research\_v5_trend_gold_3y.png
+#          v5_trend_gate\research\_v5_trend_gold.png (全历史, 不切近 3 年)
 #          出图失败只告警, 不阻断主流程(保留上次的图)。
 # 已退出默认流程(需要时手动跑):
 #   python strategies\vol_legs\v1_ma20\daily\_daily_scan.py          # V1 MA20 穿越
@@ -53,7 +53,7 @@ if ($LASTEXITCODE -ne 0) { Write-Warning "v5_trend_gate daily scan failed (exit 
 
 # 第 3 步: 刷新六张重点图(只重画, 不重算回测; 失败只告警)
 Write-Host ""
-Write-Host "[3/3] Refreshing 6 key figures (v2 a500/hs300 · v3 hkt/kc50 · v4 erp signals · v5 gold 3y) ..."
+Write-Host "[3/3] Refreshing 6 key figures (v2 a500/hs300 · v3 hkt/kc50 · v4 erp signals · v5 gold full) ..."
 
 Write-Host "  - v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png ..."
 python -W ignore strategies\vol_legs\v2_boll_breakout\research\_plot_leg.py --leg a500 --leg hs300
@@ -67,8 +67,8 @@ Write-Host "  - v4_erp_band\backtest\_v4_erp_band_signals.png ..."
 python -W ignore strategies\vol_legs\v4_erp_band\research\_plot_signals.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v4 plot_signals failed (exit $LASTEXITCODE) - 保留上次的图" }
 
-Write-Host "  - v5_trend_gate\research\_v5_trend_gold_3y.png ..."
-python -W ignore strategies\vol_legs\v5_trend_gate\research\_plot_trend.py --years 3 --leg gold
+Write-Host "  - v5_trend_gate\research\_v5_trend_gold.png ..."
+python -W ignore strategies\vol_legs\v5_trend_gate\research\_plot_trend.py --leg gold
 if ($LASTEXITCODE -ne 0) { Write-Warning "v5 plot_trend failed (exit $LASTEXITCODE) - 保留上次的图" }
 
 Write-Host ""
@@ -78,7 +78,7 @@ Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
 Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v5_trend_gate  daily\_*_daily.md (+ .json)"
 Write-Host "  Figures : v2\research\_v2_{a500,hs300}.png · v3\research\_v3_{hkt,kc50}.png ·"
-Write-Host "            v4\backtest\_v4_erp_band_signals.png · v5\research\_v5_trend_gold_3y.png"
+Write-Host "            v4\backtest\_v4_erp_band_signals.png · v5\research\_v5_trend_gold.png"
 Write-Host "  Digest  : run_daily_all.ps1 末尾会跑 python pipeline\daily_digest.py, 汇总到 data\_daily_digest.html"
 Write-Host "  Note    : signal on NAV at close, place the order BEFORE 15:00 next trading day to get"
 Write-Host "            that day's NAV. QDII NAV prints T+1~T+2 -- do not cancel inside the window."

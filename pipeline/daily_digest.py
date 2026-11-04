@@ -869,8 +869,8 @@ _VOL_FIGS = [
     ("strategies/vol_legs/v4_erp_band/backtest/_v4_erp_band_signals.png",
      "**沪深300**（`000051`）× 10Y 国债 · V4 ERP 股债利差两带滞回的操作点"
      "（▲加仓 / ▼减仓，T 日信号 → T+1 收盘成交）"),
-    ("strategies/vol_legs/v5_trend_gate/research/_v5_trend_gold_3y.png",
-     "**黄金**（`000216` 场外复权）· V5 趋势四象限闸门近 3 年（真实操作点 + 档位阶梯）"),
+    ("strategies/vol_legs/v5_trend_gate/research/_v5_trend_gold.png",
+     "**黄金**（`000216` 场外复权）· V5 趋势四象限闸门全历史 2014-10 起（真实操作点 + 档位阶梯）"),
 ]
 
 

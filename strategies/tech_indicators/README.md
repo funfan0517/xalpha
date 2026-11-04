@@ -40,7 +40,7 @@
 - 未计佣金 / 滑点；无风险利率按 0 计；年化按 252 交易日；
 - 单笔统计口径统一走 `pipeline/bt_stats.py`。
 
-## 变种目录（v1~v7 · v9~v16）
+## 变种目录（v1~v7 · v9~v17）
 
 | 变种 | 目录 | 一句话规则 |
 |---|---|---|
@@ -59,6 +59,7 @@
 | **v14** | `v14_kdj/` | K 上穿 D 且 K<20 买入 · K 下穿 D 且 K>80 卖出（单指标基线 **KDJ**） |
 | **v15** | `v15_boll/` | 触及/跌破下轨买入 · 触及/升破上轨卖出（单指标基线 **BOLL**） |
 | **v16** | `v16_trin/` | **TRIN（阿姆氏指标）市场广度择时**：全市场 TRIN 5 日均 > 1.4 连续 2 日 → 次日开盘买入 510300 · 持有 20 个交易日收盘卖出 · 止损 -8%（状态机型，自带广度库 `data/_breadth_daily.json`） |
+| **v17** | `v17_trend_gate/` | **趋势四象限闸门（年线 + 年线斜率）**：`close` 在 MA250 上/下 × MA250 近 20 日朝上/朝下 → 上涨趋势满仓 · 反弹只持有 · 高位回调降档 · 下跌趋势阶梯减半→观察仓；套全池 54 只，输出**带内占比** {1.0/0.5/0.2}（非 0/1，从 `vol_legs/v5_trend_gate` 照搬规则、换 54 只场内 ETF 收盘价口径） |
 
 > 本家族的每日操作是固定 **6 策略（MACD / V3 / V6 / V7 / V9 / V10）**；v1~v6 为手动入口。
 > **v9 / v10 是「状态机型」变种**：自带 `rule.py` / `engine.py` / `scan.py` / 分级报告，需要 OHLCV 与门槛判定，**不进入 `compare.py` 的单信号横截面表**（那套引擎按 `(close, 指标)` 重算，口径不可比）；它们的信号由各自 `scan.py` 先落盘、每日汇总脚本只读产物。
@@ -76,6 +77,14 @@
 > 它是**市场级**信号（全市场涨跌家数/成交额 → 一个 TRIN 序列），不是逐只标的的指标，
 > 因此同样不进 `compare.py`，也不进每日 6 策略汇总表；每日读数单独出 `v16_trin/daily/_v16_signal.md`。
 
+> **v17（趋势四象限闸门）已于 2026-11-04 新增** —— 见 `v17_trend_gate/`：它是从 `vol_legs/v5_trend_gate`
+> **照搬**的规则与分析（年线位置 × 年线斜率 → 四象限 → 带内占比 {1.0/0.5/0.2}），唯一改动是数据源从
+> 「七腿场外复权净值」换成「家族 54 只场内 ETF 收盘价」（`data/_long_klines.json` + `_pool.py` / `_universe.md`
+> 前四类），无风险利率按家族惯例取 0。它输出的是**仓位档位**而非 0/1 买卖开关，口径与五基线 / 每日 6 策略表
+> 不同，故同样**不进 `compare.py`、不进每日 6 策略表**；但已注册进 `pipeline/strategies.json` 的 `daily.block = "tech"`，
+> 作为**板块5「技术指标」的第二张策略卡**由 `pipeline/daily_digest.py` 渲染（先跑 `v17_trend_gate/daily/_daily_scan.py` 再跑 digest）。
+> 如需纳入单标的减仓/加仓叠加层，手跑 `v17_trend_gate/backtest.py`。
+
 ## 运行
 
 ```powershell
@@ -84,6 +93,8 @@ python strategies/tech_indicators/v11_ma/backtest.py # 任一单指标变种单�
 python strategies/tech_indicators/compare.py         # 全家族横截面（基线五 + v1~v7）
 python strategies/tech_indicators/v16_trin/backtest.py   # TRIN 市场广度择时（需先建 data/_breadth_daily.json）
 python data/_refresh_breadth.py --full                   # 上一条的前置：回补全市场广度库
+python strategies/tech_indicators/v17_trend_gate/backtest.py        # V17 趋势四象限闸门（54 只 ETF，需先刷新行情）
+python strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py   # V17 每日档位（全池象限分布 · 产出 md/json/html 看板）
 ```
 
 ## 每日操作（固定 6 策略）

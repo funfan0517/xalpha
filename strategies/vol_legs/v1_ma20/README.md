@@ -64,7 +64,7 @@ python strategies/vol_legs/v1_ma20/backtest.py
 python strategies/vol_legs/v1_ma20/research/backtest.py
 
 # 单腿图：买入持有 vs V1 择时（两条线同起点归 1，▲/▼ 同时标在指数曲线与策略线上）
-python strategies/vol_legs/v1_ma20/research/_plot_leg.py            # a500 / hs300 / hkt 全画
+python strategies/vol_legs/v1_ma20/research/_plot_leg.py            # 默认七腿全画（本目录已产出的是 a500 / hs300 / hkt 三张）
 python strategies/vol_legs/v1_ma20/research/_plot_leg.py --leg hkt  # 只画一只
 ```
 

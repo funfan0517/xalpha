@@ -1,6 +1,6 @@
 {
- "strategy": "V7 抄底确认（地量 + 背离 + 跌速放缓 + 站回成本线）",
- "as_of": "2026-11-03",
+ "strategy": "V7 抄底确认 v2（地量窗口 + 背离 + 跌速斜线 + 站回VWAP · 证据计数+回踩加仓）",
+ "as_of": "2026-11-04",
  "pool": [
   "a500",
   "hs300",
@@ -10,39 +10,43 @@
   "hkt",
   "gold"
  ],
- "refreshed": true,
+ "refreshed": false,
  "fails": {},
  "rule": {
-  "window": 60,
-  "vol_min_tol": 0.0,
-  "vol_mult": 1.5,
-  "vol_rule": "any",
-  "mav_win": 5,
-  "dry_max_age": 90,
-  "c4_mode": "vwap",
+  "dry_lookback": 60,
+  "dry_quantile": 0.05,
+  "dry_tol": 0.0,
+  "max_age_days": 60,
   "div_window": 20,
-  "div_mode": "either",
   "macd": [
    12,
    26,
    9
   ],
-  "ctx_recall": 20,
-  "skip": [],
-  "c3_mode": "any",
   "fibo_frac": 0.5,
-  "atr_win": 14,
-  "decel_win": 5,
+  "vol_mult_vs_prev5": 1.5,
+  "require_above_avwap": true,
+  "require_bull": true,
   "trend_filter": true,
   "ma_fast": 20,
   "ma_slow": 60,
   "drop_win": 250,
-  "drop_min": 0.1,
-  "stop_pct": 0.03,
+  "drop_min": 0.15,
+  "filt_memory_days": 90,
   "size_mode": "risk",
   "risk_per_trade": 0.05,
+  "first_fill": 0.5,
+  "score2_discount": 0.75,
   "size_floor": 0.1,
-  "exit_mode": "rr2",
+  "size_cap": 1.0,
+  "addon": "retest_hold_within_10d",
+  "addon_days": 10,
+  "addon_fill_on_expiry": true,
+  "stop_struct_pct": 0.03,
+  "stop_vwap": "close_lt_avwap",
+  "flat_veto_pct": 0.01,
+  "reentry_cooldown": 5,
+  "exit_mode": "ma20",
   "rr": 2.0,
   "batch_rr": [
    1.0,
@@ -50,18 +54,18 @@
   ],
   "tp_fib": 0.618,
   "ph_win": 60,
-  "reentry_gap": 5,
   "max_hold": 0,
   "fee": [
    0.001,
    0.005
   ],
-  "slip": 0.001
+  "slip": 0.001,
+  "skip": []
  },
  "summary": {
   "buy": 0,
   "sell": 0,
-  "in_position": 1,
+  "in_position": 0,
   "stale": 0
  },
  "legs": [
@@ -70,34 +74,36 @@
    "name": "A500ETF华泰柏瑞",
    "code": "563360",
    "proxy": false,
-   "date": "2026-11-03",
-   "close": 1.092,
+   "date": "2026-11-04",
+   "close": 1.089,
    "band": 2.5,
    "position": 0.0,
    "stop": null,
    "target": null,
-   "vwap": 1.2488177078699276,
-   "fib": 1.21,
-   "lowest": 1.085,
-   "dry_age": 87,
+   "vwap": null,
+   "fib": null,
+   "lowest": null,
+   "dry_age": null,
    "conds": {
     "filt": true,
-    "c1": true,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": false,
+    "e2": true,
+    "e3": true,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "地量窗口有效（锚点 d0 未过期）",
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "c4": "低于 VWAP -12.6%"
+    "e1": "还没有地量锚点（或已过期）"
    },
-   "gap": "距VWAP -12.6% · 距扇线 -9.8% · 量/地量 3.04× · 当前回撤 23.7%",
-   "fresh": "✅最新",
+   "gap": "量/地量 0.43× · 当前回撤 24.0%",
+   "fresh": "·未刷新",
    "action": "维持"
   },
   {
@@ -105,34 +111,35 @@
    "name": "沪深300ETF华泰柏瑞",
    "code": "510300",
    "proxy": false,
-   "date": "2026-11-03",
-   "close": 4.092,
+   "date": "2026-11-04",
+   "close": 4.067,
    "band": 2.5,
    "position": 0.0,
    "stop": null,
    "target": null,
-   "vwap": 4.245658528825456,
-   "fib": 4.417,
+   "vwap": 4.241380799885866,
+   "fib": 4.3445,
    "lowest": 4.031,
-   "dry_age": 32,
+   "dry_age": 33,
    "conds": {
     "filt": true,
-    "c1": true,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": true,
+    "e2": true,
+    "e3": true,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "c4": "低于 VWAP -3.6%"
+    "e4": "今日非阳线"
    },
-   "gap": "距VWAP -3.6% · 距扇线 -7.4% · 量/地量 10.60× · 当前回撤 19.6%",
-   "fresh": "✅最新",
+   "gap": "距VWAP -4.1% · 距扇线 -6.4% · 量/地量 0.47× · 当前回撤 20.1%",
+   "fresh": "·未刷新",
    "action": "维持"
   },
   {
@@ -140,38 +147,40 @@
    "name": "纳指ETF国泰",
    "code": "513100",
    "proxy": true,
-   "date": "2026-11-03",
-   "close": 2.197,
+   "date": "2026-11-04",
+   "close": 2.182,
    "band": 10.0,
-   "position": 0.6573742118926935,
-   "stop": 1.9652199999999997,
-   "target": 2.45056,
-   "vwap": 2.280686638177735,
-   "fib": 2.2965,
-   "lowest": 2.154,
-   "dry_age": 47,
+   "position": 0.0,
+   "stop": null,
+   "target": null,
+   "vwap": null,
+   "fib": null,
+   "lowest": null,
+   "dry_age": null,
    "conds": {
     "filt": false,
-    "c1": false,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": false,
+    "e2": true,
+    "e3": false,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
     "前置过滤（MA20<MA60 且 回撤≥阈值）",
-    "放量阳线（地量之后）",
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "地量窗口有效（锚点 d0 未过期）",
+    "跌速放缓（0.5 真斜线 或 hist 收敛）",
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "filt": "MA20 未下穿 MA60",
-    "c1": "今日非阳线",
-    "c4": "低于 VWAP -3.7%"
+    "filt": "近 90 日内未出现「MA20<MA60 且回撤≥15%」（当日回撤 9.1%）",
+    "e1": "还没有地量锚点（或已过期）",
+    "e3": "跌速未衰竭（不在 0.5 斜线上方 / hist 未收敛）"
    },
-   "gap": "距VWAP -3.7% · 距扇线 -4.3% · 量/地量 2.26× · 当前回撤 8.5%",
-   "fresh": "✅最新",
+   "gap": "量/地量 0.33× · 当前回撤 9.1%",
+   "fresh": "·未刷新",
    "action": "维持"
   },
   {
@@ -179,38 +188,40 @@
    "name": "标普500ETF博时",
    "code": "513500",
    "proxy": true,
-   "date": "2026-11-03",
-   "close": 2.588,
+   "date": "2026-11-04",
+   "close": 2.578,
    "band": 10.0,
    "position": 0.0,
    "stop": null,
    "target": null,
-   "vwap": 2.6743047188916576,
-   "fib": 2.67,
-   "lowest": 2.562,
-   "dry_age": 32,
+   "vwap": null,
+   "fib": null,
+   "lowest": null,
+   "dry_age": null,
    "conds": {
     "filt": false,
-    "c1": false,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": false,
+    "e2": true,
+    "e3": false,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
     "前置过滤（MA20<MA60 且 回撤≥阈值）",
-    "放量阳线（地量之后）",
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "地量窗口有效（锚点 d0 未过期）",
+    "跌速放缓（0.5 真斜线 或 hist 收敛）",
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "filt": "回撤 6.8% < 门槛 10%",
-    "c1": "今日非阳线",
-    "c4": "低于 VWAP -3.2%"
+    "filt": "近 90 日内未出现「MA20<MA60 且回撤≥15%」（当日回撤 7.2%）",
+    "e1": "还没有地量锚点（或已过期）",
+    "e3": "跌速未衰竭（不在 0.5 斜线上方 / hist 未收敛）"
    },
-   "gap": "距VWAP -3.2% · 距扇线 -3.1% · 量/地量 4.69× · 当前回撤 6.8%",
-   "fresh": "✅最新",
+   "gap": "量/地量 0.50× · 当前回撤 7.2%",
+   "fresh": "·未刷新",
    "action": "维持"
   },
   {
@@ -218,36 +229,39 @@
    "name": "科创50ETF华夏",
    "code": "588000",
    "proxy": false,
-   "date": "2026-11-03",
-   "close": 1.215,
+   "date": "2026-11-04",
+   "close": 1.219,
    "band": 2.5,
    "position": 0.0,
    "stop": null,
    "target": null,
-   "vwap": 1.4504291457992669,
-   "fib": 1.548,
+   "vwap": 1.470842800331635,
+   "fib": 1.4995,
    "lowest": 1.197,
-   "dry_age": 32,
+   "dry_age": 40,
    "conds": {
     "filt": true,
-    "c1": false,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": true,
+    "e2": false,
+    "e3": false,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
-    "放量阳线（地量之后）",
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "底背离（价格新低 / DIF 不新低）",
+    "跌速放缓（0.5 真斜线 或 hist 收敛）",
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "c1": "今日非阳线",
-    "c4": "低于 VWAP -16.2%"
+    "e4": "低于 VWAP -17.1%",
+    "e2": "近 20 日无有效底背离（或已失效）",
+    "e3": "跌速未衰竭（不在 0.5 斜线上方 / hist 未收敛）"
    },
-   "gap": "距VWAP -16.2% · 距扇线 -21.5% · 量/地量 8.28× · 当前回撤 48.2%",
-   "fresh": "✅最新",
+   "gap": "距VWAP -17.1% · 距扇线 -18.7% · 量/地量 0.29× · 当前回撤 48.0%",
+   "fresh": "·未刷新",
    "action": "维持"
   },
   {
@@ -255,34 +269,39 @@
    "name": "恒生科技ETF华夏",
    "code": "513180",
    "proxy": false,
-   "date": "2026-11-03",
-   "close": 0.481,
+   "date": "2026-11-04",
+   "close": 0.476,
    "band": 2.5,
    "position": 0.0,
    "stop": null,
    "target": null,
-   "vwap": 0.4833567061082118,
-   "fib": 0.544,
+   "vwap": 0.5425032031344353,
+   "fib": 0.543,
    "lowest": 0.463,
-   "dry_age": 11,
+   "dry_age": 57,
    "conds": {
     "filt": true,
-    "c1": true,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": true,
+    "e2": false,
+    "e3": false,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "底背离（价格新低 / DIF 不新低）",
+    "跌速放缓（0.5 真斜线 或 hist 收敛）",
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "c4": "低于 VWAP -0.5%"
+    "e4": "今日非阳线",
+    "e2": "近 20 日无有效底背离（或已失效）",
+    "e3": "跌速未衰竭（不在 0.5 斜线上方 / hist 未收敛）"
    },
-   "gap": "距VWAP -0.5% · 距扇线 -11.6% · 量/地量 3.03× · 当前回撤 42.4%",
-   "fresh": "✅最新",
+   "gap": "距VWAP -12.3% · 距扇线 -12.3% · 量/地量 0.49× · 当前回撤 43.0%",
+   "fresh": "·未刷新",
    "action": "维持"
   },
   {
@@ -290,98 +309,99 @@
    "name": "黄金ETF华安",
    "code": "518880",
    "proxy": false,
-   "date": "2026-11-03",
-   "close": 7.989,
+   "date": "2026-11-04",
+   "close": 8.023,
    "band": 10.0,
    "position": 0.0,
    "stop": null,
    "target": null,
-   "vwap": 8.823967882808372,
-   "fib": 8.773499999999999,
-   "lowest": 7.927,
-   "dry_age": 72,
+   "vwap": null,
+   "fib": null,
+   "lowest": null,
+   "dry_age": null,
    "conds": {
     "filt": true,
-    "c1": false,
-    "c2_recent": true,
-    "c3_recent": true,
-    "c4": false
+    "e1": false,
+    "e2": false,
+    "e3": false,
+    "e4": false,
+    "flat_veto": false
    },
    "signal": false,
    "decide": "",
    "done": "",
    "miss": [
-    "放量阳线（地量之后）",
-    "站回成本线（≥ 锚定 VWAP 且放量）"
+    "地量窗口有效（锚点 d0 未过期）",
+    "底背离（价格新低 / DIF 不新低）",
+    "跌速放缓（0.5 真斜线 或 hist 收敛）",
+    "触发（放量≥2.5×前5日均量 + 站回VWAP + 阳线）"
    ],
    "why": {
-    "c1": "今日非阳线",
-    "c4": "低于 VWAP -9.5%"
+    "e1": "还没有地量锚点（或已过期）",
+    "e2": "近 20 日无有效底背离（或已失效）",
+    "e3": "跌速未衰竭（不在 0.5 斜线上方 / hist 未收敛）"
    },
-   "gap": "距VWAP -9.5% · 距扇线 -8.9% · 量/地量 2.41× · 当前回撤 32.9%",
-   "fresh": "✅最新",
+   "gap": "量/地量 0.59× · 当前回撤 32.6%",
+   "fresh": "·未刷新",
    "action": "维持"
   }
  ],
  "recent_flow": [
   {
-   "date": "2026-10-23",
+   "date": "2026-06-01",
    "试仓": [],
    "离场": [
-    "黄金ETF华安"
+    "科创50ETF华夏"
    ]
   },
   {
-   "date": "2026-09-15",
-   "试仓": [
-    "科创50ETF华夏"
-   ],
-   "离场": []
-  },
-  {
-   "date": "2026-07-31",
-   "试仓": [
-    "纳指ETF国泰"
-   ],
-   "离场": []
-  },
-  {
-   "date": "2026-07-21",
-   "试仓": [
-    "黄金ETF华安"
-   ],
-   "离场": []
-  },
-  {
-   "date": "2026-06-11",
+   "date": "2026-05-15",
    "试仓": [],
    "离场": [
     "恒生科技ETF华夏"
    ]
   },
   {
-   "date": "2026-06-10",
-   "试仓": [],
-   "离场": [
-    "黄金ETF华安"
-   ]
+   "date": "2026-05-08",
+   "试仓": [
+    "恒生科技ETF华夏"
+   ],
+   "离场": []
   },
   {
-   "date": "2026-05-25",
-   "试仓": [],
-   "离场": [
-    "标普500ETF博时"
-   ]
+   "date": "2026-05-07",
+   "试仓": [
+    "科创50ETF华夏"
+   ],
+   "离场": []
   },
   {
    "date": "2026-05-06",
    "试仓": [
-    "黄金ETF华安"
+    "恒生科技ETF华夏"
    ],
-   "离场": [
-    "纳指ETF国泰",
+   "离场": []
+  },
+  {
+   "date": "2026-04-30",
+   "试仓": [
     "科创50ETF华夏"
+   ],
+   "离场": []
+  },
+  {
+   "date": "2026-04-28",
+   "试仓": [],
+   "离场": [
+    "恒生科技ETF华夏"
    ]
+  },
+  {
+   "date": "2026-04-10",
+   "试仓": [
+    "恒生科技ETF华夏"
+   ],
+   "离场": []
   },
   {
    "date": "2026-04-08",
@@ -391,28 +411,35 @@
    "离场": []
   },
   {
-   "date": "2026-03-24",
-   "试仓": [
-    "纳指ETF国泰"
-   ],
-   "离场": []
+   "date": "2026-02-02",
+   "试仓": [],
+   "离场": [
+    "科创50ETF华夏"
+   ]
   },
   {
-   "date": "2026-02-04",
+   "date": "2026-01-08",
    "试仓": [],
    "离场": [
     "恒生科技ETF华夏"
    ]
   },
   {
-   "date": "2025-12-26",
+   "date": "2026-01-07",
+   "试仓": [
+    "科创50ETF华夏"
+   ],
+   "离场": []
+  },
+  {
+   "date": "2026-01-06",
    "试仓": [
     "恒生科技ETF华夏"
    ],
    "离场": []
   },
   {
-   "date": "2025-11-26",
+   "date": "2026-01-05",
    "试仓": [
     "科创50ETF华夏"
    ],

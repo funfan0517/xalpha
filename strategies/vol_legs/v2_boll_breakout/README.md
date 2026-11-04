@@ -70,11 +70,11 @@ python strategies/vol_legs/v2_boll_breakout/boll.py
 python strategies/vol_legs/v2_boll_breakout/backtest.py
 
 # 单腿图：买入持有 vs V2 择时（两条线同起点归 1，▲/▼ 同时标在指数曲线与策略线上）
-python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py            # a500 / hs300 / hkt 全画
+python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py            # 默认七腿全画（本目录已产出的是 a500 / hs300 / hkt 三张）
 python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py --leg hkt  # 只画一只
 ```
 
-图的画法与口径（三条腿、双线标注、A500 只画成立后）见
+图的画法与口径（七条腿、双线标注、A500/标普 只画成立后）见
 `strategies/vol_legs/_plot_leg_core.py` —— 与 `v3_macd_boll/research/_plot_leg.py` 共用同一个渲染器，
 变种之间只差一个 `SPEC`（信号函数 / 净值函数 / 预热天数 / 文案）。
 

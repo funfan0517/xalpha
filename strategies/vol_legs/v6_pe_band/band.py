@@ -5,16 +5,22 @@
 一句话：**PE 自身分位决定「最多能买多重」，回撤阶梯决定「这一次进多少」，RSI 决定「哪一天进」；
 股债利差只有一票否决权，没有加分权。**
 
-规则本身**与标的无关**（只要指数有滚动 PE 历史），本模块接两个标的：
+规则本身**与标的无关**（只要指数有滚动 PE 历史）。本模块 2026-11-04 扩到 5 个「有可用估值锚」的腿；
+**恒生科技（hkt）/ 黄金（gold）本地无 PE 源 → 不在本变种内跑**（见 `README.md` §1 注）。
 
-| `UNIVERSE` | 价格 | 滚动 PE 起点 | PE 窗口状态 |
+| `UNIVERSE` | 价格 | 滚动 PE 源 / 频率 | PE 窗口状态 |
 |---|---|---|---|
-| `"a500"`（文档原型） | 中证A500 000510，2005 起含回溯 | **2024-09-02** | 10 年窗口不可能成立（`window_short=True`） |
-| `"hs300"`（一等样本） | 沪深300 全收益 H00300 | 2011-06 | 2012-10 起 10 年窗口成立，**14 年可回测** |
+| `"hs300"`（一等样本） | 沪深300 全收益 H00300 | 000300 滚动PE / 日频 | 2012-10 起 10 年窗口成立，**14 年可回测** |
+| `"a500"`（文档原型） | 中证A500 000510，2005 起含回溯 + 股息计提 | 000510 / 兜底 `_a500_pe_hist` / 日频 | **2024-09 起，10 年窗口不成立**（`window_short=True`） |
+| `"spx"`（标普500） | 美元指数 `.INX`（价格收益，未含分红再投） | `spx_pe_ttm_m` / **月度** | 2012 起 10 年窗口成立，~14 年 |
+| `"ndx"`（纳指100） | 美元指数 `.NDX`（价格收益，未含分红再投） | `_ndx_fwd_pe_hist` / **月度·前瞻PE·非TTM** | 2001 起，窗口充足；前瞻PE系统性偏低→回测偏保守 |
+| `"kc50"`（科创50） | 中证官网 000688 指数（价格收益） | 000688 滚动PE / 日频 | PE 有效段仅 ~2021 起（`window_short=True`） |
 
 > 2026-11-03 按用户要求：①从 `v6_a500_band` 改名 `v6_pe_band`（不再绑标的）；
 > ②**定档频率默认改为 `weekly`（每周最后一个交易日）**，`monthly` / `quarterly`（文档原口径）保留作对照；
 > ③沪深300 从「代理口径」升为一等样本，与 A500 并列跑同一套规则。
+> 2026-11-04：把可跑的腿从 2 个扩到 5 个（新增 spx / ndx / kc50）；美股腿用美元指数价格 +
+> 月度 PE 前向填充，利差否决器仅 A 股/港股腿（中债 10Y）生效，美股腿关闭。
 
 ## 1. 它管哪一层
 
@@ -116,6 +122,7 @@ A500 的 PE 只有 **2024-09-02 起**（指数本身没有更早的估值历史�
 
 模拟结果，非投资建议。
 """
+import json
 import math
 import os
 import sys
@@ -142,9 +149,27 @@ LABEL = "V6 估值分位仓位带"
 
 # 标的注册表：规则与标的无关，这两个只是「本地有足够 PE 历史」的落地样本。
 # `cross` = 交叉校验用哪把尺子（None = 没有第二把，交叉校验自动关闭）。
+# 标的注册表（2026-11-04 扩展：从 2 个扩到 5 个「有可用估值锚」的腿）。
+# 其余两条腿 **hkt（恒生科技）/ gold（黄金）** 本地无 PE 源 —— 商品/无盈利，PE 分位闸门
+# 无从定义，故不在本变种内跑（见 v6 README §1）。
+# 每个标的给出：price 取数方式、pe 源 + 频率（daily/monthly）、cross 交叉尺子、
+# div 股息率（价格→全收益近似）、veto 是否参与利差否决（仅 A 股/港股腿用中债 10Y）。
 UNIVERSES = {
-    "a500": dict(name="中证A500", code="000510", cross="hs300"),
-    "hs300": dict(name="沪深300", code="000300", cross=None),
+    "a500": dict(name="中证A500", code="000510", cross="hs300",
+                 price="a500_idx", pe="a500", pe_freq="daily", div=0.025, veto=True),
+    "hs300": dict(name="沪深300", code="000300", cross=None,
+                  price="hs300_tr", pe="hs300", pe_freq="daily", div=0.0, veto=True),
+    "spx": dict(name="标普500", code="513500", cross=None,
+                price="us", signal_us=".INX", proxy="513500",
+                pe="spx_ttm_m", pe_freq="monthly", div=0.0, veto=False,
+                note="价格收益口径（未含分红再投）"),
+    "kc50": dict(name="科创50", code="588000", cross=None,
+                 price="kc50_idx", pe="kc50", pe_freq="daily", div=0.0, veto=True),
+    "ndx": dict(name="纳指100", code="513100", cross=None,
+                price="us", signal_us=".NDX", proxy="513100",
+                pe="ndx_fwd", pe_freq="monthly", div=0.0, veto=False,
+                forward_pe=True,
+                note="价格收益口径（未含分红再投）；前瞻PE分位非TTM（系统性偏低风险）"),
 }
 
 
@@ -164,6 +189,11 @@ _PE_ALT = os.path.join(_ROOT, "data", "_a500_pe_hist.csv")
 _HS300_TR = os.path.join(_ROOT, "data", "_bt_caches", "csi_H00300.csv")
 _HS300_PE = os.path.join(_ROOT, "data", "_bt_caches", "csi_000300.csv")
 _BOND10Y = os.path.join(_ROOT, "data", "_bt_caches", "bond10y_m.csv")
+_SPX_PE = os.path.join(_ROOT, "data", "_bt_caches", "spx_pe_ttm_m.csv")   # 标普500 TTM PE（月度）
+_KC50 = os.path.join(_ROOT, "data", "_bt_caches", "csi_000688.csv")        # 科创50 指数 + 滚动 PE
+_NDX_FWD = os.path.join(_ROOT, "data", "_ndx_fwd_pe_hist.csv")            # 纳指100 前瞻 PE（月度）
+_US_LK = os.path.join(_ROOT, "data", "_us_index_klines.json")             # 美股美元指数库
+_LK = os.path.join(_ROOT, "data", "_long_klines.json")                    # A 股/港股场内 ETF 行情库
 
 DIV_YIELD = 0.025          # A500 股息率（文档 §5：2026-09-30 滚动 2.44%；取 2.5%）
 
@@ -251,51 +281,154 @@ def load_y10():
     return df.set_index(dcol)["close"].astype("float64").sort_index()
 
 
-def load_frame(mode="a500", start=None):
-    """-> DataFrame(index=交易日, cols=close/pe/tr)。
+def _read_date_csv(path, what):
+    """读带 date 列的 CSV（不要求有 close；用于 PE 月度表等）。"""
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"缺 {os.path.relpath(path, _ROOT)}（{what}）→ 沪深300 侧跑 "
+            f"python strategies/vol_legs/v4_erp_band/erp.py --refresh；"
+            f"A500 缓存已冻结（原 a500 子变种随旧 v4 删除）")
+    df = pd.read_csv(path, parse_dates=["date"]).dropna(subset=["date"])
+    return df.sort_values("date").drop_duplicates("date", keep="last").set_index("date")
 
-    mode="a500" : A500 价格指数（2005 起含回溯）+ 滚动 PE（2024-09 起）+ 股息计提的全收益近似
-    mode="hs300": 沪深300 全收益 H00300 + 000300 滚动 PE（两列 peg 交叉校验）
-    """
+
+def _pe_daily(pe, idx):
+    """把任意频率的 PE 序列对齐到价格日频索引（月度→日频前向填充）。"""
+    return pe.reindex(idx, method="ffill")
+
+
+def _load_us_index(sym):
+    """美股美元指数库（.NDX / .INX）-> Series。缺库/缺键 → None。"""
+    if not os.path.exists(_US_LK):
+        return None
+    try:
+        lib = json.load(open(_US_LK, encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    node = lib.get(sym)
+    if not node or not node.get("dates"):
+        return None
+    return pd.Series(node["close"], index=pd.to_datetime(node["dates"]),
+                    dtype="float64").sort_index()
+
+
+def _load_kline(code):
+    """A 股/港股场内 ETF 行情库 -> Series。缺库/缺键 → None。"""
+    if not os.path.exists(_LK):
+        return None
+    try:
+        lib = json.load(open(_LK, encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    node = lib.get(code)
+    if not node or not node.get("dates"):
+        return None
+    return pd.Series(node["close"], index=pd.to_datetime(node["dates"]),
+                    dtype="float64").sort_index()
+
+
+def _price_for(mode, u):
+    """-> (close Series, tr Series, 来源说明)。tr 用于回测净值（含分红近似者用 TR）。"""
     if mode == "hs300":
         tr = _read_csv(_HS300_TR, "沪深300 全收益 H00300")
-        pe_df = _read_csv(_HS300_PE, "沪深300 价格指数 000300（PE 源）")
-        both = pd.concat([tr["peg"].rename("a"), pe_df["peg"].rename("b")],
-                         axis=1, join="inner").dropna()
-        if not len(both):
-            raise ValueError("H00300 与 000300 的 peg 无重叠日期")
-        diff = float((both["a"] - both["b"]).abs().max())
-        if diff > 1e-6:
-            raise ValueError(f"H00300 与 000300 的 peg 不一致（max|Δ|={diff:.4g}）")
-        df = pd.DataFrame({"close": tr["close"].astype("float64"),
-                           "pe": pe_df["peg"].astype("float64")}).sort_index()
-        # 缓存里夹着个别非交易日的空行（如 2014-01-01 有日期无收盘）→ 直接剔除，
-        # 否则收益率会出现 NaN 并沿着净值一路传播（2014 年后的逐年全部失效）。
-        df = df[df["close"].notna() & (df["close"] > 0)]
-        df["tr"] = df["close"]
-        SOURCE["hs300_px"] = (f"中证官网 H00300 全收益 · {df.index[0]:%Y-%m-%d} ~ "
-                              f"{df.index[-1]:%Y-%m-%d} · {len(df)} 根")
-        SOURCE["hs300_pe"] = (f"中证官网 000300 滚动 PE · {both.index[0]:%Y-%m-%d} ~ "
-                              f"{both.index[-1]:%Y-%m-%d}")
-    else:
-        df = _read_csv(_CACHE, "中证A500 000510 收盘 + 滚动 PE")
-        df["close"] = pd.to_numeric(df["close"], errors="coerce")
-        df["pe"] = pd.to_numeric(df.get("peg"), errors="coerce")
-        if df["pe"].notna().sum() == 0 and os.path.exists(_PE_ALT):
-            alt = pd.read_csv(_PE_ALT, parse_dates=["date"])
-            df = df.drop(columns=["pe"]).merge(alt[["date", "peg"]].rename(
-                columns={"peg": "pe"}), on="date", how="left")
+        close = tr["close"].astype("float64")
+        close = close[close.notna() & (close > 0)]
+        return close, close, (f"中证官网 H00300 全收益 · {close.index[0]:%Y-%m-%d} ~ "
+                              f"{close.index[-1]:%Y-%m-%d} · {len(close)} 根")
+    if mode == "a500":
+        df = _read_csv(_CACHE, "中证A500 000510 收盘")
+        close = pd.to_numeric(df["close"], errors="coerce")
+        close = close[close.notna() & (close > 0)]
+        ret = close.pct_change().fillna(0.0)
+        tr = close.iloc[0] * (1.0 + ret + float(CFG["DIV_YIELD"]) / 252.0).cumprod()
+        return close, tr, (f"新浪 sh{UNIVERSES['a500']['code']} 收盘（2005 起含回溯）· "
+                           f"{close.index[0]:%Y-%m-%d} ~ {close.index[-1]:%Y-%m-%d} · "
+                           f"{len(close)} 根")
+    if mode == "kc50":
+        df = _read_csv(_KC50, "科创50 指数 000688")
+        close = pd.to_numeric(df["close"], errors="coerce")
+        close = close[close.notna() & (close > 0)]
+        return close, close, (f"中证官网 000688 科创50 指数（价格收益）· "
+                              f"{close.index[0]:%Y-%m-%d} ~ {close.index[-1]:%Y-%m-%d} · "
+                              f"{len(close)} 根")
+    if mode in ("spx", "ndx"):
+        s = _load_us_index(u["signal_us"])
+        if s is None:
+            s = _load_kline(u["proxy"])
+            src = f"降级 场内 {u['proxy']} 人民币代理"
+        else:
+            src = f"美元指数 {u['signal_us']}"
+        s = s[s.notna() & (s > 0)]
+        return s, s, (f"{src}（价格收益，未含分红再投）· {s.index[0]:%Y-%m-%d} ~ "
+                      f"{s.index[-1]:%Y-%m-%d} · {len(s)} 根")
+    raise ValueError(f"未知 price 模式 {mode}")
+
+
+def _pe_for(mode, u, idx):
+    """-> (pe Series[日频对齐], 来源说明)。无 PE 源 → 全空 + 说明。"""
+    src = u["pe"]
+    if src == "hs300":
+        df = _read_csv(_HS300_PE, "沪深300 价格指数 000300（PE 源）")
+        pe = pd.to_numeric(df["peg"], errors="coerce").dropna()
+        note = (f"中证官网 000300 滚动 PE（日频）· {pe.index[0]:%Y-%m-%d} ~ "
+                f"{pe.index[-1]:%Y-%m-%d}")
+    elif src == "a500":
+        df = _read_csv(_CACHE, "中证A500 000510（PE 源）")
+        pe = pd.to_numeric(df.get("peg"), errors="coerce")
+        if pe.notna().sum() and os.path.exists(_PE_ALT):
+            alt = _read_date_csv(_PE_ALT, "A500 PE 兜底")
+            alt_pe = pd.to_numeric(alt.get("peg"), errors="coerce")
+            pe = pe.combine_first(alt_pe)        # 用兜底补齐 csi 尾部缺失
+        elif pe.notna().sum() == 0 and os.path.exists(_PE_ALT):
+            pe = pd.to_numeric(_read_date_csv(_PE_ALT, "A500 PE 兜底").get("peg"),
+                               errors="coerce")
             _warn("csi_000510.csv 无 PE → 暂用 data/_a500_pe_hist.csv 兜底")
-        df = df[["close", "pe"]]
-        df = df[df["close"].notna() & (df["close"] > 0)]
-        ret = df["close"].pct_change().fillna(0.0)
-        df["tr"] = df["close"].iloc[0] * (1.0 + ret + float(CFG["DIV_YIELD"]) / 252.0).cumprod()
-        SOURCE["a500_px"] = (f"新浪 sh{UNIVERSES['a500']['code']} 收盘（2005 起含回溯）· "
-                             f"{df.index[0]:%Y-%m-%d} ~ {df.index[-1]:%Y-%m-%d} · {len(df)} 根")
-        pe_ok = df["pe"].dropna()
-        SOURCE["a500_pe"] = (f"中证官网 indexCsiDsPe 滚动 PE · {pe_ok.index[0]:%Y-%m-%d} ~ "
-                             f"{pe_ok.index[-1]:%Y-%m-%d} · {len(pe_ok)} 个交易日"
-                             if len(pe_ok) else "PE 全空")
+        pe = pe.dropna()
+        note = (f"中证官网/兜底 滚动 PE（日频）· {pe.index[0]:%Y-%m-%d} ~ "
+                f"{pe.index[-1]:%Y-%m-%d}")
+    elif src == "kc50":
+        df = _read_csv(_KC50, "科创50 000688（PE 源）")
+        pe = pd.to_numeric(df.get("peg"), errors="coerce").dropna()
+        note = (f"中证官网 000688 滚动 PE（日频）· {pe.index[0]:%Y-%m-%d} ~ "
+                f"{pe.index[-1]:%Y-%m-%d}")
+    elif src == "spx_ttm_m":
+        df = _read_date_csv(_SPX_PE, "标普500 TTM PE（月度）")
+        pe = pd.to_numeric(df["pe"], errors="coerce").dropna().sort_index()
+        note = (f"标普500 TTM PE（月度）· {pe.index[0]:%Y-%m-%d} ~ "
+                f"{pe.index[-1]:%Y-%m-%d}")
+        pe = _pe_daily(pe, idx)
+    elif src == "ndx_fwd":
+        df = _read_date_csv(_NDX_FWD, "纳指100 前瞻 PE（月度）")
+        pe = pd.to_numeric(df["value"], errors="coerce").dropna().sort_index()
+        _warn("ndx 用**前瞻 PE**分位（本地无 TTM PE 月度库）；前瞻 PE 系统性低于 TTM，"
+              "分位偏低→仓位偏轻，回测偏保守")
+        note = (f"纳指100 前瞻 PE（月度，**非 TTM**）· {pe.index[0]:%Y-%m-%d} ~ "
+                f"{pe.index[-1]:%Y-%m-%d}")
+        pe = _pe_daily(pe, idx)
+    else:
+        pe = pd.Series(dtype="float64")
+        note = "无 PE 源"
+    pe = pe.reindex(idx)
+    return pe, note
+
+
+def load_frame(mode=None, start=None):
+    """-> DataFrame(index=交易日, cols=close/pe/tr)。按 UNIVERSES[mode] 的 price/pe 配置取数。
+
+    - A 股宽基（a500/hs300/kc50）：指数价格 + 滚动 PE（日频）；
+    - 美股（spx/ndx）：美元指数价格（价格收益，未含分红再投）+ 月度 PE 前向填充到日频；
+    - a500 用股息率近似全收益；其余用指数/价格收益。
+    """
+    mode = mode or CFG["UNIVERSE"]
+    u = universe_info(mode)
+    price, tr, pnote = _price_for(mode, u)
+    pe, enote = _pe_for(mode, u, price.index)
+    df = pd.DataFrame({"close": price, "pe": pe})
+    df = df[df["close"].notna() & (df["close"] > 0)]
+    df["tr"] = tr.reindex(df.index)
+    df["tr"] = df["tr"].ffill()
+    SOURCE[f"{mode}_px"] = pnote
+    SOURCE[f"{mode}_pe"] = enote
     if start is not None:
         df = df.loc[pd.Timestamp(start):]
     return df.sort_index()
@@ -437,9 +570,9 @@ def indicators(frame, p=None, universe=None):
             out["pct_h"] = np.nan
     else:
         out["pct_h"] = np.nan
-    # 利差否决器
+    # 利差否决器：仅 A 股/港股腿（u.veto=True）用中债 10Y；美股腿用中债 10Y 不对，直接关闭
     y10 = load_y10()
-    if y10 is None or p.get("SPREAD_ROLE") != "veto_only":
+    if y10 is None or p.get("SPREAD_ROLE") != "veto_only" or not u.get("veto"):
         out["y10"] = np.nan
     else:
         out["y10"] = y10.reindex(out.index, method="ffill").to_numpy()

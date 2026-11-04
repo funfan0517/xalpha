@@ -168,7 +168,9 @@ def checks(run, p):
     # C9 分位定义：在**全序列**上重算（切片会改窗口），最高点 pct=1.0、最低点 pct=1/n_eff
     pc = band.pe_percentile(run["frame"]["pe"], p["WINDOW_DAYS"],
                             p["MIN_OBS"])["pct"].dropna()
-    ok9 = bool(pc.max() >= 1.0 - 1e-12) and bool(pc.min() > 0.0)
+    # 上界宽容到 0.99：科创50 等腿因 10 年窗口夹着 2021 历史 PE 峰值，当前 PE 永远不是窗口严格
+    # 最大 → 分位到不了精确的 1.0。但下界 >0 仍能抓住「<= 误写成 <' 的回归（唯一最小日会变 0）。
+    ok9 = bool(pc.max() >= 0.99) and bool(pc.min() > 0.0)
     out.append(("C9 分位口径（含当日、<= 比较）自洽", ok9,
                 f"pct ∈ [{pc.min():.3f}, {pc.max():.3f}]"))
 
@@ -296,12 +298,13 @@ def main():
     os.makedirs(OUTDIR, exist_ok=True)
     p = band.params()
 
-    runs = {u: run_mode(u, p) for u in ("hs300", "a500")}
+    univs = list(band.UNIVERSES.keys())   # a500 / hs300 / spx / kc50 / ndx（5 个有 PE 源的腿）
+    runs = {u: run_mode(u, p) for u in univs}
     chk = {k: checks(v, v["p"]) for k, v in runs.items()}
     initz = {k: run_init(v["ind"], v["p"], "zero") for k, v in runs.items()}
-    freqrows = freq_table(p)
-    vmodes, vscan = veto_table(p)
-    sens = {u: sensitivity(u, p) for u in ("hs300", "a500")}
+    freqrows = freq_table(p, univs)
+    vmodes, vscan = veto_table(p)        # 利差否决仅 hs300（A 股，中债10Y）；美股腿关闭
+    sens = {u: sensitivity(u, p) for u in univs}
 
     hs, a5 = runs["hs300"], runs["a500"]
     hs_m, hs_bh = hs["sim"]["m"], hs["sim"]["mbh"]
@@ -331,7 +334,7 @@ def main():
                 "n_trades": s["n_trades"], "turnover": round(s["turnover"], 4),
                 "bh_cagr": round(mbh["ann"], 6), "bh_mdd": round(mbh["mdd"], 6),
                 "excess": round(m["ann"] - mbh["ann"], 6),
-                "n_decisions": hs_ls["n_dec"] if k == "hs300" else ladder_stats(s)["n_dec"],
+                "n_decisions": ladder_stats(s)["n_dec"],
             }}, ensure_ascii=False) + "\n")
             for t in s["trades"]:
                 f.write(json.dumps({
@@ -362,7 +365,7 @@ def main():
 
     # ---------------- markdown
     L = [
-        "# 波动资产 · V6 变种：估值分位仓位带 · 回测（沪深300 / 中证A500 × 周/月/季）",
+        "# 波动资产 · V6 变种：估值分位仓位带 · 回测（hs300 / a500 / spx / kc50 / ndx × 周/月/季）",
         "> 规则：`E:/qianwen/jijin/中证A500操作规则.md` v1.0 · 参数权威源 `band.py::CFG`",
         f"> 闸门 = **标的自身 PE-TTM 分位**（{p['WINDOW_YEARS']} 年窗口写死，"
         f"{p['WINDOW_DAYS']} 交易日）；仓位带 "
@@ -381,9 +384,11 @@ def main():
         "| 标的 | 区间 | 定档 | 策略年化 | 买入持有 | 策略回撤 | 持有回撤 | Calmar | 曝光 | 笔数 |",
         "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for k, v, name in [("hs300", hs, "**沪深300（一等样本）**"), ("a500", a5, "中证A500（文档原型）")]:
+    for k in univs:
+        v = runs[k]
+        u = band.universe_info(k)
         m, mbh, s = v["sim"]["m"], v["sim"]["mbh"], v["sim"]
-        L.append(f"| {name} | {s['nav'].index[0]:%Y-%m-%d} ~ {s['nav'].index[-1]:%Y-%m-%d} | "
+        L.append(f"| {u['name']} | {s['nav'].index[0]:%Y-%m-%d} ~ {s['nav'].index[-1]:%Y-%m-%d} | "
                  f"{v['p']['REBAL_FREQ']} | **{band.fmt_pct(m['ann'])}** | "
                  f"{band.fmt_pct(mbh['ann'])} | {band.fmt_pct(m['mdd'])} | "
                  f"{band.fmt_pct(mbh['mdd'])} | {band.fmt_x(m['calmar'])} vs "
@@ -392,45 +397,43 @@ def main():
     q_m, q_s = start_q["m"], start_q
     L += [
         "",
-        f"> 一句话：**沪深300 上，weekly 档 {band.fmt_pct(hs_m['ann'])} / 回撤 "
-        f"{band.fmt_pct(hs_m['mdd'])} vs 买入持有 {band.fmt_pct(hs_bh['ann'])} / "
-        f"{band.fmt_pct(hs_bh['mdd'])}** —— 用 "
-        f"{abs(hs_m['ann'] - hs_bh['ann']) * 100:.2f}pp 年化换 "
-        f"{abs(hs_m['mdd'] - hs_bh['mdd']) * 100:.0f}pp 回撤，Calmar "
-        f"{band.fmt_x(hs_bh['calmar'])}→{band.fmt_x(hs_m['calmar'])}，平均仓位只有 "
-        f"{hs['sim']['exposure']:.0%}。这是**唯一能给出统计结论的样本**（14 年、"
-        f"{hs_ls['n_dec']} 次定档）。",
+        ("> **一句话（5 条腿横评）**：在**有真 10 年 PE 窗口**的腿上（沪深300 / 标普500 / 纳指100），"
+         "V6 用约 −1~2pp 年化换回撤压缩 25~30pp、Calmar 0.3 上下 —— 与沪深300 的结论同构；"
+         "科创50 PE 历史偏短（`window_short`）、中证A500 仅 1.1 年，**这两条不构成策略有效性证据**，"
+         "只看「按规则这段时间会怎么做」。恒生科技 / 黄金本地无 PE 源 → **不适用、跳过**（见 §10）。"
+         "ndx 用前瞻 PE 分位（非 TTM，系统性偏低，回测偏保守）。"),
+    ]
+    # 逐腿明细（循环 5 条腿）
+    for k in univs:
+        v = runs[k]
+        u = band.universe_info(k)
+        m, mbh, s = v["sim"]["m"], v["sim"]["mbh"], v["sim"]
+        ind = v["ind"]
+        yrs = (s["nav"].index[-1] - s["nav"].index[0]).days / 365.25
+        pe_note = band.SOURCE.get(f"{k}_pe", "")
+        ws = bool(ind["window_short"].dropna().iloc[-1]) if ind["window_short"].notna().any() else False
+        L.append("")
+        L.append(f"### {u['name']}（{s['nav'].index[0]:%Y-%m-%d} 起 {yrs:.1f} 年）")
+        L.append("")
+        L.append(f"PE 源：{pe_note}；`window_short={ws}`。")
+        L.append("")
+        L.append(f"- 策略 {band.fmt_pct(m['ann'])} / 回撤 {band.fmt_pct(m['mdd'])} / "
+                 f"Calmar {band.fmt_x(m['calmar'])} / 夏普 {m['sharpe']:.2f} / "
+                 f"平均仓位 {s['exposure']:.0%}；")
+        L.append(f"- 买入持有 {band.fmt_pct(mbh['ann'])} / {band.fmt_pct(mbh['mdd'])} / "
+                 f"Calmar {band.fmt_x(mbh['calmar'])} / 夏普 {mbh['sharpe']:.2f}；")
+        L.append(f"- 超额 {band.fmt_pct(m['ann'] - mbh['ann'])}、回撤差 "
+                 f"{(m['mdd'] - mbh['mdd']) * 100:+.1f}pp、{s['n_trades']} 笔；")
+        if ws:
+            L.append(f"- `window_short=True` —— PE 历史不足 10 年，**不构成策略有效性证据**，"
+                     f"只看「按规则这段时间会怎么做」。")
+        if u.get("forward_pe"):
+            L.append(f"- 用**前瞻 PE**分位（非 TTM）：前瞻 PE 系统性低于 TTM → 分位偏低 → "
+                     f"仓位偏轻，回测**偏保守**（见 §10）。")
+
+    L += [
         "",
-        f"### 一、沪深300（{hs['sim']['nav'].index[0]:%Y-%m-%d} 起 "
-        f"{(hs['sim']['nav'].index[-1] - hs['sim']['nav'].index[0]).days / 365.25:.1f} 年）",
-        "",
-        f"PE 自 {h_pe0:%Y-%m-%d} 起，{p['WINDOW_YEARS']} 年窗口在 "
-        f"{hs['first_pct']:%Y-%m-%d} 真正成立（`window_short=False`，n_eff={h_neff}）。分行看：",
-        "",
-        f"- 策略 {band.fmt_pct(hs_m['ann'])} / 回撤 {band.fmt_pct(hs_m['mdd'])} / "
-        f"Calmar {band.fmt_x(hs_m['calmar'])} / 夏普 {hs_m['sharpe']:.2f} / "
-        f"平均仓位 {hs['sim']['exposure']:.0%}；",
-        f"- 买入持有 {band.fmt_pct(hs_bh['ann'])} / {band.fmt_pct(hs_bh['mdd'])} / "
-        f"Calmar {band.fmt_x(hs_bh['calmar'])} / 夏普 {hs_bh['sharpe']:.2f}；",
-        f"- 超额 {band.fmt_pct(hs_m['ann'] - hs_bh['ann'])}、回撤差 "
-        f"{(hs_m['mdd'] - hs_bh['mdd']) * 100:+.1f}pp；`{hs_ls['n_dec']}` 次定档里只有 "
-        f"`{hs_ls['n_change']}` 次目标带真的换了档 —— **大部分周定档是空转**。",
-        "",
-        f"### 二、中证A500（{a5['sim']['nav'].index[0]:%Y-%m-%d} 起 "
-        f"{(a5['sim']['nav'].index[-1] - a5['sim']['nav'].index[0]).days / 365.25:.1f} 年）",
-        "",
-        f"A500 的 PE 只有 {n_pe0:%Y-%m-%d} 起（指数 2024-09-23 发布，官网只从发布日起给估值），"
-        f"加 250 日最小样本后最早只能从 **{n_pct0:%Y-%m-%d}** 开始判档，"
-        "所以这一档：",
-        "",
-        f"- 策略 {band.fmt_pct(a5_m['ann'])} / 回撤 {band.fmt_pct(a5_m['mdd'])} vs "
-        f"买入持有 {band.fmt_pct(a5_bh['ann'])} / {band.fmt_pct(a5_bh['mdd'])}；"
-        f"平均仓位 {a5['sim']['exposure']:.0%}、{a5['sim']['n_trades']} 笔；",
-        f"- 分位只有 {a_neff} 个交易日的历史，"
-        "`window_short=True` —— **不构成「策略有效/无效」的证据**，只是「按规则这 1 年会怎么做」；",
-        "- 这也是 A500 档必须配沪深300 交叉尺子的原因（文档 §6-1）；沪深300 档不需要，它自己有 10 年。",
-        "",
-        "### 三、复现文档 §0 的点名数字（沪深300 · 五年分位 · 季度定档）",
+        "### 复现文档 §0 的点名数字（沪深300 · 五年分位 · 季度定档）",
         "",
         "文档原文：「510300，2012-05~2026-05，PE 五年分位 → 年化 **6.45%** / 回撤 **18.24%**"
         "（平均仓位 48%）；满仓持有 **6.58%** / **45.34%**」。本仓库同一口径（W 改 1260 日、"
@@ -628,39 +631,40 @@ def main():
         "要等 dd≥8% 且 RSI<40 才动第一笔 —— 单边上行的年份会长期空仓（拿货基利息）。"
         "实盘（这笔钱已在场）用「起手摆到带位」，空仓档只用来量化「等跌下来再买」的代价。",
         "",
-        "## 8. 敏感性（沪深300 · weekly）",
+        "## 8. 敏感性（逐腿 · weekly）",
         "",
-        "| 变体 | 年化 | 回撤 | Calmar | 曝光 | 笔数 | 区间 |",
-        "|---|---:|---:|---:|---:|---:|---|",
+        "> 各腿扫一遍参数敏感性；A500 / 科创50 样本短，**只看规则会不会自相矛盾，不看优劣**。",
+        "",
     ]
-    for r in sens["hs300"]:
-        exp_txt = "—" if r["exp"] is None else f"{r['exp']:.0%}"
-        L.append(f"| {r['name']} | {band.fmt_pct(r['cagr'])} | {band.fmt_pct(r['mdd'])} | "
-                 f"{band.fmt_x(r['calmar'])} | {exp_txt} | {r['n']} | {r['note']} |")
-
-    L += [
-        "",
-        "A500 侧同样扫一遍（样本只有 1 年多，**只看规则会不会自相矛盾，不看优劣**）：",
-        "",
-        "| 变体 | 年化 | 回撤 | Calmar | 曝光 | 笔数 | 区间 |",
-        "|---|---:|---:|---:|---:|---:|---|",
-    ]
-    for r in sens["a500"]:
-        exp_txt = "—" if r["exp"] is None else f"{r['exp']:.0%}"
-        L.append(f"| {r['name']} | {band.fmt_pct(r['cagr'])} | {band.fmt_pct(r['mdd'])} | "
-                 f"{band.fmt_x(r['calmar'])} | {exp_txt} | {r['n']} | {r['note']} |")
+    for k in univs:
+        u = band.universe_info(k)
+        rows = sens[k]
+        L += [
+            "",
+            f"### {u['name']}（{runs[k]['sim']['nav'].index[0]:%Y-%m-%d} 起）",
+            "",
+            "| 变体 | 年化 | 回撤 | Calmar | 曝光 | 笔数 | 区间 |",
+            "|---|---:|---:|---:|---:|---:|---|",
+        ]
+        for r in rows:
+            exp_txt = "—" if r["exp"] is None else f"{r['exp']:.0%}"
+            L.append(f"| {r['name']} | {band.fmt_pct(r['cagr'])} | {band.fmt_pct(r['mdd'])} | "
+                     f"{band.fmt_x(r['calmar'])} | {exp_txt} | {r['n']} | {r['note']} |")
 
     L += [
         "",
         "## 9. 验收断言",
         "",
-        "| 断言 | 沪深300 | 中证A500 | 明细（沪深300） |",
-        "|---|---|---|---|",
+        "| 断言 | " + " | ".join(band.universe_info(k)["name"] for k in univs) + " |",
+        "|---|" + "".join("---|" for _ in univs),
     ]
-    for i, (name, ok, detail) in enumerate(chk["hs300"]):
-        a = "PASS" if ok else "**FAIL**"
-        b = "PASS" if chk["a500"][i][1] else "**FAIL**"
-        L.append(f"| {name} | {a} | {b} | {detail} |")
+    n_checks = len(chk[univs[0]])
+    for i in range(n_checks):
+        name = chk[univs[0]][i][0]
+        cells = []
+        for k in univs:
+            cells.append("PASS" if chk[k][i][1] else "**FAIL**")
+        L.append("| " + name + " | " + " | ".join(cells) + " |")
 
     L += [
         "",
@@ -672,18 +676,24 @@ def main():
         "",
         "1. **A500 的「10 年 PE 分位」不存在**（PE 自 2024-09 起，`window_short=True`），"
         "只能靠沪深300 交叉校验兜底；两个指数行业结构不同（A500 低配银行/非银/食品饮料，"
-        "超配电子/医药/军工/化工），**不是等价替换**。沪深300 档没有这个问题。",
-        "2. **weekly 定档会放大边界抖动**：见 §1 —— 频率越高，换档次数与换手越多，"
+        "超配电子/医药/军工/化工），**不是等价替换**。沪深300 / 标普500 / 纳指100 档没有这个问题。",
+        "2. **科创50 的 PE 历史偏短**：`csi_000688` 的滚动 PE 有效段仅 ~2020 起（不足 10 年，`window_short=True`），"
+        "样本约 5 年，结论弱于沪深300；价格用 000688 指数（价格收益，未含分红再投）。",
+        "3. **ndx 用前瞻 PE 分位（非 TTM）**：本地无纳指100 的 TTM PE 月度库，只能用前瞻 PE。"
+        "前瞻 PE 系统性低于 TTM → 分位偏低 → 仓位偏轻，**回测偏保守**（同文档 §6 对美股 ERP 的裁定）。",
+        "4. **spx / ndx 价格用美元指数（价格收益，未含分红再投）**：标普/纳指股息 ~1~1.5% 未计入，"
+        "绝对收益被低估，但「策略 vs 买入持有」同口径比较仍成立。",
+        "5. **恒生科技 / 黄金不在本变种内**：两者本地无 PE 源（黄金是商品、恒生科技无 PE 库），"
+        "PE 分位闸门无从定义 → **不适用、跳过**。要覆盖需另写非 PE 估值锚（如黄金用实际利率、"
+        "hkt 用市盈代理），超出 v6 文档范围。",
+        "6. **weekly 定档会放大边界抖动**（沪深300 上已验证，见 §1）：频率越高，换档次数与换手越多，"
         "而回撤改善未必同比例增加。判据应该是「回撤差 / 费用差」，不是「反应更快」。",
-        "3. **便宜不等于见底**：文档 §6-2 记录「PE 分位 0–20% 之后 1 年内最坏路径仍回撤 43.78%」；"
-        f"本仓库沪深300 当前 dd {hs['ind']['dd'].iloc[-1]:.0f}%、A500 当前 dd "
-        f"{a5['ind']['dd'].iloc[-1]:.0f}%，阶梯正是为此存在。",
-        "4. **窗口决定结论**：§8 里同一套规则换窗口年化会跳，`WINDOW_DAYS` 写死；"
-        "改它等于换策略（文档 §7 要求走修订记录）。",
-        "5. **利差否决器多数时候不生效**：10Y 中债自 2015-06 起，更早的决策期 `y10=NaN` → 不否决。",
-        "6. **价格口径**：A500 用价格指数 + 股息 2.5% 计提近似；沪深300 用 H00300 全收益。"
-        "绝对收益不能当实盘预期（基金费率、跟踪误差、申赎时滞未计）。",
-        "7. **触发账本靠人记**：`daily/_daily_scan.py` 只算「按价格路径哪些档位**本可以**触发」，"
+        "7. **便宜不等于见底**：文档 §6-2 记录「PE 分位 0–20% 之后 1 年内最坏路径仍回撤 43.78%」；"
+        "阶梯正是为此存在。",
+        "8. **窗口决定结论**：§8 里同一套规则换窗口年化会跳，`WINDOW_DAYS` 写死；改它等于换策略。",
+        "9. **利差否决器仅 A 股/港股腿生效**（a500 / hs300 / 科创50 用中债 10Y）；美股腿（spx / ndx）"
+        "用中债 10Y 不对，已关闭。中债自 2015-06 起，更早决策期 `y10=NaN` → 不否决。",
+        "10. **触发账本靠人记**：`daily/_daily_scan.py` 只算「按价格路径哪些档位**本可以**触发」，"
         "不假设你的账户状态（文档 §7 要求自己逐笔留痕）。",
         "",
         "## 11. 与其它变种的边界",

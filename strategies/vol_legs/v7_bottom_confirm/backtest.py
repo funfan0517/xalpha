@@ -7,8 +7,9 @@
 2. **组合层**（六腿共同窗口，a500 样本太短不进）：按目标带归一化，对照「静态带恒满」
    与「等权买入持有」—— 若组合跑不过静态带，说明这套择时是在**减少**收益。
 3. **消融**：把四条件逐条置为恒成立，看哪一条真正带来了增量（大概率只有前置过滤）；
-   **敏感性**：`window / ctx_recall / dry_max_age / vol_mult / stop_pct / drop_min /
-   div_window / risk_per_trade` 逐个扫描，看结论是不是靠某一个魔法数字撑住的。
+   **敏感性**：`dry_lookback / max_age_days / vol_mult_vs_prev5 / stop_struct_pct /
+   drop_min / div_window / risk_per_trade / max_hold / size_mode` 逐个扫描，
+   看结论是不是靠某一个魔法数字撑住的。
 4. **硬断言**：无前视（T+1 成交）、止损成交价不优于止损价、预热期不交易、
    恒空等于货基、仓位边界 —— 这几条不过，上面的数字一律不看。
 
@@ -57,7 +58,9 @@ plt.rcParams["axes.unicode_minus"] = False
 OUTDIR = os.path.join(_HERE, "backtest")
 OUT_MD = os.path.join(OUTDIR, "_v7_bottom_report.md")
 OUT_JSONL = os.path.join(OUTDIR, "_v7_bottom_bt.jsonl")
-OUT_PNG_LEG = os.path.join(OUTDIR, "_v7_bottom_hs300.png")
+def _png_leg(leg):
+    return os.path.join(OUTDIR, f"_v7_bottom_{leg}.png")
+
 OUT_PNG_PORT = os.path.join(OUTDIR, "_v7_bottom_portfolio.png")
 
 LEGS = bt.LEGS
@@ -185,11 +188,11 @@ SPOTS = (("2015-08-26", "股灾底"), ("2016-01-28", "熔断底"), ("2018-10-19"
          ("2025-04-07", "关税底"))
 
 DIAG_CFGS = (
-    ("当前默认：站回 VWAP / 地量 90 日 / 回撤 10%", dict()),
-    ("改参数前：站回 VWAP / 地量 60 日 / 回撤 20%", dict(dry_max_age=60, drop_min=0.20)),
-    ("地量有效期再放到 250 日", dict(dry_max_age=250)),
-    ("站上 MA20 也算修复 / 250 日", dict(c4_mode="or_ma20", dry_max_age=250)),
-    ("只要站上 MA20 / 250 日", dict(c4_mode="ma20", dry_max_age=250)),
+    ("当前默认：锚点 60 日 / 回撤 15% / 站回锚定VWAP", dict()),
+    ("回撤门槛 20% / 锚点 60 日", dict(max_age_days=60, drop_min=0.20)),
+    ("锚点有效期再放到 250 日", dict(max_age_days=250)),
+    ("回撤门槛降到 10%", dict(drop_min=0.10)),
+    ("不要求站回 VWAP（只放量阳）", dict(require_above_avwap=False)),
 )
 
 
@@ -259,9 +262,9 @@ def main(quick=False):
     os.makedirs(OUTDIR, exist_ok=True)
     p0 = bt.params()
     print(f"{bt.LABEL} · 回测")
-    print(f"参数: 窗口 {p0['window']} · ctx_recall {p0['ctx_recall']} · 地量有效期 "
-          f"{p0['dry_max_age']} · 放量 {p0['vol_mult']}× · 背离 {p0['div_window']}日"
-          f"({p0['div_mode']}) · 止盈 {p0['exit_mode']} · 试仓 {p0['size_mode']}")
+    print(f"参数: 地量分位 q{p0['dry_quantile']:.2f}/{p0['dry_lookback']}日 · 锚点有效期 "
+          f"{p0['max_age_days']}日 · E4 {p0['vol_mult_vs_prev5']}×前5日均量 · 背离 {p0['div_window']}日"
+          f"(DIF) · 止盈 {p0['exit_mode']} · 试仓 {p0['size_mode']}")
 
     runs = {}
     for leg in LEGS:
@@ -281,9 +284,9 @@ def main(quick=False):
           f"最宽口径 {sum(diag[-1]['hits'])} 次（年化 {pct(diag[-1]['m']['ann'])}）")
 
     q_new = quality_summary(LEGS)
-    q_old = quality_summary(LEGS, dry_max_age=60, drop_min=0.20)
+    q_old = quality_summary(LEGS, max_age_days=90, drop_min=0.20, vol_mult_vs_prev5=2.5)
     print(f"  信号质量：{q_new['n']} 笔里 {q_new['broken']} 笔 20 日内破 stage_low"
-          f"（确认成功率 {q_new['rate']:.0%}）；旧参数（地量 60/回撤 20%）"
+          f"（确认成功率 {q_new['rate']:.0%}）；旧参数（地量 90/回撤 20%/2.5×）"
           f"{q_old['n']} 笔 / {q_old['rate']:.0%}")
 
     # —— 止盈方案 ——
@@ -292,9 +295,10 @@ def main(quick=False):
         exits[mode] = portfolio_run(exit_mode=mode)
     # —— 消融 ——
     abl = []
-    for name, skip in (("默认（四条件全开）", ()), ("去掉底背离", ("c2",)),
-                       ("去掉跌速放缓", ("c3",)), ("去掉成本线（VWAP+放量）", ("c4",)),
-                       ("去掉放量阳", ("c1",)), ("去掉前置过滤", ("filt",))):
+    for name, skip in (("默认（证据全开）", ()), ("去掉 E1 地量窗口", ("e1",)),
+                       ("去掉 E2 底背离", ("e2",)), ("去掉 E3 跌速衰竭", ("e3",)),
+                       ("去掉 E4 触发", ("e4",)), ("去掉前置过滤", ("filt",)),
+                       ("去掉走平否决", ("flat_veto",))):
         r = portfolio_run(skip=skip)
         abl.append(dict(name=name, **{k: r[k] for k in ("sig", "trades")}, m=r["m"],
                         expo=r["expo"]))
@@ -303,9 +307,9 @@ def main(quick=False):
     # —— 敏感性 ——
     sens = []
     if not quick:
-        grid = [("window", (20, 40, 60, 120)), ("ctx_recall", (3, 10, 20, 40)),
-                ("dry_max_age", (30, 60, 90, 120)), ("vol_mult", (1.2, 1.5, 2.0)),
-                ("stop_pct", (0.03, 0.05, 0.08)), ("drop_min", (0.05, 0.10, 0.20, 0.30)),
+        grid = [("dry_lookback", (20, 40, 60, 120)), ("max_age_days", (30, 60, 90, 120)),
+                ("vol_mult_vs_prev5", (1.5, 2.0, 2.5, 3.0)),
+                ("stop_struct_pct", (0.03, 0.05, 0.08)), ("drop_min", (0.05, 0.10, 0.20, 0.30)),
                 ("div_window", (20, 60)), ("risk_per_trade", (0.03, 0.05, 0.10)),
                 ("max_hold", (0, 60, 120, 250)), ("size_mode", ("risk", "full"))]
         for key, vals in grid:
@@ -332,10 +336,13 @@ def main(quick=False):
     add("")
     add(f"> 生成：`backtest.py` · 数据截至 **{runs['hs300']['df'].index[-1]:%Y-%m-%d}** · "
         f"行情 `data/_v7_klines.json`（前复权，成交量原始）")
-    add(f"> 规则权威源：`bottom.py::CFG` · 参数：窗口 {p0['window']} 日 / 背离 "
-        f"{p0['div_window']} 日 / 时间窗 {p0['ctx_recall']} 日 / 放量 {p0['vol_mult']}× / "
-        f"地量有效期 {p0['dry_max_age']} 日 / 回撤门槛 {p0['drop_min']:.0%} / "
-        f"修复标尺 {p0['c4_mode']} / 止损 −{p0['stop_pct']:.0%} / 止盈 {p0['exit_mode']} / 试仓 {p0['size_mode']}")
+    add(f"> 规则权威源：`bottom.py::CFG` · 参数：地量分位 q{p0['dry_quantile']:.2f}/{p0['dry_lookback']}日"
+        f" / 锚点有效期 {p0['max_age_days']}日 / 背离(DIF) {p0['div_window']}日 / "
+        f"E4 放量 >{p0['vol_mult_vs_prev5']}×前5日均量 / 回撤门槛 {p0['drop_min']:.0%} / "
+        f"前置 MA{p0['ma_fast']}<MA{p0['ma_slow']}（记忆 {p0.get('filt_memory_days', 0)} 日） / "
+        f"结构止损 −{p0['stop_struct_pct']:.0%} / "
+        f"走平否决 <{p0['flat_veto_pct']:.0%} / 止盈 {p0['exit_mode']} / 试仓 {p0['size_mode']}"
+        f"（首仓 {p0['first_fill']:.0%}·score2 折扣 {p0['score2_discount']:.2f}）")
     add("")
 
     # 结论先行
@@ -347,10 +354,12 @@ def main(quick=False):
     kc_full_leg = leg_run("kc50", size_mode="full")
     add("## 0. 结论先行")
     add("")
-    add(f"1. **频率仍低，但已是「季度级」而非「几年一次」**：七腿 {yrs:.0f} 年合计 "
-        f"**{tot_sig} 个信号日 / {tot_trade} 笔轮次**（{tot_trade / yrs:.1f} 笔/年，七腿合计）。"
-        f"单腿仍只有每几年 1~2 笔，胜率/盈亏比的统计意义有限 —— 下面的数字只能判断"
-        f"**方向对不对**，不能用来预测下一笔赚多少。")
+    add(f"1. **频率升到「季度级」，但本质仍是「确认型许可」而非择时信号**：七腿 {yrs:.0f} 年合计 "
+        f"**{tot_sig} 个信号日 / {tot_trade} 笔轮次**（{tot_trade / yrs:.2f} 笔/年，七腿合计），"
+        f"七腿里有 {sum(1 for k in LEGS if int(runs[k]['sm']['signal'].sum()) == 0)} 条腿全程 0 信号。"
+        f"前置过滤带 {int(p0.get('filt_memory_days') or 0)} 日记忆期后，它不再「几乎不触发」；"
+        f"但宽基 ETF（尤其沪深300/A500）仍是最不适用的一档（规则 §7），美股两腿的量还被 QDII "
+        f"额度/溢价套利污染。**样本 n={tot_trade} 依旧偏小，胜率/盈亏比只能看方向、不能外推**。")
     add(f"2. **相对现金是微弱正贡献，相对买入持有是明显负贡献**："
         f"{len(LEGS)} 腿里 **{n_cash} 腿**年化高于货基 {pct(bt.CASH_ANNUAL, 2)}，"
         f"但只有 **{n_beat} 腿**高于同标的买入持有。它省下的从来不是亏损"
@@ -372,20 +381,22 @@ def main(quick=False):
         f"不是离成本」的直接后果。")
     lacked = [s for s, h in zip(spots, diag[0]["hits"]) if not h]
     why_txt = "；".join(f"{s['name']}（{s['why']}）" for s in lacked) or "无"
-    add(f"5. **漏底从 2/7 改善到 {n_hit}/7**：地量有效期 60→90 日、回撤门槛 20%→10% 之后，"
-        f"沪深300 的 7 次历史大底接住 **{n_hit} 次**（改参数前 {sum(diag[1]['hits'])} 次）。"
-        f"仍漏的 {len(lacked)} 次各有卡点 —— {why_txt}。"
-        f"其中 2025-04 是涨势中的回调（连 MA20<MA60 都不成立），按规则**本就不该认**。")
-    add(f"6. **「确认回升」而不是「反弹」——这次改参数的真实代价可以量了**："
-        f"{q_new['n']} 笔买入里 **{q_new['broken']} 笔**在 20 个交易日内收盘跌破入场时冻结的 "
-        f"stage_low（确认成功率 **{q_new['rate']:.0%}**，60 日后涨幅中位 {pct(q_new['rise60'])}）；"
-        f"改参数前是 {q_old['n']} 笔 / {q_old['rate']:.0%} / {pct(q_old['rise60'])}。"
-        f"**信号多了约 {tot_trade / max(q_old['n'], 1):.1f} 倍，确认成功率的变化就是它换来的东西**"
-        f"（逐笔见 §10）。")
-    add("**怎么用（结论）**：当「已跌 20% 以上的标的」出现〔地量 → 放量阳重新站上地量日锚定的"
-        "VWAP〕，且期间有过 MACD 底背离与跌速放缓时，**允许**用「该腿额度 5% 的风险预算」"
-        "试仓，止损挂在阶段最低点下 3%；跌破就无条件走，不预测底、不补仓、不摊平。"
-        "它是「可以开始考虑」的许可，不是买入信号 —— 回测里它也没证明自己值得独立成仓。")
+    add(f"5. **漏底诊断：默认只接住 {n_hit}/7 个历史大底**（最宽口径 {sum(diag[-1]['hits'])}/7）。"
+        f"这正符合规则的「确认」定位 —— E4 要求放量阳**重新站回地量日锚定的 VWAP**，而地量锚点"
+        f"在下跌途中（含其前的高价成交），深跌时价格远低于锚定 VWAP，要「站回成本线」几乎等于"
+        f"要先涨回地量日前后的均价，V 型反转才够格。所以它系统性漏掉「最低点」，只接住"
+        f"「已经修复到多数人回本」的那一段。仍漏的 {len(lacked)} 次卡点 —— {why_txt}。")
+    add(f"6. **「确认回升」vs「反弹」：样本只有 {q_new['n']} 笔，无法下结论**："
+        f"{q_new['n']} 笔买入里 {q_new['broken']} 笔 20 日内破 stage_low"
+        f"（确认成功率 {q_new['rate']:.0%}）；改参数前（锚点 90/回撤 20%/2.5×）是 "
+        f"{q_old['n']} 笔 / {q_old['rate']:.0%}。n 都只有个位数，置信区间覆盖 0~100%，"
+        f"只能说明「规则在极少触发时，触发后的破位率不高于随机」，不能证明它有择时信息量。")
+    add(f"**怎么用（结论）**：当「已跌 {p0['drop_min']:.0%} 以上的标的」出现〔地量窗口有效 + 放量阳重新站上地量日"
+        "锚定 VWAP〕，且期间有过 DIF 底背离或跌速收敛（score≥1）时，**允许**用「该腿额度 5% 的"
+        "风险预算」试仓（首仓再乘 0.5、score==2 再乘 0.75），止损挂在阶段最低点下 3%；"
+        "回踩不破再补满。它是「可以开始考虑」的许可，不是买入信号 —— 单腿约每年 1~2 次，"
+        "且宽基池上质量参差（见 §10）。若要真用，应换到高波动、散户筹码多的品种"
+        "（如创业板 159915），并把美股两腿的 E4 量条件换成成交额分位+溢价率（见 README §7）。")
     add("")
 
     # 1 逐腿
@@ -443,9 +454,9 @@ def main(quick=False):
     add("")
 
     # 3 止盈
-    add("## 3. 止盈方案对比（其余参数固定，组合层）")
+    add("## 3. 离场方案对比（其余参数固定，组合层）")
     add("")
-    add("| 止盈方案 | 组合年化 | 回撤 | 夏普 | 笔数 |")
+    add("| 离场方案 | 组合年化 | 回撤 | 夏普 | 笔数 |")
     add("|---|---|---|---|---|")
     for mode in bt.EXIT_MODES:
         e = exits[mode]
@@ -453,10 +464,10 @@ def main(quick=False):
             f"{e['m']['sharpe']:.2f} | {e['trades']} |")
     best = max(bt.EXIT_MODES, key=lambda x: exits[x]["m"]["ann"])
     add("")
-    add(f"年化最高的是 `{best}`，但六腿只有 {len(port['nav']) // 252} 年、个位数轮次，"
-        f"**这一列不足以选止盈** —— "
-        f"规则原意「视频未给固定止盈」也说明作者自己没定。默认保留 `rr2`（1:2 盈亏比），"
-        f"理由是可事先算好、不需要盘中判断。")
+    add(f"年化最高的是 `{best}`；当前默认 `ma20`（两段式：试仓期跌破成本线清仓 / 未破满仓，"
+        f"满仓后跌破 MA{p0['ma_fast']} 清仓）。但六腿只有 {len(port['nav']) // 252} 年、几十笔轮次，"
+        f"**这一列不足以选离场** —— 各档差异都在噪声里。`batch/rr2` 会在 +8%~+20% 先卖掉一半，"
+        f"持仓中位只有 3~5 日；`ma20` 让利润奔跑、但把回撤从 −0.6% 放大到 −1.2%。")
     add("")
 
     # 4 消融
@@ -509,9 +520,9 @@ def main(quick=False):
         add(f"> 全表择时增量落在 **{pct(lo)} ~ {pct(hi)}** 之间，跨度 {hi - lo:.2%} —— "
             f"按参数分组看组内跨度，最大的是 `{wide}`（{spread[wide]:.2%}），"
             f"即结论最受它支配，而不是受窗口长度或放量倍数支配。")
-        add(f"> `drop_min` 三档是 {dm_txt} —— **20% 是唯一为负的一档**，"
-            f"这次降到 10% 方向正确；再降到 5% 虽然更高（信号更多、曝光更大），"
-            f"但继续往下调就是拿样本挑参数，停在这里。")
+        add(f"> `drop_min` 四档是 {dm_txt} —— 各档择时增量都落在同一量级（且非单调），"
+            f"说明**回撤门槛不决定结论**：真正的分水岭是 E4 触发频率，不是前置过滤的松紧。"
+            f"注意前置过滤现在带 90 日记忆期，`drop_min` 单独调的边际影响已被稀释。")
         add(f"> 最高的一档是 `size_mode=full`（{pct([r for r in rows if r[0] == 'size_mode' and r[1] == 'full'][0][3])}），"
             f"但那只是把仓位放大，不是规则变好 —— 同一档的回撤也翻倍（见 §2）。")
     add("")
@@ -599,16 +610,20 @@ def main(quick=False):
     add("")
     add(f"读法：当前默认接 {sum(diag[0]['hits'])}/7、{diag[0]['rs']['n']} 笔、"
         f"年化 {pct(diag[0]['m']['ann'])}、胜率 {(diag[0]['rs']['win'] or 0):.0%}；"
-        f"改参数前只接 {sum(diag[1]['hits'])}/7、{diag[1]['rs']['n']} 笔。"
-        f"再往「更早」走（站上 MA20 也算修复）能到 {sum(diag[3]['hits'])}/7、"
+        f"回撤门槛 20%（锚点 60 日）只接 {sum(diag[1]['hits'])}/7、{diag[1]['rs']['n']} 笔。"
+        f"再放宽（回撤门槛降到 10%）能到 {sum(diag[3]['hits'])}/7、"
         f"{diag[3]['rs']['n']} 笔，但胜率只有 {(diag[3]['rs']['win'] or 0):.0%}、"
-        f"年化 {pct(diag[3]['m']['ann'])} —— **每往前挪一步，都是在拿胜率换覆盖**。")
+        f"年化 {pct(diag[3]['m']['ann'])}；不要求站回 VWAP（只放量阳）能到 {sum(diag[4]['hits'])}/7、"
+        f"{diag[4]['rs']['n']} 笔 —— **每往前挪一步，都是在拿胜率换覆盖**。")
     add("")
     add("### 9.3 为什么「接住底部」和「高胜率」天然冲突")
     add("")
-    add("1. **② 与 ④ 在时序上互斥**：② 要求「价格创 20 日新低」，④ 要求「放量阳站回成本线」——"
-        "新低那天不可能是站回那天。这就是「当日四条件齐现」在 13 年里有 **0 天**的原因，"
-        "也是必须有 `ctx_recall` 时间窗的原因（`ctx_recall=3` 时 hs300 是 0 个信号）。")
+    add("1. **瓶颈在 E4，不在 ②③④ 的组合**：v2 把 ① 改成「锚点窗口」（不再是当日事件）、"
+        "② 是「底背离生效中」的背景旗、④ 才是当日触发。所以 ②③④ 不再要求同日——"
+        "真正稀缺的是 ④：放量 >1.5×前5日均量、且阳线、且**站回地量日锚定的 VWAP**。"
+        "三者同时落在「近 90 日内曾跌 15%+ 且 MA20<MA60」的窗口里"
+        f"（消融显示去掉 E4 立刻从 {base['sig']} 个信号暴涨到 {worst['sig']} 个）。"
+        "这正说明 E4 是规则的「确认」闸门。")
     add("2. **④ 的锚在下跌途中**：地量日锚定的 VWAP 包含地量日**之前**的高价成交，"
         "所以 2015-08 与 2016-01 当天 close 比 VWAP 低 18.4% / 8.9% —— 要「站回成本线」，"
         "必须先涨回地量日前后的平均成本，V 型反转才能满足。这既是它稀有的原因，也是它算「确认」的原因。")
@@ -619,7 +634,7 @@ def main(quick=False):
     add("")
     add("> **结论**：它买的是「跌势已经修复到多数人回本」的时刻，而不是「最低点」；"
         "所以永远会漏掉一部分底部 —— 差别只在漏几次、以及为了少漏要付多少胜率。"
-        "当前参数（地量 90 日 / 回撤 10%）是「覆盖」与「准确」的一个折中，"
+        "当前参数（锚点 60 日 / 回撤 15%）是「覆盖」与「准确」的一个折中，"
         "再往前走就是普通反弹买入了。")
     add("")
 
@@ -631,8 +646,8 @@ def main(quick=False):
     add("")
     add("| 口径 | 笔数 | 破位笔数 | 确认成功率 | 60 日后涨幅中位 |")
     add("|---|---|---|---|---|")
-    for label, q in (("当前默认（地量 90 / 回撤 10%）", q_new),
-                     ("改参数前（地量 60 / 回撤 20%）", q_old)):
+    for label, q in (("当前默认（地量 60 / 回撤 15%）", q_new),
+                     ("改参数前（地量 90 / 回撤 20%）", q_old)):
         rate_txt = "—" if q["rate"] is None else f"{q['rate']:.0%}"
         add(f"| {label} | {q['n']} | {q['broken']} | {rate_txt} | {pct(q['rise60'])} |")
     add("")
@@ -700,7 +715,9 @@ def main(quick=False):
         ), ensure_ascii=False) + "\n")
 
     # ---------------- 图
-    plot_leg(runs["hs300"], "hs300")
+    for _k in LEGS:
+        if int(runs[_k]["sm"]["signal"].sum()) > 0:
+            plot_leg(runs[_k], _k)
     plot_port(port)
     print(f"→ {os.path.relpath(OUT_MD, _ROOT)}")
     print(f"→ {os.path.relpath(OUT_JSONL, _ROOT)}")
@@ -715,12 +732,15 @@ def plot_leg(r, leg):
     ax1.plot(df.index, df["close"], lw=0.9, color="#334155", label="收盘价")
     buys = [t for t in r["tr"] if t["side"] == "buy"]
     sells = [t for t in r["tr"] if t["side"] == "sell"]
-    # 历史大底（事后确认）：绿圈 = 这套规则接住了，红圈 = 漏了（详见报告 §9）
-    if leg == "hs300":
+    # 历史大底（事后确认，A股七次）：绿圈 = 这套规则接住了，红圈 = 漏了（详见报告 §9）
+    if leg in ("hs300", "a500", "kc50"):
         xs, ys, ec = [], [], []
         for d, _n in SPOTS:
             ts = pd.Timestamp(d)
-            i = sm.index.get_loc(sm.index[sm.index <= ts][-1])
+            prior = sm.index[sm.index <= ts]
+            if len(prior) == 0:
+                continue
+            i = sm.index.get_loc(prior[-1])
             ok = bool(sm["signal"].iloc[max(0, i - 20): i + 21].any())
             xs.append(ts)
             ys.append(float(df["close"].asof(ts)))
@@ -743,7 +763,7 @@ def plot_leg(r, leg):
     ax2.grid(alpha=0.25)
     ax2.set_ylabel("净值（对数）")
     fig.tight_layout()
-    fig.savefig(OUT_PNG_LEG, dpi=130)
+    fig.savefig(_png_leg(leg), dpi=130)
     plt.close(fig)
 
 

@@ -11,8 +11,8 @@
       "no": 2,
       "key": "vol",
       "title": "波动类资产 · 仓位带 + 逐腿上下车",
-      "desc": "管辖 40pp：A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10。主策略回答「仓位带怎么摆、今天该动多少 pp」，变种 v3_macd_boll 回答「每条腿什么时候突破上车、什么时候下车」。",
-      "note": "主策略 = 组合层仓位带（含回撤阶梯 / 趋势闸门 / 季度再平衡）；v3_macd_boll = 逐腿「MACD 零轴上金叉 + 布林开口上穿上轨」进出时点（突破追涨型，年笔数 2~4）。两者可叠加，不可互相替代。v1_ma20（MA20 穿越）与 v4_erp_band（沪深300×国债 ERP 通道）2026-10-30 退出本板块的每日看板（`daily.enabled=false`），产物与脚本仍可直接手跑。"
+      "desc": "管辖 40pp：中证A500 2.5 / 沪深300 2.5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10。主策略回答「仓位带怎么摆、今天该动多少 pp」；下面的「变种操作一览」并列 v2/v3/v4/v5 四个变种各自的逐腿动作（★ 标注重点关注标的）。",
+      "note": "主策略 = 组合层仓位带（回撤阶梯 / 趋势闸门 / 季度再平衡）；v2 BOLL 突破、v3 MACD+BOLL = 七腿逐腿突破追涨型进出时点；v4 ERP 股债通道 = 沪深300×国债（单标的）；v5 趋势闸门 = 年线位置×斜率决定的逐腿档位。各变种可叠加在带位之上，不可互相替代。变种操作以「变种操作一览」卡呈现（参考板块5 列法，一行一个变种；★ = 重点标注标的：v2→中证A500/沪深300、v3→科创50/恒生科技、v4→中证A500/沪深300、v5→黄金）。"
     },
     {
       "no": 3,
@@ -409,11 +409,27 @@
         "runner": "",
         "runner_note": "不单列 runner: 本变种是 vol_legs 的第 2 步(写在 run_daily_vol_legs.ps1 里), 若在这里再填同一个 .ps1, run_daily_all 会把 vol_legs 跑两遍。留空则 run_daily_all 跳过本策略、但 daily_digest 仍出卡片",
         "signal_report": "strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.md",
+        "enabled": false,
+        "enabled_note": "2026-11-04 起不再单列卡片, 并入板块2「变种操作一览」汇总卡(参考板块5 列法); 脚本仍由 run_daily_vol_legs.ps1 第2步每日刷新, 产物照常写 daily/",
         "signal_json": "strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.json",
         "automation": "(未创建, 随 vol_legs 定时任务)"
       },
       "note": "2026-10-30 由 tech_indicators/v3_macd_boll 复制并按六腿场外复权净值落地（规则本体一条没动, 只换池与口径）; 同日接进每日操作板块2, 顶替 V1/V4 的卡片。**定位**: 与 v1_ma20 同一层（逐腿进出时点）, 但它回答的是「什么时候追突破上车」——**突破追涨型**, 与主策略「跌了才加仓」的阶梯方向相反, 不可叠加在同一份额度上（若要叠加: 主策略管带位, 本变种只管「带内已建仓位要不要临时下车」）。**回测诚实结论**（场外净值口径, 2026-10-30）: 逐腿 6 腿年化跑赢买入持有 3/6、回撤 6/6 全部更小（逐腿年化差中位 -1.70pp）; 组合层 2021-11~2026-10 年化 5.55% / 回撤 -4.89% / 夏普 0.93（扣费 3.74% / -5.01% / 0.52）, 静态带 11.09% / -17.45% / 0.80, 平均只投入 18% —— **只降回撤、不增收益**。**增收益只在「买入持有本来为负」的腿上**: 恒生科技 -11.55% -> +7.26%、科创50 -4.65% -> +9.26%; 美股两条长牛腿让渡最多（纳指 -14.34pp、标普 -11.90pp）。**成本不是决定性变量**: 年笔数 2.1~3.9/年（MA20 是 13~16）, 组合层 5.55% -> 3.74%（-1.81pp）, 费用吃掉约 1/3 毛收益。**定位是保险不是收益引擎**: 2022 年 +1.71% vs 静态带 -12.26%（+13.97pp）, 2023-2025 连续落后 12.9/17.5/18.6pp。**已知边界**: QDII 腿净值滞后 T+1~T+2; 桥接段（000051/050025）不是本基金业绩; C 类 0.2%/年销售服务费未计; 组合层仅 4.9 年样本且曝光天然只有 12%~19%（无突破即空仓）, 收益对少数几笔高度敏感; 窗口/ER 阈值未做敏感性扫描。",
       "pipeline_mode": "full_pool"
+    },
+    "vol_variants": {
+      "name": "波动类变种操作一览 · v2 / v3 / v4 / v5",
+      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v2_boll_breakout,v3_macd_boll,v4_erp_band,v5_trend_gate}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
+      "daily": {
+        "block": "vol",
+        "codes": [],
+        "runner": "",
+        "runner_note": "汇总卡, 无可执行 runner; 数据由各变种每日扫描写入各自 daily/ 后由 pipeline/daily_digest.py 合成一张卡",
+        "signal_report": "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.md",
+        "automation": "(随各变种扫描)"
+      },
+      "note": "板块2 的变种操作汇总: 一行一个变种(v2/v3/v4/v5), 列 = 变种/动作统计/动作/明细(参考板块5 列法)。★ = 该变种的重点标注标的: v2→中证A500/沪深300, v3→科创50/恒生科技, v4→中证A500/沪深300, v5→黄金; 空仓的重点腿也会列出, 便于一眼看到状态。",
+      "pipeline_mode": "summary"
     },
     "v5_trend_gate": {
       "name": "波动资产 V5 变种 · 趋势四象限闸门（年线位置 × 年线 20 日斜率 · 逐腿档位）",
@@ -602,52 +618,61 @@
       "pipeline_mode": "full_pool"
     },
     "v7_bottom_confirm": {
-      "name": "波动资产 V7 变种 · 抄底确认（地量 + 底背离 + 跌速放缓 + 站回成本线 · 单标的许可）",
-      "source_methodology": "用户 2026-11-03 给出的「下跌后四条件齐现才试仓」规则（地量见底 / 底背离 / 跌速放缓 / 成本线与风控）· 规则权威源 strategies/vol_legs/v7_bottom_confirm/bottom.py::CFG",
+      "name": "波动资产 V7 变种 · 抄底确认 v2（地量窗口 + 背离 + 跌速斜线 + 站回VWAP · 证据计数+回踩加仓）",
+      "source_methodology": "用户 2026-11-03 定稿的「抄底确认规则 v2」(E:\\qianwen\\jijin\\V9抄底确认规则_v2.md): ① 地量改锚点窗口开关(冻结 d0, t−d0≤90) ② DIF 主判据底背离+失效条款 ③ 真下压斜线跌速衰竭 ④ 触发=放量≥2.5×前5日均量+站回锚定VWAP+阳线 · 证据计数 score=E2+E3→首仓折扣 · 回踩不破加仓 · 三条独立风控 · 规则权威源 strategies/vol_legs/v7_bottom_confirm/bottom.py::CFG",
       "universe": {
         "signal": "七腿**场内 OHLCV**（抄底要开/高/低/量，场外净值只有收盘价）: a500 563360 / hs300 510300 / ndx 513100(人民币代理) / spx 513500(代理) / kc50 588000 / hkt 513180 / gold 518880",
         "data": "strategies/vol_legs/v7_bottom_confirm/data/_v7_klines.json（本变种自建前复权 OHLCV 缓存, 增量刷新; 陈旧判据对齐 data/_long_klines.json 的同代码末日, 共享库已最新时不发网络请求）",
         "note": "美股两腿用人民币场内代理（美元指数库只有收盘价, 无 OHLCV）—— 本变种唯一的口径妥协, 报告逐行标注; a500 的 563360 2024-10 才上市, 样本 2 年且过不了 250 日预热, 只做单腿展示、**不进组合层**（组合层 = 其余六腿共同窗口 2022-06 起）"
       },
       "rules": [
-        "条件1 地量见底: 当日量 = 近 window(60) 日最低量 → 记地量日并锚定; 放量阳 = close>open 且 量 >1.5×地量 或 >MAV5, 必须发生在**地量之后 dry_max_age(90) 日以内、且与触发日同日**（2026-11-03 由 60 放宽）",
-        "条件2 底背离: 价格创 div_window(20) 日新低, 而 MACD 柱或 DIF **至少一个**不创新低（div_mode=either 默认; window 档要求两者都不新低; 另有 corr / slope 两档）",
-        "条件3 跌速放缓: close 站上速度阻力扇 0.5 线（阶段 (最低+最高)/2）或 近 5 日跌幅 < 前 5 日跌幅且 ATR 较 5 日前下降（c3_mode=any 默认）",
-        "条件4 站回成本线: close ≥ 自最近地量日起算的锚定 VWAP（Σ典型价×量/Σ量）且当日放量 >1.5×地量; 与条件1 同日成立 = 入场那根 K 线",
-        "齐现口径: ①④ 必须同日, ②③ 允许在最近 ctx_recall(20) 个交易日内出现过 —— 照字面「连续 3 日」实测七腿十四年仅 8 个信号日且沪深300 为 0, 该档在敏感性表里保留",
-        "前置过滤: MA20 < MA60（趋势向下）且 距 250 日收盘高点回撤 ≥10%（drop_min, 2026-11-03 由 20% 放宽; 排除上涨中的假背离）",
-        "入场: t 日收盘齐现 → t+1 收盘试仓（无前视）; 止损 = 信号日 window 日最低 low ×(1−3%), 入场后冻结, **常驻挂单**: 日内 low ≤ stop 即成交, 跳空按开盘价 (fill = min(stop, open))",
-        "再创新低: close < stage_low 且未站回 VWAP → 次日收盘无条件清仓; 止损后再入场至少隔 5 个交易日且必须等新的四条件",
-        "止盈 exit_mode: rr2（默认 1:2 盈亏比）/ batch（1:1 减半、1:2 清尾）/ fib618（阶段低 + 0.618×区间）/ prior_high（近 60 日最高）/ none",
-        "试仓大小 size_mode=risk（默认）: 仓位 = risk_per_trade(5%) / (1 − 止损/入场价)，下限 10%、上限 100% —— 止损锚在阶段最低点、离入场价 10%~25%，固定满仓会把单笔亏损放大到两位数; full 仅作朴素对照",
-        "成交与成本: T+1 收盘; 申购 0.10% / 赎回 0.50% + 双边滑点 0.10%; 空仓按货基 1.40% 计息"
+        "E1 地量窗口(开关, 非当日事件): 地量 = V ≤ quantile(V[t-60:t], 0.05); 本轮缩量段首个地量日冻结为锚点 d0, t−d0 > 90 才改锚; E1 = exists(d0) and (d0 < t ≤ d0+90)",
+        "E2 底背离: 价格创 div_window(20) 日新低 且 DIF 不新低(以 DIF 为主判据), 且自背离成立日起未再创新低(失效条款)",
+        "E3 跌速衰竭: close ≥ frl_0.5(t) 真下压斜线(stage_high − 0.5·slope·(t−t_H), slope=(stage_high−stage_low)/(t_L−t_H)) 或 MACD 柱连 3 日收敛(hist 递增且 <0)",
+        "E4 触发(唯一当日条件): V ≥ 2.5×mean(V[t-5:t])(前5日均量, 不含当日) 且 close ≥ AVWAP(d0,t)(地量日锚定的成交量加权均价) 且 close > open(阳线)",
+        "走平否决 flat_veto: |AVWAP[t]−AVWAP[t-20]| / AVWAP[t-20] < 1% → 不入场(多空拉锯; 2026-11-04 由 2% 放宽, 底部横盘是常态)",
+        "前置过滤 filt: MA20 < MA60(趋势向下) 且 距 250 日收盘高点回撤 ≥15%(drop_min); 且带记忆期 filt_memory_days=90 —— 确认日前 90 个交易日内「曾」满足即可(0=要求当日)",
+        "证据计数 → 信号: score = E2 + E3(0/1/2, E1 是开关、E4 是触发, 不进计数); signal = filt & e1 & e4 & (score≥1) & ~flat_veto; E1/E4 是必须项, ②③ 是背景分",
+        "首仓(证据折扣): risk_size = risk_per_trade(5%) / (1 − 止损/入场); 首仓 = risk_size × first_fill(0.5) × (0.75 if score==2 else 1.0); 下限 10%、上限 100%",
+        "回踩不破加仓: 试仓期未跌破成本线 → 补满 risk_size（回踩不破当日 low≥AVWAP 即补, 或 addon_days(10) 窗口到期补满 addon_fill_on_expiry=True）",
+        "三条独立风控: ①结构止损 low ≤ stage_low×(1−3%)(常驻挂单、当日成交, fill=min(stop,open)) ②VWAP 止损 close < AVWAP → 次日清仓 ③走平否决不入场",
+        "两段式离场 exit_mode=ma20(默认): ①试仓期 收盘跌破成本线(AVWAP) → 清仓; 未跌破 → 满仓 ②满仓后 收盘跌破 MA20 → 次日清仓(结构止损作为极端兜底仍在); 备选 exit_mode: batch(1:1 减半、1:2 清尾)/ rr2/ fib618/ prior_high/ none; 入场 t 日收盘 → t+1 收盘成交(无前视); 止损后至少隔 reentry_cooldown(5) 交易日且需新的 E4"
       ],
       "thresholds": {
         "authoritative": "strategies/vol_legs/v7_bottom_confirm/bottom.py::CFG",
-        "window": 60,
-        "vol_mult": 1.5,
-        "vol_rule": "any",
-        "mav_win": 5,
-        "dry_max_age": 90,
-        "c4_mode": "vwap",
+        "dry_quantile": 0.05,
+        "dry_lookback": 60,
+        "max_age_days": 60,
         "div_window": 20,
-        "div_mode": "either",
-        "macd": "12/26/9（柱 = 2×(DIF−DEA)）",
-        "c3_mode": "any",
+        "macd": "12/26/9（DIF/DEA/柱, 柱 = 2×(DIF−DEA)）",
         "fibo_frac": 0.5,
-        "atr_win": 14,
-        "ctx_recall": 20,
+        "vol_mult_vs_prev5": 1.5,
+        "require_above_avwap": true,
+        "require_bull": true,
         "trend_filter": true,
         "ma_fast": 20,
         "ma_slow": 60,
         "drop_win": 250,
-        "drop_min": 0.1,
-        "stop_pct": 0.03,
-        "exit_mode": "rr2",
+        "drop_min": 0.15,
+        "filt_memory_days": 90,
         "size_mode": "risk",
         "risk_per_trade": 0.05,
+        "first_fill": 0.5,
+        "score2_discount": 0.75,
         "size_floor": 0.1,
-        "reentry_gap": 5,
+        "size_cap": 1.0,
+        "addon": "retest_hold_within_10d",
+        "addon_days": 10,
+        "addon_fill_on_expiry": true,
+        "stop_struct_pct": 0.03,
+        "stop_vwap": "close_lt_avwap",
+        "flat_veto_pct": 0.01,
+        "reentry_cooldown": 5,
+        "exit_mode": "ma20",
+        "rr": 2.0,
+        "batch_rr": [1.0, 2.0],
+        "tp_fib": 0.618,
+        "ph_win": 60,
         "max_hold": 0,
         "fee": "申购 0.0010 / 赎回 0.0050 + 单边滑点 0.0010",
         "trade_at": "T+1 收盘（回测与每日同一口径）"
@@ -658,13 +683,13 @@
         "report": "strategies/vol_legs/v7_bottom_confirm/backtest/_v7_bottom_report.md",
         "figures": "strategies/vol_legs/v7_bottom_confirm/backtest/_v7_bottom_hs300.png · _v7_bottom_portfolio.png",
         "window": "逐腿各自 ready 起（hs300 2012-05、ndx 2013-05、spx 2014-01、gold 2013-07、kc50 2020-11、hkt 2021-05、a500 2024-10）; 组合层六腿共同窗口 2022-06-06~2026-11-03（受 250 日回撤过滤预热限制）",
-        "note": "逐腿 + 组合层（含货基/静态带/买入持有三基准 + 同曝光择时增量）+ 五档止盈对比 + 六档消融 + 10 组参数扫描 + 分半/逐年 + 漏底诊断（7 次历史大底）+ 信号质量（20 日内破 stage_low 判据）+ 39 条硬断言（无前视/止损成交价/预热期/仓位边界/恒空=货基）; --quick 跳过扫描"
+        "note": "逐腿 + 组合层（含货基/静态带/买入持有三基准 + 同曝光择时增量）+ 五档止盈对比 + 六档消融 + 10 组参数扫描 + 分半/逐年 + 漏底诊断（7 次历史大底）+ 信号质量（20 日内破 stage_low 判据）+ 36 条硬断言（无前视/止损成交价/预热期/仓位边界/恒空=货基）; --quick 跳过扫描"
       },
       "select": {
         "out_active_md": "strategies/vol_legs/v7_bottom_confirm/daily/_v7_bottom_daily.md",
         "out_active_json": "strategies/vol_legs/v7_bottom_confirm/daily/_v7_bottom_daily.json",
         "min_sample_years": 0.0,
-        "criteria": "不做 A/B 分级: 固定七腿逐腿给「四条件是否齐现 / 只缺哪一条」; 勿跑 run_flow select --strategy v7_bottom_confirm（会覆盖主策略名单）"
+        "criteria": "不做 A/B 分级: 固定七腿逐腿给「证据计数是否齐现 / 只缺哪一条」; 勿跑 run_flow select --strategy v7_bottom_confirm（会覆盖主策略名单）"
       },
       "daily": {
         "block": "vol",
@@ -672,12 +697,12 @@
         "runner": "",
         "runner_note": "留空: 未接 run_daily_vol_legs.ps1（每日板块2 的变种位仍留给 v3_macd_boll）; 手跑 python strategies/vol_legs/v7_bottom_confirm/daily/_daily_scan.py（加 --no-refresh 跳过联网）",
         "enabled": false,
-        "enabled_note": "2026-11-03 落地: 信号稀疏（七腿合计约 1 笔/年）, 每天出一张全是 ❌ 的卡意义有限; 只出回测 + 可手跑的每日读数",
+        "enabled_note": "2026-11-03 落地(v2): 低频确认型信号（七腿十四年全历史 57 笔, 单腿每年 1~2 笔）, 每天出一张以 ❌ 为主的卡意义有限; 只出回测 + 可手跑的每日读数",
         "signal_report": "strategies/vol_legs/v7_bottom_confirm/daily/_v7_bottom_daily.md",
         "signal_json": "strategies/vol_legs/v7_bottom_confirm/daily/_v7_bottom_daily.json",
         "automation": "(未创建, 随手跑)"
       },
-      "note": "2026-11-03 按用户「抄底四要素」规则落地（趋势反转 / 左侧风控, **不是自动买入信号**）。**定位**: 与 v1/v2/v3 同层但对向 —— 那几支是「涨起来才追」, 本变种是「跌透且出现反转证据才允许碰」; 可与主策略并存（主策略定带位、本变种定「这只标的能不能开始碰」）, 但**不可与突破型变种叠加在同一份额度上**。**代码层三处规则没写但必须定的口径**: ①「连续 3 日内集齐」按「①④ 同日（触发那根 K 线）+ ②③ 近 ctx_recall 日」实现（字面 3 日实测七腿十四年仅 8 个信号日、沪深300 为 0）; ②背离原文「柱/DIFF 不创新低」按 either 实现（window 档=两者都要, 更严）; ③「试仓」按止损距离定量（risk 5%）, 否则止损锚在阶段低点会让单笔亏损到两位数。**回测诚实结论**（见 README §4 / backtest/_v7_bottom_report.md）: 七腿十四年合计 **90 个信号日 / 15 笔轮次**（≈1 笔/年）; 7 腿里 6 腿年化高于货基 1.40%、只有 2 腿（kc50/hkt, 其买入持有本身为负）高于同标的买入持有; 组合层 2022-06~2026-11 **+3.84%/-3.36%**（均仓 14%） vs 货基 +1.40% vs 静态带 +17.26%/-15.56% vs 买入持有 +11.54%/-16.32%, **择时增量（年化 − 同曝光被动）= +1.01%**（改参数前 −0.56%）。**消融**: 唯一为负贡献的是「去掉成本线」—— 信号 149→483、择时增量 +1.01%→**−0.47%**, 说明「站回地量日 VWAP」这条确实在挑时机; 去掉「前置过滤」增量最高（+1.87%）, 即 `MA20<MA60 且回撤≥10%` 换来的是「不在牛市里永远空仓」而不是收益（但按规则保留）。**敏感性**: 全表择时增量 −0.71%~+2.50%, 组内跨度最大的是 drop_min —— 20% 为 **−0.71%**（唯一负档）、10% 为 +1.01%、5% 为 +1.40%, 印证这次把门槛从 20% 降到 10% 方向正确; 再降到 5% 是继续拿样本挑参数, 停在这里。**仓位管理是硬要求**: kc50 固定满仓档回撤 −42.85%（超规则要求的 15%~20%）, 按止损距离定量后 −17.13%。**已知的洞**: 规则无时间止损（kc50 2022-10 那笔横了 226 个交易日, −10.7%; max_hold 默认 0=不启用）; 宽止损下 1:2 盈亏比的目标常在 +20%~+50%, 实际出场多半来自「再创新低」; 美股两腿为人民币代理; 成交量未复权。**2026-11-03 参数调整**（用户看完操作点图后指出「好几次底部上涨都没定位到」并明确「不是精确找底、是找确认底部在回升的日子，不是反弹」）: `dry_max_age` 60→**90**、`drop_min` 20%→**10%**。效果: 七腿 **262 个信号日 / 45 笔轮次**（≈3.2 笔/年）, 沪深300 从 2 笔变 12 笔; 漏底 2/7→**3/7**（救回 2022-10; 剩下 3 个漏的卡点全在成本线: 当天 close 比 VWAP 低 6%~10%）; **信号质量反而变好** —— 46 笔买入里 9 笔在 20 日内收盘跌破 stage_low（确认成功率 **80%**, 改参数前 73%）, 60 日后涨幅中位 **+2.18%**（改参数前 −2.34%）。根因仍是 ②「创 20 日新低」与 ④「放量阳站回成本线」时序互斥（当日齐现 13 年 0 天）, 且 ④ 的锚含地量日之前的高价成交、只有 V 型反转能满足 —— 故 `c4_mode` 默认仍 `vwap`（切 `or_ma20`+地量 250 日可接 6/7, 但 hs300 胜率降到 27%、回撤 −33.92%）。趋势类信号（MA20 上穿）7/7 全中但全历史 201 次（≈15 次/年）, 已被 v1_ma20/v3_macd_boll 证为「只降回撤不增收益」。**不进每日流程**（daily.enabled=false）。",
+      "note": "2026-11-03 按用户「抄底确认规则 v2」落地（趋势反转 / 左侧风控, **不是自动买入信号**）。**定位**: 与 v1/v2/v3 同层但对向 —— 那几支是「涨起来才追」, 本变种是「跌透且出现反转证据才允许碰」; 可与主策略并存（主策略定带位、本变种定「这只标的能不能开始碰」）, 但**不可与突破型变种叠加在同一份额度上**。**代码层三处规则没写但必须定的口径**: ① 地量改「锚点窗口开关」—— 首个地量日冻结为 d0、t−d0≤60 才改锚（否则阴跌越久越易过期）; ② 底背离以 DIF 为主判据且带「背离后未再创新低」失效条款; ③「试仓」按止损距离定量（risk 5%）, 否则止损锚在阶段低点会让单笔亏损到两位数。**2026-11-04 两处工程化（治「确认日被二次拦掉」）**: 前置过滤加 90 日记忆期（确认日前 90 日内曾满足 MA20<MA60 且回撤≥15% 即可, 因为确认日当天趋势往往已修复）、走平否决阈值 2%→1%（底部横盘时 AVWAP 天然走平）。效果: 漏底 2/7→**4/7**、全历史 13→**57 轮**, 但 hs300 胜率降到 33%（更多覆盖换更低单笔胜率）。**2026-11-04 离场改两段式**: 试仓期跌破成本线清仓、未破满仓；满仓后跌破 MA20 才清仓（原 batch 会在 +8%~+20% 先卖掉一半、中位持仓 3~5 日）。效果: 中位持仓 7~12 日、单笔平均 +1.16%(hs300), 代价是组合回撤 −0.64%→−1.23%、年化 +1.68%→+1.23%。**回测诚实结论**（见 README §4 / backtest/_v7_bottom_report.md）: 七腿十四年合计 **71 个信号日 / 57 笔轮次**（≈3.95 笔/年, 仅 1 条腿 0 信号）; 组合层 2022-06~2026-11 年化 **+1.23%**（回撤 −1.23%, 共同窗口 50 笔成交/57 轮）vs 货基 +1.40% vs 静态带 +17.19% vs 买入持有 +11.48%, **择时增量 −0.40%**。**消融**: 显著放量的是「去掉 E4 触发」—— 信号 37→1292、择时增量 **−3.43%**, 说明 E4 是约束主力; 去掉「前置过滤」为 −0.03%, 即 `MA20<MA60 且回撤≥15%` 换来的是「不在牛市里永远空仓」而不是收益（但按规则保留）。**敏感性**: 全表 −0.68%~+1.22%, 组内跨度最大的是 dry_lookback（1.62%）; vol_mult 1.5×→37 信号、2.0×→8、2.5×→3; drop_min 各档都落在同一量级, 瓶颈在 E4 触发频率。**离场口径**: 默认 ma20(两段式) 的择时增量为 −0.40%, 而 batch 为 +0.14% —— 让利润奔跑的同时吃回更多回撤(组合回撤 −0.64%→−1.23%), 属离场口径差异。**仓位管理是硬要求**: 固定满仓会让单笔亏损随止损距离放大到两位数（v1 满仓档 kc50 回撤 −42.85%）, 按止损距离定量（risk 5%）后压到 −17% 量级, 故本变种 size_mode=risk。**已知的洞**: 规则无时间止损（kc50 2022-10 那笔横了 226 个交易日, −10.7%; max_hold 默认 0=不启用）; 宽止损下 1:2 盈亏比的目标常在 +20%~+50%, 实际出场多半来自「再创新低」; 美股两腿为人民币代理; 成交量未复权。**v2 重构（2026-11-03, 相对四条件-AND 的 v1; 2026-11-04 调参）**: ① 地量从当日事件改为锚点窗口开关（冻结 d0, t−d0≤60） ② E4 放量基准回到原文 >1.5×前5日均量 ③ 跌速衰竭换真下压斜线 ④ DIF 主判据底背离+失效条款 ⑤ 证据计数 score=E2+E3→首仓折扣 ⑥ 回踩不破加仓 ⑦ 走平否决; 回撤门槛 15%。效果: 信号全历史 **57 笔**（单腿约每年 1~2 次）, 宽基池上质量参差（hs300 胜率仅 36%）—— 印证规则文档 §7 的「宽基 ETF 最不适用」边界。根因: 瓶颈在 E4 —— 放量>1.5×前5日均量+站回锚定VWAP+阳线 三者必须**同日**成立, 对宽基ETF仍是主要约束（消融: 去掉 E4 信号 37→1292）。地量锚点含其前高价成交, 要站回成本线几乎等于先涨回地量日前后均价, 只有 V 型反转够格。趋势类信号（MA20 上穿）7/7 全中但全历史 201 次（≈15 次/年）, 已被 v1_ma20/v3_macd_boll 证为「只降回撤不增收益」。**不进每日流程**（daily.enabled=false）。",
       "pipeline_mode": "full_pool"
     },
     "v4_erp_band": {
@@ -1262,6 +1287,21 @@
         "automation": "(未创建)"
       },
       "note": "2026-09-28 接入 pipeline: 每日操作固定为 MACD/V3/V6/V7 四策略各跑一遍, 唯一入口 strategies/tech_indicators/daily/_daily_recommend.py（先刷新行情 data/_refresh_data.py, 再基于最新一根 K 线出动作: 买入/卖出/持有/空仓 + 四策略共振名单, 陈旧/失败数据标注）。pipeline_mode=full_pool 表示全池出信号、不做逐码分级。V6 于 2026-09-28 由 7 票改为 4 票（去掉「价触及/跌破 BOLL 下轨」票, 该项与「价>MA20且>MA60」天然互斥导致曝光仅 9%）, 阈值由参数网格取最优 4/2。 2026-10-28 并入两策略成为变种: v9 = 原 right_side（五票确认右侧买点）, v10 = 原 lights（门槛+灯评分）, 两者池统一为全池 55 只、随本族每日一起跑; 看板解析按 daily.strategies 动态取列。",
+      "pipeline_mode": "full_pool"
+    },
+    "v17_trend_gate": {
+      "name": "技术指标 V17 · 趋势四象限闸门（年线位置 × 年线斜率）",
+      "source_methodology": "strategies/tech_indicators/v17_trend_gate/（README.md + trend_gate.py + backtest.py + daily/_daily_scan.py）；规则从 vol_legs/v5_trend_gate 照搬，仅数据源从「七腿场外复权净值」换成家族 54 只场内 ETF 收盘价（data/_long_klines.json + _pool.py / _universe.md 前四类）",
+      "daily": {
+        "block": "tech",
+        "codes": [],
+        "runner": "",
+        "runner_note": "留空: V17 不进 run_daily_tech_indicators.ps1 默认流程（每日 6 策略表是 MACD/V3/V6/V7/V9/V10），也不进 run_daily_all；手跑 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py 后由 pipeline/daily_digest.py 出卡片（产物 daily/_v17_trend_gate_daily.{md,json,html}）",
+        "signal_report": "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.md",
+        "signal_json": "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.json",
+        "automation": "(未创建, 随手跑)"
+      },
+      "note": "2026-11-04 落地: 从 vol_legs/v5_trend_gate 复制规则、换 54 只场内 ETF 收盘价口径（详见 v17 README 与 tech_indicators README）。单标的分档（满仓/半仓/观察仓，非 0/1 择时），目标仓位直接作为该 ETF 露出比例；无风险利率按家族惯例取 0。口径与五基线 / 每日 6 策略表不同，故不进 compare.py、不进每日 6 策略表，只作为板块5 的第二张卡（与 6 策略表并列）。回测结论（10.7 年样本, 全池等权）: 闸门年化 +3.30% / 回撤 -15.59% / 夏普 0.37 vs 买入持有 +3.97% / -25.23% —— 降回撤、不增收益；闸门价值与资产「阴跌倾向」正相关。",
       "pipeline_mode": "full_pool"
     }
   }

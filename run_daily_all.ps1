@@ -39,6 +39,8 @@ if ($Only.Count -gt 0) { $names = @($names | Where-Object { $Only -contains $_ }
 
 Write-Host "每日操作 · 共 $($names.Count) 个策略: $($names -join ', ')"
 Write-Host ""
+# 批量标记: 让子 runner(如 run_daily_vol_legs.ps1)不要再各自跑 digest, 统一由本脚本末尾汇总一次
+$env:XA_DAILY_BATCH = "1"
 
 foreach ($n in $names) {
     $st = $cfg.strategies.$n
@@ -74,6 +76,7 @@ if ($fail.Count) { Write-Host "  FAIL: $($fail -join ', ')" }
 if ($skip.Count) { Write-Host "  SKIP: $($skip -join ', ')" }
 
 # 跨策略汇总: 各策略 daily 产物 -> 历史库 + 单文件 HTML 看板（失败不影响上面的策略结果）
+Remove-Item Env:\XA_DAILY_BATCH -ErrorAction SilentlyContinue
 Write-Host ("=" * 70)
 Write-Host "[digest] 汇总每日操作 -> data\_daily_digest.html"
 python -W ignore (Join-Path $PSScriptRoot "pipeline\daily_digest.py")

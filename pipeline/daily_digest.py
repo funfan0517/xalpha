@@ -7,7 +7,9 @@
 并渲染 ``data/_daily_digest.html``（单文件、无外链，双击可看）。
 
 卡片可选带图：策略在 ``daily.chart`` 里声明产物图（仓库相对路径），卡片就在表格下方
-内嵌显示。历史库（``_daily_digest.json``）**只记路径**，图随策略脚本每日重画；
+内嵌显示。一张卡要多图时用 ``_entry(imgs=[{"path": .., "cap": ..}])``（板块2 的六张
+变种单腿图就走这条路），渲染成表下方的图墙，每张图下面一行小字标注是哪个标的。
+历史库（``_daily_digest.json``）**只记路径**，图随策略脚本每日重画；
 HTML 渲染时按路径读一次、base64 内嵌（按路径去重），这样 ``data/_daily_digest.html``
 是真正自包含的单文件 —— IDE 预览 / 内嵌浏览器的 base 路径不是仓库根时，相对路径
 会 404 显示破图，内嵌可避免。
@@ -154,9 +156,13 @@ def _blocks(doc):
 
 
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
-           note="", src="", error="", cols=None, img="", img_cap="", all_rows=False):
+           note="", src="", error="", cols=None, img="", img_cap="", all_rows=False,
+           imgs=None):
     """``all_rows=True``: 该卡不受看板「只看有动作」筛选影响 —— 用于「池子本身就小、
     空仓标的的读数（RSI/温度）也是决策依据」的卡片，例如红利 V4 的 5 只择时池。
+
+    ``imgs``: 多图卡片（板块2 的六张变种单腿图）—— `[{"path": 仓库相对路径, "cap": 标题}]`，
+    渲染成表下方的图墙，每张图下面一行小字标注是哪个标的。单图卡片继续用 ``img``/``img_cap``。
     """
     return {
         "key": key,
@@ -173,6 +179,7 @@ def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
         "error": error,
         "img": img,
         "img_cap": img_cap,
+        "imgs": imgs or [],
         "all_rows": bool(all_rows),
     }
 
@@ -509,6 +516,71 @@ def parse_tech_indicators(_cfg):
     )
 
 
+def parse_v17(_cfg):
+    """V17 趋势四象限闸门：54 只场内 ETF 逐只档位（满仓/半仓/观察仓）。
+
+    读 v17 每日扫描的 JSON（结构见 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py
+    的 build_html/json 产物）：每个 ETF 有 quad / state / level_txt / dev / slope_up /
+    below_days / lack_short / decide / action。
+    卡片列出全池（all_rows=True，让「上涨趋势 = 满仓维持」的标的也出现，不被「只看有动作」收掉），
+    动作列 = 今日调仓（加仓/减仓）或当前目标仓位（满仓/半仓/观察仓）。
+    """
+    daily = _cfg["daily"]
+    json_path = os.path.join(_ROOT, daily["signal_json"])
+    if not os.path.exists(json_path):
+        raise ValueError("产物缺失：请先跑 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py")
+    d = json.loads(_read(json_path))
+    as_of = d.get("as_of")
+    etfs = d.get("etfs") or []
+    summ = d.get("summary") or {}
+    quads = summ.get("quads") or {}
+    n_buy = summ.get("buy", 0)
+    n_sell = summ.get("sell", 0)
+
+    quad_order = ["上涨趋势", "反弹", "高位回调", "下跌趋势"]
+    rows = []
+    for x in sorted(etfs, key=lambda z: (quad_order.index(z["quad"])
+                                        if z["quad"] in quad_order else 9, z["name"])):
+        decide = x.get("decide")
+        if decide == "buy":
+            act, label = "buy", "加仓"
+        elif decide == "sell":
+            act, label = "sell", "减仓"
+        else:
+            act, label = "none", x.get("level") or "—"
+        detail = (f"{x['quad']} · 档位 {x.get('level_txt', '—')} · 距年线 {x['dev']:+.1%} · "
+                  f"年线斜率 {'↑' if x.get('slope_up') else '↓'} · "
+                  f"连续在年线下 {x.get('below_days', 0)} 日 · 还缺 {x.get('lack_short', '—')}")
+        rows.append(_row(x.get("code"), x.get("name"), act, label, detail))
+
+    qtxt = (f"上涨趋势 {quads.get('上涨趋势', 0)} · 反弹 {quads.get('反弹', 0)} · "
+            f"高位回调 {quads.get('高位回调', 0)} · 下跌趋势 {quads.get('下跌趋势', 0)}")
+    if n_buy or n_sell:
+        tone, badge = ("buy" if n_buy else "sell"), f"加 {n_buy} / 减 {n_sell}"
+        summary = qtxt + f" · 今日加仓 {n_buy} / 减仓 {n_sell}"
+    else:
+        tone, badge = "none", "无动作"
+        summary = qtxt + " · 今日无调仓"
+    return _entry(
+        "v17_trend_gate", "技术指标 V17 · 趋势四象限闸门", as_of, badge, tone, summary, rows,
+        [["全池", str(len(etfs))],
+         ["上涨趋势", str(quads.get("上涨趋势", 0))],
+         ["反弹", str(quads.get("反弹", 0))],
+         ["高位回调", str(quads.get("高位回调", 0))],
+         ["下跌趋势", str(quads.get("下跌趋势", 0))],
+         ["今日加仓", str(n_buy)], ["今日减仓", str(n_sell)]],
+        note="V17 · 趋势四象限闸门（年线位置 × 年线斜率 → 满仓/半仓/观察仓）：close 在 MA250 上/下 × "
+             "MA250 近 20 日朝上/朝下，两个都朝上才是上涨趋势（满仓），其余三格都不给加仓许可。"
+             "规则从 vol_legs/v5_trend_gate 照搬、数据源换成家族 54 只场内 ETF 收盘价。"
+             "它是单标的分档（非 0/1 择时），压低各标的仓位、换回撤，不保证增收益；"
+             "滞后是设计特性（年线确认进入下跌趋势时价格通常已跌掉两位数）。"
+             "明细见 strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.html。",
+        src=_rel(os.path.join(_ROOT, daily["signal_report"])),
+        cols=["代码", "名称", "动作 / 仓位", "象限 / 档位 / 距年线 / 斜率 / 还缺什么"],
+        all_rows=True,
+    )
+
+
 def parse_v1_ma20(_cfg):
     base_dir = os.path.join(_ROOT, "strategies", "vol_legs", "v1_ma20", "daily")
     json_path = os.path.join(base_dir, "_v1_ma20_daily.json")
@@ -767,14 +839,183 @@ def parse_vol_legs(_cfg):
     )
 
 
+# ---------------------------------------------------------------- 波动类变种汇总
+# 参考板块5「技术指标」的列法：一行一个策略，列为 [策略 / 动作统计 / 动作 / 明细]。
+# 板块2 的 v2/v3/v4/v5 各自有逐腿产物，这里合成一张「变种操作一览」卡，
+# 并把每个变种的**重点标注标的**用 ★ + 加粗突出（即使当天空仓也列出，便于一眼看到重点腿状态）。
+_VOL_VARIANTS = [
+    ("v2", "V2 BOLL突破",
+     "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json", {"a500", "hs300"}),
+    ("v3", "V3 MACD+BOLL",
+     "strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.json", {"kc50", "hkt"}),
+    ("v4", "V4 ERP股债通道",
+     "strategies/vol_legs/v4_erp_band/daily/_v4_erp_band_daily.json", {"hs300"}),
+    ("v5", "V5 趋势闸门",
+     "strategies/vol_legs/v5_trend_gate/daily/_v5_trend_gate_daily.json", {"gold"}),
+]
+
+# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的六张单腿/操作点图。
+# 每张图下面标注**是哪个标的的图**（代码 + 场外复权口径），改图名时这里跟着改。
+_VOL_FIGS = [
+    ("strategies/vol_legs/v2_boll_breakout/research/_v2_a500.png",
+     "**中证A500**（`023299` 场外复权）· V2 BOLL(35,2) 上轨突破择时 vs 买入持有"
+     "（只画 2025-03-27 成立后的真实净值）"),
+    ("strategies/vol_legs/v2_boll_breakout/research/_v2_hs300.png",
+     "**沪深300**（`000051` 场外复权）· V2 BOLL(35,2) 上轨突破择时 vs 买入持有"),
+    ("strategies/vol_legs/v3_macd_boll/research/_v3_hkt.png",
+     "**恒生科技**（`012805` 场外复权）· V3 MACD+BOLL 择时 vs 买入持有"),
+    ("strategies/vol_legs/v3_macd_boll/research/_v3_kc50.png",
+     "**科创50**（`011609` 场外复权）· V3 MACD+BOLL 择时 vs 买入持有"),
+    ("strategies/vol_legs/v4_erp_band/backtest/_v4_erp_band_signals.png",
+     "**沪深300**（`000051`）× 10Y 国债 · V4 ERP 股债利差两带滞回的操作点"
+     "（▲加仓 / ▼减仓，T 日信号 → T+1 收盘成交）"),
+    ("strategies/vol_legs/v5_trend_gate/research/_v5_trend_gold_3y.png",
+     "**黄金**（`000216` 场外复权）· V5 趋势四象限闸门近 3 年（真实操作点 + 档位阶梯）"),
+]
+
+
+def _vol_classify(x):
+    """逐腿动作归一：买入 / 卖出 / 持有 / 空仓（兼容 v5 的 '维持' + state 档位）。"""
+    t = str(x.get("action") or "")
+    if "买" in t or "加仓" in t:
+        return "买入"
+    if "卖" in t or "减仓" in t or "清" in t:
+        return "卖出"
+    pos = x.get("pos")
+    if pos is None:
+        pos = x.get("state")
+    try:
+        pos = float(pos or 0)
+    except (TypeError, ValueError):
+        pos = 0.0
+    return "持有" if pos > 1e-9 else "空仓"
+
+
+def _vol_level(x):
+    lvl = x.get("level_txt") or x.get("level")
+    return f"（{lvl}）" if lvl else ""
+
+
+def _vol_variant_row(label, d, emph):
+    """七腿变种（v2/v3/v5）-> 一行。"""
+    legs = d.get("legs") or []
+    by = {"买入": [], "卖出": [], "持有": [], "空仓": []}
+    name_of = {}
+    for x in legs:
+        name_of[x.get("leg")] = x.get("name")
+        by[_vol_classify(x)].append(x.get("name"))
+
+    emph_names = {name_of.get(k) for k in emph}
+    emph_parts = [f"**{x.get('name')}** {_vol_classify(x)}{_vol_level(x)}"
+                  for x in legs if x.get("leg") in emph]
+    detail = "★重点：" + ("、".join(emph_parts) or "—")
+
+    rest_buy = [n for n in by["买入"] if n not in emph_names]
+    rest_sell = [n for n in by["卖出"] if n not in emph_names]
+    rest = [n for n in by["持有"] + by["空仓"] if n not in emph_names]
+    extra = []
+    if rest_buy:
+        extra.append("买：" + "、".join(rest_buy))
+    if rest_sell:
+        extra.append("卖：" + "、".join(rest_sell))
+    if rest:
+        extra.append("其余：" + "、".join(rest))
+    if extra:
+        detail += " ｜ " + "；".join(extra)
+
+    nb, ns = len(by["买入"]), len(by["卖出"])
+    if nb:
+        act, alabel = "buy", f"买入 {nb}"
+    elif ns:
+        act, alabel = "sell", f"卖出 {ns}"
+    else:
+        act, alabel = "hold", "无动作"
+    stats = f"买{nb}·卖{ns}·持{len(by['持有'])}·空{len(by['空仓'])}"
+    return _row(label, stats, act, alabel, detail), act
+
+
+def _vol_v4_row(label, d):
+    """V4 是沪深300 单标的股债通道，没有 A500 腿 —— 只摆当前档位 + 下一跨档。"""
+    rd = d.get("readings") or {}
+    act_d = d.get("action") or {}
+    band_name = rd.get("band_name") or "—"
+    plan = float(rd.get("plan_weight") or 0)
+    erp, z = rd.get("erp"), rd.get("z")
+    detail = f"★**沪深300** {band_name}（目标 {plan:.0%}）"
+    if erp is not None and z is not None:
+        detail += f" · ERP {float(erp):.2f} / z {float(z):.2f}"
+    nxt = act_d.get("next_cross") or []
+    if nxt:
+        detail += " ｜ 下一跨档：" + str(nxt[0])
+    detail += "（v4 仅沪深300 单标的方法论，无 A500 腿）"
+    stats = f"沪深300 单标的 · {band_name}"
+    return _row(label, stats, "hold", f"{band_name}（目标 {plan:.0%}）", detail), "hold"
+
+
+def parse_vol_variants(_cfg):
+    """板块2 的变种操作一览：v2 / v3 / v4 / v5（一行一个变种，★=重点标的）。"""
+    rows, srcs, as_ofs = [], [], []
+    n_buy = n_sell = 0
+    for vx, label, rel, emph in _VOL_VARIANTS:
+        full = os.path.join(_ROOT, rel)
+        srcs.append(_rel(full))
+        if not os.path.exists(full):
+            rows.append(_row(label, "产物缺失", "none", "—",
+                             f"未找到 `{rel}`，请先跑该变种 daily 扫描"))
+            continue
+        d = json.loads(_read(full))
+        if d.get("as_of"):
+            as_ofs.append(str(d["as_of"]))
+        try:
+            if vx == "v4":
+                row, act = _vol_v4_row(label, d)
+            else:
+                row, act = _vol_variant_row(label, d, emph)
+        except Exception as exc:  # noqa: BLE001
+            row = _row(label, "解析失败", "none", "—", f"{type(exc).__name__}: {exc}")
+            act = "none"
+        rows.append(row)
+        if act == "buy":
+            n_buy += 1
+        elif act == "sell":
+            n_sell += 1
+
+    as_of = max(as_ofs) if as_ofs else None
+    tone = "buy" if n_buy else ("sell" if n_sell else "none")
+    summary = "v2/v3/v4/v5 今日操作（★=重点标的）：" + "；".join(
+        f"{r['c']} {r['a']}" for r in rows)
+    # 图墙：只收「文件确实存在」的图，缺图不至于在看板上留破图框。
+    figs = [{"path": rel, "cap": cap} for rel, cap in _VOL_FIGS
+            if os.path.exists(os.path.join(_ROOT, rel.replace("/", os.sep)))]
+    return _entry(
+        "vol_variants", "波动类变种操作一览 · v2 / v3 / v4 / v5", as_of,
+        f"买 {n_buy} / 卖 {n_sell}", tone, summary, rows,
+        [["变种", str(len(rows))],
+         ["重点腿", "A500/沪深300 · 科创50/恒生科技 · 沪深300 · 黄金"],
+         ["买入", str(n_buy)], ["卖出", str(n_sell)]],
+        note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
+             "★ = 该变种的**重点标注标的**：v2→中证A500/沪深300；v3→科创50/恒生科技；"
+             "v4→中证A500/沪深300；v5→黄金。v2/v3/v5 为七腿逐腿择时（突破追涨型），"
+             "v4 为沪深300×国债 ERP 通道（单标的，无 A500 腿）。数据取自各变种 daily/ 产物。"
+             f"表下 {len(figs)} 张图 = 各变种重点标的的单腿图/操作点图，由"
+             " `run_daily_vol_legs.ps1` 第 3 步每日重画（图注写的是标的，不是变种）。",
+        src=" · ".join(srcs),
+        cols=["变种", "动作统计", "动作", "操作明细（★=重点标的）"],
+        all_rows=True,
+        imgs=figs,
+    )
+
+
 PARSERS = {
     "dividend": parse_dividend,
+    "vol_variants": parse_vol_variants,
     "dividend_v9": parse_dividend_v9,
     "growth_div_rotation": parse_growth_div,
     "gd_v1": parse_gd_v1,
     "gd_v2": parse_gd_v2,
     "gd_v5": parse_gd_v5,
     "tech_indicators": parse_tech_indicators,
+    "v17_trend_gate": parse_v17,
     "v1_ma20": parse_v1_ma20,
     "v3_macd_boll": parse_v3_macd_boll,
     "permanent": parse_permanent,
@@ -845,25 +1086,27 @@ def _img_assets(runs):
     os.makedirs(_IMG_DIR, exist_ok=True)
     for run in runs.values():
         for key, ent in (run.get("strategies") or {}).items():
-            rel = (ent or {}).get("img") or ""
-            if not rel or rel in assets:
-                continue
-            full = os.path.join(_ROOT, rel.replace("/", os.sep))
-            if not os.path.exists(full):
-                print(f"[digest] 卡片图缺失，退回路径引用: {rel}")
-                continue
-            with open(full, "rb") as fh:
-                blob = fh.read()
-            mime = mimetypes.guess_type(full)[0] or "image/png"
-            assets[rel] = "data:%s;base64,%s" % (mime, base64.b64encode(blob).decode("ascii"))
-            # 同目录副本：有些预览器只 serve 看板所在目录（不许 ../ 越界），或对超长
-            # data URI 直接拒绝；卡片 onerror 会依次退到这份副本、再退到原产物路径。
-            dst = os.path.join(_IMG_DIR, "%s__%s" % (key, os.path.basename(full)))
-            if not os.path.exists(dst) or os.path.getsize(dst) != len(blob):
-                with open(dst, "wb") as fh:
-                    fh.write(blob)
-            print(f"[digest] 内嵌卡片图 {rel}（{len(assets[rel]) / 1024:.0f} KB base64）"
-                  f" + 副本 {_rel(dst)}")
+            ent = ent or {}
+            rels = [ent.get("img") or ""] + [x.get("path") or "" for x in (ent.get("imgs") or [])]
+            for rel in rels:
+                if not rel or rel in assets:
+                    continue
+                full = os.path.join(_ROOT, rel.replace("/", os.sep))
+                if not os.path.exists(full):
+                    print(f"[digest] 卡片图缺失，退回路径引用: {rel}")
+                    continue
+                with open(full, "rb") as fh:
+                    blob = fh.read()
+                mime = mimetypes.guess_type(full)[0] or "image/png"
+                assets[rel] = "data:%s;base64,%s" % (mime, base64.b64encode(blob).decode("ascii"))
+                # 同目录副本：有些预览器只 serve 看板所在目录（不许 ../ 越界），或对超长
+                # data URI 直接拒绝；卡片 onerror 会依次退到这份副本、再退到原产物路径。
+                dst = os.path.join(_IMG_DIR, "%s__%s" % (key, os.path.basename(full)))
+                if not os.path.exists(dst) or os.path.getsize(dst) != len(blob):
+                    with open(dst, "wb") as fh:
+                        fh.write(blob)
+                print(f"[digest] 内嵌卡片图 {rel}（{len(assets[rel]) / 1024:.0f} KB base64）"
+                      f" + 副本 {_rel(dst)}")
     return assets
 
 
@@ -987,6 +1230,20 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f2f5
 .fig img{display:block;width:100%;height:auto;border:1px solid var(--line);
   border-radius:12px;background:#fff}
 .figcap{font-size:11.5px;color:var(--muted);padding-top:6px}
+/* 多图卡片（板块2 的六张变种单腿图）：宽屏两列图墙，窄屏自动落成一列；
+   图注写「是哪个标的的图」，不写变种名（变种已在表格行里）。
+   图墙里是缩略图，点任意一张弹全屏（字太小）/ Esc 或再点关闭。 */
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));
+  gap:10px 16px;padding:4px 18px 14px}
+.figs .fig{padding:0;min-width:0}
+.figs .figcap{text-align:center;padding-top:5px}
+.figs .figcap b{color:var(--ink);font-weight:600}
+.fig img{cursor:zoom-in}
+.zoomwrap{position:fixed;inset:0;z-index:80;display:none;place-items:center;padding:18px;
+  background:rgba(10,16,30,.88);cursor:zoom-out}
+.zoomwrap.on{display:grid}
+.zoomwrap img{max-width:100%;max-height:100%;border-radius:10px;background:#fff;
+  box-shadow:0 18px 60px rgba(0,0,0,.55)}
 .note{padding:9px 18px 14px;font-size:12px;color:var(--muted)}
 .src{padding:0 18px 14px;font-size:11.5px;color:#a3abbd;font-family:ui-monospace,Consolas,monospace}
 footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:12px}
@@ -1015,6 +1272,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
   <div class="grid" id="app"></div>
 </main>
 <footer>机械规则输出，非投资建议 · 数据源：各策略 <code>daily/</code> 产物 · 本页由 <code>pipeline/daily_digest.py</code> 生成</footer>
+<div class="zoomwrap" id="zoomWrap"><img id="zoomImg" alt="放大查看"></div>
 <script>window.__DIGEST__ = __DATA__;</script>
 <script>
 (function(){
@@ -1034,6 +1292,21 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     var o = document.createElement('option'); o.value = d; o.textContent = d; dateSel.appendChild(o);
   });
   dateSel.value = cur;
+
+  // 图墙里是缩略图（单腿图的图注/刻度字很小）——点图弹全屏，Esc 或再点一次关闭。
+  var zoomWrap = document.getElementById('zoomWrap');
+  var zoomImg = document.getElementById('zoomImg');
+  window.mfZoom = function(src){
+    if (!src) return;
+    zoomImg.src = src;
+    zoomWrap.classList.add('on');
+  };
+  function zoomOff(){
+    zoomWrap.classList.remove('on');
+    zoomImg.removeAttribute('src');
+  }
+  zoomWrap.addEventListener('click', zoomOff);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') zoomOff(); });
 
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
@@ -1082,16 +1355,31 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     //  ② data/_daily_digest_assets/<key>__<文件名>（与看板同目录，预览器把 data/ 当根时也取得到）
     //  ③ 原产物路径 ../strategies/...
     // 不用 loading="lazy"：滚动容器 / 内嵌预览器里 IntersectionObserver 常不触发，
-    // 图会停在占位破图。图只有一张，直接加载。
-    var local = '_daily_digest_assets/' + s.key + '__' + String(s.img || '').split('/').pop();
-    var isrc = (D.assets && D.assets[s.img]) || local;
-    var fig = s.img ? '<figure class="fig"><img alt="' + esc(s.name) + '" src="' + esc(isrc) +
-        '" data-fb1="' + esc(local) + '" data-fb2="' + esc((D.root || '.') + '/' + s.img) +
-        '" onerror="var f=[this.dataset.fb1,this.dataset.fb2];var n=+(this.dataset.n||0);' +
-        'if(n<2){this.dataset.n=n+1;this.src=f[n];}else{this.onerror=null;}">' +
-        (s.img_cap ? '<figcaption class="figcap">' + md(s.img_cap) + '</figcaption>' : '') +
-        '</figure>' : '';
-    var open = (q || s.img || (s.rows || []).some(function(r){ return r.act !== 'none'; }))
+    // 图会停在占位破图。图数量少，直接加载。
+    function imgTag(key, path, alt){
+      var bn = String(path || '').split('/').pop();
+      var local = '_daily_digest_assets/' + key + '__' + bn;
+      var isrc = (D.assets && D.assets[path]) || local;
+      return '<img alt="' + esc(alt) + '" title="点击放大" src="' + esc(isrc) +
+        '" data-fb1="' + esc(local) + '" data-fb2="' + esc((D.root || '.') + '/' + path) +
+        '" onclick="mfZoom(this.src)"' +
+        ' onerror="var f=[this.dataset.fb1,this.dataset.fb2];var n=+(this.dataset.n||0);' +
+        'if(n<2){this.dataset.n=n+1;this.src=f[n];}else{this.onerror=null;}">';
+    }
+    // 单图（img）与多图（imgs：板块2 的六张变种单腿图）统一处理；多图渲染成图墙，
+    // 每张图下面一行小字标注是哪个标的。
+    var figs = [];
+    if (s.img) figs.push({path: s.img, cap: s.img_cap, alt: s.name});
+    (s.imgs || []).forEach(function(x){
+      if (x && x.path) figs.push({path: x.path, cap: x.cap, alt: x.cap || s.name});
+    });
+    var fig = figs.length ? figs.map(function(f){
+      return '<figure class="fig">' + imgTag(s.key, f.path, f.alt) +
+        (f.cap ? '<figcaption class="figcap">' + md(f.cap) + '</figcaption>' : '') +
+        '</figure>';
+    }).join('') : '';
+    if (figs.length > 1) fig = '<div class="figs">' + fig + '</div>';
+    var open = (q || figs.length || (s.rows || []).some(function(r){ return r.act !== 'none'; }))
       ? ' open' : '';
     var cls = s.error ? ' card err' : ' card';
     return '<div class="' + cls.trim() + '"><details' + open + '>' +

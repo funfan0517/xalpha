@@ -40,9 +40,9 @@ OUT_MD = os.path.join(_HERE, "_v7_bottom_daily.md")
 OUT_JSON = os.path.join(_HERE, "_v7_bottom_daily.json")
 RECENT = 250
 
-COND_KEYS = ("filt", "c1", "c2_recent", "c3_recent", "c4")
-COND_SHORT = {"filt": "前置过滤", "c1": "放量阳", "c2_recent": "底背离",
-              "c3_recent": "跌速放缓", "c4": "站回VWAP"}
+COND_KEYS = ("filt", "e1", "e2", "e3", "e4", "flat_veto")
+COND_SHORT = {"filt": "前置过滤", "e1": "地量窗口", "e2": "底背离",
+              "e3": "跌速衰竭", "e4": "触发(放量阳站回VWAP)", "flat_veto": "走平否决"}
 
 
 def tick(x):
@@ -121,16 +121,18 @@ def main():
         f"> 池 = 主策略七腿的**场内 OHLCV**（{' / '.join(x['name'] for x in rows)}）。"
         "抄底判定要开/高/低/量，场外净值只有收盘价，所以这里用场内代码；"
         "**ndx / spx 两腿是人民币代理（513100 / 513500）**，不是美元指数本身。",
-        f"> 四要素：①地量见底（{p['window']} 日最低量）＋其后放量阳 "
-        f"（>{p['vol_mult']}×地量 或 >MAV{p['mav_win']}）②底背离（价格 {p['div_window']} 日新低、"
-        f"MACD {'柱或DIF' if p['div_mode'] == 'either' else p['div_mode']} 不新低）"
-        f"③跌速放缓（收盘站上 {p['fibo_frac']:.1f} 速度阻力线 或 跌幅收敛且 ATR 下降）"
-        f"④站回成本线（收盘 ≥ 自最近地量日锚定的 VWAP 且放量）。",
-        f"> 条件 ①④ 必须**当日**同时成立（那就是「入场那根 K 线」），②③ 允许在最近 "
-        f"**{p['ctx_recall']} 个交易日**内出现过。前置过滤：MA{p['ma_fast']}<MA{p['ma_slow']} 且 "
-        f"距 {p['drop_win']} 日高点回撤 ≥{p['drop_min']:.0%}。",
-        f"> 试仓大小：`size_mode={p['size_mode']}`，单笔风险预算 {p['risk_per_trade']:.0%} 的该腿额度；"
-        f"止损 = 阶段最低点 ×(1−{p['stop_pct']:.0%})；跌破 stage_low 收盘且未修复 → 次日无条件离场。",
+        f"> 四要素（证据计数，非四道 AND）：① 地量锚点有效（地量分位 q{p['dry_quantile']:.2f}/"
+        f"{p['dry_lookback']}日，冻结锚点 d0，t−d0≤{p['max_age_days']}日）为窗口开关；"
+        f"② 底背离（价格 {p['div_window']} 日新低 + DIF 不新低，且背离后未再创新低）；"
+        f"③ 跌速衰竭（收盘站上 {p['fibo_frac']:.1f} 真下压斜线 或 MACD 柱连 3 日收敛）；"
+        f"④ 触发（放量 >{p['vol_mult_vs_prev5']}×前5日均量 + 站回锚定 VWAP + 阳线，唯一当日条件）。",
+        f"> 前置过滤：MA{p['ma_fast']}<MA{p['ma_slow']} 且 距 {p['drop_win']} 日高点回撤 "
+        f"≥{p['drop_min']:.0%}，且带 **{p.get('filt_memory_days', 0)} 日记忆期**（近 N 日内曾满足即可）；"
+        f"走平否决：锚定 VWAP 近 20 日变动 <{p['flat_veto_pct']:.0%} 不入场。",
+        f"> 试仓：`size_mode={p['size_mode']}`，首仓 = 风险预算 {p['risk_per_trade']:.0%} "
+        f"×{p['first_fill']:.0%}" + ("×0.75（score==2）" if p['score2_discount'] < 1 else "") +
+        f"；止损 = 阶段最低点 ×(1−{p['stop_struct_pct']:.0%})；"
+        f"回踩不破（low≥VWAP 且收阳）{p['addon_days']} 日内补满；跌破锚定 VWAP 收盘 → 次日清仓。",
         "> **这是「可以开始考虑」的许可，不是买入信号**；回测里它没证明自己值得独立成仓"
         "（见 `../README.md §4`）。机械规则输出，**非投资建议**。",
         "",
@@ -196,8 +198,9 @@ def main():
         "",
         "## 提醒",
         "",
-        "- **信号仍然稀少**：沪深300 十四年 12 笔轮次（单腿约 1~2 年 1 笔），七腿合计约 3 笔/年。"
-        "连续几个月全 ❌ 是常态，不是脚本坏了；把阈值再放松成「差不多齐了」就退化成普通反弹买入。",
+        "- **低频确认型信号**：④ 要求「放量>1.5×前5日均量 且 站回锚定 VWAP 且 阳线」同日成立，"
+        "单腿约每年 1~2 次（全历史七腿 57 笔、hs300 胜率仅 36%）。连续几周全 ❌ 是常态，不是脚本坏了；"
+        "这与规则 §7 自述的「宽基 ETF 最不适用」一致。",
         "- **止损锚在阶段最低点**，不是入场价：入场常在低点上方 10%~25%，止损离成本很远，"
         "所以仓位要按止损距离反推（`size_mode=risk`），否则单笔亏损会到两位数。",
         "- **在仓的腿**不重新判四条件，只盯止损位与「收盘跌破 stage_low」；这两条任一触发就离场，"

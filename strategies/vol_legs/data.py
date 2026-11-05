@@ -477,6 +477,44 @@ def hs300_erp(asof=None):
     return _erp_from_pe(_HS300_CSV, asof=asof)
 
 
+def erp_pct_history(csv_path):
+    """逐月**因果** ERP 分位: 第 i 个月的窗口只含 [i-window+1, i] 的样本。
+
+    与 `_erp_from_pe` 同一算法(月度 ERP、近 5 年窗口、≥36 个月门槛), 区别只在
+    「逐月重算」。用途: 回答「如果历史每一天都按**当时**的分位设闸门, 回测会变成什么样」——
+    `gates()` 现在是「当下快照」, 那是前视; 本函数提供去掉前视的对照序列。
+
+    返回 DataFrame(index = 月末, columns = erp / pct / gate), gate ∈ {"on","off",None}。
+    """
+    if not (os.path.exists(csv_path) and os.path.exists(_BOND10Y)):
+        return pd.DataFrame(columns=["erp", "pct", "gate"])
+    pe = pd.read_csv(csv_path)
+    pe["date"] = pd.to_datetime(pe["date"])
+    pe = pe.dropna(subset=["peg"]).sort_values("date")
+    pe_m = _monthly(pe.set_index("date")["peg"]).dropna()
+    b = pd.read_csv(_BOND10Y)
+    b.columns = ["date", "close"]
+    b["date"] = pd.to_datetime(b["date"])
+    bond = _monthly(b.set_index("date")["close"]).dropna()
+    df = pd.DataFrame({"pe": pe_m, "y10": bond}).dropna()
+    if df.empty:
+        return pd.DataFrame(columns=["erp", "pct", "gate"])
+    df["erp"] = 100.0 / df["pe"] - df["y10"]
+    pcts = []
+    vals = df["erp"].to_numpy(dtype=float)
+    for i, v in enumerate(vals):
+        win = vals[max(0, i - PCT_WINDOW_MONTHS + 1):i + 1]
+        pcts.append(float((win <= v).mean()) if len(win) >= PCT_MIN_MONTHS else None)
+    df["pct"] = pcts
+    df["gate"] = [_gate_from_pct(x, "hs300") for x in pcts]
+    return df[["erp", "pct", "gate"]]
+
+
+def hs300_erp_history():
+    """沪深300 的逐月因果分位(见 `erp_pct_history`)。"""
+    return erp_pct_history(_HS300_CSV)
+
+
 def us_erp(asof=None):
     """美股 ERP 辅助读数: 10Y 美债(月末) + 本地可得的 NDX forward PE。
 

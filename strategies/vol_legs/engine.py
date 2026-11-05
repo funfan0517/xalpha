@@ -14,6 +14,9 @@
   - 各腿日历不同(A 股 / 美股节假日不同), 无行情的日子不决策、不成交, 持仓按最近收盘价计值。
   - **信号在收盘后算, 次日收盘成交**(文档 §0「收盘后计算、次日执行」)。实现上: t 日产生的挂单
     在 t+1 日收盘价成交, 因此 t+1 的收益不被 t+1 才使用的信息污染, 无前视。
+  - 回测里**最后一天不决策**(没有 t+1 可成交, 决策无处落地); 每日操作要的是「今天收盘后
+    产生、明天成交」的那一笔, 所以 `scan.py` 传 `decide_last=True` 显式打开最后一天的决策。
+    该开关只影响返回的 `pending`, 不改任何一天的净值/持仓。
   - 成本: 申购 0.10%; 赎回按持有天数 7 天内 1.5% / 之后 0.5%(场外 A 类量级, 见 rule)。
   - 季度末(3/6/9/12 月最后一个交易日)执行统一再平衡接口; 与同日信号方向相反时,
     按文档 §6「执行绝对值较小者」处理。
@@ -82,13 +85,17 @@ def _fill(op, pos, meta, cash, date, cost=True):
 
 # ---------------------------------------------------------------- 再平衡
 def _quarter_end_mask(cal):
+    """每根 K 线是否为「本季度最后一个交易日」。
+
+    最后一天没有下一根 K 线: 回测里它不决策(qend 不被读取), 但每日扫描
+    (`decide_last=True`) 需要判断「今天是不是季末」—— 用**下一个工作日**近似。
+    旧实现无条件把最后一天当季末, 打开 decide_last 后会让每天都触发一次季度再平衡。
+    """
     out = []
     n = len(cal)
     for i in range(n):
-        if i == n - 1:
-            out.append(True)
-            continue
-        a, b = cal[i], cal[i + 1]
+        a = cal[i]
+        b = cal[i + 1] if i < n - 1 else a + pd.offsets.BDay(1)
         out.append((a.year, (a.month - 1) // 3) != (b.year, (b.month - 1) // 3))
     return out
 
@@ -142,7 +149,8 @@ def _resolve_conflicts(ops, pos):
 
 # ---------------------------------------------------------------- 主循环
 def run(ind_by_leg, static_gates=None, fomc_set=None, *, mode="strategy",
-        init=None, cash_rate=None, cost=True, since=None, legs=None):
+        init=None, cash_rate=None, cost=True, since=None, legs=None,
+        decide_last=False, gates_fn=None):
     """逐日复算。
 
     参数:
@@ -153,6 +161,11 @@ def run(ind_by_leg, static_gates=None, fomc_set=None, *, mode="strategy",
       init         : 起始持仓 {leg: pp}(默认全空仓)
       since        : 复算起点(默认各腿数据并集的最早一天)
       legs         : 参与复算的腿(默认 rule.LEG_ORDER); 单腿专项回测传 ["a500"]
+      decide_last  : 最后一天也产决策(挂单等下一交易日成交)。**每日操作用 True**, 回测用
+                     False —— 回测里那笔单无处成交, 打开还会让最后一天的季末判定生效。
+                     只影响返回的 pending, 不影响任何一天的净值/持仓。
+      gates_fn     : 逐日闸门覆盖 `d -> dict`(如按当时 PE 分位重算的 hs300_erp)。None 则全程
+                     用 static_gates(现状: 估值分位取「当下快照」, 见 data.gates 文档)。
     返回 dict(nav, records, trades, pending, policies, notes, cal)
     """
     static_gates = static_gates or {}
@@ -232,10 +245,12 @@ def run(ind_by_leg, static_gates=None, fomc_set=None, *, mode="strategy",
             pending = remain
 
         # 3) 决策 -> 明日挂单(未成交的挂单顺延, 同腿不再叠加新单)
-        if i < len(cal) - 1:
+        if i < len(cal) - 1 or decide_last:
             new_ops = []
             if mode == "strategy":
                 gates = dict(static_gates)
+                if gates_fn is not None:
+                    gates.update(gates_fn(d) or {})
                 gates["fomc_blackout"] = d.normalize() in fomc_set
                 for leg in legs:
                     row = rows_by_leg[leg].get(d)

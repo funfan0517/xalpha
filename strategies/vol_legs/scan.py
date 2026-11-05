@@ -5,6 +5,10 @@
 「挂单」当作今日动作 —— 文档 §0 规定「收盘后计算、次日执行」, 所以报告里的动作是
 **次日收盘**执行的那一笔, 不是让你今天盘中追。
 
+⚠ 最后一天的决策必须用 `decide_last=True` 打开: engine 默认在最后一天不决策(回测口径,
+那笔单在样本内无处成交), 直接拿 `res["pending"]` 会让「今日动作」永远慢一天 ——
+阈值恰好在最新一天首次触发时, 报告会显示「无动作」。
+
 复算起点(`--since`)决定持仓状态的来历:
   默认 = **目标带起步**(a500=2.5, hs300=2.5, ndx=10, spx=10, kc50=2.5, hkt=2.5, gold=10 = 40pp),
   即「已按基准比例持有, 之后完全交给规则调整」—— 实盘口径, 也是 backtest 的 seed 档。
@@ -607,7 +611,8 @@ def main():
         # 注入的是**起点**仓位; 若从 2009 年回放, 十几年涨幅会把仓位放大到离谱。
         # 未显式给 --since 时退到「七腿就绪日」, 让起点到今天的漂移有界、读数可解释。
         since = _ready_start(ind)
-    res = engine.run(ind, gates, fomc, since=since, init=init)
+    # decide_last=True: 让「今天收盘后算、明天成交」那一笔真的产出来（见模块 docstring）
+    res = engine.run(ind, gates, fomc, since=since, init=init, decide_last=True)
     engine_nav = float(res["nav"].iloc[-1])
 
     legs = {k: leg_view(k, ind, res, res["pending"], gates) for k in rule.LEG_ORDER}

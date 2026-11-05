@@ -1208,12 +1208,14 @@
         "block": "tech",
         "codes": [],
         "runner": "",
-        "runner_note": "留空: V17 不进 run_daily_tech_indicators.ps1 默认流程（每日 6 策略表是 MACD/V3/V6/V7/V9/V10），也不进 run_daily_all；手跑 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py 后由 pipeline/daily_digest.py 出卡片（产物 daily/_v17_trend_gate_daily.{md,json,html}）",
+        "runner_note": "留空: V17 不进 run_daily_tech_indicators.ps1 默认流程（每日 6 策略表是 MACD/V3/V6/V7/V9/V10），也不进 run_daily_all；手跑 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py 后，由 pipeline/daily_digest.py 把结果缩成板块5 技术指标卡片里 V10 下面的一行（**不单独出卡**，见 daily.card）",
         "signal_report": "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.md",
         "signal_json": "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.json",
+        "card": false,
+        "card_note": "不单独出卡: 54 只逐只象限会把板块5 的 6 策略表压没。改由 parse_tech_indicators 读本策略 JSON，在 V10 行下面加一行「今日加减仓 + 处于上涨趋势的标的」；要看逐只要点 _v17_trend_gate_daily.md/.html",
         "automation": "(未创建, 随手跑)"
       },
-      "note": "2026-11-04 落地: 从 vol_legs/v5_trend_gate 复制规则、换 54 只场内 ETF 收盘价口径（详见 v17 README 与 tech_indicators README）。单标的分档（满仓/半仓/观察仓，非 0/1 择时），目标仓位直接作为该 ETF 露出比例；无风险利率按家族惯例取 0。口径与五基线 / 每日 6 策略表不同，故不进 compare.py、不进每日 6 策略表，只作为板块5 的第二张卡（与 6 策略表并列）。回测结论（10.7 年样本, 全池等权）: 闸门年化 +3.30% / 回撤 -15.59% / 夏普 0.37 vs 买入持有 +3.97% / -25.23% —— 降回撤、不增收益；闸门价值与资产「阴跌倾向」正相关。",
+      "note": "2026-11-04 落地: 从 vol_legs/v5_trend_gate 复制规则、换 54 只场内 ETF 收盘价口径（详见 v17 README 与 tech_indicators README）。单标的分档（满仓/半仓/观察仓，非 0/1 择时），目标仓位直接作为该 ETF 露出比例；无风险利率按家族惯例取 0。口径与五基线 / 每日 6 策略表不同，故不进 compare.py、不进每日 6 策略表。**2026-11-04 起不单独出卡**（daily.card=false）: 原先是板块5 的第二张 54 行卡，读起来与 6 策略表并列但口径不同、噪声大；改为在技术指标卡片 V10 行下面加一行 —— 只展示今日加减仓标的 + 处于上涨趋势（满仓维持）的标的，逐只象限仍留在 v17 自己的 md/html。回测结论（10.7 年样本, 全池等权）: 闸门年化 +3.30% / 回撤 -15.59% / 夏普 0.37 vs 买入持有 +3.97% / -25.23% —— 降回撤、不增收益；闸门价值与资产「阴跌倾向」正相关。",
       "pipeline_mode": "full_pool"
     }
   }

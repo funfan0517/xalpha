@@ -1,11 +1,11 @@
 {
  "strategy": "growth_div_rotation/v2_absolute_bands",
- "as_of": "2026-11-04",
- "generated": "2026-11-04 14:36",
- "bars": 3988,
+ "as_of": "2026-11-05",
+ "generated": "2026-11-05 14:39",
+ "bars": 3989,
  "start": "2010-06-01",
- "R": 0.4253,
- "R_prev": 0.4289,
+ "R": 0.4642,
+ "R_prev": 0.4253,
  "low": 0.35,
  "high": 0.65,
  "current_w": 0.0,
@@ -13,12 +13,12 @@
  "target_w": 0.0,
  "target_label": "红利",
  "action": "不动",
- "reason": "0.35 < R=0.4253 < 0.65（中间带保持原仓）",
+ "reason": "0.35 < R=0.4642 < 0.65（中间带保持原仓）",
  "trigger": {
   "to_side": "growth",
   "R": 0.35,
-  "dist_pct": -0.1771,
-  "dist_text": "R 再跌 17.7% 至 0.35 触发"
+  "dist_pct": -0.2461,
+  "dist_text": "R 再跌 24.6% 至 0.35 触发"
  },
  "switches": [
   {

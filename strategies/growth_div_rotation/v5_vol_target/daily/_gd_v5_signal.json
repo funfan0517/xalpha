@@ -1,22 +1,22 @@
 {
  "strategy": "growth_div_rotation/v5_vol_target",
- "as_of": "2026-11-04",
- "generated": "2026-11-04 14:36",
- "bars": 3988,
+ "as_of": "2026-11-05",
+ "generated": "2026-11-05 14:39",
+ "bars": 3989,
  "start": "2010-06-01",
- "R": 0.4253,
- "R_prev": 0.4289,
+ "R": 0.4642,
+ "R_prev": 0.4253,
  "low": 0.35,
  "high": 0.65,
  "weights": {
   "growth": 0.0,
-  "div": 0.4926,
-  "cash": 0.5074
+  "div": 0.9852,
+  "cash": 0.0148
  },
  "base_weights": {
   "growth": 0.0,
-  "div": 0.5,
-  "cash": 0.5
+  "div": 1.0,
+  "cash": 0.0
  },
  "chart": "growth_div_rotation/v5_vol_target/backtest/_v5_alloc.png",
  "next": {
@@ -32,41 +32,24 @@
   },
   "scale": 0.985,
   "throttled": false,
-  "gap": 25,
-  "wait": 0
+  "gap": 0,
+  "wait": 10
  },
  "scale": 0.985,
- "vol": 0.0977,
+ "vol": 0.1003,
  "target_vol": 0.18,
  "deadband": 0.15,
  "trend": {
   "growth_broken": true,
-  "div_broken": false,
-  "ma_growth": 3472.82,
-  "ma_div": 5596.79,
-  "growth_close": 2380.62,
-  "div_close": 5596.9
+  "div_broken": true,
+  "ma_growth": 3469.01,
+  "ma_div": 5596.38,
+  "growth_close": 2557.49,
+  "div_close": 5509.14
  },
- "action": "换档到红利",
- "reason": "R 层 + 趋势层换档（缩放后同步生效）",
+ "action": "不动",
+ "reason": "三层目标与当前权重一致，无需调仓",
  "switches": [
-  {
-   "date": "2026-08-25",
-   "from_w": [
-    0.0,
-    0.4052,
-    0.5948
-   ],
-   "to_w": [
-    0.0,
-    0.8103,
-    0.1897
-   ],
-   "turn": 0.8103,
-   "fee": 0.000243,
-   "R_prev": 0.607,
-   "action": "加仓红利"
-  },
   {
    "date": "2026-09-08",
    "from_w": [
@@ -100,6 +83,23 @@
    "fee": 0.000296,
    "R_prev": 0.615,
    "action": "减仓红利"
+  },
+  {
+   "date": "2026-11-05",
+   "from_w": [
+    0.0,
+    0.4926,
+    0.5074
+   ],
+   "to_w": [
+    0.0,
+    0.9852,
+    0.0148
+   ],
+   "turn": 0.9852,
+   "fee": 0.000296,
+   "R_prev": 0.4253,
+   "action": "加仓红利"
   }
  ],
  "exec": {

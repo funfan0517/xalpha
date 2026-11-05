@@ -8,7 +8,9 @@
   四格 = 「读数在上方态与否」×「读数斜率朝上/朝下」，色带的分界 = 象限切换；
 - **▲/▼ 标在价格线上** = 该笔调仓的成交日（T 日盘后算、T+1 净值成交）在指数上的价位，
   旁边小字是调完之后的档位（满带 / 半仓 / 观察仓）；
-- **下格阶梯** = 带内档位（占本腿目标带的比例），它不是 pp：50% = 只露半条带。
+- **下格阶梯** = 带内仓位（占本腿目标带的比例），它不是 pp：50% = 只露半条带。
+  其中**虚线 = 趋势档位**（1.0 / 0.5 / 0.2），**实线 = 乘上波动系数后的实际仓位** ——
+  两条线的差就是波动层压掉的仓位（`VOL_USE=False` 时两者重合）。
 
 两条腿的口径差别（重要）：
 - **科创50（`011609`）**：默认**套闸门**，图上就是本变种的真实操作点。
@@ -125,7 +127,8 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
         i0 = px_full.index.searchsorted(px_full.index[-1] - pd.Timedelta(days=int(years * 365.25)))
         start = px_full.index[max(i0, px_full.index.get_loc(start), 0)]
     px, sm = px_full.loc[start:], sm_full.loc[start:]
-    st, quad = sm["state"], sm["quad"]
+    st, st_tr = sm["state"], sm["state_trend"]      # st = 趋势档位 × 波动系数（实际仓位）
+    sc, quad = sm["vol_scale"], sm["quad"]
     idx = px.index
     slow = (px_full.rolling(s_win, min_periods=s_win).mean().loc[start:] if dual else None)
 
@@ -146,7 +149,8 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
         nav = tg.run_leg(st, px, fee)
         hold = tg.run_leg(pd.Series(1.0, index=px.index), px, fee)
     pn, ph = tg.perf(nav), tg.perf(hold)
-    ops = tg.actions(st)
+    ops = tg.actions(st_tr)                          # 操作点只标「趋势换档」，缩放变化看下格
+    ops_all = tg.actions(st)
     yrs = (idx[-1] - idx[0]).days / 365.25
 
     lines = [px, sm["ma"]] + ([slow] if dual else [])
@@ -202,14 +206,17 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
                 transform=ax.get_xaxis_transform(), va="top", ha="right",
                 fontsize=8.3, color="#5b6b7a")
 
-    # ---- 下格：带内档位阶梯
-    axp.step(idx, st.to_numpy(), where="post", color=C_STEP, lw=1.15)
-    axp.fill_between(idx, 0, st.to_numpy(), step="post", color=C_STEP, alpha=0.14, lw=0)
+    # ---- 下格：带内档位阶梯（虚线灰 = 趋势档位，实线 = 趋势 × 波动层后的实际仓位）
+    axp.step(idx, st_tr.to_numpy(), where="post", color="#b6c0cb", lw=0.9, ls="--",
+             zorder=2, label="趋势档位")
+    axp.fill_between(idx, 0, st.to_numpy(), step="post", color=C_STEP, alpha=0.14, lw=0, zorder=1)
+    axp.step(idx, st.to_numpy(), where="post", color=C_STEP, lw=1.2, zorder=3,
+             label="实际仓位（× 波动系数）")
     axp.set_ylim(-0.02, 1.10)
     axp.set_yticks([tg.OBSERVE, tg.HALF, tg.FULL])
     axp.set_yticklabels([f"观察 {tg.OBSERVE:.0%}", f"半仓 {tg.HALF:.0%}", f"满带 {tg.FULL:.0%}"],
                         fontsize=8.2, color="#6b7a8c")
-    axp.set_ylabel("带内档位", fontsize=9, color="#6b7a8c")
+    axp.set_ylabel("带内仓位", fontsize=9, color="#6b7a8c")
     axp.grid(ls="--", lw=0.55, alpha=0.30)
     axp.tick_params(axis="y", colors="#6b7a8c", length=2)
     for a in (ax, axp):
@@ -240,22 +247,31 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
                label=f"加仓 ▲（{sum(1 for o in ops if o['kind'] == 'buy')}）"),
         Line2D([], [], ls="none", marker="v", ms=8, mfc="none", mec=C_SELL,
                label=f"减仓 ▼（{sum(1 for o in ops if o['kind'] == 'sell')}）"),
-        Line2D([], [], color=C_STEP, lw=1.15, label="带内档位（下格）"),
+        Line2D([], [], color=C_STEP, lw=1.2, label="实际仓位（下格实线）"),
+        Line2D([], [], color="#b6c0cb", lw=0.9, ls="--", label="趋势档位（下格虚线）"),
     ]
     handles += [Patch(facecolor=c, alpha=0.30, label=lab) for c, lab in style.values()]
     ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(0.0, 1.005, 1.0, 0.10),
-              ncol=3, mode="expand", fontsize=8.4, frameon=False,
+              ncol=4, mode="expand", fontsize=8.2, frameon=False,
               columnspacing=1.0, handletextpad=0.5, borderaxespad=0.2)
 
     gate_txt = "真实操作点（默认套闸门）" if meta["gate"] else "假设套闸门的操作点（默认不套，仅对照）"
     quad_txt = (f"双均线 {f_win}/{s_win} × {s_n} 日斜率四象限" if dual
                 else f"年线位置 × 年线斜率四象限")
     win_txt = f"近 {years:g} 年 · " if years else ""
-    fig.text(0.045, 0.972, f"{meta['name']}（{meta['code']}）{win_txt}趋势线 · {quad_txt} · {gate_txt}",
+    if tg.VOL_USE and tg.VOL_MODE == "adaptive":
+        vol_txt = f" + 波动层 q{tg.VOL_REF_Q * 100:.0f}×{tg.VOL_GAIN:g}"
+    elif tg.VOL_USE:
+        vol_txt = f" + 波动层 {tg.VOL_TARGET:.0%}"
+    else:
+        vol_txt = "（波动层关）"
+    fig.text(0.045, 0.972,
+             f"{meta['name']}（{meta['code']}）{win_txt}趋势线 · {quad_txt} · {gate_txt}{vol_txt}",
              ha="left", fontsize=13.2, color="#1b2b3a", weight="bold")
     fig.text(0.045, 0.935,
              f"{idx[0].date()} ~ {idx[-1].date()}（{yrs:.1f} 年）· 闸门 {pn['ann']:+.2%}/年、"
-             f"回撤 {pn['mdd']:.2%}、夏普 {pn['sharpe']:.2f}、平均档位 {tg.exposure(st):.0%}"
+             f"回撤 {pn['mdd']:.2%}、夏普 {pn['sharpe']:.2f}、均趋势档位 {tg.exposure(st_tr):.0%}、"
+             f"均实际仓位 {tg.exposure(st):.0%}（均缩放 {sc.mean():.2f}）"
              f"   |   恒持满带 {ph['ann']:+.2%}/年、回撤 {ph['mdd']:.2%}、夏普 {ph['sharpe']:.2f}",
              ha="left", fontsize=10, color="#3d4f5f")
 
@@ -271,6 +287,15 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
         f"{tg.CLEAR_DAYS} 日未收复清至观察（{tg.OBSERVE:.0%}）；同一腿两次调仓间隔 ≥"
         f"{tg.ACTION_GAP} 个交易日；扣费 = 该腿真实申赎费 + 单边滑点 {tg.SLIP:.1%}。",
     ]
+    if tg.VOL_USE:
+        if tg.VOL_MODE == "adaptive":
+            vol_rule = (f"波动层：目标 = 该腿波动历史 {tg.VOL_REF_Q:.0%} 分位 × {tg.VOL_GAIN:g}，"
+                        f"除以 {tg.VOL_WINDOW} 日已实现波动得系数（≥{tg.VOL_MIN_LEVEL:g}、≤1，"
+                        f"死区 {tg.VOL_DEADBAND:g}、限速 {tg.VOL_MIN_GAP} 日）")
+        else:
+            vol_rule = (f"波动层：目标 = 固定 {tg.VOL_TARGET:.0%} 年化波动，除以 "
+                        f"{tg.VOL_WINDOW} 日已实现波动得系数（≥{tg.VOL_MIN_LEVEL:g}、≤1）")
+        note.append(vol_rule + "；下格虚线 = 趋势档位，实线 = 乘上系数后的实际仓位（只压满带）。")
     if years:
         note.insert(1, f"图为最近 {years:g} 年的切片：档位自更早的历史延续（不在窗口首日重置成满带），"
                        "年化 / 回撤 / 夏普按该区间净值计算，与全历史图不可直接比较。")
@@ -290,9 +315,14 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
 
     print(f"图: {out}")
     print(f"  {meta['name']} {idx[0].date()} ~ {idx[-1].date()}（{yrs:.1f} 年）· "
-          f"{'套闸门' if meta['gate'] else '不套闸门(图示为假设)'} · 操作 {len(ops)} 笔 · "
-          f"闸门 {pn['ann']:+.2%}/年 回撤 {pn['mdd']:.2%} 夏普 {pn['sharpe']:.2f} 档位均值 "
-          f"{tg.exposure(st):.0%} | 恒持满带 {ph['ann']:+.2%}/年 回撤 {ph['mdd']:.2%}")
+          f"{'套闸门' if meta['gate'] else '不套闸门(图示为假设)'} · 趋势操作 {len(ops)} 笔"
+          f"（含缩放共 {len(ops_all)} 次权重变化）· "
+          f"闸门 {pn['ann']:+.2%}/年 回撤 {pn['mdd']:.2%} 夏普 {pn['sharpe']:.2f} "
+          f"均档位 {tg.exposure(st_tr):.0%} → 均仓位 {tg.exposure(st):.0%} | "
+          f"恒持满带 {ph['ann']:+.2%}/年 回撤 {ph['mdd']:.2%}")
+    if tg.VOL_USE:
+        print(f"  波动层 均缩放 {sc.mean():.2f} · 最低 {sc.min():.2f} · "
+              f"满带被压日占比 {float(((st_tr >= 1 - 1e-9) & (sc < 0.999)).mean()):.0%}")
     for o in ops:
         why = sm["done"].loc[o["date"]]
         if dual:                                    # target_of 的理由是年线措辞，换成快线说法

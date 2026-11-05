@@ -934,7 +934,8 @@ def parse_vol_legs(_cfg):
 # ---------------------------------------------------------------- 波动类变种汇总
 # 参考板块5「技术指标」的列法：一行一个策略，列为 [策略 / 动作统计 / 动作 / 明细]。
 # 板块2 的 v2/v3/v4/v5 各自有逐腿产物，这里合成一张「变种操作一览」卡，
-# 并把每个变种的**重点标注标的**用 ★ + 加粗突出（即使当天空仓也列出，便于一眼看到重点腿状态）。
+# 并把每个变种的**重点标注标的**用 ★ + 加粗突出（即使当天空仓也列出，便于一眼看到重点腿状态）；
+# 非重点的其余腿也一并列出各自的仓位状态，标注「仅供参考」。
 _VOL_VARIANTS = [
     ("v2", "V2 BOLL突破",
      "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json", {"a500", "hs300"}),
@@ -992,28 +993,21 @@ def _vol_variant_row(label, d, emph):
     """七腿变种（v2/v3/v5）-> 一行。"""
     legs = d.get("legs") or []
     by = {"买入": [], "卖出": [], "持有": [], "空仓": []}
-    name_of = {}
     for x in legs:
-        name_of[x.get("leg")] = x.get("name")
-        by[_vol_classify(x)].append(x.get("name"))
+        by[_vol_classify(x)].append(x)
 
-    emph_names = {name_of.get(k) for k in emph}
     emph_parts = [f"**{x.get('name')}** {_vol_classify(x)}{_vol_level(x)}"
                   for x in legs if x.get("leg") in emph]
     detail = "★重点：" + ("、".join(emph_parts) or "—")
 
-    rest_buy = [n for n in by["买入"] if n not in emph_names]
-    rest_sell = [n for n in by["卖出"] if n not in emph_names]
-    rest = [n for n in by["持有"] + by["空仓"] if n not in emph_names]
-    extra = []
-    if rest_buy:
-        extra.append("买：" + "、".join(rest_buy))
-    if rest_sell:
-        extra.append("卖：" + "、".join(rest_sell))
+    # 其余腿也带上各自的仓位状态（v2/v3 空仓·持有、v5 观察仓等档位），仅供参考 ——
+    # 用户要看的是「今天这些腿各是什么位置」，只列名字看不出仓位（2026-11-05 提出）。
+    # 写成「名称 状态（档位）」，与 ★ 重点腿同一副样子，读起来对得上。
+    rest = [f"{x.get('name')} {_vol_classify(x)}{_vol_level(x)}"
+            for cls in ("买入", "卖出", "持有", "空仓") for x in by[cls]
+            if x.get("leg") not in emph]
     if rest:
-        extra.append("其余：" + "、".join(rest))
-    if extra:
-        detail += " ｜ " + "；".join(extra)
+        detail += " ｜ 其余（仅供参考）：" + "、".join(rest)
 
     nb, ns = len(by["买入"]), len(by["卖出"])
     if nb:
@@ -1110,10 +1104,12 @@ def parse_vol_variants(_cfg):
              "v4 为沪深300×国债 ERP 通道（单标的，无 A500 腿）。"
              "注意 v4 的动作列写的是**实际目标仓位**（带内不动、跨带才执行该带的计划仓位），"
              "所以「所在带=满仓」时持仓仍可能是 0%。数据取自各变种 daily/ 产物。"
+             "「其余（仅供参考）」= 非重点标注的腿，也标出各自的仓位状态"
+             "（买入/卖出/持有/空仓，v5 另带档位），仅作参考，不作为当日操作。"
              f"表下 {len(figs)} 张图 = 各变种重点标的的单腿图/操作点图，由"
              " `run_daily_vol_legs.ps1` 第 3 步每日重画（图注写的是标的，不是变种）。",
         src=" · ".join(srcs),
-        cols=["变种", "动作统计", "动作", "操作明细（★=重点标的）"],
+        cols=["变种", "动作统计", "动作", "操作明细（★=重点标的，其余仅供参考）"],
         all_rows=True,
         imgs=figs,
     )
@@ -1327,7 +1323,9 @@ main{max-width:1440px;margin:0 auto;padding:20px 22px 60px}
 .chip{font-size:12px;color:#5b6478;background:#f7f9fd;border:1px solid var(--line);
   border-radius:8px;padding:2px 9px}
 .chip b{color:var(--ink);font-variant-numeric:tabular-nums}
-.tbwrap{max-height:420px;overflow:auto}
+/* 表格不再限高: 原 max-height:420px 会在卡片内产生竖向滚动条, 截图截不全。
+   现在整表铺开、跟页面一起滚; 表头仍 sticky, 长表滚动时贴住视口顶部。 */
+.tbwrap{overflow:visible}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead th{position:sticky;top:0;background:#fafbfe;z-index:1;color:var(--muted);font-weight:600;
   text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}

@@ -64,6 +64,32 @@
 只能压更低、不能抬更高）。实测 +18.12% / 回撤 −11.61% / 夏普 1.58（默认 +17.83% / −12.07% /
 1.53），调仓 25→32 次、三腿超额 −0.65pp→+0.80pp；幅度仍在噪声内，故**默认关闭**。
 
+## 3.9 波动层（`VOL_USE`，默认开启）
+
+四象限只回答「该露多少」，但**同一个档位在不同波动环境下承担的风险差一倍以上**。所以外面再套
+一层「按已实现波动缩放」的风险预算（与 `growth_div_rotation/v5_vol_target` 同一思想）：
+
+    scale_t = clip(target_t / 已实现年化波动_{t-1}, VOL_MIN_LEVEL, 1)     # 只减不加
+    实际档位 = 趋势档位 × scale_t（VOL_APPLY="full_only" 时只压满带）    # 腾出的进现金
+
+`target_t` 有两种取法（`VOL_MODE`）：
+
+- **`"adaptive"`（默认，推荐）**：`target = VOL_GAIN × 该腿自身波动历史的 VOL_REF_Q 分位`。
+  `q80 + gain 0.9` 的含义是「只在波动冲到自身历史前 20% 时压，门槛打九折」——参数与标的波动
+  量级解耦，一套参数套七条腿，不必给每条腿挑绝对数。
+- `"fixed"`：`target = VOL_TARGET`（绝对年化波动），需要逐腿标定，仅作对照保留。
+
+⚠ 三个必须知道的点（`research/_vol_overlay.md` 实测）：
+
+1. **`gain=1` 不等于「平均不压」**。`E[ref/vol] ≠ ref/E[vol]`（Jensen），中位参考 + gain=1 时
+   平均曝光只有 63%，结构性地常年留 37% 现金。所以默认用**分位参考**（只在尾部压）。
+2. **不是所有腿都受益**。长牛宽基（纳指/标普）的波动抬升常伴随趋势加速，压仓会砍在上涨里；
+   分位参考把这一代价从 −3.4pp 收窄到「Calmar 由 0.52 变 0.56（反而更好）」，但仍非稳赚。
+3. **改善集中在少数时段**（黄金 2023-2026、A股宽基 2010-2016），**不等于稳定 alpha**。
+   默认开着是为了「结构统一」，不是因为它被证明能提高收益。
+
+`VOL_MIN_HIST=500` 之前参考分位无法计算 → `scale` 恒为 1（该段等同于纯趋势版）。
+
 ## 4. 成交与时序（无前视）
 
 `state[t]` = **t 日收盘成交完之后**的带内占比；t 日只是决策，成交在 t+1 收盘净值
@@ -131,6 +157,20 @@ ACTION_GAP = 5          # 同一腿两次调仓的最小间隔（频率帽第二
 
 FULL, HALF, OBSERVE = 1.0, 0.5, 0.2      # 满带 / 半仓 / 观察仓（带的占比）
 LEVEL_TXT = {1.0: "满带", 0.5: "半仓", 0.2: "观察仓", 0.0: "空仓"}    # 档位中文名（图与每日共用）
+
+# ============ 波动层（第三层风险预算，默认开启；实测见 research/_vol_overlay.md） ============
+# 关掉即退化成纯趋势版（v5.0 口径）：`VOL_USE=False`。
+VOL_USE = True
+VOL_APPLY = "full_only"   # "full_only"=只压满带（半仓/观察仓原样，语义最干净）/ "mul"=乘全部档位 / "cap"=min
+VOL_MODE = "adaptive"     # "adaptive"=自身波动分位的倍数（推荐）/ "fixed"=绝对目标 VOL_TARGET
+VOL_REF_Q = 0.80          # adaptive 参考 = 该腿波动历史的 80 分位（只在最波动的 20% 日子压）
+VOL_GAIN = 0.90           # target = gain × 参考；<1 表示门槛打九折（略保守）
+VOL_TARGET = 0.15         # 仅 VOL_MODE="fixed" 生效（绝对年化波动）
+VOL_WINDOW = 120          # 已实现波动窗口（交易日）
+VOL_DEADBAND = 0.15       # 系数变化不足该幅度不动（防每天微调）
+VOL_MIN_GAP = 10          # 两次缩放变化的最小间隔（交易日）
+VOL_MIN_LEVEL = 0.20      # 缩放下限：不接受比「观察仓」还碎的仓位
+VOL_MIN_HIST = 500        # 参考分位最少需要的样本；在此之前 scale 恒为 1（无前视）
 
 # 作用域：默认套全部七条腿（2026-11-03 起按用户要求「标的池改为全部 7 条腿」）。
 # `GATE_ALL=True` 时 `gated()` 对七腿全返回 True；`GATE_LEGS` 只作为「无现金流锚子集」的
@@ -218,7 +258,11 @@ def params(**kw):
              GATE_LEGS=GATE_LEGS, GATE_ALL=GATE_ALL, START=START, MODE=MODE,
              DOWN_WIN=DOWN_WIN, DOWN_SLOPE=DOWN_SLOPE,
              KIND=KIND, BUF=BUF, FAST_WIN=FAST_WIN, SLOW_WIN=SLOW_WIN, DON_N=DON_N, MOM_N=MOM_N,
-             KAMA_N=KAMA_N, KAMA_FAST=KAMA_FAST, KAMA_SLOW=KAMA_SLOW, HULL_N=HULL_N)
+             KAMA_N=KAMA_N, KAMA_FAST=KAMA_FAST, KAMA_SLOW=KAMA_SLOW, HULL_N=HULL_N,
+             VOL_USE=VOL_USE, VOL_APPLY=VOL_APPLY, VOL_MODE=VOL_MODE, VOL_REF_Q=VOL_REF_Q,
+             VOL_GAIN=VOL_GAIN, VOL_TARGET=VOL_TARGET, VOL_WINDOW=VOL_WINDOW,
+             VOL_DEADBAND=VOL_DEADBAND, VOL_MIN_GAP=VOL_MIN_GAP, VOL_MIN_LEVEL=VOL_MIN_LEVEL,
+             VOL_MIN_HIST=VOL_MIN_HIST)
     p.update(kw)
     return p
 
@@ -374,6 +418,53 @@ def target_of(quad, below_days, cur, p=None):
     return cur, "年线下方：不新增"
 
 
+def vol_scale(px, **kw):
+    """-> 波动系数 Series（>0，≤1）。`scale[t]` 只用 t-1 及之前的已实现波动，无前视。
+
+    `VOL_USE=False` 时恒为 1.0（退化成纯趋势版）。
+    参考值 `target` 的两种取法见模块 docstring §3.9：adaptive（自身分位）/ fixed（绝对数）。
+    系数变化受 `VOL_DEADBAND` 与 `VOL_MIN_GAP` 双重限速；下限 `VOL_MIN_LEVEL` 防止碎仓。
+    """
+    p = params(**kw)
+    idx = px.index
+    if not p["VOL_USE"]:
+        return pd.Series(1.0, index=idx)
+    ret = px.astype("float64").pct_change().fillna(0.0)
+    vol = ret.rolling(int(p["VOL_WINDOW"]), min_periods=int(p["VOL_WINDOW"])).std() * math.sqrt(252.0)
+    if p["VOL_MODE"] == "fixed":
+        tgt = pd.Series(float(p["VOL_TARGET"]), index=idx)
+    elif p["VOL_MODE"] == "adaptive":
+        tgt = (vol.expanding(min_periods=int(p["VOL_MIN_HIST"])).quantile(float(p["VOL_REF_Q"]))
+               * float(p["VOL_GAIN"]))
+    else:
+        raise ValueError(f"未知 VOL_MODE: {p['VOL_MODE']}（可选 adaptive / fixed）")
+    raw = (tgt / vol).clip(lower=float(p["VOL_MIN_LEVEL"]), upper=1.0).shift(1)
+    out = np.empty(len(idx))
+    cur, last = 1.0, None
+    for i, v in enumerate(raw.to_numpy(dtype=float)):
+        if not np.isnan(v):
+            far = last is None or (i - last) >= int(p["VOL_MIN_GAP"])
+            if far and abs(v - cur) >= float(p["VOL_DEADBAND"]) - 1e-12:
+                cur, last = float(v), i
+        out[i] = cur
+    return pd.Series(out, index=idx)
+
+
+def apply_vol(trend, scale, mode="full_only"):
+    """趋势档位 + 波动系数 -> 实际档位。三种作用形态见 `VOL_APPLY`。"""
+    t = np.asarray(trend, dtype=float)
+    sc = np.asarray(scale, dtype=float)
+    if mode == "mul":
+        eff = t * sc
+    elif mode == "full_only":          # 只压满带：半仓 / 观察仓原样
+        eff = np.where(t >= 1.0 - 1e-9, np.minimum(t, sc), t)
+    elif mode == "cap":
+        eff = np.minimum(t, sc)
+    else:
+        raise ValueError(f"未知 VOL_APPLY: {mode}（可选 full_only / mul / cap）")
+    return pd.Series(np.clip(eff, 0.0, 1.0), index=trend.index)
+
+
 def state_machine(px, leg, **kw):
     """-> DataFrame(index=净值日)。`state[t]` = t 日收盘成交后的带内占比。
 
@@ -392,8 +483,10 @@ def state_machine(px, leg, **kw):
 
     if not gated(leg, p):
         state[:] = 1.0
-        out = pd.DataFrame(dict(state=state, decide=decide, done=done, target=1.0),
-                           index=px.index)
+        flat = pd.Series(1.0, index=px.index)
+        out = pd.DataFrame(dict(state=flat, state_trend=flat,
+                                vol_scale=pd.Series(1.0, index=px.index),
+                                decide=decide, done=done, target=1.0), index=px.index)
         return out.join(I)
 
     c = I["close"].to_numpy(dtype=float)
@@ -431,8 +524,17 @@ def state_machine(px, leg, **kw):
             pend, pend_note = tgt, why
             decide[t] = "buy" if tgt > hold else "sell"
 
-    out = pd.DataFrame(dict(state=state, decide=decide, done=done, target=tgt_v),
-                       index=px.index)
+    # ---- 第三层：波动系数（趋势档位 × 缩放 = 实际档位）
+    trend = pd.Series(state, index=px.index)
+    sc = vol_scale(px, **kw)
+    eff = apply_vol(trend, sc, p["VOL_APPLY"]) if p["VOL_USE"] else trend
+    arr_sc = sc.to_numpy(dtype=float)
+    for i in range(1, n):                      # 纯缩放日（无趋势换档）补一句说明
+        if abs(arr_sc[i] - arr_sc[i - 1]) > 1e-9 and not done[i]:
+            done[i] = f"波动层缩放 → {arr_sc[i]:.0%}"
+
+    out = pd.DataFrame(dict(state=eff, state_trend=trend, vol_scale=sc,
+                            decide=decide, done=done, target=tgt_v), index=px.index)
     return out.join(I)
 
 
@@ -585,21 +687,35 @@ def fmt_x(x, nd=2):
 
 
 def _self_check():
-    """快速自检：七腿序列可读、象限四格齐全、仓位只落在 {0, .2, .5, 1} 内。"""
+    """快速自检：七腿可读、象限四格齐全、趋势档位只落在 {0,.2,.5,1}、实际档位 ∈[0,1]、无前视。"""
     for k in LEGS:
         px, sm = leg_slice(k)
-        st = sm["state"]
-        assert len(st) == len(px)
-        assert set(np.round(st.unique(), 6)) <= {0.0, 0.2, 0.5, 1.0}
+        st, tr, sc = sm["state"], sm["state_trend"], sm["vol_scale"]
+        assert len(st) == len(px) == len(sc)
+        assert set(np.round(tr.unique(), 6)) <= {0.0, 0.2, 0.5, 1.0}, tr.unique()
+        assert float(st.min()) >= -1e-9 and float(st.max()) <= 1.0 + 1e-9
+        assert float(sc.min()) >= VOL_MIN_LEVEL - 1e-9 and float(sc.max()) <= 1.0 + 1e-9
+        assert bool((st <= tr + 1e-9).all())          # 波动层只压不抬
         q = sm.loc[sm["quad"] != "", "quad"]
         cnt = q.value_counts()
         print(f"{k:6s} {rule.LEGS[k]['name']:8s} {px.index[0].date()} ~ {px.index[-1].date()} "
-              f"n={len(px):5d} 闸门={'是' if gated(k) else '否'} 当前={st.iloc[-1]:.0%} "
-              f"曝光={exposure(st):.0%} 象限日数="
+              f"n={len(px):5d} 闸门={'是' if gated(k) else '否'} "
+              f"档位={tr.iloc[-1]:.0%}×{sc.iloc[-1]:.0%}={st.iloc[-1]:.0%} "
+              f"均档位={exposure(tr):.0%} 均仓位={exposure(st):.0%} 象限日数="
               + " ".join(f"{name}{int(cnt.get(name, 0))}" for name in QUADS))
     print(f"年线 MA{MA_WIN} · 斜率 {SLOPE_N} 日 · 阶梯 {REDUCE_DAYS}/{CLEAR_DAYS} 日 · "
           f"间隔帽 {ACTION_GAP} 日 · 档位 {FULL:g}/{HALF:g}/{OBSERVE:g} · "
           f"作用域 {'全腿' if GATE_ALL else '/'.join(GATE_LEGS)}")
+    if VOL_USE:
+        if VOL_MODE == "adaptive":
+            vol_txt = (f"自适应 q{VOL_REF_Q * 100:.0f} × gain {VOL_GAIN:g}"
+                       f"（参考=自身波动历史分位，最少 {VOL_MIN_HIST} 日）")
+        else:
+            vol_txt = f"固定目标 {VOL_TARGET:.0%}"
+        print(f"波动层 开 · {vol_txt} · 窗口 {VOL_WINDOW} 日 · 死区 {VOL_DEADBAND:g} · "
+              f"限速 {VOL_MIN_GAP} 日 · 下限 {VOL_MIN_LEVEL:g} · 作用 {VOL_APPLY}")
+    else:
+        print("波动层 关（纯趋势版）")
 
 
 if __name__ == "__main__":

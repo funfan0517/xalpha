@@ -54,7 +54,9 @@ def freshness(leg, date, fails, refreshed):
 
 def lack(x):
     """「还缺什么才给加仓许可」—— 只对需要加仓的腿有意义。"""
-    if x["state"] >= tg.FULL - 1e-9:
+    if x["state_trend"] >= tg.FULL - 1e-9:
+        if x["scale"] < 0.999:
+            return f"趋势已满带，但波动系数 {x['scale']:.0%} 在压仓"
         return "已满带"
     gaps = []
     if not x["above"]:
@@ -88,6 +90,8 @@ def main():
             continue
         close = float(r["close"])
         state = float(r["state"])
+        state_tr = float(r["state_trend"]) if "state_trend" in r else state
+        scale = float(r["vol_scale"]) if "vol_scale" in r else 1.0
         band = float(cfg["band"])
         quad = str(r["quad"])
         item = dict(
@@ -99,7 +103,8 @@ def main():
             quad=quad, below_days=int(r["below_days"]),
             dd_hi=float(r["dd_hi"]),
             gated=bool(tg.gated(leg)),
-            state=state, level=level_name(state),
+            state=state, state_trend=state_tr, scale=scale,
+            level=level_name(state_tr),
             pos_pp=state * band, target=(None if r["target"] != r["target"]
                                          else float(r["target"])),
             decide=str(r["decide"]), done=str(r["done"]),
@@ -108,11 +113,15 @@ def main():
         item["action"] = {"buy": "加仓", "sell": "减仓"}.get(item["decide"],
                                                          "维持" if item["gated"] else "不套闸门")
         item["lack"] = lack(item) if item["gated"] else "宽基不套闸门(估值锚已含均值回归)"
-        # 档位显示：今日成交后的档位；有决策时补上「→ 明日档位」
-        nxt = item["target"] if item["decide"] else state
+        # 档位显示：趋势档位 [× 波动系数]（今日成交后）；有决策时补上「→ 明日趋势档位」
+        # 只有「满带」才会被波动层压（VOL_APPLY=full_only），其余档位不显示系数
+        compressed = state_tr >= tg.FULL - 1e-9 and scale < 0.999
+        vol_tag = f" × {scale:.0%}" if compressed else ""
+        nxt = item["target"] if item["decide"] else state_tr
         item["next_level"] = level_name(nxt)
-        item["level_txt"] = level_name(state) + (
+        item["level_txt"] = level_name(state_tr) + vol_tag + (
             f" → {level_name(nxt)}" if item["decide"] else "")
+        item["scale_txt"] = "—" if not tg.VOL_USE else f"{scale:.0%}"
         rows.append(item)
 
         dec = sm["decide"].to_numpy()
@@ -139,6 +148,12 @@ def main():
         f"> 档位：上涨趋势 → 满带；反弹 → 只持有；高位回调 → 降一档（半仓）；下跌趋势 → "
         f"满 {tg.REDUCE_DAYS} 日减半、满 {tg.CLEAR_DAYS} 日清至观察仓。"
         f"同一腿两次调仓间隔 ≥{tg.ACTION_GAP} 个交易日（频率帽）。",
+        (f"> 波动层（`VOL_USE=True`）：趋势档位再乘一个波动系数 = clip(目标 ÷ "
+         f"{tg.VOL_WINDOW} 日已实现波动, {tg.VOL_MIN_LEVEL:g}, 1)，**只压满带**。目标 = 该腿波动历史 "
+         f"{tg.VOL_REF_Q:.0%} 分位 × {tg.VOL_GAIN:g} —— 只在波动冲到自身历史前 "
+         f"{(1 - tg.VOL_REF_Q) * 100:.0f}% 时才压仓，系数变化受死区 {tg.VOL_DEADBAND:g} 与 "
+         f"{tg.VOL_MIN_GAP} 日限速约束。表里「波动系数」一列 <100% 即当日被压。"
+         if tg.VOL_USE else "> 波动层已关闭（`VOL_USE=False`）：档位即纯趋势三档。"),
         f"> 作用域：**全部七腿**均套闸门（{' / '.join(tg.rule.LEGS[k]['name'] for k in tg.LEGS)}；"
         "2026-11-03 起默认七腿全套，`GATE_ALL=True`）。宽基（中证A500 / 沪深300 / 纳指100 / 标普500）"
         "套上趋势过滤会与估值锚的均值回归互相抵消 —— 实测让渡约 2.4pp 年化、回撤无改善；要回到"
@@ -159,14 +174,15 @@ def main():
         "## 七腿档位（带内占比 = 该腿露出多少目标带）",
         "",
         "| 腿 | 执行代码 | 闸门 | 净值日 | 复权净值 | 年线 | 年线斜率 | 象限 | 连续在年线下 | "
-        "距年线 | 档位（今日 → 明日） | 占带 | pp | 今日动作 | 还缺什么 | 数据 |",
-        "|---|---|---|---|---|---|---|---|---:|---:|---|---:|---:|---|---|---|",
+        "距年线 | 波动系数 | 档位（趋势×波动，今日→明日） | 占带 | pp | 今日动作 | 还缺什么 | 数据 |",
+        "|---|---|---|---|---|---|---|---|---:|---:|---:|---|---:|---:|---|---|---|",
     ]
     for x in rows:
         L.append(
             f"| {x['name']} | `{x['exec']}` | {'是' if x['gated'] else '否'} | {x['date']} | "
             f"{x['nav']:.4f} | {x['ma']:.4f} | {'↑' if x['slope_up'] else '↓'} | {x['quad']} | "
-            f"{x['below_days']} | {x['dev']:+.1%} | **{x['level_txt']}** | {x['state']:.0%} | "
+            f"{x['below_days']} | {x['dev']:+.1%} | {x['scale_txt']} | "
+            f"**{x['level_txt']}** | {x['state']:.0%} | "
             f"{x['pos_pp']:.2f} | {x['action']} | {x['lack']} | {x['fresh']} |")
 
     L += [
@@ -233,7 +249,12 @@ def main():
                      "reduce_days": tg.REDUCE_DAYS, "clear_days": tg.CLEAR_DAYS,
                      "action_gap": tg.ACTION_GAP,
                      "levels": {"full": tg.FULL, "half": tg.HALF, "observe": tg.OBSERVE},
-                     "trade_at": "T+1 净值", "cash_annual": tg.CASH_ANNUAL},
+                     "trade_at": "T+1 净值", "cash_annual": tg.CASH_ANNUAL,
+                     "vol": {"use": tg.VOL_USE, "mode": tg.VOL_MODE,
+                             "apply": tg.VOL_APPLY, "ref_q": tg.VOL_REF_Q,
+                             "gain": tg.VOL_GAIN, "target": tg.VOL_TARGET,
+                             "window": tg.VOL_WINDOW, "deadband": tg.VOL_DEADBAND,
+                             "min_gap": tg.VOL_MIN_GAP, "min_level": tg.VOL_MIN_LEVEL}},
             "summary": {"n": len(rows), "buy": len(buys), "sell": len(sells),
                         "stale": len(stale), "fail": len(fails),
                         "quads": quad_cnt},
@@ -249,8 +270,10 @@ def main():
     print(f"净值日 {maxdate or (rows[0]['date'] if rows else '—')} | 加仓 "
           f"{[(x['leg'], x['name']) for x in buys]} · 减仓 {[(x['leg'], x['name']) for x in sells]}")
     for x in rows:
+        pos = (f"{x['level']}×{x['scale']:.0%}={x['state']:.0%}"
+               if x["level_txt"].count("×") else f"{x['level']}({x['state']:.0%})")
         print(f"  {x['name']:8s} 闸门={'是' if x['gated'] else '否'} {x['quad']:5s} "
-              f"档位={x['level']:3s}({x['state']:.0%}) {x['action']} · {x['lack']}")
+              f"档位={pos} {x['action']} · {x['lack']}")
     if fails:
         print("刷新失败:", fails)
 

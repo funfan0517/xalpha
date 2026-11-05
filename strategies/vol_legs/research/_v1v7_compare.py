@@ -60,6 +60,7 @@ import ma20
 import boll
 import macd_boll
 import trend_gate
+trend_gate.VOL_USE = False   # 七变种横向对比只比「信号层」，关掉 v5 的波动层以隔离变量
 import erp as v4erp
 import band as v6band
 

@@ -39,6 +39,8 @@ sys.path.insert(0, _V5)
 
 import trend_gate as tg   # noqa: E402
 
+tg.VOL_USE = False        # 本脚本只研究「趋势层」的灵敏度，关掉波动层以隔离变量
+
 OUT_MD = os.path.join(_HERE, "_v5_trend_sens.md")
 OUT_PNG = os.path.join(_HERE, "_v5_trend_sens.png")
 

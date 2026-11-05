@@ -38,7 +38,13 @@ OUT_JSONL = os.path.join(OUTDIR, "_v5_trend_gate_bt.jsonl")
 
 # 敏感性档：(标签, 参数覆盖)
 SENS = [
-    ("基准（MA250 · 斜率20日 · 5/20 日阶梯 · 间隔帽5日 · 七腿全套）", {}),
+    ("基准（MA250·斜率20·5/20阶梯·间隔帽5·七腿全套·波动层 q80×0.9）", {}),
+    ("关掉波动层（纯趋势三档）", dict(VOL_USE=False)),
+    ("波动层：固定 15%（绝对目标）", dict(VOL_MODE="fixed", VOL_TARGET=0.15)),
+    ("波动层：q80 gain 1.0", dict(VOL_GAIN=1.0)),
+    ("波动层：q70 gain 0.9（更早介入）", dict(VOL_REF_Q=0.70)),
+    ("波动层：乘全部档位（VOL_APPLY=mul）", dict(VOL_APPLY="mul")),
+    ("波动层：只封顶（VOL_APPLY=cap）", dict(VOL_APPLY="cap")),
     ("年线改 MA120", dict(MA_WIN=120)),
     ("年线改 MA200（美股口径）", dict(MA_WIN=200)),
     ("斜率回看 5 日", dict(SLOPE_N=5)),
@@ -58,19 +64,30 @@ SENS = [
 
 
 # ---------------------------------------------------------------- 1. 逐腿
+def _pure(**kw):
+    """统计「趋势层自身」时关掉波动层：分桶/滞后表只看象限与均线，不需要缩放。"""
+    d = dict(kw)
+    d["VOL_USE"] = False
+    return d
+
+
 def leg_rows(**kw):
     rows = []
     for k in tg.LEGS:
         cfg = tg.rule.LEGS[k]
         px, sm = tg.leg_slice(k, **kw)
-        st = sm["state"]
+        st, st_tr, sc = sm["state"], sm["state_trend"], sm["vol_scale"]
         fee = tg.fee_of(k)
         nav, nav_fee = tg.run_leg(st, px), tg.run_leg(st, px, fee)
         hold_fee = tg.run_leg(pd.Series(1.0, index=px.index), px, fee)
         bh = px / px.iloc[0]
         acts = tg.actions(st)
-        ws = tg.whipsaw(st, px)
+        ws = tg.whipsaw(st_tr, px)                    # 打脸只数「趋势层」的来回，不数缩放微调
         m, mf, h, b = tg.perf(nav), tg.perf(nav_fee), tg.perf(hold_fee), tg.perf(bh)
+        # 波动层贡献：同一区间关掉波动层（纯趋势三档）再跑一次
+        kw_off = dict(kw, VOL_USE=False)
+        px0, sm0 = tg.leg_slice(k, **kw_off)
+        m0 = tg.perf(tg.run_leg(sm0["state"], px0, fee))
         years = max((px.index[-1] - px.index[0]).days / 365.25, 1e-9)
         rows.append(dict(
             leg=k, name=cfg["name"], role=cfg["role"], band=float(cfg["band"]),
@@ -80,7 +97,11 @@ def leg_rows(**kw):
             ann=m["ann"], mdd=m["mdd"], vol=m["vol"], sharpe=m["sharpe"],
             ann_fee=mf["ann"], mdd_fee=mf["mdd"], sharpe_fee=mf["sharpe"],
             hold_ann=h["ann"], hold_mdd=h["mdd"], hold_sharpe=h["sharpe"],
-            exposure=tg.exposure(st), state_last=float(st.iloc[-1]),
+            exposure=tg.exposure(st), expo_trend=tg.exposure(st_tr),
+            scale_avg=float(sc.mean()), state_last=float(st.iloc[-1]),
+            no_vol_ann=m0["ann"], no_vol_mdd=m0["mdd"],
+            vol_pp=(mf["ann"] - m0["ann"]) * 100,
+            vol_dd_pp=(mf["mdd"] - m0["mdd"]) * 100,
             actions=len(acts), acts_per_year=len(acts) / years,
             whip=ws["n"], whip_miss=ws["avg_miss"],
             edge_pp=(mf["ann"] - h["ann"]) * 100, edge_bh_pp=(mf["ann"] - b["ann"]) * 100,
@@ -102,7 +123,8 @@ def build_states(frame, **kw):
 
 def portfolio_rows(frame):
     """-> (rows, navs)。每档自带平均带内曝光。"""
-    base = build_states(frame)                                    # 默认 = 七腿全套闸门
+    base = build_states(frame)                                    # 默认 = 七腿全套闸门 + 波动层
+    novol = build_states(frame, VOL_USE=False)                     # 关掉波动层（纯趋势三档）
     base3 = build_states(frame, GATE_LEGS=("kc50", "hkt", "gold"), GATE_ALL=False)  # 历史三腿版对照
     maonly = build_states(frame, MODE="ma_only")
     noladder = build_states(frame, REDUCE_DAYS=1, CLEAR_DAYS=10 ** 6)
@@ -113,8 +135,10 @@ def portfolio_rows(frame):
     specs = [
         ("静态带（七腿恒持满带）", None, True, "对照基准：本变种的默认满仓态"),
         ("静态带 · 成本另列", None, False, ""),
-        ("**V5 默认（七腿全套闸门）**", base, True, "全部七条腿均套年线 + 年线斜率闸门（2026-11-03 起默认）"),
+        ("**V5 默认（七腿全套闸门 + 波动层 q80×0.9）**", base, True,
+         "七腿套年线闸门，再按各自波动分位缩放（默认口径）"),
         ("V5 默认 · 成本另列", base, False, ""),
+        ("V5 关掉波动层（纯趋势三档）", novol, True, "`VOL_USE=False`：v5.0 原口径"),
         ("V5 三腿套闸门（旧默认 · 对照）", base3, True, "仅科创50 / 恒生科技 / 黄金；宽基不套（历史取舍版）"),
         ("V5 只看 close 在年线上/下", maonly, True, "对照：去掉斜率与阶梯"),
         ("V5 无阶梯（跌破即减半、不清仓）", noladder, True, "对照：只保留减半"),
@@ -146,7 +170,7 @@ def long_table(frame, **kw):
         if not tg.gated(k, tg.params(**kw)):
             continue
         px = frame[k]
-        sm = tg.state_machine(tg.load(k), k, **kw).reindex(frame.index)
+        sm = tg.state_machine(tg.load(k), k, **_pure(**kw)).reindex(frame.index)
         parts.append(pd.DataFrame(dict(
             leg=k, quad=sm["quad"], dev=sm["dev"], below_days=sm["below_days"],
             mom6=sm["mom6"], mom12=sm["mom12"],
@@ -228,7 +252,7 @@ def lag_table(frame, **kw):
         if not tg.gated(k, tg.params(**kw)):
             continue
         full = tg.load(k)
-        sm = tg.state_machine(full, k, **kw)
+        sm = tg.state_machine(full, k, **_pure(**kw))
         quad = sm["quad"].to_numpy(dtype=object)
         dd = sm["dd_hi"].to_numpy(dtype=float)
         ma = sm["ma"].to_numpy(dtype=float)
@@ -333,7 +357,8 @@ def main():
     def pick(prefix):
         return next(p for p in prows if p["name"].startswith(prefix))
 
-    base, base_nc = pick("**V5 默认（七腿全套闸门）**"), pick("V5 默认 · 成本另列")
+    base, base_nc = pick("**V5 默认"), pick("V5 默认 · 成本另列")
+    novol = pick("V5 关掉波动层")
     static, static_nc = pick("静态带（七腿恒持满带）"), pick("静态带 · 成本另列")
     base3, maonly, noladder = pick("V5 三腿套闸门"), pick("V5 只看 close"), pick("V5 无阶梯")
     flat, gap0 = pick("V5 空仓起步"), pick("V5 无间隔帽")
@@ -382,6 +407,10 @@ def main():
         f"| 作用域 | `GATE_ALL={tg.GATE_ALL}`（生效 = 全部七腿） | "
         "2026-11-03 起默认七条腿全套装年线闸门；`GATE_LEGS`（kc50/hkt/gold）仅作 GATE_ALL=False 的回落"
         "三腿子集。历史上默认只套三腿，三腿版在 §3 作对照保留（宽基有估值锚，套上会与均值回归互相抵消） |",
+        f"| 波动层 | `VOL_USE={tg.VOL_USE}` · `VOL_MODE={tg.VOL_MODE}` · "
+        f"`VOL_REF_Q={tg.VOL_REF_Q}` · `VOL_GAIN={tg.VOL_GAIN}` · `VOL_WINDOW={tg.VOL_WINDOW}` | "
+        "按已实现波动缩放仓位（只减不加），目标 = 自身波动历史 80 分位 × 0.9；"
+        "默认只压满带（半仓 / 观察仓不动）。见 §2.5 |",
         "",
         "> **三个坑**：①滞后是设计特性不是 bug（§5 给出实测滞后成本）；②250 与 200 不是一回事；"
         "③震荡市假信号一定存在，解法是频率帽（5/20 阶梯 + 间隔帽），不是再叠一个指标。",
@@ -421,6 +450,44 @@ def main():
         "> 「打脸」= 减仓后 20 个交易日内又加回的次数（频率帽要防的东西）；"
         "「恒持满带」= 同区间不做闸门、一直 100% 带（等价于买入持有 + 一次申购费）。",
         "",
+    ]
+
+    # ---- 2.5 波动层
+    vol_txt = (f"自适应 q{tg.VOL_REF_Q * 100:.0f} × gain {tg.VOL_GAIN:g}（参考 = 该腿波动历史的"
+               f"{tg.VOL_REF_Q:.0%} 分位，最少 {tg.VOL_MIN_HIST} 日）"
+               if tg.VOL_MODE == "adaptive" else f"固定目标 {tg.VOL_TARGET:.0%}")
+    L += [
+        "## 2.5 波动层（第三层风险预算，默认开启）",
+        "",
+        f"`scale = clip(target / 120 日已实现波动[t-1], {tg.VOL_MIN_LEVEL:g}, 1)`，"
+        f"**只压满带**（`VOL_APPLY={tg.VOL_APPLY}`），死区 {tg.VOL_DEADBAND:g}、"
+        f"最小间隔 {tg.VOL_MIN_GAP} 日。目标是 **{vol_txt}** —— "
+        "「只在波动冲到自身历史前 20% 时压，门槛打九折」。关掉用 `VOL_USE=False`。",
+        "",
+        "| 腿 | 均趋势档位 | 均缩放 | 均实际仓位 | 关掉·年化 | 关掉·回撤 | 打开·年化 | 打开·回撤 | "
+        "Δ年化 | Δ回撤 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for r in sorted(rows, key=lambda z: z["vol_pp"], reverse=True):
+        L.append(f"| {r['name']} | {r['expo_trend']:.0%} | {r['scale_avg']:.2f} | "
+                 f"{r['exposure']:.0%} | {tg.fmt_pct(r['no_vol_ann'])} | "
+                 f"{tg.fmt_pct(r['no_vol_mdd'])} | {tg.fmt_pct(r['ann_fee'])} | "
+                 f"{tg.fmt_pct(r['mdd_fee'])} | **{r['vol_pp']:+.2f}pp** | "
+                 f"**{r['vol_dd_pp']:+.2f}pp** |")
+    n_vol_ann = sum(1 for r in rows if r["vol_pp"] > 0)
+    n_vol_dd = sum(1 for r in rows if r["vol_dd_pp"] > 0)
+    best_vol = max(rows, key=lambda z: z["vol_pp"])
+    worst_vol = min(rows, key=lambda z: z["vol_pp"])
+    L += [
+        "",
+        f"> 打开波动层后年化更高 **{n_vol_ann}/{len(rows)}** 腿、回撤更浅 **{n_vol_dd}/{len(rows)}** 腿。"
+        f"最好的是 **{best_vol['name']}**（{best_vol['vol_pp']:+.2f}pp / "
+        f"{best_vol['vol_dd_pp']:+.2f}pp），最差的是 **{worst_vol['name']}**"
+        f"（{worst_vol['vol_pp']:+.2f}pp / {worst_vol['vol_dd_pp']:+.2f}pp）。",
+        "> **它是风险预算不是收益引擎**：七腿平均实际仓位被压到八成上下，回撤普遍变浅、"
+        "年化方向不定 —— 取决于该腿「波动抬升之后是继续跌还是 V 型反弹」。"
+        "研究细节（目标 × 窗口 × 作用形态 × 等暴露对照 × 分段）见 `research/_vol_overlay.md`。",
+        "",
         f"## 3. 组合层（七腿共同窗口 {win} · {yrs:.1f} 年，按 `rule` 目标带权重归一化，满仓 = 40pp）",
         "",
         "| 组合 | 累计 | 年化 | 波动 | 最大回撤 | 夏普 | 平均曝光 | 备注 |",
@@ -440,6 +507,12 @@ def main():
         f"夏普 {base['sharpe']:.2f} vs {static['sharpe']:.2f}，平均曝光 "
         f"{base['invested']:.0%} vs 100%。**结论是「几乎打平、风险调整后略好」**，"
         f"不是「跑赢」：收益差 {(base['ann'] - static['ann']) * 100:+.2f}pp 在 4 年样本里低于噪声。",
+        f"> **波动层的贡献（默认开 vs 关）**：{tg.fmt_pct(base['ann'])} / {tg.fmt_pct(base['mdd'])} / "
+        f"{base['sharpe']:.2f}（曝光 {base['invested']:.0%}） vs {tg.fmt_pct(novol['ann'])} / "
+        f"{tg.fmt_pct(novol['mdd'])} / {novol['sharpe']:.2f}（曝光 {novol['invested']:.0%}）"
+        f"→ 年化 **{(base['ann'] - novol['ann']) * 100:+.2f}pp**、回撤 "
+        f"**{(base['mdd'] - novol['mdd']) * 100:+.2f}pp**。"
+        f"⚠ 组合样本只有 {yrs:.1f} 年，这一行的差在噪声量级，不能当「波动层提高收益」的证据。",
         f"> **不看成本**：{tg.fmt_pct(base_nc['ann'])} / {tg.fmt_pct(base_nc['mdd'])} / "
         f"{base_nc['sharpe']:.2f}（vs 静态带 {tg.fmt_pct(static_nc['ann'])} / "
         f"{tg.fmt_pct(static_nc['mdd'])} / {static_nc['sharpe']:.2f}）—— 成本吃掉的年化"

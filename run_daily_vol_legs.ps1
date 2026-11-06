@@ -14,6 +14,9 @@
 #          出图失败只告警, 不阻断主流程(保留上次的图)。
 # 已退出默认流程(需要时手动跑):
 #   python strategies\vol_legs\v1_ma20\daily\_daily_scan.py          # V1 MA20 穿越
+#   python strategies\vol_legs\v7_us_gate\daily\_daily_scan.py       # V7 美股年线闸门(仅 ndx/spx, 月末)
+#   python strategies\vol_legs\v8_golden_cross\daily\_daily_scan.py  # V8 美股金叉 50/200(仅 ndx/spx, 日频)
+#   python strategies\vol_legs\v9_vol_target\daily\_daily_scan.py    # V9 美股波动率目标(仅 ndx/spx)
 # 参数权威源 strategies/vol_legs/rule.py::CFG 与 v3_macd_boll/macd_boll.py; 口径说明 strategies/vol_legs/README.md
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_vol_legs.ps1
 #        已有存量持仓时校准起点: ... -File run_daily_vol_legs.ps1 --hold a500=2.5,hs300=2.5,ndx=10,spx=10,kc50=2.5,hkt=2.5,gold=10

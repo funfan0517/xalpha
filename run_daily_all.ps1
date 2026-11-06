@@ -2,6 +2,9 @@
 # 读取 pipeline/strategies.json 中所有已注册策略的 daily.runner，按每日操作板块(daily.block -> blocks 序号)顺序执行，最后汇总成功/失败。
 # 跳过 daily.enabled=false 的策略（已移出每日操作，但仍可手动跑各自的 runner）。
 # 单个策略失败不中断后续（与本仓库其它 runner 的 fail-fast 行为不同：这里是「全量跑一遍再汇总」）。
+# 收尾出两份看板（用户 2026-11-06 要求）：
+#   data\_daily_digest.html           收盘口径（各策略产物落盘，正式版）
+#   data\_daily_digest_intraday.html  盘中预演（最新盘中快照当收盘重算，不写任何数据文件）
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_all.ps1
 #       powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators,vol_legs   # 只跑指定策略
 param(
@@ -81,5 +84,13 @@ Write-Host ("=" * 70)
 Write-Host "[digest] 汇总每日操作 -> data\_daily_digest.html"
 python -W ignore (Join-Path $PSScriptRoot "pipeline\daily_digest.py")
 if ($LASTEXITCODE -ne 0) { Write-Host "  [!] 汇总失败, 各策略产物已生成但看板未更新" }
+
+# 第二份: 盘中预演（把最新盘中快照当收盘重算, 不写任何数据文件, 只多出一个 HTML）
+# 用户 2026-11-06 要求每天两份: 收盘口径 _daily_digest.html + 预演 _daily_digest_intraday.html
+if ($Only.Count -eq 0) {
+    Write-Host "[preview] 盘中预演 -> data\_daily_digest_intraday.html"
+    python -W ignore (Join-Path $PSScriptRoot "pipeline\intraday_preview.py")
+    if ($LASTEXITCODE -ne 0) { Write-Host "  [!] 预演失败, 不影响收盘口径看板" }
+}
 
 Write-Host "[i] 各策略产物见 pipeline/strategies.json 的 daily.signal_report; 机械规则, 非投资建议."

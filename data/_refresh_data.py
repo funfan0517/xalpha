@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """公用行情刷新器（跨策略共享 · 为 data/_long_klines.json 与 _indicators_hist.json 服务）。
 
+字段、覆盖、已知缺陷与使用禁忌见 **`data/_DATA_SOURCES.md`**（该目录的唯一说明书，改数据结构时同步更新）。
+
 任何策略在执行前调用 :func:`ensure_fresh` 即可保证本地行情为最新：已最新则只做一次日期检查（几乎零成本），
 非最新才联网拉取。
 

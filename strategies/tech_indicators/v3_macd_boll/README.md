@@ -65,4 +65,12 @@ python strategies/tech_indicators/v3_macd_boll/backtest.py
 - `backtest/_v3_macd_boll_results.jsonl` —— 逐基金明细
 - `backtest/_v3_macd_boll_510300.png` —— 代表标的净值对比图
 
+## 研究
+
+- `research/v3_doc_rules/` —— 逐条吸收外部《MACD+BOLL 组合策略 v1.0》文档的可量化条款做增量 A/B
+  （周线过滤 R-04 / 回踩低吸 R-05 / 量能确认 N-02 / 顶背离 R-12 / ATR 止损 R-18 / 连续 2 日离场 R-08）。
+  **结论：16 个变体无一达到「配对夏普差 ≥ +0.02 且年化为正」的改善门槛。**
+  周线过滤（-1.3~-1.7pp，t≈-4~-5.6）与「仅低吸」（曝光塌到 1~2%）显著有害；
+  量能、ATR 止损、连续 2 日、顶背离全部落在噪声区间。详见 `_v3_doc_rules_report.md`。
+
 > 机械规则输出，**非投资建议**。

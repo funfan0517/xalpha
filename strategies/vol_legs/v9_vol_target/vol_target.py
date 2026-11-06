@@ -125,7 +125,10 @@ def params(**kw):
     p = dict(POOL=POOL, TV=TV, VOL_WIN=VOL_WIN, DRIFT=DRIFT, CAP=CAP, SIGNAL=SIGNAL,
              COST=COST, CASH_ANNUAL=CASH_ANNUAL, MA_WIN_SB=MA_WIN_SB,
              TRIGGER=TRIGGER, CUT=CUT, CUT_RET=CUT_RET, CUT_VOLX=CUT_VOLX,
-             ADD=ADD, DECAY=DECAY, PEAK_WIN=PEAK_WIN, ADD_MA=ADD_MA)
+             ADD=ADD, DECAY=DECAY, PEAK_WIN=PEAK_WIN, ADD_MA=ADD_MA,
+             # 回测口径: 样本末根也算「月末」（否则最后一个月不调仓, 与报告口径不符）;
+             # 每日口径必须置 False —— 否则「今天」永远被当成月末, 每天都误报一次定仓决策。
+             MONTH_END_LAST=True)
     p.update(kw)
     return p
 
@@ -156,12 +159,17 @@ def vol_series(sig, p=None):
     return sig.pct_change().rolling(n, min_periods=n).std(ddof=1) * math.sqrt(PERIODS)
 
 
-def month_ends(idx):
-    """每月最后一个交易日（含样本末根，便于口径对齐）。"""
+def month_ends(idx, include_last=True):
+    """每月最后一个交易日。
+
+    `include_last=True`（默认, 回测口径）= 把样本末根也算作月末, 否则最后一个月不产生决策、
+    与报告口径不符; **每日操作必须传 False** —— 否则「今天」恒被当成月末, 每天都会误报一次
+    月末定仓（2026-11-06 接入板块2 时踩到: 非月末日也报「→ 48%（月末）」）。
+    """
     idx = pd.DatetimeIndex(idx)
     out = [idx[i] for i in range(len(idx) - 1)
            if (idx[i].year, idx[i].month) != (idx[i + 1].year, idx[i + 1].month)]
-    if len(idx):
+    if include_last and len(idx):
         out.append(idx[-1])
     return out
 
@@ -261,7 +269,7 @@ def machine(sig, p=None):
     peak = vol.rolling(int(p["PEAK_WIN"]), min_periods=20).max()
     ma = sig.rolling(int(p["ADD_MA"])).mean()
     ret5 = sig.pct_change(5)
-    ends = set(month_ends(sig.index))
+    ends = set(month_ends(sig.index, include_last=bool(p.get("MONTH_END_LAST", True))))
     drift = float(p["DRIFT"])
     fast = str(p["TRIGGER"]) == "fast"
     cut_on = fast and bool(p["CUT"])

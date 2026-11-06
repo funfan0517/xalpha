@@ -7,7 +7,7 @@
 并渲染 ``data/_daily_digest.html``（单文件、无外链，双击可看）。
 
 卡片可选带图：策略在 ``daily.chart`` 里声明产物图（仓库相对路径），卡片就在表格下方
-内嵌显示。一张卡要多图时用 ``_entry(imgs=[{"path": .., "cap": ..}])``（板块2 的六张
+内嵌显示。一张卡要多图时用 ``_entry(imgs=[{"path": .., "cap": ..}])``（板块2 的八张
 变种单腿图就走这条路），渲染成表下方的图墙，每张图下面一行小字标注是哪个标的。
 历史库（``_daily_digest.json``）**只记路径**，图随策略脚本每日重画；
 HTML 渲染时按路径读一次、base64 内嵌（按路径去重），这样 ``data/_daily_digest.html``
@@ -174,17 +174,23 @@ def _blocks(doc):
 
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
            note="", src="", error="", cols=None, img="", img_cap="", all_rows=False,
-           imgs=None):
+           imgs=None, data=""):
     """``all_rows=True``: 该卡不受看板「只看有动作」筛选影响 —— 用于「池子本身就小、
     空仓标的的读数（RSI/温度）也是决策依据」的卡片，例如红利 V4 的 5 只择时池。
 
-    ``imgs``: 多图卡片（板块2 的六张变种单腿图）—— `[{"path": 仓库相对路径, "cap": 标题}]`，
+    ``as_of``: 该策略的**信号日**（决策依据的那根收盘）。
+    ``data``: 该策略**依赖的各数据源最新时点**（如「净值 11-04~11-05（QDII 11-04）」）——
+    同一策略内不同源可能差好几天（QDII 净值滞后 1~2 日、估值月度序列、ETF 行情当日），
+    只写一个 as_of 会把这种差异藏掉（2026-11-06 用户要求每张卡都标出来）。
+
+    ``imgs``: 多图卡片（板块2 的八张变种单腿图）—— `[{"path": 仓库相对路径, "cap": 标题}]`，
     渲染成表下方的图墙，每张图下面一行小字标注是哪个标的。单图卡片继续用 ``img``/``img_cap``。
     """
     return {
         "key": key,
         "name": name,
         "as_of": as_of,
+        "data": data,
         "badge": badge,
         "tone": tone if tone in ACT else "none",
         "summary": summary,
@@ -272,6 +278,7 @@ def parse_dividend(_cfg):
              "横截面取 RSI 最低 2 只等权。2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。"
              "V9 五因子估值温度已拆成板块4 的第二张卡。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
+        data=f"基金累计净值 {as_of} · 生效信号 {d.get('signal_date')} 收盘（月末确认，月中为预览）",
         cols=["代码", "名称", "本月动作", "RSI / 权重 / 下次预计"],
         # 池内只有 5 只、且「空仓那 3 只的 RSI」正是横截面选 2 只的依据 —— 这一卡不吃
         # 「只看有动作」筛选，否则每天只剩 2 行，看不出档位是怎么来的。
@@ -315,6 +322,7 @@ def parse_dividend_v9(_cfg):
              "回测显示横截面选品与分位减仓均无 alpha，故**只当估值体温计用，不输出仓位倍率**；"
              "仓位节奏看板块4 的 V4 卡。完整温度表见 strategies/dividend/v9_temp5/daily/_v9_temp.html。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
+        data=f"指数估值 + 基金净值 {d.get('as_of')}（分位窗口近 2 年）",
     )
 
 
@@ -339,6 +347,7 @@ def parse_growth_div(_cfg):
          ["本月切换", f"{d.get('month_switches')}/{d.get('month_cap')}"]],
         note="二元轮动（成长 / 红利·现金），信号用指数收盘，次日开盘执行。",
         src=_rel(os.path.join(_ROOT, "strategies", "growth_div_rotation", "v0", "daily", "_signal_report.md")),
+        data=f"指数日线（科创50 000688 ÷ 中证红利 000922）{snap.get('date') or d.get('as_of')}",
     )
 
 
@@ -449,6 +458,7 @@ def parse_gd_v5(_cfg):
              "平均只在场 63%（缩放均值 0.80，仅 3% 交易日满仓）。注意趋势层的贡献会随市场阶段反转："
              "2010~2021 有效（v3 反超 v2 +0.97pp），2021~2026 拖累（v3 落后 v2 6.07pp）。",
         src=_rel(os.path.join(_ROOT, daily["signal_report"])),
+        data=f"指数日线（创业板指 399006 ÷ 中证红利 000922）{d.get('as_of')}",
         cols=["执行代码", "资产", "动作", "目标仓位"],
         # 仓位图由 scan.py 每日按当日权重重画，卡片里直接内嵌（缺图时留空，不影响卡片）
         img=daily.get("chart") or "",
@@ -592,6 +602,14 @@ def parse_tech_indicators(_cfg):
         summary = f"{ncol} 策略对全池 {pool} 只均无买入/卖出信号"
     if v17:
         summary += f" · V17 趋势闸门 {v17[0]['n']}"
+    # 六列的数据日并不相同：MACD/V3/V6/V7 用当日行情，V9/V10 是状态机型、各自 scan 的落盘日
+    head_txt = "\n".join(lines[:8])
+    m9 = re.search(r"v9\s*数据日\D*(\d{4}-\d{2}-\d{2})", head_txt, re.I)
+    m10 = re.search(r"v10\s*数据日\D*(\d{4}-\d{2}-\d{2})", head_txt, re.I)
+    v9d, v10d = (m9.group(1) if m9 else None), (m10.group(1) if m10 else None)
+    data = f"ETF 行情 {as_of}"
+    if v9d or v10d:
+        data += f" · V9 {v9d or '—'} / V10 {v10d or as_of}"
     return _entry(
         "tech_indicators", f"技术指标（{ncol} 策略）", as_of, badge, tone, summary, rows,
         [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)],
@@ -604,6 +622,7 @@ def parse_tech_indicators(_cfg):
              "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.md —— "
              "它与上面 6 个指标策略口径不同（单标的分档，非 0/1 择时），读数不可直接互比。",
         src=_rel(path),
+        data=data,
         cols=["策略", "动作统计", "动作", "该策略的操作明细"],
     )
 
@@ -841,6 +860,16 @@ def parse_permanent(_cfg):
              "gold": "黄金", "cash": "现金", "a500": "A500", "kc": "科创"}
     wtxt = " / ".join(f"{short.get(k, k)} {float(v):.1f}%"
                       for k, v in (d.get("weights") or {}).items())
+    # 各腿净值截止日差很多（QDII 滞后、债券中长端走场外披露更慢）—— 卡片上逐个最旧源点名
+    da = {str(k): str(v) for k, v in (d.get("data_asof") or {}).items() if v}
+    data = ""
+    if da:
+        lo, hi = min(da.values()), max(da.values())
+        nm = {"bond_s": "短债", "bond_m": "中债", "bond_l": "长债", "divlv": "红利低波",
+              "ndx": "纳指", "spx": "标普", "gold": "黄金", "a500": "A500", "kc": "科创"}
+        old = "/".join(nm.get(k, k) for k, v in da.items() if v == lo)
+        data = (f"净值 {hi}" if lo == hi
+                else f"净值 {lo} ~ {hi}（最旧 {old} {lo}）")
     return _entry(
         "permanent", "永久组合", as_of, f"加 {n_buy} / 减 {n_sell}", "watch",
         f"8 项基准 ±50% 倾斜：加 {n_buy} 项、减 {n_sell} 项 · 目标 {wtxt}",
@@ -851,6 +880,7 @@ def parse_permanent(_cfg):
         note="这是**目标权重**不是当日买卖：单项偏离基准 >5pp 才动，半年检查一次。"
              "信号用累计净值(totvalue, 分红再投复权)，QDII(270042/017641) 净值滞后 1-2 日。",
         src=_rel(md_path),
+        data=data,
         cols=["资产", "场外代码", "建议", "基准/偏离/倍数/得分"],
     )
 
@@ -885,6 +915,14 @@ def parse_vol_legs(_cfg):
         rows.append(_row(x.get("exec"), x.get("name"),
                          act_map.get(x.get("action") or "none", "none"),
                          x.get("action_label") or "", detail))
+
+    # 逐腿净值日（QDII 纳指/标普滞后 1~2 日, 与境内腿不是同一天）—— 卡片上点名最旧的腿
+    das = {k: str(x.get("as_of")) for k, x in legs.items() if x.get("as_of")}
+    data = ""
+    if das:
+        lo, hi = min(das.values()), max(das.values())
+        old = "/".join(str(legs[k].get("name") or k) for k, v in das.items() if v == lo)
+        data = (f"净值 {hi}" if lo == hi else f"净值 {lo} ~ {hi}（最旧 {old} {lo}）")
 
     acts = d.get("actions") or []
     buys = [a for a in acts if a.get("kind") == "buy"]
@@ -927,6 +965,7 @@ def parse_vol_legs(_cfg):
              + (f"；当前 QDII 额度关闭：{'/'.join(qdii)}（档位顺延）" if qdii else "")
              + "。详见报告第五、六节。",
         src=_rel(md_path),
+        data=data,
         cols=["场外代码", "资产", "动作", "关键值"],
     )
 
@@ -945,9 +984,11 @@ _VOL_VARIANTS = [
      "strategies/vol_legs/v4_erp_band/daily/_v4_erp_band_daily.json", {"hs300"}),
     ("v5", "V5 趋势闸门",
      "strategies/vol_legs/v5_trend_gate/daily/_v5_trend_gate_daily.json", {"gold"}),
+    ("v9", "V9 波动率目标仓位",
+     "strategies/vol_legs/v9_vol_target/daily/_v9_vol_target_daily.json", {"spx", "ndx"}),
 ]
 
-# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的六张单腿/操作点图。
+# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的八张单腿/操作点图。
 # 每张图下面标注**是哪个标的的图**（代码 + 场外复权口径），改图名时这里跟着改。
 _VOL_FIGS = [
     ("strategies/vol_legs/v2_boll_breakout/research/_v2_a500.png",
@@ -964,6 +1005,12 @@ _VOL_FIGS = [
      "（▲加仓 / ▼减仓，T 日信号 → T+1 收盘成交）"),
     ("strategies/vol_legs/v5_trend_gate/research/_v5_trend_gold.png",
      "**黄金**（`000216` 场外复权）· V5 趋势四象限闸门全历史 2014-10 起（真实操作点 + 档位阶梯）"),
+    ("strategies/vol_legs/v9_vol_target/research/_v9_vt_spx.png",
+     "**标普500**（`017641` 场外复权，信号 `.INX` 美元指数）· V9 波动率目标仓位 TV15%"
+     "（底色=vol20 高于/低于目标，▲▼=成交点）"),
+    ("strategies/vol_legs/v9_vol_target/research/_v9_vt_ndx.png",
+     "**纳指100**（`270042` 场外复权，信号 `.NDX` 美元指数）· V9 波动率目标仓位 TV15%"
+     "（底色=vol20 高于/低于目标，▲▼=成交点）"),
 ]
 
 
@@ -974,6 +1021,12 @@ def _vol_classify(x):
         return "买入"
     if "卖" in t or "减仓" in t or "清" in t:
         return "卖出"
+    # v9 的动作列写的是「→ 满仓（快减）」，不含买卖字样 —— 待成交决策靠 pending vs state 判向
+    if x.get("pending") is not None:
+        try:
+            return "买入" if float(x["pending"]) > float(x.get("state") or 0) else "卖出"
+        except (TypeError, ValueError):
+            pass
     pos = x.get("pos")
     if pos is None:
         pos = x.get("state")
@@ -986,7 +1039,17 @@ def _vol_classify(x):
 
 def _vol_level(x):
     lvl = x.get("level_txt") or x.get("level")
-    return f"（{lvl}）" if lvl else ""
+    if not lvl:
+        return ""
+    # v9 有「待成交」决策时（月末定仓 / 月中快减快补），把目标仓位一起写出来：
+    # 「（66% → 48%）」比只写当前仓位「（66%）」更接近「今天要动多少」。
+    p = x.get("pending")
+    if p is not None:
+        try:
+            return f"（{lvl} → {float(p):.0%}）"
+        except (TypeError, ValueError):
+            pass
+    return f"（{lvl}）"
 
 
 def _vol_variant_row(label, d, emph):
@@ -1049,6 +1112,18 @@ def _vol_v4_row(label, d):
               f"计划仓位 {plan:.0%}，**离开本带才执行**（带内不动）")
     if erp is not None and z is not None:
         detail += f" · ERP {float(erp):.2f} / z {float(z):.2f}"
+    # 带内趋势提前（v5 MA250+20）：B0 读到上涨就买满、B2 读到下跌就清仓
+    tq = rd.get("trend_q")
+    if tq and tq != "—":
+        detail += f" · 趋势 {tq}"
+        if rd.get("intra_events"):
+            detail += f"（带内提前 {int(rd['intra_events'])} 次）"
+    # 锚健康度（只观测）：z 是「相对 250 日均值」的偏离，锚会漂；H 低 = z 退化成短期动量
+    hlt = rd.get("health")
+    if hlt is not None:
+        detail += f" / 锚健康度 H {float(hlt):.2f}"
+        if rd.get("dislocated"):
+            detail += "（**脱钩**，贴线误判风险高）"
     nxt = act_d.get("next_cross") or []
     if nxt:
         detail += " ｜ 下一跨档：" + str(nxt[0])
@@ -1058,9 +1133,10 @@ def _vol_v4_row(label, d):
 
 
 def parse_vol_variants(_cfg):
-    """板块2 的变种操作一览：v2 / v3 / v4 / v5（一行一个变种，★=重点标的）。"""
+    """板块2 的变种操作一览：v2 / v3 / v4 / v5 / v9（一行一个变种，★=重点标的）。"""
     rows, srcs, as_ofs = [], [], []
     n_buy = n_sell = 0
+    dt, v9dt = {}, ""          # 各变种产物日；v9 另记「信号日 / QDII 净值日」两个
     for vx, label, rel, emph in _VOL_VARIANTS:
         full = os.path.join(_ROOT, rel)
         srcs.append(_rel(full))
@@ -1071,6 +1147,13 @@ def parse_vol_variants(_cfg):
         d = json.loads(_read(full))
         if d.get("as_of"):
             as_ofs.append(str(d["as_of"]))
+            dt[vx] = str(d["as_of"])
+        if vx == "v9":
+            sg = [str(x["sig_date"]) for x in d.get("legs") or [] if x.get("sig_date")]
+            nv = [str(x["nav_date"]) for x in d.get("legs") or [] if x.get("nav_date")]
+            if sg or nv:
+                v9dt = (f"信号 {max(sg)} / 净值 {max(nv)}" if sg and nv
+                        else f"信号 {(sg or nv)[-1]}")
         try:
             if vx == "v4":
                 row, act = _vol_v4_row(label, d)
@@ -1086,29 +1169,45 @@ def parse_vol_variants(_cfg):
             n_sell += 1
 
     as_of = max(as_ofs) if as_ofs else None
+    # 数据时点：v2/v3/v4/v5 各取自己产物的数据日；v9 另标「信号日 / QDII 净值日」——
+    # 它的信号走美元指数（当日收盘就有），执行净值滞后一天，只写一个日期会看不懂。
+    others = {k: v for k, v in dt.items() if k != "v9"}
+    vals = sorted({v for v in others.values() if v})
+    data = ""
+    if vals:
+        data = (f"v2/v3/v4/v5 数据 {vals[0]}" if len(vals) == 1
+                else " · ".join(f"{k} {v}" for k, v in others.items() if v))
+    if v9dt:
+        data = (data + " · " if data else "") + f"v9 {v9dt}"
     tone = "buy" if n_buy else ("sell" if n_sell else "none")
-    summary = "v2/v3/v4/v5 今日操作（★=重点标的）：" + "；".join(
+    summary = "v2/v3/v4/v5/v9 今日操作（★=重点标的）：" + "；".join(
         f"{r['c']} {r['a']}" for r in rows)
     # 图墙：只收「文件确实存在」的图，缺图不至于在看板上留破图框。
     figs = [{"path": rel, "cap": cap} for rel, cap in _VOL_FIGS
             if os.path.exists(os.path.join(_ROOT, rel.replace("/", os.sep)))]
     return _entry(
-        "vol_variants", "波动类变种操作一览 · v2 / v3 / v4 / v5", as_of,
+        "vol_variants", "波动类变种操作一览 · v2 / v3 / v4 / v5 / v9", as_of,
         f"买 {n_buy} / 卖 {n_sell}", tone, summary, rows,
         [["变种", str(len(rows))],
-         ["重点腿", "A500/沪深300 · 科创50/恒生科技 · 沪深300 · 黄金"],
+         ["重点腿", "A500/沪深300 · 科创50/恒生科技 · 沪深300 · 黄金 · 标普500/纳指100"],
          ["买入", str(n_buy)], ["卖出", str(n_sell)]],
         note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
              "★ = 该变种的**重点标注标的**：v2→中证A500/沪深300；v3→科创50/恒生科技；"
-             "v4→沪深300；v5→黄金。v2/v3/v5 为七腿逐腿择时（突破追涨型），"
-             "v4 为沪深300×国债 ERP 通道（单标的，无 A500 腿）。"
+             "v4→沪深300；v5→黄金；v9→标普500/纳指100。v2/v3/v5 为七腿逐腿择时（突破追涨型），"
+             "v4 为沪深300×国债 ERP 通道（单标的，无 A500 腿）；"
+             "v9 为**美股两腿（纳指100/标普500）波动率目标仓位**（月末定仓 + 月中快减/快补），"
+             "括号里是该腿的带内仓位（如 66% / 满仓）；有**待成交决策**时写成「当前 → 目标」"
+             "（如 66% → 48%），不是 0/1。"
              "注意 v4 的动作列写的是**实际目标仓位**（带内不动、跨带才执行该带的计划仓位），"
-             "所以「所在带=满仓」时持仓仍可能是 0%。数据取自各变种 daily/ 产物。"
+             "所以「所在带=满仓」时持仓仍可能是 0%。"
+             "v4 明细里的「锚健康度 H」= 1 − |z − ERP 1250 日分位|，只作解释、不改变仓位。"
+             "数据取自各变种 daily/ 产物。"
              "「其余（仅供参考）」= 非重点标注的腿，也标出各自的仓位状态"
-             "（买入/卖出/持有/空仓，v5 另带档位），仅作参考，不作为当日操作。"
+             "（买入/卖出/持有/空仓，v5/v9 另带档位/带内仓位），仅作参考，不作为当日操作。"
              f"表下 {len(figs)} 张图 = 各变种重点标的的单腿图/操作点图，由"
              " `run_daily_vol_legs.ps1` 第 3 步每日重画（图注写的是标的，不是变种）。",
         src=" · ".join(srcs),
+        data=data,
         cols=["变种", "动作统计", "动作", "操作明细（★=重点标的，其余仅供参考）"],
         all_rows=True,
         imgs=figs,
@@ -1345,7 +1444,7 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f2f5
 .fig img{display:block;width:100%;height:auto;border:1px solid var(--line);
   border-radius:12px;background:#fff}
 .figcap{font-size:11.5px;color:var(--muted);padding-top:6px}
-/* 多图卡片（板块2 的六张变种单腿图）：宽屏两列图墙，窄屏自动落成一列；
+/* 多图卡片（板块2 的八张变种单腿图）：宽屏两列图墙，窄屏自动落成一列；
    图注写「是哪个标的的图」，不写变种名（变种已在表格行里）。
    图墙里是缩略图，点任意一张弹全屏（字太小）/ Esc 或再点关闭。 */
 .figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));
@@ -1481,7 +1580,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
         ' onerror="var f=[this.dataset.fb1,this.dataset.fb2];var n=+(this.dataset.n||0);' +
         'if(n<2){this.dataset.n=n+1;this.src=f[n];}else{this.onerror=null;}">';
     }
-    // 单图（img）与多图（imgs：板块2 的六张变种单腿图）统一处理；多图渲染成图墙，
+    // 单图（img）与多图（imgs：板块2 的八张变种单腿图）统一处理；多图渲染成图墙，
     // 每张图下面一行小字标注是哪个标的。
     var figs = [];
     if (s.img) figs.push({path: s.img, cap: s.img_cap, alt: s.name});
@@ -1502,6 +1601,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       '<span class="badge ' + esc(s.tone) + '">' + esc(s.badge) + '</span></div>' +
       '<div class="sum">' + md(s.summary) + '</div>' +
       '<div class="meta">' + (s.as_of ? ('数据日 ' + esc(s.as_of)) : '无数据') +
+      (s.data ? (' · 源数据 ' + esc(s.data)) : '') +
       (s.rows ? (' · ' + s.rows.length + ' 行') : '') + '</div></summary>' +
       (chips ? '<div class="chips">' + chips + '</div>' : '') +
       body + fig + (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') +

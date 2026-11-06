@@ -9,8 +9,10 @@
    **两者差额**（是否达到 5pp 的死区门槛）、下一次决策日；
 3. 输出：今日是否有动作（**只有月末最后一个交易日会有**）、月末预览、逐腿读数、最近 8 次操作流水。
 
-**关键时点**：只有**每月最后一个交易日收盘**才产生信号，**次一交易日收盘净值**成交，
-新权重自 **t+2** 起承担收益（文档 R-01）。其余日子本脚本只会说「维持」——不是脚本坏了。
+**关键时点**：常规信号只在**每月最后一个交易日收盘**产生（默认 `TRIGGER="fast"` 另加月中两种触发：
+快减 = 5 日跌 ≤ −5% 且 vol20 ≥ 1.4×TV；快补 = vol20 ≤ 60 日峰值 70% 且站上 MA10）。
+均为**次一交易日收盘净值**成交，新权重自 **t+2** 起承担收益（文档 R-01）。
+不符合上述时点的日子本脚本只会说「维持」——不是脚本坏了。
 
 产物（相对本文件）：daily/_v9_vol_target_daily.md / _v9_vol_target_daily.json。
 机械规则输出，非投资建议。
@@ -64,7 +66,8 @@ def _fresh(leg, refreshed, fails_otc, fails_us):
 
 def leg_view(leg, refreshed, fails_otc, fails_us):
     cfg = vt.rule.LEGS[leg]
-    nav, st, dec = vt.build(leg)
+    # MONTH_END_LAST=False: 每日视图里「今天」不算月末, 否则非月末日也会报一次定仓决策
+    nav, st, dec = vt.build(leg, MONTH_END_LAST=False)
     sig = vt.load_signal(leg)
     vol = vt.vol_series(sig)
     d_sig = sig.index[-1]

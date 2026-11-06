@@ -1,7 +1,7 @@
 {
   "strategy": "dividend/v4_rsi",
-  "as_of": "2026-11-04",
-  "today": "2026-11-05",
+  "as_of": "2026-11-05",
+  "today": "2026-11-06",
   "signal_date": "2026-10-31",
   "hold_month": "2026-11",
   "board_rsi": 54.8,
@@ -22,34 +22,34 @@
   "next_decision": "2026-11-30",
   "preview_basis": "按未走完的本月数据",
   "preview": {
-    "board_rsi": 57.7,
+    "board_rsi": 54.1,
     "tier": "减半（50%）",
     "mult": 0.5,
     "picks": [
       {
-        "code": "016441",
-        "name": "华夏中证红利质量ETF联接C",
-        "rsi": 51.1
+        "code": "090010",
+        "name": "大成中证红利指数A",
+        "rsi": 48.2
       },
       {
         "code": "561060",
         "name": "华安中证国有企业红利ETF",
-        "rsi": 54.9
+        "rsi": 49.2
       },
       {
-        "code": "090010",
-        "name": "大成中证红利指数A",
-        "rsi": 55.8
+        "code": "016441",
+        "name": "华夏中证红利质量ETF联接C",
+        "rsi": 53.2
       },
       {
         "code": "008163",
         "name": "南方标普红利低波50A",
-        "rsi": 62.1
+        "rsi": 57.8
       },
       {
         "code": "008115",
         "name": "天弘中证红利低波100C",
-        "rsi": 64.6
+        "rsi": 62.4
       }
     ],
     "target": [
@@ -59,8 +59,8 @@
         "weight": 0.25
       },
       {
-        "code": "016441",
-        "name": "华夏中证红利质量ETF联接C",
+        "code": "090010",
+        "name": "大成中证红利指数A",
         "weight": 0.25
       }
     ],
@@ -72,36 +72,36 @@
       "code": "561060",
       "name": "华安中证国有企业红利ETF",
       "weight": 0.0,
-      "rsi": 54.9,
+      "rsi": 49.2,
       "preview_weight": 0.25
     },
     {
       "code": "008163",
       "name": "南方标普红利低波50A",
       "weight": 0.0,
-      "rsi": 62.1,
+      "rsi": 57.8,
       "preview_weight": 0.0
     },
     {
       "code": "090010",
       "name": "大成中证红利指数A",
       "weight": 0.25,
-      "rsi": 55.8,
-      "preview_weight": 0.0
+      "rsi": 48.2,
+      "preview_weight": 0.25
     },
     {
       "code": "008115",
       "name": "天弘中证红利低波100C",
       "weight": 0.0,
-      "rsi": 64.6,
+      "rsi": 62.4,
       "preview_weight": 0.0
     },
     {
       "code": "016441",
       "name": "华夏中证红利质量ETF联接C",
       "weight": 0.25,
-      "rsi": 51.1,
-      "preview_weight": 0.25
+      "rsi": 53.2,
+      "preview_weight": 0.0
     }
   ],
   "rule": {

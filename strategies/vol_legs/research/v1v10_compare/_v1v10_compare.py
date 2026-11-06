@@ -78,6 +78,7 @@ vdata._otc_stale = lambda: False          # type: ignore[attr-defined]
 import boll                               # noqa: E402
 import band as v6band                     # noqa: E402
 import erp as v4erp                       # noqa: E402
+import ladder as v4ladder                 # noqa: E402
 import golden_cross as v8gc               # noqa: E402
 import ma20                               # noqa: E402
 import macd_boll                          # noqa: E402
@@ -202,7 +203,14 @@ def leg_nav_v3(leg):
 
 
 def leg_nav_v5(leg, vol_use=True):
-    """v5 趋势闸门（默认含自适应波动层；`vol_use=False` = 纯趋势对照）。"""
+    """v5 趋势闸门（默认含自适应波动层；`vol_use=False` = 纯趋势对照）。
+
+    注意：这里从**净值全段**起算（`trend_gate.load`），不像 v5 自己的回测那样先砍掉
+    `WARMUP=269` 个交易日的预热段。原因是本脚本要求四支策略同一天起算，
+    预热段只能一并计入（v1/v2/v3 那时已经在交易）。代价是 v5 的读数偏弱：
+    年线预热期内只有满带、波动层还要等 500 日历史才生效。
+    两套口径的逐腿对照见报告 §1.2。
+    """
     px = trend_gate.load(leg)
     state = trend_gate.state_machine(px, leg, VOL_USE=vol_use)
     pos_col = pd.to_numeric(state["state"], errors="coerce").fillna(0.0)
@@ -233,27 +241,40 @@ def agg_portfolio(navs):
 
 
 def v4_hs300_nav():
-    """V4 ERP 股债通道（沪深300×国债）默认 20/50/80 档 -> 归一净值。"""
-    df = v4erp.erp_frame(refresh=False)
+    """V4 两带滞回（默认 `ladder_mode=hold_left`、edges (0.8, 0.2)、月末回锚 tol=5pp）-> 归一净值。
+
+    ⚠ 必须走 `ladder.frame()` 取 `target` 列：`erp_frame()` 里的同名 `target` 是**引擎自带的旧口径**
+    （百分位 + 趋势过滤的 80/50/20 阶梯），直接拿来画会画成 v4 报告里的「对照」那条线，
+    而不是默认策略。费率取零（与 v1/v2/v3 同轴；v4 自己的报告是含费的，见报告 §1.2 口径核对）。
+    """
+    df = v4ladder.frame(refresh=False)
     bond = v4erp.bond_synthetic(v4erp.load_bond10y())
     pe = df["tr"].astype("float64")
     pb = bond.reindex(pe.index).ffill()
-    tgt = df["target"].astype("float64")
-    ok = pb.notna()
+    tgt = pd.to_numeric(df["target"], errors="coerce")
+    ok = pb.notna() & tgt.notna()
     pe, pb, tgt = pe[ok], pb[ok], tgt[ok]
     r = v4erp.run(pe, pb, tgt,
-                  period_end=v4erp.period_end_flags(pe.index, "M"),
+                  period_end=v4erp.period_end_flags(pe.index, v4erp.CFG["rebal_freq"]),
                   tol=v4erp.CFG["rebal_tol"], fee_eq=(0.0, 0.0), fee_bd=(0.0, 0.0))
     return rebase(r["nav"])
 
 
 def v6_hs300_nav():
-    """V6 PE 分位仓位带（沪深300 全收益，每周定档）-> 归一净值。"""
+    """V6 PE 分位仓位带（沪深300，默认 `REBAL_FREQ="weekly"` 定档）-> 归一净值。
+
+    费率显式置零：`simulate()` 默认会扣 `rule.FEE_BUY/FEE_SELL`，而 v1/v2/v3/v5 在本表是零费，
+    不置零就等于只给 v6 单方面加成本（v6 自己的报告是含费的，见 §1.2）。
+    其余参数一律走 `params()` 默认（10 年窗口、档位表、阶梯 5 份、RSI 扳机、利差否决）。
+    """
     frame = v6band.load_frame("hs300")
-    ind = v6band.indicators(frame, universe="hs300")
-    me = v6band.monthly_signals(ind)
-    bands_df, _events = v6band.band_series(ind, me)
-    sim = v6band.simulate(ind, bands_df)
+    p = dict(v6band.params(), FEE_BUY=0.0, FEE_SELL=0.0)
+    ind = v6band.indicators(frame, p, "hs300")
+    ok = ind["pct"].dropna()
+    ind = ind.loc[ok.index[0]:]          # 与 v6 自己的 run_mode 一致：首个有效分位起算（前面无分位不决策）
+    me = v6band.monthly_signals(ind, p)
+    bands_df, _events = v6band.band_series(ind, me, p)
+    sim = v6band.simulate(ind, bands_df, p)
     return rebase(sim["nav"])
 
 
@@ -842,6 +863,19 @@ def main():
                                 bh_sharpe=mh["sharpe"], trades=nall, big=nbig,
                                 exposure=float(b[vx]["states"][leg].mean())))
 
+    # ---- v5 的两套口径（读者拿 §1.1 的 v5 列去对 v5 自己的回测报告时，最容易困惑的地方）
+    v5_self = {}
+    for leg in LEGS:
+        try:
+            px_s, sm_s = trend_gate.leg_slice(leg)          # 预热完成起（WARMUP 个交易日）
+            nv = trend_gate.run_leg(sm_s["state"], px_s, trend_gate.fee_of(leg))  # 含真实申赎费 + 滑点
+            m, cal = metrics(nv)
+            v5_self[leg] = dict(start=px_s.index[0], end=px_s.index[-1],
+                                years=(px_s.index[-1] - px_s.index[0]).days / 365.25,
+                                ann=m["ann"], mdd=m["mdd"], sharpe=m["sharpe"], calmar=cal)
+        except Exception as e:  # noqa: BLE001
+            print(f"  [WARN] v5 自身口径 {NAMES[leg]} 失败: {type(e).__name__}: {e}")
+
     # ---- 写报告
     L = [
         "# 波动资产 · 变种横向对比（两次综合对比 · v1–v10）",
@@ -901,9 +935,78 @@ def main():
         "> 单元格 = 年化 / 最大回撤 / 夏普（括号内 = 年化超额 pp vs 买入持有），全部为**同窗口**口径。",
         "> 推荐 = v1/v2/v3/v5 中同窗口年化超额最高者；若最好的时机策略仍跑输买入持有 >2pp，"
         "回退到**买入持有**（典型如美股长牛，减仓纯拖累）。",
+        "> **v5 列 = README 默认口径**（`GATE_ALL=True` 七腿全套闸门 + `VOL_USE=True` 自适应波动层）；"
+        "它和自己回测报告的差异只来自窗口与费率，逐腿对上见 §1.2。",
         "> ⚠ A500 与沪深300 两列互为镜像（2025-03-27 前两条腿场外序列同源自 `000051`），不是两份独立证据。",
         "",
-        "### 1.2 逐腿策略对比图（单标的口径 · 版式同沪深300 那张）",
+        "### 1.2 口径核对（本表 vs 各变种自己的默认回测）",
+        "",
+        "**结论：10 个变种的规则与参数都对得上各自默认，差异只有「费率」与「窗口」两类，逐条列在下面。**",
+        "",
+        "| 变种 | 本表怎么算 | 该变种自己的默认口径 | 对得上？ |",
+        "|---|---|---|---|",
+        "| V1 MA20 | `ma20.signal / run`，零费 | 回测主表就是零费（`ann_fee` 另列一列） | ✅ 规则一致，仅窗口 |",
+        "| V2 BOLL | `boll.signal / run`，零费 | 同上 | ✅ 仅窗口 |",
+        "| V3 MACD+BOLL | `macd_boll.leg_slice / run`，零费 | 同上（`leg_slice` 自带预热截断） | ✅ 仅窗口 |",
+        "| V4 ERP 通道 | `ladder.frame()` 的 `target`（两带滞回 hold_left）＋**零费** "
+        "| 同规则、**含费** 0.10% / 0.50% | ⚠ 仅费率：零费 +11.97% vs 含费 +11.27%（15.4 年） |",
+        "| V5 趋势闸门 | `state_machine` 默认（`GATE_ALL` + `VOL_USE`）＋零费＋**全段起算** "
+        "| 同规则、含费 + 双边滑点 0.10%、**预热 269 日后**起算 | ⚠ 费率＋窗口（逐腿表见 1.2.2） |",
+        "| V6 PE 分位带 | `params()` 默认（weekly / 10 年窗口 / 档位表 / 阶梯 / RSI 扳机 / 利差否决）＋零费 "
+        "| 同规则、含费 | ⚠ 仅费率：零费 +3.92% vs 含费 +3.81%（21.8 年） |",
+        "| V7 年线闸门 | `build` 默认参数，成本 0.10%、空仓 1.40% | 同 | ✅ 完全一致 |",
+        "| V8 金叉 50/200 | 同上 | 同 | ✅ 完全一致 |",
+        "| V9 波动率目标 | 成本 0.10%、空仓 1.40%（统一尺子） | **0.03% / 2.0%** | ⚠ 仅费率：+13.05% vs +13.24%（14.2 年） |",
+        "| V10 纯波动层 | 成本 0.10%、空仓 1.40% | 同 | ✅ 完全一致 |",
+        "",
+        "> 为什么统一成零费/同一费率：横向比较**必须同尺子**，否则比的是费率差不是规则差。"
+        "各变种自身的报告仍用各自的默认成本，读「这条规则本身值多少」时以那边为准。",
+        "",
+        "#### 1.2.1 本次核对修掉的两处真错",
+        "",
+        "1. **V4 之前画的是旧口径**：`erp_frame()['target']` 是引擎自带的**百分位 + 趋势过滤 80/50/20 阶梯**"
+        "（15.4 年零费 +5.50%），不是 v4 默认的两带滞回（同区间零费 **+11.97%**）。"
+        "已改为 `ladder.frame()['target']`，§1 表里 v4 的读数随之从 2.40% 修正为现在的数。",
+        "2. **V6 之前被单方面扣费**：`simulate()` 默认扣 `rule.FEE_BUY/FEE_SELL`，而其它九支在表里是零费 —— "
+        "已显式置零；同时按 v6 自己的 `run_mode` 用「首个有效 PE 分位」起算，不再把前面无分位的空仓段计入。",
+        "",
+        "#### 1.2.2 v5 的两套口径（逐腿对号）",
+        "",
+        "本表的 v5 就是 **README 默认口径**（`GATE_ALL=True` 七腿全套闸门 + `VOL_USE=True` 自适应波动层），"
+        "规则与 `v5_trend_gate/backtest/_v5_trend_gate_bt.md` 相同；数字不同只来自窗口与费率两项：",
+        "",
+        "| 项 | 本表（§1.1） | v5 自己的回测报告 |",
+        "|---|---|---|",
+        "| 样本起点 | 四支策略的**共同窗口**（v1/v2/v3 能跑的最早一天，v5 的预热段一并计入） "
+        "| 预热完成起（`WARMUP=269` 个交易日之后） |",
+        "| 费率 | **零费率**（与 v1/v2/v3 的回测主表一致） | 真实申赎费 + 双边滑点 0.10% |",
+        "",
+        "| 腿 | 本表 年化/回撤/夏普 | v5 自身口径 年化/回撤/夏普 | 自身样本区间 | 年化差 |",
+        "|---|---:|---:|---|---:|",
+    ]
+    for _leg in LEGS:
+        _rows = leg_info[_leg]["rows"] if _leg in leg_info else []
+        _row = next((c for c in _rows if c["vx"] == "v5"), None)
+        _sw = v5_self.get(_leg)
+        if _row is None or _sw is None:
+            continue
+        L.append(f"| {NAMES[_leg]} | {fmt_pct(_row['ann'])}/{fmt_pct(_row['mdd'])}/"
+                 f"{_row['sharpe']:.2f} | {fmt_pct(_sw['ann'])}/{fmt_pct(_sw['mdd'])}/"
+                 f"{_sw['sharpe']:.2f} | {_sw['start'].date()} ~ {_sw['end'].date()}"
+                 f"（{_sw['years']:.2f} 年） | {(_sw['ann'] - _row['ann']) * 100:+.2f}pp |")
+    L += [
+        "",
+        "> 差得最多的是**科创50 与恒生科技**：这两条腿的场外序列 2020-11 / 2021-08 才成立，"
+        "`WARMUP=269` 个交易日把起点推到 2022-05 / 2022-09，正好**跳过 2021-2022 的主跌段**；"
+        "本表为了四支同窗口，把这段含了进来（科创50 自 2021-07-12、恒生科技自 2021-11-16）。",
+        "> 还有一个不对称：**波动层的参考分位要 500 日历史**，科创50 直到 2024-10-08 才第一次压仓 ——"
+        "长窗口的前三年里它是空转的。所以本表里 v5 相对 v5p（关波动层）的优势被摊薄"
+        "（科创50 同窗口 −1.22% vs −2.93%，仍 +1.71pp），而 v5 自己的报告是 +2.15pp。",
+        "> 一句话：**读「这条腿该不该套闸门」看 §1.1（同窗口、同费率，横向可比）；"
+        "读「v5 这套规则自己跑出什么」看 `_v5_trend_gate_bt.md`（预热后、含费，纵向可比）**。"
+        "两套数字都对，别混着比。",
+        "",
+        "### 1.3 逐腿策略对比图（单标的口径 · 版式同沪深300 那张）",
         "",
         "每张图 = 一条腿：上格净值（该腿买入持有 = 虚线基准）+ 四支时机策略，下格回撤。",
         "与 §1 组合层图的区别在及格线 —— 这里的基准是**该标的自己**，所以能直接看出"

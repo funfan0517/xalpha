@@ -5,7 +5,8 @@
 1. 读缓存复算 ERP 通道与两带状态机（`ladder.frame`），显式 `--refresh` 才联网；
 2. 输出：今日读数、所在带与「本带操作 vs 实际目标仓位」、
    **下一次跨带会落到多少仓**、按 `--capital` 换算的下一交易日那一单、
-   最近 12 次换仓记录、近 60 日内的换仓日（同仓位的跨带/逐日重复行不展示）；
+   最近 12 次换仓记录、近 60 日内的换仓日（同仓位的跨带/逐日重复行不展示）、
+   **锚健康度 H（只观测，不参与信号）**；
 3. 换死区 `--tol 0.05`，换带界 `--edges 0.8,0.2`。
    读法固定为 `hold_left`（读法 A，用户 2026-11-03 确认执行）；`--mode hold_new` 只作回测对照。
 
@@ -115,6 +116,15 @@ def main():
     # 跨带 ≠ 一定换仓：只列**实际目标仓位变过**的跨带，同仓位的跨带不占行
     crosses = ready[ready["cross"] & ready["_chg"]].tail(MAX_CROSS)
     plan_txt = "维持（不动）" if w[b] is None else f"{w[b]:.0%}"
+    # 锚健康度（只观测）：H 高 = z 与长期估值分位一致；背离大 = z 退化成短期动量
+    if r["health_ok"]:
+        pct_txt = f"{r['erp_pct']:.2f}（0=最贵，1=最便宜）"
+        h_txt = (f"**{r['health']:.2f}**（{'**脱钩**' if r['dislocated'] else '正常'}）")
+        gap_txt = f"{r['z_gap']:.2f}"
+    else:
+        pct_txt = "—（预热中）"
+        h_txt = "—（预热中）"
+        gap_txt = "—"
 
     L_ = [
         f"# 波动资产 · V4（ERP 两带滞回）· 每日操作（{df.index[-1]:%Y-%m-%d}）",
@@ -126,6 +136,8 @@ def main():
         f"{e[1]:.2f} ≤ z < {e[0]:.2f} **维持（不动）** · z < **{e[1]:.2f}** 清仓 "
         f"{L.w_text(w[len(w) - 1])}；**从某个带内离开时执行带内的操作**"
         f"（读法 `{mode}`，死区 {tol:g}）。",
+        f"> 带内趋势提前（v5 `MA{L.CFG['trend_ma']}+{L.CFG['trend_slope']}`）：B0 内读到"
+        f"**上涨趋势** → 立刻买满；B2 内读到**下跌趋势** → 立刻清仓（不必等离带）。",
         f"> 仓位 = 沪深300 占比 of 股债合计，总资产 {capital:,.0f} 元。**T+1 收盘净值成交。**",
         "> ⚠ 换手很低（回测 14.2 年 15 次），费率不是主要矛盾；代价是**回撤**"
         "（-38.96%，满仓时债券腿清零），详见 `../backtest/_v4_erp_band_bt.md`。",
@@ -141,6 +153,10 @@ def main():
         f"| **股债利差 ERP** | **{r['erp']:.2f}%** |",
         f"| 通道均线 MA / 上轨 / 下轨 | {r['ma']:.2f} / {r['upper']:.2f} / {r['lower']:.2f}% |",
         f"| **归一化位置 z** | **{z:.2f}** |",
+        f"| 沪深300 趋势（v5 MA{r['trend_ma']}+{r['trend_slope']}） | {r['trend_q']} |",
+        f"| 带内趋势提前 | {r['trend_txt']} |",
+        f"| ERP 长期分位（{r['health_window']} 日） | {pct_txt} |",
+        f"| **锚健康度 H** | {h_txt}，背离 {gap_txt} |",
         f"| **所在带** | **B{b} {r['band_name']}**（本带操作：{plan_txt}） |",
         f"| **实际目标仓位** | **{tgt:.0%}**（{r['side']}） |",
         f"| 已在本带 | {r['days_in_band']} 个交易日 |",
@@ -198,14 +214,76 @@ def main():
                f"B{int(last_['band'])} {L.BAND_NAME[int(last_['band'])]}"
                f"（已 {r['days_in_band']} 个交易日），实际目标 {last_['target']:.0%} 未变。"]
 
+    # —— 带内趋势提前（v5 MA250+20）——
     L_ += [
         "",
-        "## 5. 提醒",
+        "## 5. 带内趋势提前（v5 MA250+20 四象限）",
+        "",
+        "在 B0 / B2 带内，除了「离带」之外再加一个触发：读到 v5 的极端象限就提前动手 ——"
+        "B0 内出现**上涨趋势** → 立刻买满；B2 内出现**下跌趋势** → 立刻清仓。"
+        "中间两态（反弹 / 高位回调）不动作。",
+        "",
+        "| 项 | 数值 |",
+        "|---|---|",
+        f"| 口径 | v5 `MA{r['trend_ma']}+{r['trend_slope']}`（直接复用 v5 的 `indicators`，不近似） |",
+        f"| 今日象限 | **{r['trend_q']}** |",
+        f"| 本带状态 | {r['trend_txt']} |",
+        f"| 历史上带内提前触发 | **{r['intra_events']} 次**（全部 15 次换仓里） |",
+        "",
+        "> 实测只多触发 3 次：2018-05-08 / 2020-02-04 买满（比离带早 2 / 8 天）、"
+        "2024-05-24 清仓（早 6 天）。年化 +12.02%→+12.40%、回撤不变、夏普 0.63→0.65 —— "
+        "差异在噪声内。触发少是结构性的：`z≥0.8` 时价格已跌够、MA250 斜率几乎必向下"
+        "（B0 内「上涨」仅 37/804 日）；`z<0.2` 时价格已涨够、趋势几乎不向下"
+        "（B2 内「下跌」仅 1/755 日）。",
+    ]
+
+    # —— 锚健康度（只观测，不参与信号）——
+    L_ += [
+        "",
+        "## 6. 锚健康度（只观测，不参与信号与仓位）",
+        "",
+        f"`z` 测的是「ERP 相对过去 {L.CFG['window']} 日均值的偏离」，而这条均线会追着 ERP 一起漂"
+        f"（实测年变化率中位 +1.6%，P10/P90 = −33%/+46%）—— 同一个利差水平在不同年份会被判成"
+        "相反的东西。",
+        "",
+        f"`H = 1 − |z − ERP {r['health_window']} 日分位|`：用**长期分位**当「绝对估值位置」的代理，"
+        "与 `z` 同向（0=最贵，1=最便宜）。两者一致说明 `z` 还代表贵贱；背离说明它已经退化成"
+        "短期动量，此时「贴线买错 / 卖飞」概率上升。",
+        "",
+        "| 项 | 数值 |",
+        "|---|---|",
+        f"| ERP 长期分位（{r['health_window']} 日） | {pct_txt} |",
+        f"| 当前 z | {z:.2f} |",
+        f"| 背离 \\|z − 分位\\| | {gap_txt} |",
+        f"| **H** | {h_txt} |",
+        f"| 判定（阈值 {r['health_dis']:g}） | {r['health_txt']} |",
+    ]
+    eps = r["health_eps"]
+    L_ += ["", f"最近 {len(eps)} 段脱钩（背离 > {r['health_dis']:g}）：", ""]
+    if eps:
+        L_ += ["| 区间 | 天数 | 期间 z 均值 | 期间 ERP 均值 | 最大背离 |",
+               "|---|---:|---:|---:|---:|"]
+        for x in eps:
+            L_.append(f"| {x['start']:%Y-%m-%d} ~ {x['end']:%Y-%m-%d}"
+                      f"{'（进行中）' if x['open_'] else ''} | {x['days']} | "
+                      f"{x['z_mean']:.2f} | {x['erp_mean']:.2f}% | {x['gap_max']:.2f} |")
+    else:
+        L_.append("—（样本内未出现）")
+    L_ += [
+        "",
+        "> ⚠ **本项只用于解释，不改变任何仓位**。不要据此改成「脱钩就不操作」或"
+        "「先记账、等健康了再执行」：回测里脱钩段中位仅 **4 个交易日**，26 段里只与 2 次信号重叠，"
+        "「脱钩期冻结」的 +1.3pp 改善由这 2 次决定 —— 样本不足以支撑把它做成交易开关。",
+    ]
+
+    L_ += [
+        "",
+        "## 7. 提醒",
         "",
         "- **「实际目标」常与本带操作不一致**：执行规则固定为读法 A（`hold_left`，"
         "「从某个带内离开时执行带内的操作」），所以满仓带里平均只持 89%（等 z 跌回 0.80 之下才买）、"
-        "清仓带里平均还持 74%（等 z 升回 0.20 之上才卖）。这不是 bug，是「离带才动手」的直接推论；"
-        "回测里它比「按当前带定仓」高 5.00pp/年（`../backtest/_v4_erp_band_bt.md` §3/§9）。",
+        "清仓带里平均还持 73%（等 z 升回 0.20 之上才卖）。这不是 bug，是「离带才动手」的直接推论；"
+        "回测里它比「按当前带定仓」高 5.21pp/年（`../backtest/_v4_erp_band_bt.md` §3/§9）。",
         "- **换手极低**（14.2 年 15 次），所以场外 0.5% 赎回费不再是生死线（场外 vs ETF 差 0.70pp/年）；"
         "真正的代价是**回撤**：-38.96%，与静态 80/20 同级，比旧口径 80/50/20（-27.15%）大 12pp。",
         "- 带边界 0.8/0.2 两头都往下掉（整体平移 −0.10 → +6.81%，+0.10 → +5.39%），"
@@ -229,7 +307,16 @@ def main():
                          "lower": r["lower"], "z": z, "band": b,
                          "band_name": r["band_name"], "plan_weight": r["plan_w"],
                          "target_equity": tgt, "days_in_band": r["days_in_band"],
-                         "next_up": r["up"], "next_dn": r["dn"]},
+                         "next_up": r["up"], "next_dn": r["dn"],
+                         # 带内趋势提前（v5 MA250+20）
+                         "trend_q": r["trend_q"], "trend_intra": r["trend_intra"],
+                         "trend_ma": r["trend_ma"], "trend_slope": r["trend_slope"],
+                         "intra_events": r["intra_events"],
+                         # 锚健康度（只观测，不参与信号）
+                         "erp_pct": r["erp_pct"], "health": r["health"],
+                         "z_gap": r["z_gap"], "dislocated": r["dislocated"],
+                         "health_window": r["health_window"],
+                         "health_dis": r["health_dis"]},
             "action": {"capital": capital, "current_equity": w_now,
                        "delta_amount": amt, "next_cross": nxt},
             "crosses": [{"date": ts.date().isoformat(), "z": float(x["z"]),
@@ -243,6 +330,8 @@ def main():
     print(f"{df.index[-1]:%Y-%m-%d} · ERP {r['erp']:.2f}% · z={z:.2f} · "
           f"B{b} {r['band_name']}（本带操作 {plan_txt}）· 实际目标 {tgt:.0%} · "
           f"动作 {amt:+,.0f} 元")
+    print(f"  沪深300 趋势 {r['trend_q']} · 带内提前 {r['intra_events']} 次 · {r['trend_txt']}")
+    print(f"  锚健康度 H={h_txt.replace('**', '')} · 长期分位 {pct_txt} · 背离 {gap_txt}")
     for x in nxt:
         print("  下次:", x)
 

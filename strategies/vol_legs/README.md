@@ -265,7 +265,10 @@ strategies/vol_legs/
 ├── backtest.py    # 六档对比 × 两种口径 + 四条腿的单腿全周期 + 闸门敏感性
 ├── scan.py        # 每日操作报告 + 信号 JSON + 固定 7 腿名单
 ├── _plot_leg_core.py  # 跨变种共享的单腿图渲染器（各变种 research/_plot_leg.py 只传 SPEC）
-├── research/      # 跨变种专项研究（_gate_asof_check / _probe_* / _vol_layer_v2v3 / _v1v10_compare）
+├── research/      # 跨变种专项研究，**每个研究一个子目录**（脚本 + 该研究的 md/png/jsonl 同放一处）：
+│                  #   gate_asof_check/（闸门前视检验）、probe_vol_target/（VT 探针）、
+│                  #   probe_us_gate_vs_vt/（v7 vs v9 同口径对决）、probe_published_us/（外部策略扫描）、
+│                  #   vol_layer_v2v3/（波动层在 v2/v3 实测）、v1v10_compare/（10 变种两次综合对比）
 ├── data/          # _val_inputs.json(人工回填: FOMC、PB/ERP 分位、保险丝、QDII 额度)
 ├── backtest/      # _vol_legs_bt.md / .json
 ├── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
@@ -306,7 +309,7 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 
 > ⚠ **闸门在回测里是「当下快照」**（`data.gates()` 的 static 部分不随时间变），严格说是前视：
 > 历史那些时刻并不知道 2026 年的分位。逐日 as-of 对照见
-> [`research/_gate_asof_check.md`](research/_gate_asof_check.md)：沪深300 换口径后组合年化
+> [`research/gate_asof_check/_gate_asof_check.md`](research/gate_asof_check/_gate_asof_check.md)：沪深300 换口径后组合年化
 > 差 0.00pp、单腿差 +0.01pp（该闸门在这两段样本里没改变过成交路径）。其余闸门本地没有
 > 历史序列，**仍然不可验证**，报告里已如实标注。
 >
@@ -358,7 +361,7 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
   方向相反，**不可叠加在同一份额度上**。**2026-10-30 起进每日操作板块2**（`daily/_daily_scan.py`，
   随 `run_daily_vol_legs.ps1` 第 2 步运行，看板卡读 `daily/_v3_macd_boll_daily.json`），顶替 v1 / v4 的卡片。
   > ⚠ **波动层（v5 那套 q80×0.9）在 v2/v3 上实测无效，已决定不接入**：
-  > [`research/_vol_layer_v2v3.md`](research/_vol_layer_v2v3.md)。组合层 V2 +6.01%/−7.84%/0.73 →
+  > [`research/vol_layer_v2v3/_vol_layer_v2v3.md`](research/vol_layer_v2v3/_vol_layer_v2v3.md)。组合层 V2 +6.01%/−7.84%/0.73 →
   > +5.69%/−6.79%/**0.77**、V3 +3.61%/−4.67%/0.50 → +3.30%/−3.90/**0.48**（回撤换年化，夏普基本不动）。
   > 根因：这两支平均仓位只有 **31% / 17%**，风险已由「空仓」承担，波动层没有仓位可压 ——
   > 与 v5（均仓位 62%~91%）的前提完全不同。
@@ -417,11 +420,11 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
   ⚠ **两种回撤口径必须分清**：日频口径下两条腿的最大回撤都被 2020-02→03 那波占住，
   所有档位都是 −28.17%（月度确认制对 5 周 V 型急跌结构性无效）；文档的「回撤砍半」是**月末采样**口径。
   5 条硬断言全过。此前两版（移动止损 → 波动率目标化）的代码与结论见 git 历史，
-  VT 的实测证据留在 `research/_probe_vol_target.{py,md,png}`（解释了「止损在美股上是负优化」）。
+  VT 的实测证据留在 `research/probe_vol_target/_probe_vol_target.{py,md,png}`（解释了「止损在美股上是负优化」）。
   图：`research/_plot_gate.py` → `_v7_gate_{ndx,spx}.png`（版式与 v5 的操作点图一致）。
   每日：`daily/_daily_scan.py` → `_v7_us_gate_daily.{md,json}`（月初/月中只会说「维持」，
   只有月末才可能有动作；当前 2026-11-03 两腿满仓、下次决策 ≈ 11-30）。
-   ⚠ **与 v9 的同口径对决**见 [`research/_probe_us_gate_vs_vt.{py,md}`](research/_probe_us_gate_vs_vt.md)
+   ⚠ **与 v9 的同口径对决**见 [`research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.{py,md}`](research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.md)
    （2026-11-05：把两者拉到同成本/同计息，并把样本前推到 **1995 年** —— 那里才有 2000-2002 与 2008）：
    组合层 31.8 年 v7 默认 **+12.90% / 日频回撤 −21.85% / 夏普 0.77** vs v9 默认 **+11.38% / −42.11% / 0.69**；
    换成 2012+ 的 QDII 口径则是 v9 回撤更浅（−15.92% vs −19.07%）。
@@ -438,7 +441,7 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
   同尺子下 v7 +13.07% / −18.90% / 0.86、v9 +12.96% / −15.98% / 0.88），
   原因不是规则写错，而是**样本里没有它能救的行情**（2000-2002 / 2008 不在样本内，唯一大坑是
   2020 那 5 周 V 型急跌 —— 慢线 2020-04-30 才翻空、05-21 又翻多，**卖在坑底、买在反弹后**）。
-  换到 **1995-2026 长样本**（`research/_probe_published_us.md`，指数口径）：金叉纳指
+  换到 **1995-2026 长样本**（`research/probe_published_us/_probe_published_us.md`，指数口径）：金叉纳指
   **+16.08% / −35.74% / 夏普 0.72** vs 买入持有 **+14.37% / −82.90% / 0.48** —— **三项全赢**。
   工程优势是真的：**一年只动 2 次**（14.2 年 28 次），成本 0.6% 只掉 0.59pp，**最适合场外 A 类**。
   7 条硬断言全过。
@@ -474,11 +477,11 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
    v9 的 2000-2002 窗口回撤是 **−42.11%**（v7 −21.14%、静态 −75.43%）—— 波动率目标只能按比例减、
    `min(1, 15%/80%)` 仍有 19% 仓位，**长熊里减不到底**。所以它适合做「短促急跌」的一条腿
    （2020 +8.80% vs v7 +2.93%、2022 −17.48% vs v7 −11.82% 都是它赢），不适合单独当美股主策略。
-   见 [`research/_probe_us_gate_vs_vt.md`](research/_probe_us_gate_vs_vt.md)。
+   见 [`research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.md`](research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.md)。
 - **原 `v10_erp_ladder/` 已并入 v4**（2026-11-03 同日：先按「离带执行」落地为 v10，再按用户口径
   把 4 带改成两带，最后随「删除 v4/v8」的指令提升为 **v4 主口径**，目录改名为 `v4_erp_band/`）。
   旧 v4/v8 的结论与代码见 git 历史（`dc2bbff`）。
-- **外部策略扫描（2026-11-05）**：[`research/_probe_published_us.{py,md}`](research/_probe_published_us.md)
+- **外部策略扫描（2026-11-05）**：[`research/probe_published_us/_probe_published_us.{py,md}`](research/probe_published_us/_probe_published_us.md)
   —— 把网上流传的 **12 条纳指/标普策略**按原文参数实现，与 v7/v9 放同一把尺子（1995-2026 · 31.8 年 ·
   单边 0.10% · 空仓 1.40%）：Faber 10 月均线（**+16.20% / −35.74% / 夏普 0.73**，转债券）、
   200 日线裸日频（+13.50% / −43.07% / 0.63）、200 日线 + 5% 缓冲（+14.09% / −37.51% / 0.66）、
@@ -496,9 +499,11 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > **逐腿表与参数敏感性表**仍是旧口径下的排版，个别绝对值有 ±0.1~0.3pp 的出入；
 > 以 artifacts 为准，别拿 README 的旧格子当结论。
 
-> **横向对比（两次综合对比 · v1–v10）**：见 [`research/_v1v10_compare.md`](research/_v1v10_compare.md)
+> **横向对比（两次综合对比 · v1–v10）**：见 [`research/v1v10_compare/_v1v10_compare.md`](research/v1v10_compare/_v1v10_compare.md)
 > —— 第一组 **v1–v6 × 全部七腿**（v1/v2/v3/v5 七腿组合 + v4/v6 沪深300 方法论，基准 = 沪深300），
 > 第二组 **v7–v10 × 仅纳指100 + 标普500**（四支同池、同成本，基准 = 静态 50/50）。
-> 图：`research/_v1v6_comprehensive.png` / `_v1v6_leg_{7腿}.png` / `_v7v10_comprehensive.png` /
-> `_v7v10_leg_{ndx,spx}.png`（逐腿图已改版：买卖点移出净值曲线，画在下方仓位窄带里）。
-> 跑一次：`python strategies/vol_legs/research/_v1v10_compare.py`。
+> 图（同在 `research/v1v10_compare/`）：
+> `_v1v6_comprehensive.png`（组合层）/ `_v1v6_overlay_{7腿}.png`（**单标的口径**：该腿买入持有为虚线基准，
+> 一眼看出「这条腿上择时赢没赢过一直拿着」）/ `_v1v6_leg_{7腿}.png`（分面：买卖点画在下方仓位窄带）/
+> `_v7v10_comprehensive.png` / `_v7v10_leg_{ndx,spx}.png`。
+> 跑一次：`python strategies/vol_legs/research/v1v10_compare/_v1v10_compare.py`。

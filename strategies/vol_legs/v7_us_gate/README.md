@@ -6,7 +6,7 @@
 - **标的池只有两条腿**：纳指100（`270042`）+ 标普500（`017641`/`050025` 桥接）。
 - 规则权威源：`us_gate.py` 顶部常量（`params()` 打包）——`CONFIRM=2` / `DEEP=0.03` / `TV=0.20` / `VOL_DEAD=0.10` / `FLOOR`。
 - 本目录此前是「移动止损」（`v7_trailing_stop`）→「波动率目标化」（`v7_vol_target`）
-  → 美股年线闸门。前两版见 git 历史与 `research/_probe_vol_target.md`。
+  → 美股年线闸门。前两版见 git 历史与 `vol_legs/research/probe_vol_target/_probe_vol_target.md`。
 
 一句话：**跌破 200 日线等第二个月末还没回来就减仓（首次破位就深于 3% 的当月就动手）；再乘 `min(1, 20%/vol20)`；仓位变动不到 10pp 不动手；重新站上，次月就回满。**
 

@@ -100,7 +100,7 @@ Set-Location g:\xalpha          # 禁止
 | **① 规则** | 策略包**根** | `rule.py`（参数权威源）、`factors.py`、`engine.py`、`data.py` | **不能** —— 它们是包的可导入核心，被大量文件 `import`（lights 有 21 处会失败），挪进子目录会让所有引用方的 `sys.path` 失效 |
 | **② 数据** | `<策略>/data/` | 该策略自己的行情缓存等 | 能（改路径常量） |
 | **③ 回测** | `<策略>/backtest/` | 回测产物 `_*_bt.jsonl` + 报告 `_*_report.md` / `.png` / `.html` | 能 |
-| **④ 测试调优** | `<策略>/research/` | 专项分析脚本 + 同名报告 | 能（每个改 1 行 `sys.path`） |
+| **④ 测试调优** | `<策略>/research/` | 专项分析脚本 + 同名报告；**内部再按课题分子目录**（脚本与该课题的 `.md`/`.png`/`.jsonl` 同放一处，如 `vol_legs/research/{gate_asof_check,probe_vol_target,probe_us_gate_vs_vt,probe_published_us,vol_layer_v2v3,v1v10_compare}/`） | 能（每个改 1 行 `sys.path`；下移一层后 `_RES=dirname(_HERE)`、`_VL=dirname(_RES)` 要同步补） |
 | **⑤ 每日推荐操作报告** | `<策略>/daily/` | 扫描产物、分级名单、信号报告与看板 | 能 |
 
 > **入口脚本留在根**：`backtest.py`、`scan.py`、`_reportbt.py`、`_scan_report.py`。它们被 `pipeline/strategies.json` 的 `engine` 字段按**路径**调用，或被其他模块 `import`（如 `research/_tune.py` 会 `import backtest`），移动它们的收益远小于代价。

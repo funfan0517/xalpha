@@ -304,7 +304,7 @@ VOL_MIN_HIST = 500         # 参考分位的最少样本；此前系数恒为 1�
 **关闭方式**：`VOL_USE=False`（组合层、逐腿、每日、画图同步退回三档阶梯）。
 注意副作用：`research/_sens_trend.py`、`_a500_trend.py` 已各自显式 `VOL_USE=False`
 （研究趋势层时要隔离变量），`research/_vol_overlay.py` 同理；
-`vol_legs/research/_v1v10_compare.py` 则**主口径用默认（含波动层）**，另加一列 `v5p`（`VOL_USE=False`）
+`vol_legs/research/v1v10_compare/_v1v10_compare.py` 则**主口径用默认（含波动层）**，另加一列 `v5p`（`VOL_USE=False`）
 作纯趋势对照 —— 横向对比要看「隔离变量」那一列就取 `v5p`。
 
 ## 4. 三个坑（用之前必须知道）

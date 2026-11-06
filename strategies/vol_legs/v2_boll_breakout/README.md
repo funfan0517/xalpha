@@ -165,7 +165,7 @@ python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py --leg hkt  # �
 
 ## 8. 波动层适用性（实测：**不建议接入**）
 
-跨变种实测见 `strategies/vol_legs/research/_vol_layer_v2v3.py` + `_vol_layer_v2v3.md`
+跨变种实测见 `strategies/vol_legs/research/vol_layer_v2v3/_vol_layer_v2v3.py` + `_vol_layer_v2v3.md`
 （波动层实现复用 `v5_trend_gate.trend_gate.vol_scale`，q80×0.9 自适应）：
 
 | 口径 | 基准 | 叠加波动层 | 等暴露对照 |

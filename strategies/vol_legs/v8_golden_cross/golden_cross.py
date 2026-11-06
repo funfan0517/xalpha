@@ -95,7 +95,7 @@ CASH_ANNUAL = rule.CASH_ANNUAL  # 空仓计息（1.40%，与 v7 同口径）
 
 W = {k: 1.0 / len(POOL) for k in POOL}     # 组合层：两腿等权（两条腿都是 10pp 带）
 
-# `research/_probe_published_us.md` 的同规则实测（纳指 · 1995-01~2026-11 · 指数收盘**不含分红** ·
+# `vol_legs/research/probe_published_us/_probe_published_us.md` 的同规则实测（纳指 · 1995-01~2026-11 · 指数收盘**不含分红** ·
 # 单边 0.10% · 空仓 1.40%）。口径与本节不同（30 年 vs 14 年、指数 vs QDII 净值），只比量级。
 DOC_REF = dict(ndx=dict(ann=0.1608, vol=0.2037, mdd=-0.3574, calmar=0.45, sharpe=0.72,
                         trades=36, expo=0.77),

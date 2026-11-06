@@ -26,7 +26,8 @@
 
 产出（本目录 research/，策略类测试调优产物）：
 - `_v1v6_leg_{leg}.png`         七腿 × 四策略分面（价格 + 各自净值 + 各自买卖点）
-- `_v1v6_comprehensive.png`     第一组综合对比（净值 + 回撤，基准 = 沪深300 买入持有）
+- `_v1v6_overlay_{leg}.png`     七腿 × 单标的口径叠加（净值 + 回撤，基准 = 该腿买入持有）
+- `_v1v6_comprehensive.png`     第一组综合对比（组合层，净值 + 回撤，基准 = 沪深300 买入持有）
 - `_v7v10_leg_{ndx,spx}.png`    美股两腿 × 四变种分面（价格 + 净值 + 仓位带 + 大动作）
 - `_v7v10_comprehensive.png`    第二组综合对比（两腿等权组合层，基准 = 静态 50/50）
 - `_v1v10_compare.md` / `.jsonl` 报告 + 机读结果
@@ -53,9 +54,10 @@ import matplotlib.pyplot as plt           # noqa: E402
 import matplotlib.ticker as mticker       # noqa: E402
 from matplotlib.lines import Line2D       # noqa: E402
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_VL = os.path.dirname(_HERE)
-_ROOT = os.path.dirname(_VL)
+_HERE = os.path.dirname(os.path.abspath(__file__))    # .../research/v1v10_compare
+_RES = os.path.dirname(_HERE)                         # strategies/vol_legs/research
+_VL = os.path.dirname(_RES)                           # strategies/vol_legs
+_ROOT = os.path.dirname(os.path.dirname(_VL))         # 仓库根（推导，不写死）
 for _p in (_HERE, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -94,7 +96,8 @@ SLEEVE = rule.SLEEVE_PP                    # 40pp
 
 # ---------------------------------------------------------------- 第一组：v1–v6
 TIMING = ["v1", "v2", "v3", "v5"]
-TIMING_COLOR = {"v1": "#1f77b4", "v2": "#d62728", "v3": "#2ca02c", "v5": "#9467bd"}
+TIMING_COLOR = {"v1": "#1f77b4", "v2": "#d62728", "v3": "#2ca02c", "v5": "#9467bd",
+                "v5p": "#c5b0d5"}
 STRAT_NAME = {
     "v1": "V1 MA20下车", "v2": "V2 BOLL突破", "v3": "V3 MACD+BOLL",
     "v5": "V5 趋势闸门", "v5p": "V5 纯趋势(关波动层)",
@@ -489,7 +492,8 @@ def plot_comprehensive(items, idx, title, sub, out_path, notes, bench=None,
         gridspec_kw=dict(height_ratios=[3.0, 1.15], hspace=0.09))
     for z in rows:
         r, m = z["nav"], z["m"]
-        color = (TIMING_COLOR.get(z["key"]) or US_COLOR.get(z["key"]) or "#333")
+        color = (TIMING_COLOR.get(z["key"]) or US_COLOR.get(z["key"])
+                 or (C_BENCH if z["key"] == bench else "#333"))
         ls = "--" if z["key"] == bench else "-"
         lw = 2.0 if z["key"] == bench else 1.35
         ax.plot(r.index, r.to_numpy(), color=color, lw=lw, ls=ls, zorder=3,
@@ -532,6 +536,48 @@ def plot_comprehensive(items, idx, title, sub, out_path, notes, bench=None,
     fig.savefig(out_path, dpi=125, facecolor="white")
     plt.close(fig)
     return out_path, idx, rows
+
+
+# ================================================================ 逐腿叠加对比（单标的口径）
+def plot_leg_overlay(leg, data, info):
+    """单标的口径：该腿买入持有（基准）+ 四支时机策略，上格净值 / 下格回撤。
+
+    版式与 `_v1v6_comprehensive.png`（组合层）完全一致，只是把「七腿组合」换成「这一条腿」。
+    它回答的是**这只标的上，哪支策略真的赢过一直拿着** —— 组合层那张回答的是「七腿拼起来谁强」，
+    两者不能互相替代：单腿图的虚线是该标的买入持有，这条线就是每支策略的及格线。
+    """
+    idx = info["idx"]
+    bh = rebase(data["leg_px"][leg].reindex(idx).ffill())
+    items = []
+    for vx in ("v1", "v2", "v3", "v5", "v5p"):
+        nav = data["leg_navs"][leg].get(vx)
+        if nav is None:
+            continue
+        items.append((vx, STRAT_NAME[vx], rebase(nav.reindex(idx).ffill())))
+    items.append(("bench_leg", f"{NAMES[leg]} 买入持有（基准）", bh))
+
+    yrs = (idx[-1] - idx[0]).days / 365.25
+    notes = [
+        "上格 = 净值（统一窗口起点归 1），下格 = 回撤；虚线 = 该标的买入持有，"
+        "这条虚线就是及格线：落在它下面的策略，择时还不如一直拿着。",
+        "四支策略都跑在同一份场外复权净值上，T 日盘后算信号、T+1 净值成交，空仓按货基计息，零费率。",
+        "v5 取 README 默认口径（含自适应波动层）；v5p 是关掉波动层的纯趋势对照，用来隔离波动层的贡献。",
+    ]
+    if leg == "hs300":
+        notes.append("v4（ERP 股债通道）/ v6（PE 分位带）是沪深300 单标的方法论，"
+                     "与逐腿择时不同层，见 `_v1v6_comprehensive.png`，不在本图。")
+    else:
+        notes.append("v4（ERP 股债通道）/ v6（PE 分位带）只对沪深300 成立，套不到这条腿，故不在本图。")
+    if leg in ("a500", "hs300"):
+        notes.append("注意：A500 与沪深300 的场外序列在 2025-03-27 之前是同一只 `000051`，两图前段会高度相似。")
+
+    return plot_comprehensive(
+        items, idx,
+        f"{NAMES[leg]} · 各时机策略对比（单标的口径）",
+        f"统一窗口 {idx[0].date()} ~ {idx[-1].date()}（{yrs:.1f} 年）· "
+        "上格净值 / 下格回撤 · 虚线 = 该标的买入持有",
+        os.path.join(OUTDIR, f"_v1v6_overlay_{leg}.png"),
+        notes, bench="bench_leg")[0]
 
 
 US_COLOR = {"v7": "#1f77b4", "v8": "#bcbd22", "v9": "#17becf", "v10": "#d62728",
@@ -678,6 +724,18 @@ def main():
             leg_pngs_a[leg] = plot_leg_group_a(leg, a, info)
         except Exception as e:  # noqa: BLE001
             print(f"  [WARN] 分面图 {NAMES[leg]} 失败: {type(e).__name__}: {e}")
+
+    # ---- 第一组：逐腿叠加对比（版式同沪深300 的组合层对比图）
+    print("第一组：逐腿叠加对比图（单标的口径）…")
+    leg_overlay = {}
+    for leg in LEGS:
+        info = leg_info.get(leg)
+        if info is None:
+            continue
+        try:
+            leg_overlay[leg] = plot_leg_overlay(leg, a, info)
+        except Exception as e:  # noqa: BLE001
+            print(f"  [WARN] 叠加对比图 {NAMES[leg]} 失败: {type(e).__name__}: {e}")
 
     # ---- 第一组：综合对比
     print("第一组：综合对比图…")
@@ -845,6 +903,23 @@ def main():
         "回退到**买入持有**（典型如美股长牛，减仓纯拖累）。",
         "> ⚠ A500 与沪深300 两列互为镜像（2025-03-27 前两条腿场外序列同源自 `000051`），不是两份独立证据。",
         "",
+        "### 1.2 逐腿策略对比图（单标的口径 · 版式同沪深300 那张）",
+        "",
+        "每张图 = 一条腿：上格净值（该腿买入持有 = 虚线基准）+ 四支时机策略，下格回撤。",
+        "与 §1 组合层图的区别在及格线 —— 这里的基准是**该标的自己**，所以能直接看出"
+        "「这条腿上，择时到底赢没赢过一直拿着」。",
+        "",
+    ]
+    for leg in LEGS:
+        if leg in leg_overlay:
+            L.append(f"![{NAMES[leg]} 各时机策略对比]({os.path.basename(leg_overlay[leg])})")
+            L.append("")
+    L += [
+        "> v4/v6 只对沪深300 成立（ERP 股债通道、PE 分位带），不进这些图；"
+        "要看 v4/v6 请回 §1 的组合层对比图。",
+        "> 判读：策略线在虚线之上 = 该腿存在时机红利；全线在虚线之下 = 这条腿适合买入持有"
+        "（典型如纳指/标普的长牛段）。",
+        "",
         "## 2. 第二次综合对比 · v7–v10（仅纳指100 + 标普500）",
         "",
         "![v7–v10 综合对比](_v7v10_comprehensive.png)",
@@ -917,7 +992,8 @@ def main():
         "- **频率决定成本**：v8/v10 日频换手最高，v7/v9 月频换手低 —— 场外 A 类费率下这一条能吃掉半年的超额。",
         "- **2020 型 5 周急跌是月频策略的结构性缺口**，v9/v10 靠月中/日频补丁才补得上；"
         "2000-2002 与 2008 不在 QDII 样本内，结论对下一次泡沫破裂属外推"
-        "（长样本证据见 `research/_probe_us_gate_vs_vt.md`、`_probe_published_us.md`）。",
+        "（长样本证据见 `research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.md`、"
+        "`research/probe_published_us/_probe_published_us.md`）。",
         "",
         "## 4. 图表",
         "",
@@ -925,7 +1001,10 @@ def main():
     for leg in LEGS:
         if leg in leg_pngs_a:
             L.append(f"- 第一组分面 · {NAMES[leg]}（v1/v2/v3/v5）：`{os.path.basename(leg_pngs_a[leg])}`")
-    L.append(f"- 第一组综合对比（净值 + 回撤）：`{os.path.basename(png_a)}`")
+    L.append(f"- 第一组综合对比（组合层 · 净值 + 回撤）：`{os.path.basename(png_a)}`")
+    for leg in LEGS:
+        if leg in leg_overlay:
+            L.append(f"- 单腿策略对比 · {NAMES[leg]}：`{os.path.basename(leg_overlay[leg])}`")
     for leg in US_LEGS:
         if leg in leg_pngs_b:
             L.append(f"- 第二组分面 · {NAMES[leg]}（v7/v8/v9/v10）：`{os.path.basename(leg_pngs_b[leg])}`")
@@ -966,6 +1045,7 @@ def main():
     print("报告:", md_path)
     print("结果:", json_path)
     print("图  :", [os.path.basename(p) for p in leg_pngs_a.values()]
+          + [os.path.basename(p) for p in leg_overlay.values()]
           + [os.path.basename(png_a)]
           + [os.path.basename(p) for p in leg_pngs_b.values()]
           + [os.path.basename(png_b)])

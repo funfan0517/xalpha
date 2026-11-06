@@ -14,7 +14,7 @@
 2. **是不是只是降仓**：按叠加后的平均仓位做恒定暴露对照；
 3. **成本吃不吃得消**：权重变化次数 × 该腿真实申赎费（A 类单边赎回 0.5%）。
 
-产出：`research/_vol_layer_v2v3.md`。模拟结果，非投资建议。
+产出：`research/vol_layer_v2v3/_vol_layer_v2v3.md`。模拟结果，非投资建议。
 """
 import os
 import sys
@@ -27,8 +27,9 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_VL = os.path.dirname(_HERE)                          # strategies/vol_legs
+_HERE = os.path.dirname(os.path.abspath(__file__))    # .../research/vol_layer_v2v3
+_RES = os.path.dirname(_HERE)                         # strategies/vol_legs/research
+_VL = os.path.dirname(_RES)                           # strategies/vol_legs
 for _p in (_VL, os.path.join(_VL, "v2_boll_breakout"),
            os.path.join(_VL, "v3_macd_boll"), os.path.join(_VL, "v5_trend_gate")):
     if _p not in sys.path:
@@ -176,7 +177,7 @@ def main():
     ax = L.append
     ax("# 波动层搬到 V2 / V3：实测（q80×0.9 自适应）")
     ax("")
-    ax("> 由 `research/_vol_layer_v2v3.py` 生成，波动层实现直接复用 "
+    ax("> 由 `research/vol_layer_v2v3/_vol_layer_v2v3.py` 生成，波动层实现直接复用 "
        "`v5_trend_gate.trend_gate.vol_scale`（不复制逻辑）。"
        "`实际仓位 = 信号 × scale`，`scale = clip(0.9 × 自身波动历史80分位 ÷ 120日已实现波动[t−1], "
        "0.2, 1)`；只减不加。扣该腿真实申赎费 + 单边滑点（按 `pos.diff()` 比例扣）。")

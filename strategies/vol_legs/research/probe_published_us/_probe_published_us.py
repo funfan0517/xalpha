@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """**网上流传的纳指/标普策略**大盘点：按原文规则实现，与 v7/v9 同尺子对比。
 
-上一份 `_probe_us_gate_vs_vt.py` 只比了本仓库自己的两个变种。这份回答的是另一个问题：
+上一份 `research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.py` 只比了本仓库自己的两个变种。
+这份回答的是另一个问题：
 **除了 v7 和 v9，市面上（书、博客、券商研报、论坛）还有哪些人尽皆知的纳指/标普策略，
 它们在这个样本上到底行不行？**
 
@@ -65,10 +66,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_VL = os.path.dirname(_HERE)
-_ROOT = os.path.dirname(os.path.dirname(_VL))
-for _p in (_HERE, _VL, os.path.join(_VL, "v7_us_gate")):
+_HERE = os.path.dirname(os.path.abspath(__file__))   # .../research/probe_published_us
+_RES = os.path.dirname(_HERE)                        # strategies/vol_legs/research
+_VL = os.path.dirname(_RES)                          # strategies/vol_legs
+_ROOT = os.path.dirname(os.path.dirname(_VL))        # 仓库根（推导，不写死）
+for _p in (_HERE, _VL, os.path.join(_RES, "probe_us_gate_vs_vt"),
+           os.path.join(_VL, "v7_us_gate")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -578,13 +581,14 @@ def write_md(rows, dca_rows, lump_ann, lump, yrs, checks, bond_px):
     best_sh = max(pub, key=lambda r: r["sharpe"])
     L = [
         f"# 网上流传的纳指/标普策略，在这个样本上到底行不行（{yrs:.1f} 年）",
-        "> 由 `research/_probe_published_us.py` 生成。每条规则都按**原作者写的参数**实现，"
+        "> 由 `research/probe_published_us/_probe_published_us.py` 生成。"
+        "每条规则都按**原作者写的参数**实现，"
         "不调、不优化（调过就不再是「网上的策略」）。",
         "> 样本 1995-01-03 ~ 2026-11-04 · 纳指100 + 标普500 指数收盘（**不含分红**）· "
         "T 收盘决策 → T+1 收盘成交 → 单边 0.10% · 空仓 1.40%。",
         f"> 参考系：同尺子下 **v7 默认 {_p(v7r['ann'])} / {_p(v7r['mdd'])} / 夏普 {v7r['sharpe']:.2f}**、"
         f"v9 默认 {_p(v9r['ann'])} / {_p(v9r['mdd'])} / {v9r['sharpe']:.2f}"
-        "（见 `_probe_us_gate_vs_vt.md`，记账已逐位对齐，见 §1）。",
+        "（见 `research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.md`，记账已逐位对齐，见 §1）。",
         "",
         "## 0. 结论",
         "",

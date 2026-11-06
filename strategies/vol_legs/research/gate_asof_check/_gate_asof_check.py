@@ -20,7 +20,7 @@
 只改 hs300 一条腿的闸门；其余闸门（A500/科创50/恒生科技/美股/TIPS/WGRC）本地没有
 历史序列，仍是快照 —— 报告里如实标注。
 
-产物：research/_gate_asof_check.md（不覆盖任何既有回测报告）。
+产物：research/gate_asof_check/_gate_asof_check.md（不覆盖任何既有回测报告）。
 """
 import os
 import sys
@@ -32,9 +32,10 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_VL = os.path.dirname(_HERE)
-_ROOT = os.path.dirname(_VL)
+_HERE = os.path.dirname(os.path.abspath(__file__))   # strategies/vol_legs/research/gate_asof_check
+_RES = os.path.dirname(_HERE)                        # strategies/vol_legs/research
+_VL = os.path.dirname(_RES)                          # strategies/vol_legs
+_ROOT = os.path.dirname(os.path.dirname(_VL))        # 仓库根（推导，不写死）
 for _p in (_HERE, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -176,7 +177,7 @@ def main():
         "- 默认回测**不改**：`backtest.py` 仍走 static 快照（否则 README 的 14.2 年数字会漂移）。"
         "本脚本只负责回答「这个前视会不会改变结论」。",
         "",
-        "> 复现：`python strategies/vol_legs/research/_gate_asof_check.py`",
+        "> 复现：`python strategies/vol_legs/research/gate_asof_check/_gate_asof_check.py`",
     ]
     with open(OUT, "w", encoding="utf-8") as fh:
         fh.write("\n".join(L) + "\n")

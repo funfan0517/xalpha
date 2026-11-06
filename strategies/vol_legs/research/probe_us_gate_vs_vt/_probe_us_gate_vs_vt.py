@@ -99,8 +99,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-_HERE = os.path.dirname(os.path.abspath(__file__))          # strategies/vol_legs/research
-_VL = os.path.dirname(_HERE)                                # strategies/vol_legs
+_HERE = os.path.dirname(os.path.abspath(__file__))          # .../research/probe_us_gate_vs_vt
+_RES = os.path.dirname(_HERE)                               # strategies/vol_legs/research
+_VL = os.path.dirname(_RES)                                 # strategies/vol_legs
 _ROOT = os.path.dirname(os.path.dirname(_VL))               # 仓库根（推导，不写死）
 for _p in (_HERE, _VL, _ROOT,
            os.path.join(_VL, "v7_us_gate"), os.path.join(_VL, "v9_vol_target")):
@@ -667,7 +668,8 @@ def write_md(checks, qdii, rows, nb, halves, navs_all, tv):
 
     L = [
         f"# v7（年线闸门）vs v9（波动率目标）：同一把尺子 + {yrs:.0f} 年样本",
-        "> 由 `research/_probe_us_gate_vs_vt.py` 生成。池 = 纳指100 + 标普500，两腿等权 50/50；",
+        "> 由 `research/probe_us_gate_vs_vt/_probe_us_gate_vs_vt.py` 生成。"
+        "池 = 纳指100 + 标普500，两腿等权 50/50；",
         "> 长样本价格 = **指数收盘**（`.INX` 1990-01 起 / `.NDX` 1994-01 起，**不含分红**），"
         "信号与执行同一条序列；",
         f"> 空仓按 {CASH:.2%} 逐日计息；T 收盘决策 → T+1 收盘成交 → T+2 起承担收益；成本按 `Σ|Δw|` 单边扣。",

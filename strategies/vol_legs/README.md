@@ -268,7 +268,8 @@ strategies/vol_legs/
 ├── research/      # 跨变种专项研究，**每个研究一个子目录**（脚本 + 该研究的 md/png/jsonl 同放一处）：
 │                  #   gate_asof_check/（闸门前视检验）、probe_vol_target/（VT 探针）、
 │                  #   probe_us_gate_vs_vt/（v7 vs v9 同口径对决）、probe_published_us/（外部策略扫描）、
-│                  #   vol_layer_v2v3/（波动层在 v2/v3 实测）、v1v10_compare/（10 变种两次综合对比）
+│                  #   vol_layer_v2v3/（波动层在 v2/v3 实测）、v1v10_compare/（10 变种两次综合对比）、
+│                  #   v1v10_compare_3y/（同一套图，只把展示窗口截到最近 3 年）
 ├── data/          # _val_inputs.json(人工回填: FOMC、PB/ERP 分位、保险丝、QDII 额度)
 ├── backtest/      # _vol_legs_bt.md / .json
 ├── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
@@ -568,3 +569,12 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > 一眼看出「这条腿上择时赢没赢过一直拿着」）/ `_v1v6_leg_{7腿}.png`（分面：买卖点画在下方仓位窄带）/
 > `_v7v10_comprehensive.png` / `_v7v10_leg_{ndx,spx}.png`。
 > 跑一次：`python strategies/vol_legs/research/v1v10_compare/_v1v10_compare.py`。
+>
+> **近 3 年窗口版**：同一套图、只换窗口，见
+> [`research/v1v10_compare_3y/_v1v10_compare_3y.md`](research/v1v10_compare_3y/_v1v10_compare_3y.md)
+> —— 图名带 `_3y` 后缀（`_v1v6_comprehensive_3y.png` / `_v1v6_overlay_{7腿}_3y.png` /
+> `_v1v6_leg_{7腿}_3y.png` / `_v7v10_comprehensive_3y.png` / `_v7v10_leg_{ndx,spx}_3y.png`）。
+> 口径：**信号仍用全历史算**（年线 250 日预热、v5 波动层 500 日分位、v6 滚动 10 年分位都不能截），
+> 只把**展示与统计窗口**截到最近 3 年、各净值在窗口起点重归 1；3 年样本的抽样误差远大于全历史版，
+> 单腿年化差在 ±3pp 内属噪声，**不要与全历史版逐位对比**。
+> 跑一次：`python strategies/vol_legs/research/v1v10_compare_3y/_v1v10_compare_3y.py`。

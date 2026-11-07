@@ -26,11 +26,13 @@ _HERE = os.path.dirname(os.path.abspath(__file__))                    # v16_trin
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))      # 仓库根
 _DATA = os.path.join(_ROOT, "data")
 _PARENT = os.path.dirname(_HERE)                                      # strategies/tech_indicators
-for _p in (_ROOT, _DATA, _PARENT, _HERE):
+_STRAT = os.path.dirname(_PARENT)                                     # strategies/
+for _p in (_ROOT, _DATA, _PARENT, _HERE, _STRAT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 import _pool  # noqa: E402  家族唯一池定义
+import _panel  # noqa: E402  面板口径唯一实现（与 v9_right_side 共用）
 import rule  # noqa: E402
 
 BREADTH = os.path.join(_DATA, "_breadth_daily.json")
@@ -140,41 +142,21 @@ def _vehicle_frame(hit):
 
 # ------------------------------------------------------------------ 池子（收盘口径）
 def load_pool(refresh=True):
-    """-> {close, volume} 面板（index=日期, columns=池内代码），取自共享十年库。"""
-    if refresh:
-        try:
-            import _refresh_data
-            _refresh_data.ensure_fresh(verbose=False)
-        except Exception as e:  # noqa: BLE001
-            print(f"[行情] 刷新检查失败，沿用本地数据：{type(e).__name__}: {e}")
-    lk = json.load(open(LK, encoding="utf-8"))
-    ind = json.load(open(IND, encoding="utf-8"))
-    ind.pop("_meta", None)
-    close, volume = {}, {}
-    for code in CODES:
-        d = lk.get(code)
-        if not d:
-            continue
-        idx = pd.to_datetime(d["dates"])
-        s = pd.Series(d["close"], index=idx, dtype=float)
-        close[code] = s[~s.index.duplicated(keep="last")].sort_index()
-        v = (ind.get(code) or {}).get("volume")
-        if v and len(v) == len(d["dates"]):
-            vs = pd.Series([None if x is None else float(x) for x in v], index=idx, dtype=float)
-            volume[code] = vs[~vs.index.duplicated(keep="last")].sort_index()
-    return {"close": pd.DataFrame(close).sort_index(),
-            "volume": pd.DataFrame(volume).sort_index()}
+    """-> {close, volume} 面板（index=日期, columns=池内代码），取自共享十年库。
+
+    口径实现在 `strategies/_panel.py::load_pair`（v9/v16 共用的唯一实现）：
+    每只标的保留自身交易日（不 ffill），volume 与 dates 长度不一致时**直接抛错**，
+    不再静默丢列（静默丢列会让池子悄悄变小、回测数字变了没人知道）。
+    """
+    return _panel.load_pair(CODES, refresh=refresh, lk=LK, ind=IND, verbose=False)
 
 
 def complete_end(idx, close_hour=15):
-    """最后一个「已收盘」交易日（避免盘中半日 bar 污染信号与统计）。"""
-    if len(idx) == 0:
-        return None
-    last = idx[-1]
-    now = dt.datetime.now()
-    if last.date() == now.date() and now.hour < close_hour:
-        return idx[-2] if len(idx) > 1 else last
-    return last
+    """最后一个「已收盘」交易日（避免盘中半日 bar 污染信号与统计）。
+
+    实现在 `strategies/_panel.py::complete_end`（v9/v16 共用）。
+    """
+    return _panel.complete_end(idx, close_hour=close_hour)
 
 
 def _main():

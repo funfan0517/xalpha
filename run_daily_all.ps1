@@ -25,6 +25,15 @@ $cfgPath = Join-Path $PSScriptRoot "pipeline\strategies.json"
 if (-not (Test-Path $cfgPath)) { throw "找不到 $cfgPath" }
 $cfg = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
+# 配置自检: 挡住两类「代码没改、结果悄悄错」的配置漂移 ——
+#   ① 同一 runner 被 2 个 enabled 策略引用（新增变种忘标 runner=""，该 ps1 会被跑两遍）
+#   ② runner 指向不存在的文件 / daily.block 不在 blocks（运行时只打印 [skip]，看板沿用旧数据）
+# ERROR 直接中断（跑下去也只会得到错的结果）；WARN 只提示，不阻断。
+Write-Host "[config] 自检 pipeline\strategies.json ..."
+python -W ignore (Join-Path $PSScriptRoot "pipeline\check_daily_config.py")
+if ($LASTEXITCODE -ne 0) { throw "每日操作配置自检失败, 先修上面 [ERROR] 项" }
+Write-Host ""
+
 $ok = @(); $fail = @(); $skip = @()
 # 执行顺序 = 每日操作板块顺序（strategies.json 的 blocks），而非策略在 json 里的书写顺序。
 # 板块内保持注册顺序；未认领 daily.block 的策略排在最后，避免新增策略被漏跑。

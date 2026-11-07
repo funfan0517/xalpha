@@ -8,10 +8,8 @@
 
 标的池唯一入口：`data/_universe.md` 的「场内对应」列（由 `pipeline/universe.py` 派生），**禁止硬编码**。
 """
-import json
 import os
 import sys
-from datetime import datetime
 
 import pandas as pd
 
@@ -24,7 +22,11 @@ if os.path.join(_ROOT, "data") not in sys.path:
 _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # strategies/tech_indicators
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
+_STRAT = os.path.dirname(_PARENT)                                       # strategies/
+if _STRAT not in sys.path:
+    sys.path.insert(0, _STRAT)
 import _pool  # noqa: E402  家族唯一池定义（_universe.md 前四类）
+import _panel  # noqa: E402  面板口径唯一实现（与 v16_trin 共用）
 
 LK = os.path.join(_ROOT, "data", "_long_klines.json")
 IND = os.path.join(_ROOT, "data", "_indicators_hist.json")
@@ -43,41 +45,19 @@ def sh(code):
 
 
 def _refresh(verbose=True):
-    """触发公用行情库刷新检查（进程内幂等，已最新时几乎零成本）。"""
-    try:
-        import _refresh_data
-        return _refresh_data.ensure_fresh(verbose=verbose)
-    except Exception as e:  # noqa: BLE001 - 刷新失败不应中断只读策略
-        print(f"[行情] 刷新检查失败，沿用本地数据：{type(e).__name__}: {e}")
-        return {}, {}
+    """触发公用行情库刷新检查（实现在 strategies/_panel.py，进程内幂等）。"""
+    return _panel.ensure_fresh(verbose=verbose)
 
 
 def load_panels(refresh=True):
     """-> {field: DataFrame(index=DatetimeIndex, columns=code)}，field ∈ {close, volume}。
 
-    每只标的保留**自身交易日**（不 ffill）：停牌日留 NaN，下游按行丢弃，
-    避免补齐后的 0 成交量污染量比类因子（与 lights 同一教训）。
+    口径实现在 `strategies/_panel.py::load_pair`（v9/v16 共用的唯一实现）：
+    每只标的保留**自身交易日**（不 ffill），停牌日留 NaN、下游按行丢弃，
+    避免补齐后的 0 成交量污染量比类因子（与 lights 同一教训，fix#2）。
+    volume 与 dates 长度不一致时**直接抛错**，不再静默丢列。
     """
-    if refresh:
-        _refresh()
-    lk = json.load(open(LK, encoding="utf-8"))
-    ind = json.load(open(IND, encoding="utf-8"))
-    ind.pop("_meta", None)
-    keep = set(CODES)                       # 只保留当前池子，防旧缓存里已剔除的标的混入
-    close, volume = {}, {}
-    for code in keep:
-        d = lk.get(code)
-        if not d:
-            continue
-        idx = pd.to_datetime(d["dates"])
-        s = pd.Series(d["close"], index=idx, dtype=float)
-        close[code] = s[~s.index.duplicated(keep="last")].sort_index()
-        v = (ind.get(code) or {}).get("volume")
-        if v and len(v) == len(d["dates"]):
-            vs = pd.Series([None if x is None else float(x) for x in v], index=idx, dtype=float)
-            volume[code] = vs[~vs.index.duplicated(keep="last")].sort_index()
-    return {"close": pd.DataFrame(close).sort_index(),
-            "volume": pd.DataFrame(volume).sort_index()}
+    return _panel.load_pair(CODES, refresh=refresh, lk=LK, ind=IND)
 
 
 def load_code(panels, code):
@@ -89,16 +69,9 @@ def load_code(panels, code):
 def complete_end(idx, close_hour=15):
     """最后一个「已收盘」交易日（避免盘中半日 bar 污染指标与扫描结论）。
 
-    若最后一根 bar 就是今天且当前未到 15:00，它是盘中未完成 bar（成交量与涨幅都失真），
-    回测/扫描应回退一天；实盘「今日盘中」结论另行标注。
+    实现在 `strategies/_panel.py::complete_end`（v9/v16 共用）。
     """
-    if len(idx) == 0:
-        return None
-    last = idx[-1]
-    now = datetime.now()
-    if last.date() == now.date() and now.hour < close_hour:
-        return idx[-2] if len(idx) > 1 else last
-    return last
+    return _panel.complete_end(idx, close_hour=close_hour)
 
 
 def _main():

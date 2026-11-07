@@ -102,6 +102,7 @@ RSI14 = Wilder RSI，用基金累计净值（totvalue，含分红再投）
 python strategies/dividend/v4_rsi/backtest.py    # 回测 + 阈值敏感性 → backtest/_v4_report.md
 python strategies/dividend/v4_rsi/daily.py       # 每日信号(离线) → daily/_v4_signal.{md,json}
 python strategies/dividend/v4_rsi/chart.py       # 逐标的「累计净值 + RSI14」图 → daily/_v4_<code>_chart.png
+python strategies/dividend/v4_rsi/chart.py --ops # 五只标的的操作标注总图 → daily/_v4_ops_all.png
 python strategies/dividend/v4_rsi/dashboard.py   # 卡片式看板(内嵌上图) → daily/_v4_dashboard.html
 python strategies/dividend/v4_rsi/universe.py    # 池筛选(单标的适配度) → daily/_v4_universe.html
 ```

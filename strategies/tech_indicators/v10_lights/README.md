@@ -243,6 +243,11 @@ universe → rules → backtest → select → daily
 | fix#2 | 面板 ffill 补齐了 **64 个停牌日**，`volume=0` 污染量比类因子 | 一律用「标的自身交易日」（`load_panels_raw()`） | 去掉 513100/513500/501025 等标的的假交易日 |
 | fix#3 | 历史实现先截样本再算指标，前 ~34 个交易日指标不完整 | warm-up 保留 | 起始日提前 ~34 个交易日 |
 
+> **2026-11-06 加固（防止 fix#2 复发）**：
+> ① `load_panels()` 的 `ffill` 默认值由 `True` 翻为 `False` —— 原默认是「危险默认」，新代码不带参数就会踩回停牌污染；`ffill=True` 现在只用于 `strategies/_probe_data.py` 的 A vs B 对照实验，严禁进信号链路。
+> ② 口径自检固化成闸门：`python strategies/_panel.py` 检查「有价无量 / volume-dates 错位 / 日期索引异常」，`run_daily_tech_indicators.ps1` 第 0 步会跑它，违规直接中断。
+> ③ v9/v16 的面板装载已收口到同一个 `strategies/_panel.py`（三份重复实现 → 一份），volume 与 dates 长度不一致时**直接抛错**而非静默丢列。
+
 ### 4.2 过拟合加固
 
 **walk-forward**（样本等分 4 段，每段只用之前的数据选参，再拿到该段验证；候选 = C1~C10）

@@ -77,7 +77,7 @@
 ```
 strategies/tech_indicators/v9_right_side/
   rule.py            # 参数权威源 + 五票因子 + 信号 + 0/1 状态机引擎
-  data.py            # 只读公用十年库（收盘 + 成交量），刷新走 data/_refresh_data.py
+  data.py            # 只读公用十年库（收盘 + 成交量）；面板装载委托 strategies/_panel.py（与 v16 共用，2026-11-06 收口）
   backtest.py        # 逐标的回测（入口，留根）
   scan.py            # 每日扫描（入口，留根）
   _reportbt.py       # 回测报告生成器

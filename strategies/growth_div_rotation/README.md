@@ -61,6 +61,8 @@ growth_div_rotation/
 └─ v5_vol_target/         ← 研究变种（v3 + 18% 波动率目标，**全家族风险调整最优**）
    ├─ rule.py / factors.py / engine.py / data.py / backtest.py / scan.py
    ├─ backtest/           ← _v5_report.md / _v5_bt.json(l) / _v5_nav.png / _v5_vol.png / _v5_alloc.png（每日重画）
+   │                         / _v5_legs_long.png / _v5_legs_3y.png（两条腿各自的 MA200 趋势线 + 该腿仓位带 +
+   │                           ▲▼ 调仓点，全期 / 近三年各一张；`backtest.py --chart` 与 scan.py 每日都会重画）
    └─ daily/              ← _gd_v5_signal.json / _gd_v5_daily.md（板块3 第三张卡，卡片内嵌上面的 _v5_alloc.png）
 ```
 

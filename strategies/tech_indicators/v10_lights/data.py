@@ -85,13 +85,17 @@ def fetch_all(codes=None):
     return out
 
 
-def load_panels(refresh=False, cache=CACHE, ffill=True):
+def load_panels(refresh=False, cache=CACHE, ffill=False):
     """OHLCV 宽表: {field: DataFrame(index=日期, columns=code)}。
 
     缺失值处理:
-      ffill=True: 价格类前向填充（停牌沿用前收），成交量 NaN 记 0。
-      ffill=False: **保持原样**（NaN 不填）—— 统一策略用这个, 再按标的丢弃 NaN 行,
+      ffill=False（**默认**）: **保持原样**（NaN 不填）—— 统一策略用这个, 再按标的丢弃 NaN 行,
         即「标的自身交易日」序列。避免停牌日被补齐后 volume=0 污染量比类因子。
+      ffill=True: 价格类前向填充（停牌沿用前收），成交量 NaN 记 0。**只用于 fix#2 的
+        对照实验**（strategies/_probe_data.py 的 A vs B 对比），严禁进信号链路。
+
+    默认值 2026-11-06 由 True 翻为 False: 原默认是「危险默认」, 新代码 `load_panels()`
+    不带参数就会踩回 fix#2（停牌日 volume=0 被读成缩量）。显式传 True 的调用方仍然照常。
     """
     if not refresh and os.path.exists(cache):
         raw = json.load(open(cache, encoding="utf-8"))

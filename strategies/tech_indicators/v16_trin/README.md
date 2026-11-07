@@ -132,7 +132,7 @@ TRIN 需要的是**全市场每天的横截面**（涨跌家数 + 涨跌成交�
 ```
 strategies/tech_indicators/v16_trin/
   rule.py        # 参数权威源 + TRIN 计算 + 信号 + 单标的/池子两个引擎
-  data.py        # 广度库（data/_breadth_daily.json）+ 执行标的 OHLC + 池子面板
+  data.py        # 广度库（data/_breadth_daily.json）+ 执行标的 OHLC + 池子面板（面板装载委托 strategies/_panel.py，与 v9 共用）
   backtest.py    # 三组口径回测 + 参数网格 + 止损/触发/仓位敏感性（入口，留根）
   _reportbt.py   # 回测报告 + 净值/回撤图
   scan.py        # 每日读数与操作建议（入口，留根）

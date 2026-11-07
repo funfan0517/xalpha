@@ -17,11 +17,14 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 sys.stdout.reconfigure(encoding="utf-8")
 _DIR = os.path.dirname(os.path.abspath(__file__))
-for p in (_DIR, os.path.join(_DIR, "lights")):
+_TI = os.path.join(_DIR, "tech_indicators")
+_LIGHTS = os.path.join(_TI, "v10_lights")
+for p in (_DIR, _TI, _LIGHTS):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import rule
+import _panel  # noqa: E402  口径自检
+import rule  # noqa: E402  v10_lights 的规则（原始 lights 已并入 tech_indicators）
 
 FIELDS = ("open", "high", "low", "close", "volume")
 
@@ -71,3 +74,12 @@ for code, ok, d, la, lb in stat["A_vs_B"][:8]:
 print(f"A(逐标的网络最新) vs C(面板不填充+丢NaN) 不一致: {len(stat['A_vs_net'])}/{n}")
 for code, ok, d, la, lc in stat["A_vs_net"][:8]:
     print(f"   {code}: 行 {la} vs {lc}  {d}")
+
+# 口径自检: 停牌污染指纹 / volume-dates 错位 / 索引单调（fix#2 的回归闸门）
+bad = _panel.check_hygiene(raw)
+print("\n面板口径自检（strategies/_panel.py::check_hygiene）:")
+if bad:
+    for lv, msg in bad:
+        print(f"   [{lv}] {msg}")
+else:
+    print("   [OK] 无停牌污染 / 无 volume-dates 错位 / 索引单调")

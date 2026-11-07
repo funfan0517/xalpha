@@ -19,9 +19,11 @@
       backtest/_v5_alloc.png  三资产仓位堆叠 + 创业板指 / 中证红利点位（各一根右轴）
                               + 风格比值 R（下栏，含 0.35 / 0.65 阈值带）
       backtest/_v5_vol.png    滚动波动 vs 目标 + 缩放系数 + 回撤
+      backtest/_v5_legs_long.png  两条腿各自的趋势线（MA200）+ 该腿仓位带 + 调仓点（全期）
+      backtest/_v5_legs_3y.png    同上，只画最近 3 年
 用法：python strategies/growth_div_rotation/v5_vol_target/backtest.py [--refresh]
       python strategies/growth_div_rotation/v5_vol_target/backtest.py --chart
-          ↑ 只重画 _v5_alloc.png（不跑敏感性网格，秒级完成；每日流程走这条）
+          ↑ 只重画 _v5_alloc.png / _v5_legs_{long,3y}.png（不跑敏感性网格，秒级；每日流程走这条）
 """
 import io
 import json
@@ -45,6 +47,7 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.dates as mdates  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.ticker as mticker  # noqa: E402
 
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -575,6 +578,120 @@ def plot_vol(C):
     return path
 
 
+# ============================================================ 图：两条腿的趋势线 + v5 操作
+LEG_MARK = 0.12        # |该腿仓位单次变动| ≥ 12pp 才画三角（略低于缩放层死区 15pp）
+
+
+def plot_leg_ops(g, d, W, years=None, tag="全期", path=None):
+    """两条腿各一格：指数点位 + MA200 趋势线 + 该腿仓位带 + v5 的调仓点。
+
+    回答 `_v5_alloc.png` 答不了的问题：**在这条腿自己的价格图上，v5 什么时候动它**。
+    `_v5_alloc.png` 把两条点位曲线叠在同一根右轴（还有第二根左轴），量级差 2~3 倍，
+    读不出「跌破 MA200 减半」发生在哪一段；这里每条腿独占一格、价格用对数轴，
+    趋势线就是策略真正用的那条 `rule.MA_TREND` 均线，调仓点直接钉在该指数的收盘价上。
+
+    仓位带（底色 + 阶梯）是该腿的**最终权重**，已含三层结果：
+    R 换档（0/1）+ 趋势层减半（×0.5）+ 波动层缩放（×scale）。
+    `years` 给了就只截展示窗口 —— 权重与均线仍按**全历史**算，否则窗口首日会冒出假信号
+    （`diff` 相对窗口外的值），MA200 也会缺 200 根。
+    """
+    idx = W.index
+    if years:
+        idx = idx[idx >= idx[-1] - pd.DateOffset(years=years)]
+    yrs = (idx[-1] - idx[0]).days / 365.25
+    os.makedirs(OUT, exist_ok=True)
+
+    panels = [("growth", g, rule.GROWTH_NAME, rule.GROWTH_INDEX, "#d95f02", "#a34700"),
+              ("div", d, rule.DIV_NAME, rule.DIV_INDEX, "#4a7fb5", "#2f5580")]
+    fig, axes = plt.subplots(2, 1, figsize=(13.5, 9.8), sharex=True,
+                             gridspec_kw=dict(height_ratios=[1, 1], hspace=0.18))
+    for (col, px, name, code, c_fill, c_dark), ax in zip(panels, axes):
+        p = px.reindex(idx).ffill()
+        ma = factors.trend_ma(px).reindex(idx)
+        w = W[col].reindex(idx).ffill()
+        dw = W[col].diff().fillna(0.0).reindex(idx).fillna(0.0)   # 全序列 diff，窗口首日不造假信号
+
+        # 该腿仓位：底色 + 阶梯（右轴）。放到底层，别压住价格线。
+        axw = ax.twinx()
+        axw.set_zorder(ax.get_zorder() - 1)
+        ax.patch.set_visible(False)
+        axw.fill_between(idx, 0, w.values, step="post", color=c_fill, alpha=0.14, lw=0)
+        axw.step(idx, w.values, where="post", color=c_fill, lw=0.9, alpha=0.7, zorder=1)
+        axw.set_ylim(-0.02, 1.02)
+        axw.set_yticks([0.0, 0.5, 1.0])
+        axw.set_yticklabels(["0%", "50%", "100%"], fontsize=8.4, color=c_dark)
+        axw.set_ylabel(f"{name}仓位（右轴）", fontsize=9.5, color=c_dark)
+        axw.tick_params(axis="y", colors=c_dark, length=2)
+
+        ax.plot(p.index, p.values, color="#2b2b2b", lw=1.15, zorder=4,
+                label=f"{name} {code}")
+        ax.plot(ma.index, ma.values, color="#c0392b", lw=1.5, ls="--", alpha=0.9, zorder=3,
+                label=f"趋势线 MA{rule.MA_TREND}（收盘跌破 → 该侧减半）")
+
+        n_up = n_dn = 0
+        for sel, mk, color, lab in ((dw[dw >= LEG_MARK], "^", "#c0392b", "加仓"),
+                                    (dw[dw <= -LEG_MARK], "v", "#1a9850", "减仓")):
+            if not len(sel):
+                continue
+            ax.plot(sel.index, p.reindex(sel.index).values, ls="none", marker=mk, ms=7.0,
+                    mfc=color, mec="white", mew=0.6, zorder=6,
+                    label=f"{lab} {mk}（{len(sel)} 次 · |Δ仓位|≥{LEG_MARK:.0%}）")
+            n_up += len(sel) if mk == "^" else 0
+            n_dn += len(sel) if mk == "v" else 0
+
+        ax.set_yscale("log")
+        lo, hi = float(p.min()), float(p.max())
+        ax.set_ylim(lo * 0.90, hi * 1.10)
+        # 只给 10^n 设刻度会只剩一根线（创业板指 585~4037 都在同一个数量级），
+        # 所以 1/2/3/5/7 也放刻度，读图才能估出「破了多少」。
+        ax.yaxis.set_major_locator(mticker.LogLocator(base=10.0, subs=(1.0, 2.0, 3.0, 5.0, 7.0)))
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _p: f"{v:,.0f}"))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.set_ylabel(f"{name}点位（对数轴）", fontsize=10)
+        ax.grid(alpha=0.25)
+        ax.legend(loc="upper left", fontsize=8.4, framealpha=0.92)
+        ax.set_title(f"{name} {code} · v5 平均仓位 {w.mean():.0%}、当前 {w.iloc[-1]:.0%}"
+                     f" · 加仓 {n_up} / 减仓 {n_dn}（≥{LEG_MARK:.0%} 的动作）",
+                     fontsize=10.5, loc="left", color=c_dark, pad=6)
+
+    axb = axes[-1]
+    if yrs <= 4:
+        axb.xaxis.set_major_locator(mdates.MonthLocator(bymonth=(1, 4, 7, 10)))
+        axb.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    else:
+        axb.xaxis.set_major_locator(mdates.YearLocator())
+        axb.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    axb.tick_params(labelsize=8.6)
+    for a in axes:                       # 别让自动留白把 x 轴撑出数据范围（右侧会多出「2027」）
+        a.set_xlim(idx[0], idx[-1])
+
+    fig.suptitle(f"v5 两条腿：趋势线（MA{rule.MA_TREND}）与调仓点 · {tag}"
+                 f"    {idx[0].date()} ~ {idx[-1].date()}（{yrs:.1f} 年）",
+                 x=0.045, ha="left", y=0.972, fontsize=14, color="#1b2b3a", weight="bold")
+    note = (
+        "说明：上格 = 创业板指（成长腿）、下格 = 中证红利（红利腿）。黑线 = 该指数收盘（对数轴），"
+        f"红虚线 = 策略自己的趋势线 MA{rule.MA_TREND}（收盘跌破 → 该侧仓位减半，削掉的转现金）。\n"
+        "底色/阶梯（右轴）= v5 在这条腿上的**最终仓位**，已含三层结果："
+        f"R 换档（R≤{rule.RATIO_LOW:.2f} 满仓成长 / R≥{rule.RATIO_HIGH:.2f} 满仓红利）"
+        f" × 趋势层减半（×{1 - rule.TREND_CUT:.1f}） × 波动层缩放（min(1, "
+        f"{rule.VOL_TARGET:.0%}÷{rule.VOL_WINDOW} 日已实现波动)）。"
+        f"\n▲/▼ = 该腿仓位单次变动 ≥{LEG_MARK:.0%} 的调仓日，钉在该指数当日收盘价上；更小的变化看仓位阶梯。"
+        f"当前（{idx[-1].date()}）：成长 {W['growth'].iloc[-1]:.0%} / 红利 {W['div'].iloc[-1]:.0%} / "
+        f"现金 {W['cash'].iloc[-1]:.0%}。中证红利为**价格指数**（不含股息再投），模拟结果，非投资建议。")
+    fig.text(0.045, 0.012, note, fontsize=8.6, color="#5b6b7a", linespacing=1.6, va="bottom")
+    fig.subplots_adjust(left=0.072, right=0.922, top=0.905, bottom=0.145)
+    fig.savefig(path, dpi=140, facecolor="white")
+    plt.close(fig)
+    return path
+
+
+def leg_ops_charts(g, d, W):
+    """两张腿图（全期 / 近三年）—— 回测与每日 `--chart` 共用同一份画法。"""
+    return [plot_leg_ops(g, d, W, tag="全期", path=os.path.join(OUT, "_v5_legs_long.png")),
+            plot_leg_ops(g, d, W, years=3, tag="近三年",
+                         path=os.path.join(OUT, "_v5_legs_3y.png"))]
+
+
 # ============================================================ 产物
 def write_products(C):
     os.makedirs(OUT, exist_ok=True)
@@ -638,6 +755,8 @@ def write_products(C):
     print("图:", plot_nav(C))
     print("图:", plot_alloc(C))
     print("图:", plot_vol(C))
+    for p in leg_ops_charts(C["g"], C["d"], C["main"]["W"]):
+        print("图:", p)
     return summary
 
 
@@ -651,18 +770,22 @@ def draw_main_chart(g, d, r, W):
 
 
 def main_chart():
-    """只算 v5 默认档的目标权重并重画 _v5_alloc.png（跳过敏感性网格，秒级）。"""
+    """只算 v5 默认档的目标权重并重画图片产物（跳过敏感性网格，秒级）。
+
+    返回路径列表：`_v5_alloc.png` + `_v5_legs_long.png` + `_v5_legs_3y.png`。
+    """
     wide = datamod.load_wide()
     g, d = wide[rule.GROWTH_INDEX], wide[rule.DIV_INDEX]
     r = factors.ratio_series(g, d)
     g, d = g.reindex(r.index), d.reindex(r.index)
     W = engine.run(g, d, engine.target_weights(r, g, d))["W"]
-    return draw_main_chart(g, d, r, W)
+    return [draw_main_chart(g, d, r, W)] + leg_ops_charts(g, d, W)
 
 
 def main():
     if "--chart" in sys.argv:
-        print("图:", main_chart())
+        for p in main_chart():
+            print("图:", p)
         return
     write_products(compute(refresh="--refresh" in sys.argv))
 

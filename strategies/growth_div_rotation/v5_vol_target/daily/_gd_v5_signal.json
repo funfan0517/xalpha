@@ -1,7 +1,7 @@
 {
  "strategy": "growth_div_rotation/v5_vol_target",
  "as_of": "2026-11-06",
- "generated": "2026-11-06 15:52",
+ "generated": "2026-11-06 17:47",
  "bars": 3990,
  "start": "2010-06-01",
  "R": 0.4461,

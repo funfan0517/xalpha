@@ -203,7 +203,7 @@ strategies/dividend/
 | ③ **V10** | `v10_resonance/`（**状态机**：买点三条件共振 → 持有 → 收复前高/满250日/止损 退出；`rule.py` 参数权威源 + `data.py` 价格与全收益指数日频 + `factors.py` 滚动前高与反推股息率 + `engine.py` 状态机）→ `backtest/_v10_report.md`（含事件表 / 卖点与止损对照 / 参数敏感性 / W1·W2 双窗口 / 对照标的 H30269）；`chart.py` → `daily/_v10_000922_chart.png`（净值 + 股息率双线图，标注每个操作点）；`research/_sell_lab_report.md`（卖点是否合理：逐笔后验 + 离场规则家族对比） |
 | ⑤ V10 每日状态机读数 | `v10_resonance/daily.py` → `daily/_v10_signal.{md,json}`（**不进每日流程**；只出状态、三条买点条件、三条卖线、分批计划） |
 | ⑤ V4 今日信号 | `v4_rsi/daily.py`（当前档位 + 持仓 + 下个决策点）→ `v4_rsi/daily/_v4_signal.md` |
-| ⑤ V4 读数图 + 看板 | `v4_rsi/chart.py`（逐标的：左轴累计净值 / 右轴 RSI14，背景按满仓/减半/清仓三档着色并标注操作；默认池内 5 只近一年，`--all` 全样本、`--basis index` 改指数点位）→ `v4_rsi/daily/_v4_<code>_chart[_all][_index].png`；`v4_rsi/dashboard.py` → `daily/_v4_dashboard.html`（卡片式看板，内嵌上述小图） |
+| ⑤ V4 读数图 + 看板 | `v4_rsi/chart.py`（逐标的：左轴累计净值 / 右轴 RSI14，背景按满仓/减半/清仓三档着色并标注操作；默认池内 5 只近一年，`--all` 全样本、`--basis index` 改指数点位、**`--ops` 出五只标的的操作标注总图** → `daily/_v4_ops_all.png`：净值走势 + 该标的实际仓位台阶 0/25/50% + ▲▼ 每次加/减仓点 + 板块 RSI 均值档位格）→ `v4_rsi/daily/_v4_<code>_chart[_all][_index].png`；`v4_rsi/dashboard.py` → `daily/_v4_dashboard.html`（卡片式看板，内嵌上述小图） |
 | ③ V7 | `v7_combo/`（组合搜索 + 最终优选）→ `v7_combo/backtest/_v7_report.md` |
 | ③ 备选规则 | `pool_rule_v1.py`（利差读数卡，并行未替换）→ `daily/_pool_rule_v1.{md,json}` |
 | ③ 总对比 | `_compare_all.py`（**V0–V10**：§一 V0–V8 对齐窗口全景 + §三 原生口径含 V9/V10）→ `backtest/_compare_all_report.md`。V9/V10 与 `_single_signal` 结构不同构，只并列在 §三 表、**不参与 §一 排名**；§五 另附两者定位 |
@@ -276,6 +276,7 @@ python strategies/dividend/v4_rsi/daily.py --refresh      # ★ 每日操作(现
 python strategies/dividend/v9_temp5/daily.py --refresh    # ★ 每日操作(现行): V9 五因子温度读数(另跑 charts.py + dashboard.py)
 python strategies/dividend/v4_rsi/backtest.py             # V4 回测(5 只池) + 阈值敏感性
 python strategies/dividend/v4_rsi/chart.py                # V4 逐标的累计净值+RSI图(近一年, 5 只)
+python strategies/dividend/v4_rsi/chart.py --ops          # V4 五只标的的操作标注总图 → daily/_v4_ops_all.png
 python strategies/dividend/v4_rsi/dashboard.py            # V4 卡片式看板(内嵌上图) → daily/_v4_dashboard.html
 python strategies/dividend/v4_rsi/universe.py             # 池筛选: 10 只红利标的的择时适配度
 python strategies/dividend/v8_rsi12/backtest.py           # V8 对照(12 日 + 80/20): 参数族 + 窗口网格

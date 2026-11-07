@@ -66,9 +66,12 @@ def _next_bday(idx):
 
 
 def _redraw(g, d, r, W):
-    """重画 backtest/_v5_alloc.png（画图逻辑只写在 backtest.plot_alloc 里，这里喂当日权重）。"""
+    """重画 backtest/ 下三张图（alloc + 两条腿的趋势线/调仓点图）。
+
+    画图逻辑只写在 `backtest` 里，这里喂当日权重，保证「看板上的图」与每日信号同源。
+    """
     import backtest  # 延迟导入：只有出图时才拉起 matplotlib
-    return backtest.draw_main_chart(g, d, r, W)
+    return [backtest.draw_main_chart(g, d, r, W)] + backtest.leg_ops_charts(g, d, W)
 
 
 def _action(base_cur, base_next, cur, nxt, tgt) -> tuple:

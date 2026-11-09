@@ -214,16 +214,18 @@ def main():
                        False, None))
 
     sens_c = []
-    for fast, slow in ((12, 26), (20, 60), (50, 200)):
+    main_pair = (G.MACD_FAST, G.MACD_SLOW)
+    for fast, slow in (main_pair, (12, 26), (20, 60), (30, 100)):
         over = dict(MACD=(fast, slow, 9))
         st = G.state_c(d_otc["px"], **over)
-        sens_c.append((f"MACD {fast}/{slow}（场外 000216 · 主口径）",
+        tag = "（场外 000216 · 主口径）" if (fast, slow) == main_pair else "（场外 000216）"
+        sens_c.append((f"MACD {fast}/{slow}{tag}",
                        run_block(d_otc["px"], st, start_of(d_otc, "C"), "otc", G.params(**over))))
     st_f = G.state_c(d_otc["px"], C_TREND_FILTER=True)
-    sens_c.append(("MACD 12/26 + 只在年线上方持（场外）",
+    sens_c.append((f"MACD {main_pair[0]}/{main_pair[1]} + 只在年线上方持（场外）",
                    run_block(d_otc["px"], st_f, start_of(d_otc, "C"), "otc",
                              G.params(C_TREND_FILTER=True))))
-    for fast, slow in ((12, 26), (50, 200)):
+    for fast, slow in (main_pair, (12, 26)):
         over = dict(MACD=(fast, slow, 9))
         st = G.state_c(d_ex["px"], **over)
         sens_c.append((f"MACD {fast}/{slow}（场内 518880 · 万 0.3 佣金）",
@@ -368,8 +370,9 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
     A("")
     A("- **场外净值**是实际执行口径（含分红再投、跟踪误差、申赎时滞），A/B 的主表用它；")
     A("- **场内收盘**用于 C 的对照 —— C 的换手高，场外 A 类的赎回费会吃掉大半超额；")
-    A("- 三条口径统一等 MA250 预热（C 另外按 250 个交易日截断），所以**主表起算点基本重合**；"
-      "§3 仍给同一窗口的对照，避免首日建仓差异影响结论。")
+    A(f"- 三条口径统一等 MA250 预热（C 另外按 {G.C_WARMUP} 个交易日截断 —— "
+      "EMA200 的初始值残留 (1-2/201)^N 在 N=250 时还有 8%，故取 2×slow），"
+      "所以**主表起算点基本重合**；§3 仍给同一窗口的对照，避免首日建仓差异影响结论。")
     A("")
 
     # ---- 2. 主表
@@ -549,10 +552,12 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
         A(f"| {nm} | {pct(m['ann'])} | {pct(m['mdd'])} | {num(m['sharpe'])} | "
           f"{num(r['calmar'])} | {r['exp']:.0%} | {r['acts']} | {r['cost'] * 100:.2f}pp |")
     A("")
-    A("> 慢参数（50/200）比家族基线 12/26 好得多，因为它把换手砍到 1/3 —— "
-      "**但 12/26 是 `tech_indicators/v13_macd` 的既有基线、50/200 是在本样本上事后挑的**，"
-      "所以默认仍用 12/26，把 50/200 放在这张表里当「同一逻辑的低频版」看，"
-      "不要把它当结论。年线过滤（只在年线上方持仓）在黄金上没用：它把仓位砍到三成，收益更差。")
+    A("> **50/200 自 2026-11-09 起是主口径**（按用户要求从 12/26 切换）。同一逻辑下它把调仓"
+      "从 212 次砍到 90 次、累计成本从 84.80pp 降到 36.00pp、年化从 +1.30% 提到 +5.07%。"
+      "**但有两点必须一起看**：① 它仍然跑输买入持有（+11.39%），差的 6.3pp/年就是「一半时间空仓」的代价；"
+      "② 12/26 是 `tech_indicators/v13_macd` 的既有基线，换成 50/200 本质是**用本样本的结果改默认值**，"
+      "属于事后选择 —— 所以这张表里 20/60、30/100 的结果要当作「参数敏感性」读，不要当「更优参数」找。"
+      "年线过滤（只在年线上方持仓）在黄金上仍然没用：它把仓位砍到三成，收益更差。")
     A("")
 
     # ---- 9. 断言

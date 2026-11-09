@@ -481,8 +481,8 @@
       "pipeline_mode": "full_pool"
     },
     "vol_variants": {
-      "name": "波动类变种操作一览 · v2 / v3 / v4 / v5 / v9",
-      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v2_boll_breakout,v3_macd_boll,v4_erp_band,v5_trend_gate,v9_vol_target}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
+      "name": "波动类变种操作一览 · v2 / v3 / v4 / v6 / v9",
+      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v2_boll_breakout,v3_macd_boll,v4_erp_band,v6_gold,v9_vol_target}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
       "daily": {
         "block": "vol",
         "codes": [],
@@ -491,7 +491,7 @@
         "signal_report": "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.md",
         "automation": "(随各变种扫描)"
       },
-      "note": "板块2 的变种操作汇总: 一行一个变种(v2/v3/v4/v5/v9), 列 = 变种/动作统计/动作/明细(参考板块5 列法)。★ = 该变种的重点标注标的: v2→中证A500/沪深300, v3→科创50/恒生科技, v4→沪深300, v5→黄金, v9→标普500/纳指100; 空仓/低仓的重点腿也会列出, 便于一眼看到状态。v9 的括号里是带内仓位(如 66%/满仓), 不是 0/1。图墙八张: v2 两张 + v3 两张 + v4 一张 + v5 一张 + v9 两张, 由 run_daily_vol_legs.ps1 第 3 步每日重画。",
+      "note": "板块2 的变种操作汇总: 一行一个变种(v2/v3/v4/v6/v9), 列 = 变种/动作统计/动作/明细(参考板块5 列法)。★ = 该变种的重点标注标的: v2→中证A500/沪深300, v3→科创50/恒生科技, v4→沪深300, v6→黄金的 B 控回撤(A 长期配置 / C 低仓位占坑只作对照、不标 ★, 2026-11-09 用户指定), v9→标普500/纳指100; 空仓/低仓的重点腿也会列出, 便于一眼看到状态。v9 的括号里是带内仓位(如 66%/满仓), 不是 0/1。**v6 是黄金单标的三口径**(A 长期配置 / B 控回撤 / C 低仓位占坑), 三条互斥、同一笔钱的三种拿法, 明细里逐条写「当前仓位 + 今日动作 + 触发依据」; 看板读的是 _v6_gold_daily.json 的 action/dir/cond 字段(由 _daily_scan.py 写, 阈值不在 pipeline 侧复刻)。**2026-11-09 用户要求把 v5 趋势闸门整体移出板块2**(行 + 黄金操作图 _v5_trend_gold.png 都不再展示), 其产物仍留在 v5_trend_gate/daily/, 需要时手跑。图墙十张: v2 两张 + v3 两张 + v4 一张 + v6 三张 + v9 两张, 由 run_daily_vol_legs.ps1 第 3 步每日重画。",
       "pipeline_mode": "summary"
     },
     "v5_trend_gate": {
@@ -557,7 +557,7 @@
         "runner": "",
         "runner_note": "留空: 本变种未接进 run_daily_vol_legs.ps1（每日板块2 的变种位仍留给 v3_macd_boll）; 手跑 python strategies/vol_legs/v5_trend_gate/daily/_daily_scan.py（加 --no-refresh 可跳过联网）",
         "enabled": false,
-        "enabled_note": "2026-11-02 落地: 只出回测 + 可手跑的每日档位脚本, 不进 run_daily_all、不出看板卡片（避免与 v3 的突破追涨方向混看）",
+        "enabled_note": "**2026-11-09 用户要求: 整体移出板块2**(变种操作一览的行 + 黄金操作图 _v5_trend_gold.png 都不再展示, 也不再由 run_daily_vol_legs.ps1 每日刷新)。仍不出独立卡片(daily.enabled=false); 要看档位就手跑 daily/_daily_scan.py, 要看图手跑 research/plot_trend/_plot_trend.py --leg gold",
         "signal_report": "strategies/vol_legs/v5_trend_gate/daily/_v5_trend_gate_daily.md",
         "signal_json": "strategies/vol_legs/v5_trend_gate/daily/_v5_trend_gate_daily.json",
         "automation": "(未创建, 随手跑)"
@@ -655,9 +655,9 @@
           "000216"
         ],
         "runner": "",
-        "runner_note": "未接 run_daily_vol_legs.ps1; 手跑 python strategies/vol_legs/v6_gold/daily/_daily_scan.py（加 --no-refresh 跳过联网）",
+        "runner_note": "已接 run_daily_vol_legs.ps1 第 2 步（--no-refresh，复用第 1 步刷新的场外 000216 净值）; 手跑 python strategies/vol_legs/v6_gold/daily/_daily_scan.py",
         "enabled": false,
-        "enabled_note": "只出回测 + 可手跑的三口径每日读数, 不进 run_daily_all、不出看板卡片",
+        "enabled_note": "不单独出卡（enabled=false = 不产生自己的卡片）—— 2026-11-09 起数据并入板块2「变种操作一览」卡（与 v2/v3/v4/v5/v9 同级），由 pipeline/daily_digest.py 的 _VOL_VARIANTS 读取本策略 json",
         "signal_report": "strategies/vol_legs/v6_gold/daily/_v6_gold_daily.md",
         "signal_json": "strategies/vol_legs/v6_gold/daily/_v6_gold_daily.json",
         "automation": "(未创建, 随手跑)"

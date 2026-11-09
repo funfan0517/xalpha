@@ -147,8 +147,10 @@ v6_gold/
     └── macro_drivers/         # 宏观驱动：美元 / 美债 / 事件冲击（2026-11-07）
         ├── _gold_macro.py     # 同期相关 / 滞后预测性 / 利率与美元冲击 / 成本敏感性
         ├── _gold_cycles.py    # 政策周期 / FOMC 决议 / 地缘冲突 / 消息冲击（2026-11-09）
+        ├── _gold_centralbank.py  # 央行购金：持续性 / 力度变化 / 全球年度口径
         ├── _gold_macro.md
-        └── _gold_cycles.md
+        ├── _gold_cycles.md
+        └── _gold_centralbank.md
 ```
 
 **宏观驱动结论（`research/macro_drivers/_gold_macro.md`）**：「黄金和美元美债反向」在**同期**成立
@@ -165,6 +167,13 @@ v6_gold/
 ③ 消息冲击（回归残差 2.5σ，135 天）之后 T+20 只有 +0.5%，低于无条件 +0.7%，无漂移；
 ④ 地缘冲突 T+0 平均 +1.1%（t=2.29，7/10），但 T+1 立刻归零 —— 「当天买不到」。
 
+**央行购金结论（`research/macro_drivers/_gold_centralbank.md`）**：① 「持续购金」是错觉 ——
+2015 年以来平均每段增持 13.6 个月、每段暂停 22.7 个月，最长一次连续 37 个月不动；
+② 全球口径同期 r=-0.15（买得多反而跌），领先一年 r=0.42 但**剔掉 2024→2025 那一个配对
+就掉到 0.17**；③ 中国月度力度加速度 → 未来收益 r=-0.04，没有信息；
+④ 年度阈值择时年化 +8.2% vs 买入持有 +8.9%，低回撤是「只持有 5 年」的副产物，非择时能力。
+数据落 `data/_cn_gold_reserves.csv`（月度数到 2026-10，中国储备 2435 吨）。
+
 **外部策略研究结论（`research/external_ideas/_v6_external_ideas.md`）**：8 条外部规则在我们的
 样本上**没有一条**跑赢买入持有的年化，也没有一条夏普更好；唯一数字好看的是金银比 80/50
 （+18.00% / 夏普 0.82），但 12 年只换仓 3 次、超额全来自 2022-2025 那一段持银，
@@ -175,10 +184,16 @@ python strategies/vol_legs/v6_gold/gold.py                          # 自检（�
 python strategies/vol_legs/v6_gold/backtest.py                      # 回测 + 报告
 python strategies/vol_legs/v6_gold/daily/_daily_scan.py              # 每日读数（会尝试刷场外净值）
 python strategies/vol_legs/v6_gold/daily/_daily_scan.py --no-refresh # 只用本地缓存
+python strategies/vol_legs/v6_gold/daily/_plot_legs.py              # 三张口径图（全历史）
 ```
 
-**不进每日流程**（`pipeline/strategies.json` 的 `daily.enabled=false`）：它不参与七腿组合的看板，
-需要时手跑。
+**已接进每日流程（2026-11-09 起）**：`run_daily_vol_legs.ps1` 第 2 步跑
+`daily/_daily_scan.py --no-refresh`（复用第 1 步刷新的场外 `000216` 净值），第 3 步重画
+`daily/_v6_gold_{A,B,C}.png`；产物并入看板**板块2「变种操作一览」卡**（与 v2/v3/v4/v9 同级，
+一行写 A/B/C 三条口径的当前仓位 / 今日动作 / 触发依据，图墙多三张）。
+
+`pipeline/strategies.json` 的 `daily.enabled` 仍是 false —— 它只表示**不另开一张独立卡片**
+（与 v3_macd_boll / v9_vol_target 同一个用法），不代表不进每日流程。
 
 ## 7. 已知边界
 

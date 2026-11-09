@@ -19,7 +19,8 @@
 |---|---|---|
 | 1 永久组合 | 🟡 无盘中源 | 场外累计净值（T 日盘后披露，QDII 滞后 1~2 日） |
 | 2 波动类主策略 | 🟡 无盘中源 | 场外复权净值（rule.SIGNAL_MODE="otc"） |
-| 2 变种 v2/v3/v5 | 🟢 场内 ETF 实时价替换末根（代理口径） | `_long_klines.json` + `xa.get_rt` |
+| 2 变种 v2/v3 | 🟢 场内 ETF 实时价替换末根（代理口径） | `_long_klines.json` + `xa.get_rt` |
+| 2 变种 v6 | 🟢 C 用 518880 实时价；A/B 场外净值按 518880 实时涨幅外推末根（代理口径） | `data/_otc_nav.json` + `xa.get_rt` |
 | 2 变种 v4 | 🟡 无盘中源 | 沪深300×10Y 国债 ERP（月度序列） |
 | 2 变种 v9 | 🟡 美股未开盘 | `.NDX/.INX` 收盘（美东 11-05） |
 | 3 风格轮动 v0/v5 | 🟢 指数按跟踪 ETF 的实时涨幅外推末根 | 科创50/创业板指/中证红利 |
@@ -184,18 +185,54 @@ def preview_tech(rt):
 
 
 # ---------------------------------------------------------------- 板块2 变种
+# v5 趋势闸门 2026-11-09 按用户要求移出板块2（看板不再读它的产物，预演也就不必重算）。
 _VOL_SCANS = (
     ("v2", "v2_boll_breakout", "boll", "_v2_boll_daily", False),
     ("v3", "v3_macd_boll", "macd_boll", "_v3_macd_boll_daily", True),
-    ("v5", "v5_trend_gate", "tg", "_v5_trend_gate_daily", True),
 )
 
 
+def _preview_v6_gold(rt, vl):
+    """V6 黄金三口径：C 直接用 518880 的实时价；A/B 走场外 000216，没有盘中净值 ——
+    按 518880 的实时涨幅外推末根（与 v2/v3「场内 ETF 代理口径」同一套近似）。
+
+    只替换末根、不改历史：`gold.load` 被换成本地闭包，`refresh` 一律当 False，
+    避免盘中半成品 bar 落到 `_otc_nav.json` / `data/_long_klines.json`。
+    """
+    sub = os.path.join(vl, "v6_gold")
+    with _isolated(sub, ("data", "rule", "engine", "gold")):
+        mod = _mp("ip_v6", os.path.join(sub, "daily", "_daily_scan.py"))
+
+    g = mod.G
+    orig, code = g.load, str(g.SIGNAL_CODE)
+
+    def load(mode="otc", refresh=True):
+        px = orig(mode, refresh=False)
+        hit = rt.get(code)
+        if not hit or px is None or not len(px):
+            return px
+        px = px.copy()
+        if mode == "exchange":
+            px.iloc[-1] = hit[0]                                  # 场内：直接换实时价
+        else:
+            px.iloc[-1] = float(px.iloc[-1]) * (1 + hit[1] / 100.0)   # 场外：按 ETF 涨幅外推
+        return px
+
+    g.load = load
+    try:
+        mod.OUT_MD = _tpath("strategies/vol_legs/v6_gold/daily/_v6_gold_daily.md")
+        mod.OUT_JSON = _tpath("strategies/vol_legs/v6_gold/daily/_v6_gold_daily.json")
+        with _argv(["daily_scan", "--no-refresh"]):
+            mod.main()
+    finally:
+        g.load = orig
+
+
 def preview_vol_variants(rt):
-    """v2/v3/v5 逐腿换成「场内 ETF 实时价」，再跑各自的 daily 扫描（输出到临时树）。"""
+    """v2/v3 逐腿换成「场内 ETF 实时价」，再跑各自的 daily 扫描（输出到临时树）。"""
     vl = os.path.join(_ROOT, "strategies", "vol_legs")
     for key, sub, pkg_name, tag, need_norefresh in _VOL_SCANS:
-        with _isolated(os.path.join(vl, sub), ("data", "rule", "boll", "macd_boll", "trend_gate")):
+        with _isolated(os.path.join(vl, sub), ("data", "rule", "boll", "macd_boll")):
             mod = _mp(f"ip_{key}", os.path.join(vl, sub, "daily", "_daily_scan.py"))
         pkg = getattr(mod, pkg_name)
         rule = pkg.rule
@@ -226,6 +263,18 @@ def preview_vol_variants(rt):
                 with open(jp, "w", encoding="utf-8") as fh:
                     json.dump(dd_, fh, ensure_ascii=False, indent=2)
         _note(f"{key}: 场内 ETF 代理口径已重算")
+
+    # v6 黄金三口径：A/B 场外净值没有盘中源 -> 按 518880 的实时涨幅外推末根（代理口径）；
+    # C 本来就是场内 518880，直接换实时价。失败也不拖累 v2/v3，退回收盘口径产物。
+    try:
+        _preview_v6_gold(rt, vl)
+        _note("v6: 黄金三口径已重算（A/B 场外按 ETF 实时涨幅外推 · C 场内实时价）")
+    except Exception as exc:  # noqa: BLE001
+        _note(f"v6: 重算失败，沿用上一收盘（{type(exc).__name__}: {exc}）")
+        for fn in ("_v6_gold_daily.json", "_v6_gold_daily.md"):
+            src = os.path.join(vl, "v6_gold", "daily", fn)
+            if os.path.exists(src):
+                shutil.copyfile(src, _tpath(f"strategies/vol_legs/v6_gold/daily/{fn}"))
 
     # v4 / v9 没有盘中源：原样复制已有产物进临时树，让汇总卡能照常解析
     for rel in ("v4_erp_band/daily/_v4_erp_band_daily.md",
@@ -315,7 +364,7 @@ def main():
             if sig.isdigit() and len(sig) == 6:
                 vol_codes.append(sig)
     except Exception:  # noqa: BLE001
-        _note("波动类腿表读取失败，v2/v3/v5 将沿用缓存末根")
+        _note("波动类腿表读取失败，v2/v3 将沿用缓存末根")
     lk_path = os.path.join(_ROOT, "data", "_long_klines.json")
     if os.path.exists(lk_path):
         tech_codes = list(json.load(open(lk_path, encoding="utf-8")))
@@ -338,9 +387,16 @@ def main():
             traceback.print_exc()
 
     # 收盘口径的卡片（无盘中源的板块直接复用；失败的板块也复用）
+    # **过滤规则必须与 dd.collect() 一致**：daily.enabled=false 整卡撤掉、daily.card=false 不单独
+    # 出卡。漏了这一步，被停用的策略也会进 runs.strategies，前端发现它不在任何板块的 keys 里，
+    # 就归进「其他（未认领板块）」——2026-11-09 用户在看板上看到这块多余的分组。
     for key, parser in dd.PARSERS.items():
+        meta = cfg.get(key) or {}
+        if not dd._card_on(meta):
+            _note(f"{key}: daily.enabled/card 已关，预演不出卡（与收盘口径一致）")
+            continue
         try:
-            entries[key] = parser(cfg[key])
+            entries[key] = parser(meta)
         except Exception as exc:  # noqa: BLE001
             _note(f"{key} 收盘口径解析失败：{type(exc).__name__}: {exc}")
 
@@ -372,10 +428,12 @@ def main():
             ent["note"] = (ent.get("note") or "") + (
                 "\n\n> 预演版不重画产物 PNG（图是收盘口径的，塞进来会被误读）。")
 
-    # 变种卡口径再补一句：v2/v3/v5 是场内代理，不是正式口径
+    # 变种卡口径再补一句：v2/v3/v6 是场内代理，不是正式口径
     if "vol_variants" in entries:
         entries["vol_variants"]["note"] += (
-            "\n\n> v2/v3/v5 的预演用**场内 ETF 实时价**代替场外复权净值（正式口径是 otc 净值）；"
+            "\n\n> v2/v3/v6 的预演用**场内 ETF 实时价**代替场外复权净值（正式口径是 otc 净值）；"
+            "v6 的 A/B 两条口径走场外 000216、盘中没有净值，按 518880 的实时涨幅外推末根，"
+            "C 直接用 518880 的实时价。"
             "v4（月度 ERP）、v9（美股夜间才开盘）无盘中源，沿用上一次收盘。图墙本次不重画。")
         entries["vol_variants"]["imgs"] = []
 

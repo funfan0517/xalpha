@@ -972,9 +972,11 @@ def parse_vol_legs(_cfg):
 
 # ---------------------------------------------------------------- 波动类变种汇总
 # 参考板块5「技术指标」的列法：一行一个策略，列为 [策略 / 动作统计 / 动作 / 明细]。
-# 板块2 的 v2/v3/v4/v5 各自有逐腿产物，这里合成一张「变种操作一览」卡，
+# 板块2 的 v2/v3/v4/v6/v9 各自有逐腿产物，这里合成一张「变种操作一览」卡，
 # 并把每个变种的**重点标注标的**用 ★ + 加粗突出（即使当天空仓也列出，便于一眼看到重点腿状态）；
 # 非重点的其余腿也一并列出各自的仓位状态，标注「仅供参考」。
+# v5 趋势闸门 2026-11-09 按用户要求从板块2 整体移除（行 + 黄金操作图），产物仍留在
+# strategies/vol_legs/v5_trend_gate/daily/，需要时手跑该变种的 _daily_scan.py。
 _VOL_VARIANTS = [
     ("v2", "V2 BOLL突破",
      "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json", {"a500", "hs300"}),
@@ -982,13 +984,13 @@ _VOL_VARIANTS = [
      "strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.json", {"kc50", "hkt"}),
     ("v4", "V4 ERP股债通道",
      "strategies/vol_legs/v4_erp_band/daily/_v4_erp_band_daily.json", {"hs300"}),
-    ("v5", "V5 趋势闸门",
-     "strategies/vol_legs/v5_trend_gate/daily/_v5_trend_gate_daily.json", {"gold"}),
+    ("v6", "V6 黄金三口径",
+     "strategies/vol_legs/v6_gold/daily/_v6_gold_daily.json", {"gold"}),
     ("v9", "V9 波动率目标仓位",
      "strategies/vol_legs/v9_vol_target/daily/_v9_vol_target_daily.json", {"spx", "ndx"}),
 ]
 
-# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的八张单腿/操作点图。
+# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的十张单腿/操作点图。
 # 每张图下面标注**是哪个标的的图**（代码 + 场外复权口径），改图名时这里跟着改。
 _VOL_FIGS = [
     ("strategies/vol_legs/v2_boll_breakout/research/_v2_a500.png",
@@ -1003,8 +1005,15 @@ _VOL_FIGS = [
     ("strategies/vol_legs/v4_erp_band/backtest/_v4_erp_band_signals.png",
      "**沪深300**（`000051`）× 10Y 国债 · V4 ERP 股债利差两带滞回的操作点"
      "（▲加仓 / ▼减仓，T 日信号 → T+1 收盘成交）"),
-    ("strategies/vol_legs/v5_trend_gate/research/plot_trend/_v5_trend_gold.png",
-     "**黄金**（`000216` 场外复权）· V5 趋势四象限闸门全历史 2014-10 起（真实操作点 + 档位阶梯）"),
+    ("strategies/vol_legs/v6_gold/daily/_v6_gold_A.png",
+     "**黄金**（`000216` 场外复权）· V6-**A 长期配置**：满带 + 60 日保险丝 + 回撤阶梯"
+     "（▲加仓/▼减仓=真实成交点，浅红底纹=保险丝生效段）"),
+    ("strategies/vol_legs/v6_gold/daily/_v6_gold_B.png",
+     "**黄金**（`000216` 场外复权）· V6-**B 控回撤**：波动目标 15%/120 日已实现波动，"
+     "只压满带不做趋势判断（浅蓝底纹=波动系数<1 在压仓）"),
+    ("strategies/vol_legs/v6_gold/daily/_v6_gold_C.png",
+     "**黄金**（`518880` 场内收盘）· V6-**C 低仓位占坑**：MACD 50/200 金叉持有/死叉空仓"
+     "（上=净值、中=MACD、下=带内仓位；场外赎 0.5% 吃成本，只在场内执行）"),
     ("strategies/vol_legs/v9_vol_target/research/_v9_vt_spx.png",
      "**标普500**（`017641` 场外复权，信号 `.INX` 美元指数）· V9 波动率目标仓位 TV15%"
      "（底色=vol20 高于/低于目标，▲▼=成交点）"),
@@ -1053,7 +1062,7 @@ def _vol_level(x):
 
 
 def _vol_variant_row(label, d, emph):
-    """七腿变种（v2/v3/v5）-> 一行。"""
+    """七腿变种（v2/v3）-> 一行。"""
     legs = d.get("legs") or []
     by = {"买入": [], "卖出": [], "持有": [], "空仓": []}
     for x in legs:
@@ -1063,7 +1072,7 @@ def _vol_variant_row(label, d, emph):
                   for x in legs if x.get("leg") in emph]
     detail = "★重点：" + ("、".join(emph_parts) or "—")
 
-    # 其余腿也带上各自的仓位状态（v2/v3 空仓·持有、v5 观察仓等档位），仅供参考 ——
+    # 其余腿也带上各自的仓位状态（v2/v3 空仓·持有、v6/v9 带档位/带内仓位），仅供参考 ——
     # 用户要看的是「今天这些腿各是什么位置」，只列名字看不出仓位（2026-11-05 提出）。
     # 写成「名称 状态（档位）」，与 ★ 重点腿同一副样子，读起来对得上。
     rest = [f"{x.get('name')} {_vol_classify(x)}{_vol_level(x)}"
@@ -1132,8 +1141,77 @@ def _vol_v4_row(label, d):
     return _row(label, stats, act, act_txt, detail), act
 
 
+def _vol_v6_row(label, d):
+    """V6 是**黄金单标的**的三口径（A 长期配置 / B 控回撤 / C 低仓位占坑）。
+
+    与 v2/v3/v5「七腿逐腿」不同，它的产物里没有 ``legs``：三条口径并列在 ``A``/``B``/``C``
+    三个字典里，各自给出「当前仓位 + 今日动作 + 触发依据」。它回答的是「投给黄金的这笔钱
+    该怎么拿」，三条**互斥**（不是三个标的），末尾固定点明「选一条执行」。
+
+    ★ 只标 **B 控回撤**（2026-11-09 用户指定「B 策略标注为重点，A 和 C 不标注」）：
+    A/C 照样写全仓位与依据，但不加 ★ 也不加粗，避免三条并列时看起来同等重要。
+
+    动作 / 方向 / 依据全部读 ``_daily_scan.py`` 写出的 json（``action`` / ``dir`` / ``cond``），
+    看板不复刻阈值判断，避免参数改了以后两边算法漂移。
+    """
+    def _f(x, default=0.0):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return default
+
+    a = d.get("A") or {}
+    b = d.get("B") or {}
+    c = d.get("C") or {}
+    p = d.get("params") or {}
+    macd = p.get("macd") or [50, 200]
+    floor = _f(p.get("floor"), 0.5)
+    vol_win, vol_tgt = int(_f(p.get("vol_window"), 120)), _f(p.get("vol_target"), 0.15)
+
+    def _act(x):
+        t = str(x.get("action") or "无").strip()
+        return "无动作" if t in ("", "无", "None") else t
+
+    a_st, a_pp = _f(a.get("state")), _f(a.get("pp"))
+    a_pos = ("年线上方" if a.get("above")
+             else ("保险丝已生效（上限 %.0f%% 带）" % (floor * 100) if a.get("degraded")
+                   else "年线下方第 %s 日" % a.get("below_days")))
+    # 优先用产物里的 cond（它已经写全「年线位置 + 保险丝进度」），别再和 a_pos 拼一遍
+    a_note = str(a.get("cond") or "").strip() or a_pos
+    p1 = f"A 长期配置 {a_st:.0%} 带（{a_pp:.1f}pp）· 今日{_act(a)}（{a_note}）"
+
+    b_st, b_pp = _f(b.get("state")), _f(b.get("pp"))
+    p2 = (f"★**B 控回撤** {b_st:.0%} 带（{b_pp:.1f}pp）· 今日**{_act(b)}**"
+          f"（{vol_win} 日已实现波动 {_f(b.get('vol')) * 100:.1f}% vs 目标 {vol_tgt:.0%}"
+          f" → 系数 {_f(b.get('scale')):.2f}）")
+
+    c_st = _f(c.get("state_ex"))
+    p3 = (f"C 低仓位占坑 {'持有' if c_st > 1e-9 else '空仓'} · 今日{_act(c)}"
+          f"（MACD {int(macd[0])}/{int(macd[1])} "
+          f"{'金叉' if c.get('bull') else '死叉'}；场内 `518880`，场外同口径 "
+          f"{_f(c.get('state_otc')):.0%}）")
+
+    detail = (p1 + " ｜ " + p2 + " ｜ " + p3
+              + " ｜ ⚠ 三口径**互斥**（同一笔钱的三种拿法：A 长期不管 / B 压波动 / C 明确进出），"
+                "**选一条执行，不要相加**")
+
+    dirs = [str(x.get("dir") or "") for x in (a, b, c)]
+    nb, ns = dirs.count("buy"), dirs.count("sell")
+    if nb:
+        act, alabel = "buy", f"买入 {nb}"
+    elif ns:
+        act, alabel = "sell", f"卖出 {ns}"
+    else:
+        act, alabel = "hold", "无动作"
+    stats = f"黄金单标的 · A {a_st:.0%} / B {b_st:.0%} / C {c_st:.0%}"
+    return _row(label, stats, act, alabel, detail), act
+
+
 def parse_vol_variants(_cfg):
-    """板块2 的变种操作一览：v2 / v3 / v4 / v5 / v9（一行一个变种，★=重点标的）。"""
+    """板块2 的变种操作一览：v2 / v3 / v4 / v6 / v9（一行一个变种，★=重点标的）。
+
+    v5 趋势闸门 2026-11-09 按用户要求整体移出板块2（行 + 黄金操作图）。
+    """
     rows, srcs, as_ofs = [], [], []
     n_buy = n_sell = 0
     dt, v9dt = {}, ""          # 各变种产物日；v9 另记「信号日 / QDII 净值日」两个
@@ -1157,6 +1235,8 @@ def parse_vol_variants(_cfg):
         try:
             if vx == "v4":
                 row, act = _vol_v4_row(label, d)
+            elif vx == "v6":
+                row, act = _vol_v6_row(label, d)
             else:
                 row, act = _vol_variant_row(label, d, emph)
         except Exception as exc:  # noqa: BLE001
@@ -1169,32 +1249,36 @@ def parse_vol_variants(_cfg):
             n_sell += 1
 
     as_of = max(as_ofs) if as_ofs else None
-    # 数据时点：v2/v3/v4/v5 各取自己产物的数据日；v9 另标「信号日 / QDII 净值日」——
+    # 数据时点：v2/v3/v4/v6 各取自己产物的数据日；v9 另标「信号日 / QDII 净值日」——
     # 它的信号走美元指数（当日收盘就有），执行净值滞后一天，只写一个日期会看不懂。
     others = {k: v for k, v in dt.items() if k != "v9"}
     vals = sorted({v for v in others.values() if v})
     data = ""
     if vals:
-        data = (f"v2/v3/v4/v5 数据 {vals[0]}" if len(vals) == 1
+        data = ("/".join(others) + f" 数据 {vals[0]}" if len(vals) == 1
                 else " · ".join(f"{k} {v}" for k, v in others.items() if v))
     if v9dt:
         data = (data + " · " if data else "") + f"v9 {v9dt}"
     tone = "buy" if n_buy else ("sell" if n_sell else "none")
-    summary = "v2/v3/v4/v5/v9 今日操作（★=重点标的）：" + "；".join(
+    summary = "v2/v3/v4/v6/v9 今日操作（★=重点标的）：" + "；".join(
         f"{r['c']} {r['a']}" for r in rows)
     # 图墙：只收「文件确实存在」的图，缺图不至于在看板上留破图框。
     figs = [{"path": rel, "cap": cap} for rel, cap in _VOL_FIGS
             if os.path.exists(os.path.join(_ROOT, rel.replace("/", os.sep)))]
     return _entry(
-        "vol_variants", "波动类变种操作一览 · v2 / v3 / v4 / v5 / v9", as_of,
+        "vol_variants", "波动类变种操作一览 · v2 / v3 / v4 / v6 / v9", as_of,
         f"买 {n_buy} / 卖 {n_sell}", tone, summary, rows,
         [["变种", str(len(rows))],
-         ["重点腿", "A500/沪深300 · 科创50/恒生科技 · 沪深300 · 黄金 · 标普500/纳指100"],
+         ["重点腿", "A500/沪深300 · 科创50/恒生科技 · 沪深300 · 黄金（v6-B 控回撤） · "
+                    "标普500/纳指100"],
          ["买入", str(n_buy)], ["卖出", str(n_sell)]],
         note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
              "★ = 该变种的**重点标注标的**：v2→中证A500/沪深300；v3→科创50/恒生科技；"
-             "v4→沪深300；v5→黄金；v9→标普500/纳指100。v2/v3/v5 为七腿逐腿择时（突破追涨型），"
+             "v4→沪深300；v6→黄金的 **B 控回撤**（A 长期配置 / C 低仓位占坑只作对照，"
+             "不标 ★）；v9→标普500/纳指100。v2/v3 为七腿逐腿择时（突破追涨型），"
              "v4 为沪深300×国债 ERP 通道（单标的，无 A500 腿）；"
+             "**v6 是黄金单标的三口径**（A 长期配置 / B 控回撤 / C 低仓位占坑）—— 三条是"
+             "「同一笔钱的三种拿法」，**互斥**，选一条执行、不要相加；"
              "v9 为**美股两腿（纳指100/标普500）波动率目标仓位**（月末定仓 + 月中快减/快补），"
              "括号里是该腿的带内仓位（如 66% / 满仓）；有**待成交决策**时写成「当前 → 目标」"
              "（如 66% → 48%），不是 0/1。"
@@ -1203,7 +1287,7 @@ def parse_vol_variants(_cfg):
              "v4 明细里的「锚健康度 H」= 1 − |z − ERP 1250 日分位|，只作解释、不改变仓位。"
              "数据取自各变种 daily/ 产物。"
              "「其余（仅供参考）」= 非重点标注的腿，也标出各自的仓位状态"
-             "（买入/卖出/持有/空仓，v5/v9 另带档位/带内仓位），仅作参考，不作为当日操作。"
+             "（买入/卖出/持有/空仓，v6/v9 另带档位/带内仓位），仅作参考，不作为当日操作。"
              f"表下 {len(figs)} 张图 = 各变种重点标的的单腿图/操作点图，由"
              " `run_daily_vol_legs.ps1` 第 3 步每日重画（图注写的是标的，不是变种）。",
         src=" · ".join(srcs),

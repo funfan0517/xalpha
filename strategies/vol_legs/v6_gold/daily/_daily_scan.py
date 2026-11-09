@@ -2,6 +2,9 @@
 """V6 黄金三口径 · 每日读数。
 
 输出（本目录 `daily/`）：`_v6_gold_daily.md` · `_v6_gold_daily.json`。
+json 里的 `A/B/C` 各带 `action`（今日动作文案）/ `dir`（buy|sell|""）/ `cond`（触发依据），
+由 `pipeline/daily_digest.py` 的 `_vol_v6_row` 直接读进板块2「变种操作一览」卡 —— 阈值判断
+只在本文件与 `gold.py` 里，看板侧不复刻，避免两边算法漂移。
 
 三条口径在同一天各说一句话：
 - **A 长期配置**：年线位置 / 跌破天数 / 保险丝是否生效 / 回撤阶梯还差多少触发；
@@ -95,15 +98,40 @@ def main():
     last_c = c["last_act"]
     act_c = "无" if (not last_c or last_c["date"] != px_e.index[-1]) else \
         ("买入" if last_c["kind"] == "buy" else "卖出")
+    # 方向（buy / sell / ""=不动）—— 供看板汇总卡判「今天这条口径是买还是卖」，
+    # 免得 pipeline 侧再复刻一遍阈值判断（口径只在本文件/ gold.py 里定义）。
+    dir_a = a["decide"] if a["decide"] in ("buy", "sell") else ""
+    dir_b = "" if act_b == "无" else ("buy" if b["scale"] > b["state"] else "sell")
+    dir_c = "" if act_c == "无" else ("buy" if last_c["kind"] == "buy" else "sell")
 
     L = []
     A = L.append
-    A(f"# V6 黄金三口径 · 每日读数（{date_o}）")
+    A(f"# V6 黄金三口径 · 每日推荐操作（{date_o}）")
     A("")
-    A(f"> 场外 `{G.EXEC_CODE}` 净值 {px_o.iloc[-1]:.4f}（{date_o}） · "
-      f"场内 `{G.SIGNAL_CODE}` 收盘 {px_e.iloc[-1]:.4f}（{date_e}） · "
-      f"目标带 {G.BAND_PP:g}pp（1.0 = 满带）")
+    A(f"> 标的只有一个：**黄金**。场外执行 `{G.EXEC_CODE}`（净值 {px_o.iloc[-1]:.4f}，{date_o}）· "
+      f"场内信号 `{G.SIGNAL_CODE}`（收盘 {px_e.iloc[-1]:.4f}，{date_e}）· "
+      f"目标带 {G.BAND_PP:g}pp（1.0 = 满带 = {G.BAND_PP:g}pp）")
     A("> 决策在 T 日盘后，**T+1 收盘成交**；「今日动作」= 明天要下的单。")
+    A("")
+
+    # ---- 今日操作一览
+    A("## 今日操作一览")
+    A("")
+    cond_a = ("年线下方第 %d 日（%d/%d），满 %d 日降为 %.0f%% 带"
+              % (a["below_days"], a["below_days"], G.DEGRADE_DAYS, G.DEGRADE_DAYS,
+                 G.FLOOR * 100) if not a["above"] and not a["degraded"]
+              else ("保险丝已生效（上限 %.0f%% 带），等收复年线" % (G.FLOOR * 100)
+                    if a["degraded"] else "年线上方，按目标带持有"))
+    A("| 口径 | 当前仓位 | 今日动作 | 触发条件 / 依据 |")
+    A("|---|---:|---|---|")
+    A(f"| **A 长期配置** | {a['state']:.0%} 带 = {pp(a['state']):.1f}pp | **{act_a}** | {cond_a} |")
+    A(f"| **B 控回撤** | {b['state']:.0%} 带 = {pp(b['state']):.1f}pp | **{act_b}** | "
+      f"已实现波动 {b['vol'] * 100:.1f}% → 系数 {b['scale']:.2f} |")
+    A(f"| **C 低仓位占坑** | {c['state']:.0%} | **{act_c}** | "
+      f"MACD {G.MACD_FAST}/{G.MACD_SLOW} {'金叉持有' if c['bull'] else '死叉空仓'} |")
+    A("")
+    A("> ⚠ 三条口径是**同一笔钱的三种拿法，互斥** —— 选一条执行，**不要相加**。")
+    A("> 差别在「你要黄金干什么」：长期配置不想管（A）/ 压组合波动（B）/ 必须有明确进出信号（C）。")
     A("")
 
     # ---- A
@@ -126,6 +154,8 @@ def main():
     A(f"- **今日动作：{act_a}**" + (f"　—— {a['done']}" if a["done"] else ""))
     A(f"- 最近三笔：{' / '.join(fmt_act(x) for x in a['acts']) if a['acts'] else '无'}")
     A("")
+    A("![A 长期配置](_v6_gold_A.png)")
+    A("")
 
     # ---- B
     A("## 二、B 控回撤（波动目标 15%/120 日，不做趋势判断）")
@@ -136,9 +166,11 @@ def main():
     A(f"- **今日动作：{act_b}**")
     A(f"- 最近三笔：{' / '.join(fmt_act(x) for x in b['acts']) if b['acts'] else '无'}")
     A("")
+    A("![B 控回撤](_v6_gold_B.png)")
+    A("")
 
     # ---- C
-    A("## 三、C 低仓位占坑（MACD 12/26 金叉持有）")
+    A(f"## 三、C 低仓位占坑（MACD {G.MACD_FAST}/{G.MACD_SLOW} 金叉持有）")
     A("")
     A(f"- 场内信号：DIF {c['dif']:.4f} / DEA {c['dea']:.4f} → "
       f"**{'金叉（持有）' if c['bull'] else '死叉（空仓）'}**，当前仓位 {c['state']:.0%}。")
@@ -146,8 +178,11 @@ def main():
     A(f"- 场外同口径对照：{'金叉' if c_otc['bull'] else '死叉'}，仓位 {c_otc['state']:.0%}"
       f"（DIF {c_otc['dif']:.4f} / DEA {c_otc['dea']:.4f}）")
     A(f"- **今日动作：{act_c}**")
-    A("- ⚠ 换手提醒：这条口径每年约 19 次调仓，**只在场内低佣金账户执行**；"
-      "场外 A 类（赎 0.50%）会把年化吃到 1.4%（见 `backtest/_v6_gold_bt.md` §4）。")
+    A(f"- ⚠ 换手提醒：这条口径每年约 7~8 次调仓，**只在场内低佣金账户执行**；"
+      f"场外 A 类（赎 0.50%）累计成本 36pp、年化只剩 +5.07%，场内是 +7.49%"
+      f"（MACD {G.MACD_FAST}/{G.MACD_SLOW} 口径，见 `backtest/_v6_gold_bt.md` §4）。")
+    A("")
+    A("![C 低仓位占坑](_v6_gold_C.png)")
     A("")
 
     # ---- 一句话
@@ -169,16 +204,25 @@ def main():
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write(md)
     with open(OUT_JSON, "w", encoding="utf-8") as f:
-        json.dump(dict(date=str(date_o), date_ex=str(date_e),
+        json.dump(dict(date=str(date_o), date_ex=str(date_e), as_of=str(date_o),
                        price_otc=float(px_o.iloc[-1]), price_ex=float(px_e.iloc[-1]),
                        band_pp=G.BAND_PP,
+                       params=dict(ma_win=G.MA_WIN, degrade_days=G.DEGRADE_DAYS,
+                                   floor=G.FLOOR, vol_window=G.VOL_WINDOW,
+                                   vol_target=G.VOL_TARGET,
+                                   macd=[G.MACD_FAST, G.MACD_SLOW]),
                        A=dict(state=a["state"], pp=pp(a["state"]), gap=a["gap"],
                               above=a["above"], below_days=a["below_days"], dd=a["dd"],
-                              degraded=a["degraded"], decide=a["decide"]),
+                              degraded=a["degraded"], decide=a["decide"],
+                              action=act_a, cond=cond_a, dir=dir_a,
+                              acts=[fmt_act(x) for x in a["acts"]]),
                        B=dict(state=b["state"], pp=pp(b["state"]), vol=b["vol"],
-                              scale=b["scale"], target=b["target"]),
+                              scale=b["scale"], target=b["target"],
+                              action=act_b, dir=dir_b,
+                              acts=[fmt_act(x) for x in b["acts"]]),
                        C=dict(state_ex=c["state"], state_otc=c_otc["state"],
-                              dif=c["dif"], dea=c["dea"],
+                              dif=c["dif"], dea=c["dea"], bull=c["bull"],
+                              action=act_c, dir=dir_c,
                               last_act=(str(last_c["date"]) if last_c else None))),
                   f, ensure_ascii=False, indent=1)
     print(md)

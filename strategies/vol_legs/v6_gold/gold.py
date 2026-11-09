@@ -106,8 +106,12 @@ VOL_MIN_LEVEL = 0.20     # 缩放下限
 VOL_MIN_HIST = 500       # 分位/参考的最少样本（fixed 模式下不影响结果）
 
 # ---- C 低仓位占坑（MACD 金叉死叉）
-MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
-C_WARMUP = 250           # 预热交易日（与 tech_indicators 家族 WARMUP 同量级，便于横向对照）
+# 2026-11-09 按用户要求把快慢线从 12/26 换成 50/200（长周期口径）：
+# 12/26 是日线短打，在黄金上每年约 19 次调仓、成本吃掉全部 alpha；
+# 50/200 接近「中期/长期」分界，信号稀疏、换手低，更贴合「占坑」的定位。
+MACD_FAST, MACD_SLOW, MACD_SIGNAL = 50, 200, 9
+# EMA200 的初始值残留 = (1-2/201)^N，N=250 时仍有约 8% 偏差，故预热提到 2×slow
+C_WARMUP = 400
 C_TREND_FILTER = False   # True = 只在年线上方允许持仓（敏感性用，默认关闭）
 
 # ---- 成本与现金（场外 A 类 / 场内 ETF 两套）

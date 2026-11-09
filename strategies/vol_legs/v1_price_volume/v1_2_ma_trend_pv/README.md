@@ -34,8 +34,9 @@
 ## 2. 数据口径（与 V1-1 最本质的分歧）
 
 - **必须用场内 ETF**：量价规则要有成交量，而**场外基金净值没有成交量**。
-  信号序列 = `xa.get_daily` 的前复权日线（O/H/L/C/V），本地缓存 **`strategies/vol_legs/data/_ohlcv.json`**
- （vol_legs 家族共享，判据是「别的变种也会用」，见 AGENTS.md §8.1），脚本 `ohlcv.py` 增量刷新。
+  信号序列 = `xa.get_daily` 的前复权日线（O/H/L/C/V），本地缓存 **`data/_ohlcv.json`**（仓库级）
+  （与 `tech_indicators/v18_volume_notes` 共用，判据是「别的策略也会用」，见 AGENTS.md §8.1；
+  2026-11-09 从 vol_legs 家族级再上移），脚本 `ohlcv.py` 增量刷新。
 - 七腿信号码：`563360`（A500）· `510300`（沪深300）· `513100`（纳指，**人民币代理**）·
   `513500`（标普，**人民币代理**）· `588000`（科创50）· `513180`（恒生科技）· `518880`（黄金）。
 - 美股两腿用人民币 ETF 代理而非美元指数 `.NDX/.INX`：美元指数本地库**只有收盘价、没有成交量**。
@@ -124,12 +125,12 @@
 ```
 v1_2_ma_trend_pv/
 ├── ma_trend_vol.py         规则 + 指标 + 状态机（参数权威源）+ 组合层
-├── ohlcv.py                场内 ETF OHLCV 库增量刷新（库文件在 ../../data/_ohlcv.json）
+├── ohlcv.py                场内 ETF OHLCV 库增量刷新（库文件在仓库根 data/_ohlcv.json）
 ├── backtest.py             七腿 + 组合层 + 分市对比 → backtest/_v1_2_bt.{md,jsonl}
 ├── daily/_daily_scan.py    每日动作 → daily/_v1_2_daily.{md,json}
 ├── research/_plot_leg.py   单腿图（价格+三线+成交量+进出手）→ research/_v1_2_<leg>.png
 ├── research/attrib/        归因与优化验证：_attrib.py → _attrib.md / .jsonl / _attrib_contrib.png
-│   （行情缓存 `<策略>/data/_ohlcv.json` 已上移到 `strategies/vol_legs/data/_ohlcv.json`，家族共享）
+│   （行情缓存 `<策略>/data/_ohlcv.json` 已两次上移，现为仓库级 `data/_ohlcv.json`，与 v18 共用）
 └── backtest/ daily/ research/  产物目录
 ```
 

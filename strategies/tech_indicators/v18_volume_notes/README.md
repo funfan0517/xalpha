@@ -1,8 +1,17 @@
-# V13 · 成交量操盘笔记（阿牛智投《最新笔记 2.0》第一章）
+# V18 · 成交量操盘笔记（阿牛智投《最新笔记 2.0》第一章）
 
 > 规格来源：`E:/qianwen/jijin/成交量操盘笔记-回测规格.md`（文档本身已把原文 50 条短句压成可执行判据）。
-> 本目录是它的**唯一实现**：参数权威源 `vol_notes.py::CFG`，报告 `backtest/_v13_volume_bt.md`。
+> 本目录是它的**唯一实现**：参数权威源 `vol_notes.py::CFG`（腿表/成本在 `legs.py`），
+> 报告 `backtest/_v18_volume_bt.md`。
 > 回测结论：**不上线**（`pipeline/strategies.json` 不注册、不进每日流程），规则/回测/每日扫描/图一起留档。
+>
+> **迁移记录（2026-11-09）**：本变种原为 `strategies/vol_legs/v13_volume_notes`（V13），按用户要求
+> 迁入 `tech_indicators` 家族改名 **V18**。迁移时做了两件"去耦合"的改造：
+> ① 腿表/成本/现金利率**冻结**成本目录的 `legs.py`（不再 import `vol_legs.rule`）；
+> ② 绩效函数**冻结**成 `metrics.py`（不再 import `vol_legs.engine`）——
+> v18 因此可以脱离 vol_legs 独立跑，代价是那两张表要手动同步（见 `legs.py` 顶部注释）。
+> 同时 OHLCV 行情库从 `strategies/vol_legs/data/` 上移到仓库 `data/_ohlcv.json`
+> （两个家族共用，AGENTS.md §8.1）。
 
 ## 一句话
 
@@ -11,31 +20,37 @@
 
 ## 为什么这个变种必须换数据源
 
-这是 V1~V13 里**唯一不能在场外净值口径下实现**的变种：
 全部判据建立在**成交量与影线**上（D1 高量 / D3 实体上影下影 / D8 观察窗），而场外复权净值
 只有一条收盘净值 —— 没有量、没有开高低，规则一条也算不出来。
 
-→ 只能走**场内 ETF 前复权日线 OHLCV**（与 `v1_2_ma_trend_pv` 同源）。
+→ 只能走**场内 ETF 前复权日线 OHLCV**（与 `vol_legs/v1_2_ma_trend_pv` 同源、同一份库）。
 代价有两条，都写在报告里：① 美股两腿只能用人民币 ETF 代理（多一层汇率）；
 ② 停牌/一字板会挡住成交（已实现「顺延并单独计数」）。
 
-2026-11-07 把 OHLCV 库从 `v1_2_ma_trend_pv/data/_ohlcv.json` 上移到
-**`strategies/vol_legs/data/_ohlcv.json`**（家族级共享，判据是「别的变种也会用」，
+行情库：**`data/_ohlcv.json`**（仓库级；2026-11-07 从 `v1_2_ma_trend_pv/data/` 上移到
+vol_legs 家族级，2026-11-09 再上移到仓库 `data/` —— 判据是「别的策略家族也会用」，
 AGENTS.md §8.1）。v1-2 与本变种共用一份，不各存一份漂移。
+库里**不含当日盘中 bar**：两个写入方（本目录 `ohlcv.py` / v1-2 `ohlcv.py`）都在 15:05 前
+裁掉"今天"那根（`_trim_partial`），否则半成品 bar 会污染高量分位/量比/支撑压力。
 
 ## 目录结构
 
 ```
-v13_volume_notes/
+v18_volume_notes/
 ├── vol_notes.py              # 规则权威源：CFG(规格 §9 镜像) + 定义层 + 信号层 + 状态机 + 记账
-├── ohlcv.py                  # 数据层：七腿 OHLCV 共享库 + 规格 §8 适用边界 + 量能失真检验
+├── legs.py                   # 七腿目标带 / 现金利率 / 额度（冻结自 vol_legs/rule.py，需手动同步）
+├── metrics.py                # 绩效函数 年化/回撤/夏普/Calmar（冻结自 vol_legs/engine.py）
+├── ohlcv.py                  # 数据层：`data/_ohlcv.json` + 规格 §8 适用边界 + 量能失真检验
 ├── backtest.py               # 判据三档 → 信号层分布 → 逐腿/组合层 → 分段 → 消融（规格 §9 的顺序）
 ├── daily/_daily_scan.py      # 每日操作清单（**手跑**，不进流程）
-├── research/_plot_v13.py     # 三张图：单腿三格 / 判据三档 / 组合层
-├── backtest/_v13_volume_bt.md / .jsonl
-├── daily/_v13_volume_daily.md / .json
+├── research/_plot_v18.py     # 三张图：单腿三格 / 判据三档 / 组合层
+├── backtest/_v18_volume_bt.md / .jsonl
+├── daily/_v18_volume_daily.md / .json
 └── README.md
 ```
+
+自检入口：`python v18_volume_notes/legs.py`（七腿额度/权重表）、`metrics.py`（公式自检）、
+`ohlcv.py`（七腿数据覆盖 + 量能失真检验）。
 
 ## 规则（六层，全部落在 `vol_notes.py`）
 
@@ -59,13 +74,13 @@ v13_volume_notes/
 3. **W9「矛盾=观望」不建分支**：规格 §4 的优先级已经把卖出类提前拦下，
    本实现按 §4 执行并要求统计**冲突率**（实测 4%）；想验证 W9 原意切 `CONFLICT_MODE="watch"`。
 
-## 回测结论（细节见 `backtest/_v13_volume_bt.md`）
+## 回测结论（细节见 `backtest/_v18_volume_bt.md`）
 
 **口径**：七腿场内 ETF · 2013-07 ~ 2026-11 · **T 日收盘信号 → T+1 开盘成交** · 单边 7bp · 空仓计货基 1.40%。
 
 | 上线池（科创50 / 恒生科技 / 黄金，2021-08~2026-11） | 年化 | 最大回撤 | 夏普 | 平均投入 |
 |---|---:|---:|---:|---:|
-| **V13 成交量清单** | **+1.83%** | **-18.67%** | 0.05 | 60% |
+| **V18 成交量清单** | **+1.83%** | **-18.67%** | 0.05 | 60% |
 | 带权买入持有（同池同权重） | +11.06% | -31.02% | 0.60 | 100% |
 | 同曝光买入持有（固定 60%） | +7.39% | -19.04% | 0.62 | 60% |
 
@@ -98,23 +113,23 @@ v13_volume_notes/
 
 ```powershell
 # 数据自检（含量能失真检验；--refresh 才联网，--bootstrap 全量重建）
-python strategies/vol_legs/v13_volume_notes/ohlcv.py
+python strategies/tech_indicators/v18_volume_notes/ohlcv.py
 
 # 规则自检：七腿最新状态 + 年化/回撤
-python strategies/vol_legs/v13_volume_notes/vol_notes.py
+python strategies/tech_indicators/v18_volume_notes/vol_notes.py
 
 # 回测（判据三档 → 信号层 → 逐腿/组合 → 分段 → 消融，约 1~2 分钟）
-python strategies/vol_legs/v13_volume_notes/backtest.py
+python strategies/tech_indicators/v18_volume_notes/backtest.py
 
 # 每日操作清单（--no-refresh 只用本地缓存）
-python strategies/vol_legs/v13_volume_notes/daily/_daily_scan.py
+python strategies/tech_indicators/v18_volume_notes/daily/_daily_scan.py
 
 # 三张图（单腿三格 / 判据三档 / 组合层；--leg 指定腿）
-python strategies/vol_legs/v13_volume_notes/research/_plot_v13.py
+python strategies/tech_indicators/v18_volume_notes/research/_plot_v18.py
 ```
 
-图：`research/_v13_{kc50,hkt,gold}.png`（上格净值+操作点 / 中格带内仓位 / 下格成交量+高量锚点）、
-`_v13_criteria.png`（三档净值 + 触发频率 vs iid 25%）、`_v13_pool.png`（V13 vs 同曝光 vs 带权持有）。
+图：`research/_v18_{kc50,hkt,gold}.png`（上格净值+操作点 / 中格带内仓位 / 下格成交量+高量锚点）、
+`_v18_criteria.png`（三档净值 + 触发频率 vs iid 25%）、`_v18_pool.png`（V18 vs 同曝光 vs 带权持有）。
 
 ## 与其它变种的关系
 

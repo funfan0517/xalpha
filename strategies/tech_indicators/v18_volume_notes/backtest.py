@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V13 · 成交量操盘笔记 · 回测（判据三档 → 信号层 → 组合层，按规格 §9 的顺序跑）。
+"""V18 · 成交量操盘笔记 · 回测（判据三档 → 信号层 → 组合层，按规格 §9 的顺序跑）。
 
 规格把跑的顺序写死了（§9 末句）：**先对照组 3（判据三档）→ 再 B/S/W 单信号分布 → 最后组合层**。
 本文件按这个顺序出报告，一节一个问题：
@@ -17,9 +17,9 @@
 口径（与家族其它变种最不同的三点，先看）：
 1. **价格 = 场内 ETF 前复权 OHLCV**（`ohlcv.py` 的家族共享库）。场外净值没有量，本变种无法用场外口径。
 2. **T 日收盘信号 → T+1 开盘成交**（本变种有开盘价，真的按开盘撮合）；一字板顺延并计数。
-3. 场内成本单边 **7bp**（佣金 2bp + 滑点 5bp，免印花税）；空仓按货基 `rule.CASH_ANNUAL` 计息。
+3. 场内成本单边 **7bp**（佣金 2bp + 滑点 5bp，免印花税）；空仓按货基 `LG.CASH_ANNUAL` 计息。
 
-产出（相对本文件）：`backtest/_v13_volume_bt.md` / `_v13_volume_bt.jsonl`。
+产出（相对本文件）：`backtest/_v18_volume_bt.md` / `_v18_volume_bt.jsonl`。
 机械规则输出，非投资建议。
 """
 import json
@@ -39,12 +39,12 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 import ohlcv      # noqa: E402
-import rule       # noqa: E402
+import legs as LG       # noqa: E402
 import vol_notes as vn  # noqa: E402
 
 OUTDIR = os.path.join(_HERE, "backtest")
-OUT_MD = os.path.join(OUTDIR, "_v13_volume_bt.md")
-OUT_JSONL = os.path.join(OUTDIR, "_v13_volume_bt.jsonl")
+OUT_MD = os.path.join(OUTDIR, "_v18_volume_bt.md")
+OUT_JSONL = os.path.join(OUTDIR, "_v18_volume_bt.jsonl")
 
 POOL = vn.POOL
 REF = ohlcv.REFERENCE
@@ -54,7 +54,7 @@ CRITERIA = [("d1", "D1 原口径（量>前三日最大）"), ("strict_b", "D1b �
 
 # 消融 / 敏感性（都只看上线池的三腿组合，避免把宽基的噪声混进来）
 SENS = [
-    ("V13 默认（D1c + 3日窗 + §4 优先级）", {}),
+    ("V18 默认（D1c + 3日窗 + §4 优先级）", {}),
     ("① 判据换 D1（原文口径）", dict(high_vol_mode="d1")),
     ("① 判据换 D1b（2×MA20）", dict(high_vol_mode="strict_b")),
     ("① 分位改 0.90", dict(high_vol_quantile=0.90)),
@@ -101,7 +101,7 @@ def metrics(nav):
 
 
 def _wtext(w, legs):
-    return "、".join(f"{rule.LEGS[k]['name']} {w[k]:.0%}" for k in legs)
+    return "、".join(f"{LG.LEGS[k]['name']} {w[k]:.0%}" for k in legs)
 
 
 # ---------------------------------------------------------------- 单腿回测
@@ -129,7 +129,7 @@ def leg_run(leg, cost=True, **kw):
     sig_cols = [c for c in sim.columns if c.startswith("sig_")]
     sig_any = sim[sig_cols].any(axis=1).to_numpy(dtype=bool) if sig_cols else np.zeros(len(sim), bool)
     info = dict(
-        leg=leg, name=rule.LEGS[leg]["name"], code=ohlcv.CODES[leg],
+        leg=leg, name=LG.LEGS[leg]["name"], code=ohlcv.CODES[leg],
         edge=ohlcv.EDGE_LABEL[ohlcv.EDGE[leg][0]],
         start=sim.index[0].date().isoformat(), end=sim.index[-1].date().isoformat(),
         years=round(yrs, 2), bars=len(sim),
@@ -147,8 +147,8 @@ def leg_run(leg, cost=True, **kw):
 
 def pool_of(legs):
     """组内归一化权重（Σ=1）。"""
-    tot = sum(float(rule.LEGS[k]["band"]) for k in legs)
-    return {k: float(rule.LEGS[k]["band"]) / tot for k in legs}
+    tot = sum(float(LG.LEGS[k]["band"]) for k in legs)
+    return {k: float(LG.LEGS[k]["band"]) / tot for k in legs}
 
 
 def port(legs, cost=True, **kw):
@@ -286,7 +286,7 @@ def main():
     recs.append({"pool": dict(legs=POOL, start=frame_pool.index[0].date().isoformat(),
                               end=frame_pool.index[-1].date().isoformat(),
                               years=round((frame_pool.index[-1] - frame_pool.index[0]).days / 365.25, 2),
-                              v13=m_pool, bh=m_bh, same=m_same, all7=m_all,
+                              v18=m_pool, bh=m_bh, same=m_same, all7=m_all,
                               invested=inv_pool,
                               weights={k: round(w_pool[k], 4) for k in POOL})})
 
@@ -456,7 +456,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
     c_d1b = next(c for c in crit if c["mode"] == "strict_b")
     c_best = max(crit, key=lambda c: c["ann"])
     c_worst = min(crit, key=lambda c: c["ann"])
-    s_def = next(s for s in sens if s["name"].startswith("V13 默认"))
+    s_def = next(s for s in sens if s["name"].startswith("V18 默认"))
     s_watch = next(s for s in sens if s["name"].startswith("③ 冲突日不动"))
     s_flat = next(s for s in sens if s["name"].startswith("③ 空仓起步"))
     s_heavy = next(s for s in sens if s["name"].startswith("④ 重仓"))
@@ -470,10 +470,10 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
     s_r20 = next(s for s in sens if s["name"].startswith("⑧ 调仓频率 20"))
 
     L = [
-        "# 波动资产 · V13 变种：成交量操盘笔记（阿牛智投笔记 2.0 第一章）",
+        "# 技术指标 · V18 变种：成交量操盘笔记（阿牛智投笔记 2.0 第一章）",
         "",
         "> 规格：`E:/qianwen/jijin/成交量操盘笔记-回测规格.md`；参数权威源：`vol_notes.py::CFG`。",
-        "> **口径：场内 ETF 前复权日线 OHLCV**（`strategies/vol_legs/data/_ohlcv.json`）—— "
+        "> **口径：场内 ETF 前复权日线 OHLCV**（`data/_ohlcv.json`）—— "
         "本变种的全部判据都建立在成交量与影线上，场外净值没有量，规则一条也算不出来。",
         f"> 成交：**T 日收盘信号 → T+1 开盘成交**；一字板顺延并单独计数；"
         f"场内成本单边 {vn.FEE_ETF * 1e4:.0f}bp（免印花税）；空仓按货基 {vn.CASH_ANNUAL:.2%} 计息。",
@@ -510,7 +510,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
         "|---|---|---|---|---|---:|---:|---:|---:|---:|",
     ]
     for d in dist:
-        L.append(f"| {rule.LEGS[d['leg']]['name']} | `{ohlcv.CODES[d['leg']]}` {d['name']} | "
+        L.append(f"| {LG.LEGS[d['leg']]['name']} | `{ohlcv.CODES[d['leg']]}` {d['name']} | "
                  f"**{d['edge_label']}** | "
                  f"{d['note']} | {d['start'][:7]}~{d['end'][:7]}（{d['n']} 根） | "
                  f"{fs(d['freq_d1'], 1)} | {fs(d['freq_b'], 1)} | {fs(d['freq_q'], 1)} | "
@@ -603,7 +603,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
         "",
         "## 5. 逐腿与组合层（成本已扣）",
         "",
-        "| 腿 | 判定 | 样本 | 年数 | V13 年化 | 最大回撤 | 夏普 | 买入持有年化 | 买入持有回撤 | "
+        "| 腿 | 判定 | 样本 | 年数 | V18 年化 | 最大回撤 | 夏普 | 买入持有年化 | 买入持有回撤 | "
         "同曝光买入持有 | 择时超额(同曝光) | 曝光 | 动作/年 | 换手/年 | 笔数 | 胜率 | 盈亏比 | 一字板顺延 |",
         "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
@@ -637,7 +637,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
         "",
         "| 组合 | 累计 | 年化 | 波动 | 最大回撤 | Calmar | 夏普 | 平均投入 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
-        f"| **V13（上线池三腿）** | {fp(m_pool['cum'], 1)} | {fp(m_pool['ann'])} | {fp(m_pool['vol'])} | "
+        f"| **V18（上线池三腿）** | {fp(m_pool['cum'], 1)} | {fp(m_pool['ann'])} | {fp(m_pool['vol'])} | "
         f"{fp(m_pool['mdd'])} | {fn(m_pool['calmar'])} | {fn(m_pool['sharpe'])} | {fs(inv_pool)} |",
         f"| 带权买入持有（同池 · 与策略同权重） | {fp(m_bh['cum'], 1)} | {fp(m_bh['ann'])} | {fp(m_bh['vol'])} | "
         f"{fp(m_bh['mdd'])} | {fn(m_bh['calmar'])} | {fn(m_bh['sharpe'])} | 100% |",
@@ -667,7 +667,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
     ]
     for k in vn.LEGS:
         a, b = segs_leg[k][0], segs_leg[k][1]
-        L.append(f"| {rule.LEGS[k]['name']} | {fp(a['ret'], 1) if a else '—'} | "
+        L.append(f"| {LG.LEGS[k]['name']} | {fp(a['ret'], 1) if a else '—'} | "
                  f"{fp(b['ret'], 1) if b else '—'} | {fp(b['ann']) if b else '—'} | "
                  f"{fp(b['mdd']) if b else '—'} | {b['n'] if b else '—'} |")
     L += [
@@ -685,7 +685,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
         f"只有 {len(frame_pool)} 个交易日、两段各 {len(frame_pool) // 2} 天，"
         "**这个差是噪声，不足以支撑「稳健/不稳健」的判断**。逐腿表里能看的只有黄金那段 12.9 年。",
         "",
-        "| 年 | V13（上线池） |",
+        "| 年 | V18（上线池） |",
         "|---|---:|",
     ]
     for y in yrs:

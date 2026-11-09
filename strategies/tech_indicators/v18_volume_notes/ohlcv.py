@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V13 · 成交量操盘笔记 · 数据层：七腿**场内 ETF 前复权日线 OHLCV**（家族共享库）。
+"""V18 · 成交量操盘笔记 · 数据层：七腿**场内 ETF 前复权日线 OHLCV**（家族共享库）。
 
 为什么必须走场内 ETF（与主策略最本质的分歧）：
   本变种的**全部判据都建立在成交量与影线上**（D1 高量 / D3 实体上影下影 / D8 观察窗），
@@ -12,7 +12,7 @@
   美股腿的信号里掺了汇率。文档 §8 明确「QDII 不接」，所以这两条腿只作**对照**，不进上线池。
 
 ## 共享库
-`strategies/vol_legs/data/_ohlcv.json`（结构 `{code: {dates, open, high, low, close, volume}}`）。
+`data/_ohlcv.json`（结构 `{code: {dates, open, high, low, close, volume}}`）。
 2026-11-07 从 `v1_price_volume/v1_2_ma_trend_pv/data/` 上移到家族级 `data/` ——
 判据是「别的变种也会用」（AGENTS.md §8.1），v1-2 与本变种共用同一份，不各存一份漂移。
 
@@ -40,16 +40,15 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-_HERE = os.path.dirname(os.path.abspath(__file__))   # .../v13_volume_notes
-_VL = os.path.dirname(_HERE)                         # strategies/vol_legs
-_ROOT = os.path.dirname(os.path.dirname(_VL))        # 仓库根
+_HERE = os.path.dirname(os.path.abspath(__file__))          # .../v18_volume_notes
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))   # 仓库根
 
-if _VL not in sys.path:
-    sys.path.insert(0, _VL)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
-import rule  # noqa: E402  家族参数权威源（腿表 / 现金利率 / 目标带）
+import legs as LG  # noqa: E402  本变种腿表 / 现金利率
 
-LIB = os.path.join(_VL, "data", "_ohlcv.json")       # 家族共享库
+LIB = os.path.join(_ROOT, "data", "_ohlcv.json")     # 仓库级行情库（v1-2 与本变种共用）
 START = "20130101"       # 抓取起点（D1c 的 60 日分位 + ATR20 预热之后仍有 ~12 年样本）
 WIN = 40                 # 增量比对窗口（日历日）
 TOL = 1e-4               # 重叠收盘价的相对容差
@@ -72,7 +71,7 @@ NAMES = {
     "hkt": "恒生科技ETF华夏",
     "gold": "黄金ETF华安",
 }
-LEGS = rule.LEG_ORDER
+LEGS = LG.LEG_ORDER
 
 # 文档 §8 的适用边界（权威源）。"ok" 可接 / "try" 谨慎可试 / "no" 不接。
 EDGE = {
@@ -111,10 +110,29 @@ def _fetch(code, start=START):
     return out.sort_values("date").reset_index(drop=True)
 
 
+def _trim_partial(lib):
+    """丢掉「今天还没收盘」的那根 bar。
+
+    盘中刷新会把半成品 bar 写进库（当日量只有收盘的四分之一），
+    它会污染所有用到末根的判据（高量分位 / 量比 / 支撑压力）。15:05 之后视为已收盘。
+    """
+    now = pd.Timestamp.now()
+    if now.hour * 60 + now.minute >= 15 * 60 + 5:
+        return lib
+    today = now.strftime("%Y-%m-%d")
+    for node in lib.values():
+        dates = node.get("dates") or []
+        if dates and dates[-1] == today:
+            for col in ("dates", "open", "high", "low", "close", "volume"):
+                if node.get(col):
+                    node[col] = node[col][:-1]
+    return lib
+
+
 def _read():
     try:
         with open(LIB, encoding="utf-8") as f:
-            return json.load(f)
+            return _trim_partial(json.load(f))
     except (OSError, ValueError):
         return {}
 
@@ -122,7 +140,7 @@ def _read():
 def _write(lib):
     os.makedirs(os.path.dirname(LIB), exist_ok=True)
     with open(LIB, "w", encoding="utf-8") as f:
-        json.dump(lib, f, ensure_ascii=False)
+        json.dump(_trim_partial(lib), f, ensure_ascii=False)
 
 
 def _node(df):
@@ -162,7 +180,10 @@ def refresh(codes=None):
         except Exception as exc:  # noqa: BLE001  —— 网络/口径问题退化为「用缓存」
             fails[code] = f"{type(exc).__name__}: {exc}"
             latest[code] = (lib.get(code) or {}).get("dates", [""])[-1]
-    _write(lib)
+    _write(lib)          # 内部会裁掉「今天还没收盘」的半成品 bar
+    for _c in list(latest):                     # 裁完之后重取「最新日期」，避免报一个没入库的日期
+        if lib.get(_c, {}).get("dates"):
+            latest[_c] = lib[_c]["dates"][-1]
     return latest, fails
 
 
@@ -233,7 +254,7 @@ def distortion(leg, q=0.95, lookback=60, mult=2.0):
 
 
 def main():
-    """自检 / 手动刷新：python v13_volume_notes/ohlcv.py [--bootstrap] [--refresh]"""
+    """自检 / 手动刷新：python v18_volume_notes/ohlcv.py [--bootstrap] [--refresh]"""
     if "--bootstrap" in sys.argv or not os.path.exists(LIB):
         latest, fails = bootstrap()
         print("全量重建:", LIB)
@@ -250,7 +271,7 @@ def main():
         try:
             df = frame(leg)
             d = distortion(leg)
-            print(f"  {leg:6s} {rule.LEGS[leg]['name']:8s} [{EDGE_LABEL[d['edge']]}] "
+            print(f"  {leg:6s} {LG.LEGS[leg]['name']:8s} [{EDGE_LABEL[d['edge']]}] "
                   f"{df.index[0].date()} ~ {df.index[-1].date()} · {len(df):5d} 根 · "
                   f"D1 {d['freq_d1']:.1%} / D1b {d['freq_b']:.1%} / D1c {d['freq_q']:.1%} · "
                   f"振幅比 {d['amp']:.2f} · corr(量比,|r|) {d['corr']:+.2f}")

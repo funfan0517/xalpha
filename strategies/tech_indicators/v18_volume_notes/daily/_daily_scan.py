@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V13 · 成交量操盘笔记 · 每日操作清单（收盘后跑）。
+"""V18 · 成交量操盘笔记 · 每日操作清单（收盘后跑）。
 
 流程：
 1. **先增量刷新场内 ETF 日线**（`ohlcv.refresh()`，家族共享库）；失败沿用本地缓存并在表里标 ❌。
@@ -12,9 +12,9 @@
 
 成交提醒：T 日收盘算出的目标仓位，**T+1 开盘**成交（规格 §5 `exec="next_open"`）。
 本变种**不上线**（`pipeline/strategies.json` 不注册、`run_daily_vol_legs.ps1` 不调用），
-需要时手跑本脚本；结论见 `../backtest/_v13_volume_bt.md` §9。
+需要时手跑本脚本；结论见 `../backtest/_v18_volume_bt.md` §9。
 
-产物（相对本文件）：`_v13_volume_daily.md` / `_v13_volume_daily.json`。
+产物（相对本文件）：`_v18_volume_daily.md` / `_v18_volume_daily.json`。
 机械规则输出，非投资建议。
 """
 import json
@@ -28,18 +28,17 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-_HERE = os.path.dirname(os.path.abspath(__file__))       # .../v13_volume_notes/daily
-_V13 = os.path.dirname(_HERE)
-_VL = os.path.dirname(_V13)
-if _V13 not in sys.path:
-    sys.path.insert(0, _V13)
+_HERE = os.path.dirname(os.path.abspath(__file__))       # .../v18_volume_notes/daily
+_V18 = os.path.dirname(_HERE)
+if _V18 not in sys.path:
+    sys.path.insert(0, _V18)
 
 import ohlcv       # noqa: E402
-import rule        # noqa: E402
+import legs as LG        # noqa: E402
 import vol_notes as vn  # noqa: E402
 
-OUT_MD = os.path.join(_HERE, "_v13_volume_daily.md")
-OUT_JSON = os.path.join(_HERE, "_v13_volume_daily.json")
+OUT_MD = os.path.join(_HERE, "_v18_volume_daily.md")
+OUT_JSON = os.path.join(_HERE, "_v18_volume_daily.json")
 RECENT = 10
 CONFLICT_WIN = 20
 
@@ -69,8 +68,8 @@ def one_leg(leg, latest, fails, refresh=True):
     sig20 = float(sim[[c for c in sim.columns if c.startswith("sig_")]]
                   .any(axis=1).iloc[-CONFLICT_WIN:].mean())
     return dict(
-        leg=leg, name=rule.LEGS[leg]["name"], role=rule.LEGS[leg]["role"],
-        band=float(rule.LEGS[leg]["band"]), code=ohlcv.CODES[leg],
+        leg=leg, name=LG.LEGS[leg]["name"], role=LG.LEGS[leg]["role"],
+        band=float(LG.LEGS[leg]["band"]), code=ohlcv.CODES[leg],
         edge=ohlcv.EDGE_LABEL[ohlcv.EDGE[leg][0]], edge_note=ohlcv.EDGE[leg][1],
         date=st["date"], close=st["close"], S=st["S"], R=st["R"],
         anchor_age=st["anchor_age"], in_window=st["in_window"], hv=st["hv"],
@@ -80,7 +79,7 @@ def one_leg(leg, latest, fails, refresh=True):
         action=act, rule=st["rule"], why=st["why"], conflict=st["conflict"],
         signals=st["signals"], conflict20=conf20, signal20=sig20,
         fresh=_fresh(ohlcv.CODES[leg], latest, fails, refresh),
-        target_pp=st["mult"] * float(rule.LEGS[leg]["band"]),
+        target_pp=st["mult"] * float(LG.LEGS[leg]["band"]),
     )
 
 
@@ -123,8 +122,8 @@ def main():
     maxdate = max(r["date"] for r in rows.values())
 
     payload = dict(
-        strategy="vol_legs", variant="v13_volume_notes",
-        title="V13 成交量操盘笔记（阿基米德笔记2.0 第一章）· 每日操作",
+        strategy="tech_indicators", variant="v18_volume_notes",
+        title="V18 成交量操盘笔记（阿基米德笔记2.0 第一章）· 每日操作",
         as_of=maxdate, generated_at=pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"),
         pool=vn.POOL, reference=ohlcv.REFERENCE,
         rules=dict(high_vol_mode=vn.CFG["high_vol_mode"],
@@ -140,7 +139,7 @@ def main():
         json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
 
     L = [
-        "# V13 成交量操盘笔记 · 每日操作",
+        "# V18 成交量操盘笔记 · 每日操作",
         "",
         f"> 数据截至 **{maxdate}** · 生成 {payload['generated_at']} · "
         f"高量判据 `{vn.CFG['high_vol_mode']}` q{vn.CFG['high_vol_quantile']:.2f}/"
@@ -200,7 +199,7 @@ def main():
     L += ["", "## 3. 最近信号流水（上线池）", ""]
     for k in vn.POOL:
         fl = payload["flow"][k]
-        L.append(f"### {rule.LEGS[k]['name']}（近 {RECENT} 日，{len(fl)} 条）")
+        L.append(f"### {LG.LEGS[k]['name']}（近 {RECENT} 日，{len(fl)} 条）")
         if not fl:
             L += ["", "（无）", ""]
             continue
@@ -220,12 +219,12 @@ def main():
         f"- 上线池近 {CONFLICT_WIN} 日：**有信号日 {avg_sig:.0%}、同日买卖冲突 {avg_conf:.0%}**"
         "（回测里这个冲突率对应「风控优先」档；改成「冲突不动」年化会高一点，见回测 §7）。",
         f"- 上线池平均动作约 {sum(r['mult'] for r in pool) / len(pool):.0%} 带位 —— "
-        "本变种回测的结论是：**它压仓位、不产生超额**（`backtest/_v13_volume_bt.md` §9）。"
+        "本变种回测的结论是：**它压仓位、不产生超额**（`backtest/_v18_volume_bt.md` §9）。"
         "所以这张表的正确用法是**给已有持仓做「今天该不该减」的检查**，不是买入清单。",
         "- 一字板（涨跌 ≥9.8% 且 H≈L）当天的目标仓位会顺延，次日开盘才可能成交。",
         "",
         "> **机械规则输出，非投资建议。** 本变种未进每日流程（`pipeline/strategies.json` 不注册），"
-        "需要时手跑：`python strategies/vol_legs/v13_volume_notes/daily/_daily_scan.py`。",
+        "需要时手跑：`python strategies/tech_indicators/v18_volume_notes/daily/_daily_scan.py`。",
     ]
 
     with open(OUT_MD, "w", encoding="utf-8") as f:

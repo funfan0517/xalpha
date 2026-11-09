@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V13 · 成交量操盘笔记（阿牛智投《最新笔记2.0》第一章）· 规则 + 状态机 + 记账。
+"""V18 · 成交量操盘笔记（阿牛智投《最新笔记2.0》第一章）· 规则 + 状态机 + 记账。
 
 来源文档：`E:/qianwen/jijin/成交量操盘笔记-回测规格.md`（下称「规格」）。
 规格已把原文 50 条短句压成可执行判据，本文件是它的**唯一实现**：
@@ -23,7 +23,7 @@
 
 ## 三个必须知道的实现裁定（数字对不上时先看这里）
 ### ① 「重仓 ×1.5」在「带=上限」口径下被截断
-家族统一口径是「目标带 = 该腿可持有的上限」（主策略 `rule.LEGS[k]["band"]`），
+家族统一口径是「目标带 = 该腿可持有的上限」（主策略 `LG.LEGS[k]["band"]`），
 所以 `重仓 ×1.5` 一出手就顶穿上限，实际仓位仍 = 带。本实现的处理：
 - 默认 `POS_CAP = 1.0`（重仓与上车同效），**B4 的差别只在信号层体现**（先验分布单列）；
 - `HEAVY_UNCAP=True` 可放开到 1.5 倍带，作为「这段截断值多少钱」的诊断档（回测里有）。
@@ -46,7 +46,7 @@ B3/B4（上影线被阳线实体突破）是**两根 K 线的关系**，与窗�
 - **一字板顺延**：`|涨跌| ≥ 9.8%` 且 `H≈L` 的 bar 视为买不进/卖不出，仓位保持、当日不成交，
   单独计数（`deferred`）—— 规格 §5 明令「不许当没发生」。
 - 场内 ETF 成本 `comm 0.02% 双边 + slip 0.05%` → **单边 7bp**（免印花税）。
-- 空仓按货基 `rule.CASH_ANNUAL` 逐日计息。
+- 空仓按货基 `LG.CASH_ANNUAL` 逐日计息。
 
 机械规则输出，非投资建议。
 """
@@ -62,17 +62,15 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-_HERE = os.path.dirname(os.path.abspath(__file__))   # .../v13_volume_notes
-_VL = os.path.dirname(_HERE)                         # strategies/vol_legs
-_ROOT = os.path.dirname(os.path.dirname(_VL))        # 仓库根
+_HERE = os.path.dirname(os.path.abspath(__file__))          # .../v18_volume_notes
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))   # 仓库根
 
-for _p in (_HERE, _VL):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
-import engine   # noqa: E402  家族绩效函数（engine.metrics）
-import rule     # noqa: E402  家族腿表 / 现金利率
-import ohlcv    # noqa: E402  场内 ETF OHLCV 共享库
+import legs as LG                  # noqa: E402  本变种腿表 / 现金利率（冻结自 vol_legs/rule.py）
+import metrics as _metrics   # noqa: E402  本变种绩效函数（冻结自 vol_legs/engine.py）
+import ohlcv                 # noqa: E402  七腿场内 ETF OHLCV（仓库 data/）
 
 # ---------------------------------------------------------------- 1. 参数（规格 §9 镜像）
 CFG = {
@@ -108,15 +106,15 @@ MIN_GAP = 0                  # 同向动作最小间隔（交易日）。规格 
 REBAL_EVERY = 1              # 调仓频率：每 N 个交易日才允许改一次仓位。1 = 逐日（规格口径）
                              # 诊断开关，只改「多久执行一次」不改「看到什么」；>1 时 action 列按实际变动重算
 
-CASH_ANNUAL = rule.CASH_ANNUAL
+CASH_ANNUAL = LG.CASH_ANNUAL
 CASH_DAILY = (1.0 + CASH_ANNUAL) ** (1.0 / 252) - 1.0
 FEE_ETF = CFG["cost_etf"]["comm"] + CFG["cost_etf"]["slip"]     # 单边 7bp
 LIMIT_PCT = 0.098            # 一字板判定：|涨跌| ≥ 9.8%
 LIMIT_FLAT = 0.0005          # ……且 H≈L（相对收盘 5bp 以内）
 
-LEGS = rule.LEG_ORDER
+LEGS = LG.LEG_ORDER
 POOL = ohlcv.POOL
-W = {k: float(rule.LEGS[k]["band"]) / float(rule.SLEEVE_PP) for k in LEGS}
+W = {k: float(LG.LEGS[k]["band"]) / float(LG.SLEEVE_PP) for k in LEGS}
 
 # 动作归类（规格 §3.2/§3.1；§4 优先级）
 CLEAR = ("S1", "S10")
@@ -524,7 +522,7 @@ def portfolio(frame, rets, weight=None, cost=True):
 
 # ---------------------------------------------------------------- 6. 统计
 def perf(nav):
-    m = engine.metrics(nav)
+    m = _metrics.metrics(nav)
     m["calmar"] = m["ann"] / abs(m["mdd"]) if abs(m["mdd"]) > 1e-9 else 0.0
     return m
 
@@ -639,7 +637,7 @@ def _self_check():
         st = latest_state(sim)
         nav, r, w, d = run_leg(sim["mult"], df.loc[sim.index])
         m = perf(nav)
-        print(f"  {k:6s} {rule.LEGS[k]['name']:8s} {st['date']} 收盘 {st['close']:.3f} "
+        print(f"  {k:6s} {LG.LEGS[k]['name']:8s} {st['date']} 收盘 {st['close']:.3f} "
               f"S {st['S']:.3f} R {st['R']:.3f} 量比 {st['rvol']:.2f} "
               f"仓位 {st['mult']:.0%} [{st['action']}] 年化 {fmt_pct(m['ann'])} "
               f"回撤 {fmt_pct(m['mdd'])} 顺延 {d}")

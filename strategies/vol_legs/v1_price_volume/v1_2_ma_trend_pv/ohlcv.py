@@ -12,9 +12,10 @@
 这也意味着美股腿的信号里掺了汇率 —— 这是「要量」必须付的第二笔代价，README §5 记录在案。
 
 ## 缓存与刷新
-- 本地库：`strategies/vol_legs/data/_ohlcv.json`（**家族级共享**，v1-2 与 v13 量价变种共用；
-  2026-11-07 从 `v1_2_ma_trend_pv/data/` 上移 —— 判据是「别的变种也会用」，
-  见 AGENTS.md §8.1），结构 `{code: {dates, open, high, low, close, volume}}`。
+- 本地库：`data/_ohlcv.json`（**仓库级行情库**，v1-2 与 `tech_indicators/v18_volume_notes` 共用；
+  2026-11-07 从 `v1_2_ma_trend_pv/data/` 上移到 vol_legs 家族级、2026-11-09 再上移到仓库
+  `data/` —— 判据是「别的策略家族也会用」，见 AGENTS.md §8.1），
+  结构 `{code: {dates, open, high, low, close, volume}}`。
 - 首次：`bootstrap()` 全量拉取（起点 2013-01-01，给 250 日年线留 warmup）。
 - 之后：`refresh()` 增量追加 —— 先取近 40 天窗口比对重叠收盘价，一致则只追加新交易日，
   不一致（前复权基准变了，ETF 分红会让历史整体平移）则整段重取。
@@ -42,7 +43,7 @@ if _VL not in sys.path:
 
 import rule  # noqa: E402  家族参数权威源（腿表 / 现金利率）
 
-LIB = os.path.join(_VL, "data", "_ohlcv.json")   # 家族共享库（v1-2 / v13 量价变种）
+LIB = os.path.join(_ROOT, "data", "_ohlcv.json")   # 仓库级行情库（v1-2 / tech_indicators v18 共用）
 START = "20130101"       # 抓取起点（250 日年线 + 指标 warmup 之后仍有 ~11 年样本）
 WIN = 40                 # 增量比对窗口（日历日）
 TOL = 1e-4               # 重叠收盘价的相对容差
@@ -94,10 +95,25 @@ def _fetch(code, start=START):
     return out.sort_values("date").reset_index(drop=True)
 
 
+def _trim_partial(lib):
+    """丢掉「今天还没收盘」的那根 bar（盘中刷新会把半成品写进共享库）。15:05 后视为已收盘。"""
+    now = pd.Timestamp.now()
+    if now.hour * 60 + now.minute >= 15 * 60 + 5:
+        return lib
+    today = now.strftime("%Y-%m-%d")
+    for node in lib.values():
+        dates = node.get("dates") or []
+        if dates and dates[-1] == today:
+            for col in ("dates", "open", "high", "low", "close", "volume"):
+                if node.get(col):
+                    node[col] = node[col][:-1]
+    return lib
+
+
 def _read():
     try:
         with open(LIB, encoding="utf-8") as f:
-            return json.load(f)
+            return _trim_partial(json.load(f))
     except (OSError, ValueError):
         return {}
 
@@ -105,7 +121,7 @@ def _read():
 def _write(lib):
     os.makedirs(os.path.dirname(LIB), exist_ok=True)
     with open(LIB, "w", encoding="utf-8") as f:
-        json.dump(lib, f, ensure_ascii=False)
+        json.dump(_trim_partial(lib), f, ensure_ascii=False)
 
 
 def _node(df):
@@ -145,7 +161,10 @@ def refresh(codes=None):
         except Exception as exc:  # noqa: BLE001  —— 网络/口径问题退化为「用缓存」
             fails[code] = f"{type(exc).__name__}: {exc}"
             latest[code] = (lib.get(code) or {}).get("dates", [""])[-1]
-    _write(lib)
+    _write(lib)          # 内部会裁掉「今天还没收盘」的半成品 bar
+    for _c in list(latest):                     # 裁完之后重取「最新日期」
+        if lib.get(_c, {}).get("dates"):
+            latest[_c] = lib[_c]["dates"][-1]
     return latest, fails
 
 

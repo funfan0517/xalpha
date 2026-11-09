@@ -1,9 +1,9 @@
 {
-  "strategy": "vol_legs",
-  "variant": "v13_volume_notes",
-  "title": "V13 成交量操盘笔记（阿基米德笔记2.0 第一章）· 每日操作",
+  "strategy": "tech_indicators",
+  "variant": "v18_volume_notes",
+  "title": "V18 成交量操盘笔记（阿基米德笔记2.0 第一章）· 每日操作",
   "as_of": "2026-11-06",
-  "generated_at": "2026-11-07 16:17",
+  "generated_at": "2026-11-09 10:17",
   "pool": [
     "kc50",
     "hkt",

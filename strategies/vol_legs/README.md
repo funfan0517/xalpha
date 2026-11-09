@@ -288,12 +288,12 @@ strategies/vol_legs/
     v12_support_gate/
                        # v11 结论的仓位化实现；回测判定**不上线**（支撑层 -4~-5pp/年）
                        # （support_gate/backtest/research，**无 daily**）
-    v13_volume_notes/
-                       # 成交量操盘笔记（阿牛智投笔记2.0 第一章）· 高量锚点 + 3日观察窗
-                       # **唯一必须用场内 OHLCV 的变种**（判据全在成交量与影线上）
-                       # 回测判定**不上线**（压仓位不产超额，-5.57pp vs 同曝光）
-                       # （vol_notes/ohlcv/backtest/daily/research，daily 只手跑）
 ```
+
+> **原 `v13_volume_notes/`（成交量操盘笔记）已于 2026-11-09 迁入
+> `strategies/tech_indicators/v18_volume_notes/`**（改名 V18，按用户要求归到技术指标家族）。
+> 迁移时把腿表/成本冻结成那边的 `legs.py`、绩效函数冻结成 `metrics.py`，**不再反向依赖本家族**；
+> 共用的 OHLCV 行情库同时上移到仓库 `data/_ohlcv.json`。本家族内不再有 v13 目录。
 
 共享数据（在仓库 `data/`，本策略只读；`_otc_nav.json` / `_us_index_klines.json` 由本模块增量维护）：
 `_otc_nav.json`（场外复权净值，主口径）、`_long_klines.json`（场内 ETF）、`_us_index_klines.json`
@@ -559,23 +559,14 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
   图：`research/_plot_v12.py` → `_v12_support_bt.png`（净值/回撤/逐腿年化/逐腿回撤/消融六格）。
   > ⚠ 口径：七腿窗口只有 **4.2 年**（恒生科技 2021-08 上市 + 250 日预热），长历史只有「五腿」；
   > C 类腿销售服务费未计（与 v1~v9 同）→ 高换手配置的成本被**低估**，负结论只会更强。
-- **变种 `v13_volume_notes/`（成交量操盘笔记 · 高量锚点 + 3 日观察窗 · 回测后判定不上线）**（2026-11-07）：
-  把 `E:/qianwen/jijin/成交量操盘笔记-回测规格.md` 的判据全量实现（D1/D1b/D1c 三档高量锚点、
-  S/R 支撑压力、B1~B4 上车、S1~S10 减仓清仓、W/T 组统计、§4 优先级 `清仓>减仓>买入>观望`），
-  **唯一入场口径是场内 ETF 前复权 OHLCV**（判据全在成交量与影线上，场外净值算不出来），
-  T 日收盘信号 → **T+1 开盘成交**、一字板顺延计数、单边 7bp。
-  上线池（按规格 §8 只留「主题/行业 ETF 谨慎可试」三腿：`588000` / `513180` / `518880`）：
-  年化 **+1.83%** vs 同曝光买入持有 **+7.39%**（**-5.57pp**）、回撤 **-18.67% vs -19.04%（持平）**、
-  平均投入 60%、**55 次/年动作、32x/年换手、成本 2.58pp/年**。
-  **0/3 条腿跑赢同曝光**，而不接的宽基/QDII 是 0/4 —— 规格 §8 的边界判断被证实（量价 corr +0.43 vs +0.22）。
-  定义层同时证实了规格 §7：D1「量>前三日最大」在七条腿上的触发频率 **25.0%~28.5% ≈ iid 25%**，
-  换 D1c 分位后年化只动 -0.04pp（换手 43.7x → 30.8x）——**换判据是可测性前提，不是收益来源**。
-  唯一正面项是「冲突时不动」（W9 原意）+1.34pp/年。**故不上线**（不注册 `pipeline/strategies.json`、
-  不进 `run_daily_*.ps1`、不出看板卡），`daily/_daily_scan.py` 只手跑。
-  图：`research/_plot_v13.py` → `_v13_{kc50,hkt,gold}.png`（净值+操作点/带内仓位/成交量+高量锚点）、
-  `_v13_criteria.png`（三档净值 + 触发频率 vs iid 25%）、`_v13_pool.png`（V13 vs 同曝光 vs 带权持有）。
-  > ⚠ 数据耦合：OHLCV 库 2026-11-07 从 `v1_2_ma_trend_pv/data/` 上移到**家族级
-  > `strategies/vol_legs/data/_ohlcv.json`**（v1-2 与本变种共用，见 AGENTS.md §8.1）。
+- **原变种 `v13_volume_notes/`（成交量操盘笔记）已迁出本家族**（2026-11-07 落地 → 2026-11-09 迁出）：
+  现为 **`strategies/tech_indicators/v18_volume_notes/`（V18）**，规则/回测/每日扫描/图全部随目录搬走
+  （`vol_notes.py` + `legs.py` + `metrics.py` + `ohlcv.py` + `backtest.py` + `daily/` + `research/`）。
+  结论摘要（详情见那边的 `backtest/_v18_volume_bt.md`）：上线池三腿年化 **+1.83%** vs 同曝光买入持有
+  **+7.39%**（-5.57pp）、回撤持平（-18.67% vs -19.04%）；D1 触发频率 25.0%~28.5% ≈ iid 25%，
+  **不上线**（不注册 `pipeline/strategies.json`、不进 `run_daily_*.ps1`、不出看板卡）。
+  > ⚠ 它曾与本家族 v1-2 共用 OHLCV 库；2026-11-09 该库已上移到**仓库级 `data/_ohlcv.json`**，
+  > 两个家族现在都读同一份（判据「别的策略也会用」，AGENTS.md §8.1）。
 - **原 `v10_erp_ladder/` 已并入 v4**（2026-11-03 同日：先按「离带执行」落地为 v10，再按用户口径
   把 4 带改成两带，最后随「删除 v4/v8」的指令提升为 **v4 主口径**，目录改名为 `v4_erp_band/`）。
   旧 v4/v8 的结论与代码见 git 历史（`dc2bbff`）。

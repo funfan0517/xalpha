@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-"""V13（成交量操盘笔记）· 三张图：单腿三格 / 判据三档 / 组合层。
+"""V18（成交量操盘笔记）· 三张图：单腿三格 / 判据三档 / 组合层。
 
 图都在解释同一件事 —— **这套清单改变的是仓位，不是收益**：
 
-1. `_v13_{leg}.png`（每条上线腿一张，三格）
-   - 上格：V13 净值（紫）vs 该 ETF 买入持有（灰）+ ▲▼ 操作点（成交日 = 信号次日开盘）；
+1. `_v18_{leg}.png`（每条上线腿一张，三格）
+   - 上格：V18 净值（紫）vs 该 ETF 买入持有（灰）+ ▲▼ 操作点（成交日 = 信号次日开盘）；
    - 中格：带内仓位阶梯（0 / 50% / 100%，占该腿目标带）—— **它是这套规则唯一真实改变的量**；
    - 下格：成交量柱 + MA20 量线 + **高量锚点标记**（橙点 = 当日是 D1c 高量，即观察窗 D0）。
-2. `_v13_criteria.png`
+2. `_v18_criteria.png`
    - 上格：三档高量判据（D1 / D1b / D1c）的组合净值 vs 同权重恒定持有；
    - 下格：三档在七条腿上的触发频率（虚线 = iid 理论值 25% = 「没有信息」的基准）。
-3. `_v13_pool.png`
-   - 上格：上线池组合（V13 / 同曝光买入持有 / 带权买入持有）；
-   - 下格：组合加权仓位阶梯 —— 与 `_v13_{leg}.png` 中格同一个读数，只是加权合成。
+3. `_v18_pool.png`
+   - 上格：上线池组合（V18 / 同曝光买入持有 / 带权买入持有）；
+   - 下格：组合加权仓位阶梯 —— 与 `_v18_{leg}.png` 中格同一个读数，只是加权合成。
 
 口径：场内 ETF 前复权 OHLCV，T 日收盘信号 → T+1 **开盘**成交，成本单边 7bp，空仓计货基。
-产物（本目录）：`_v13_{kc50,hkt,gold}.png` / `_v13_criteria.png` / `_v13_pool.png`。
+产物（本目录）：`_v18_{kc50,hkt,gold}.png` / `_v18_criteria.png` / `_v18_pool.png`。
 机械规则输出，非投资建议。
 """
 import argparse
@@ -31,12 +31,12 @@ except Exception:  # noqa: BLE001
     pass
 
 _HERE = os.path.dirname(os.path.abspath(__file__))      # .../research
-_V13 = os.path.dirname(_HERE)
-if _V13 not in sys.path:
-    sys.path.insert(0, _V13)
+_V18 = os.path.dirname(_HERE)
+if _V18 not in sys.path:
+    sys.path.insert(0, _V18)
 
 import ohlcv        # noqa: E402
-import rule         # noqa: E402
+import legs as LG         # noqa: E402
 import vol_notes as vn   # noqa: E402
 
 OUT = _HERE
@@ -80,10 +80,10 @@ def plot_leg(leg, **kw):
 
     a = axs[0]
     a.plot(hold.index, hold, color=C_HOLD, lw=1.1,
-           label=f"{rule.LEGS[leg]['name']} 买入持有  {m_h['ann']:+.1%}/年 · 回撤 {m_h['mdd']:.1%} · "
+           label=f"{LG.LEGS[leg]['name']} 买入持有  {m_h['ann']:+.1%}/年 · 回撤 {m_h['mdd']:.1%} · "
                  f"夏普 {m_h['sharpe']:.2f}")
     a.plot(nav.index, nav, color=C_NAV, lw=1.5,
-           label=f"V13 成交量清单  {m_v['ann']:+.1%}/年 · 回撤 {m_v['mdd']:.1%} · "
+           label=f"V18 成交量清单  {m_v['ann']:+.1%}/年 · 回撤 {m_v['mdd']:.1%} · "
                  f"夏普 {m_v['sharpe']:.2f} · 曝光 {expo:.0%}")
     dw = w.diff().fillna(0.0)
     buys, sells = np.where(dw.to_numpy() > 1e-9)[0], np.where(dw.to_numpy() < -1e-9)[0]
@@ -138,12 +138,12 @@ def plot_leg(leg, **kw):
         c.xaxis.set_major_locator(mdates.YearLocator())
         c.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
-    fig.suptitle(f"{rule.LEGS[leg]['name']}（场内 {ohlcv.CODES[leg]}，前复权 OHLCV）· "
-                 f"V13 成交量操盘笔记 vs 买入持有    |    "
+    fig.suptitle(f"{LG.LEGS[leg]['name']}（场内 {ohlcv.CODES[leg]}，前复权 OHLCV）· "
+                 f"V18 成交量操盘笔记 vs 买入持有    |    "
                  f"{df.index[0].date()} ~ {df.index[-1].date()}（{yrs:.1f} 年）",
                  x=0.055, ha="left", y=0.968, fontsize=14, color="#1b2b3a", weight="bold")
     note = [
-        "上格：紫 = V13 清单净值（T 日收盘信号 → T+1 开盘成交，成本单边 7bp，空仓计货基），"
+        "上格：紫 = V18 清单净值（T 日收盘信号 → T+1 开盘成交，成本单边 7bp，空仓计货基），"
         "灰 = 该 ETF 买入持有；▲▼ = 成交日，实心画在策略净值上。",
         "中格：带内仓位 0/50%/100%（清仓 / 减半 / 满带）—— 这套清单的产出几乎只有这一格在动。",
         f"下格：成交量（亿股）+ MA20 量线 + 高量锚点（`{vn.CFG['high_vol_mode']}` 口径，空心橙圈）；"
@@ -153,12 +153,12 @@ def plot_leg(leg, **kw):
     fig.text(0.055, 0.008, "\n".join(note), fontsize=8.6, color="#5b6b7a", linespacing=1.55,
              va="bottom")
     fig.subplots_adjust(left=0.065, right=0.975, top=0.885, bottom=0.145)
-    out = os.path.join(OUT, f"_v13_{leg}.png")
+    out = os.path.join(OUT, f"_v18_{leg}.png")
     fig.savefig(out, dpi=130, facecolor="white")
     plt.close(fig)
 
     print(f"图: {out}")
-    print(f"  {rule.LEGS[leg]['name']}: V13 {m_v['ann']:+.2%}/年 回撤 {m_v['mdd']:.2%} "
+    print(f"  {LG.LEGS[leg]['name']}: V18 {m_v['ann']:+.2%}/年 回撤 {m_v['mdd']:.2%} "
           f"夏普 {m_v['sharpe']:.2f} 曝光 {expo:.0%} · 买入持有 {m_h['ann']:+.2%}/年 "
           f"回撤 {m_h['mdd']:.2%} · 买 {len(buys)} / 卖 {len(sells)} · 一字板顺延 {deferred}")
     return out
@@ -183,7 +183,7 @@ def plot_criteria(legs, **kw):
         for k in legs:
             idx = rets[k].index if idx is None else idx.intersection(rets[k].index)
         idx = idx.sort_values()
-        wts = {k: float(rule.LEGS[k]["band"]) / sum(rule.LEGS[j]["band"] for j in legs) for k in legs}
+        wts = {k: float(LG.LEGS[k]["band"]) / sum(LG.LEGS[j]["band"] for j in legs) for k in legs}
         r = None
         for k in legs:
             rr = rets[k].reindex(idx).fillna(0.0) * wts[k]
@@ -219,7 +219,7 @@ def plot_criteria(legs, **kw):
     b.axhline(25.0, color="#999", ls="--", lw=1.0)
     b.plot([], [], color="#999", ls="--", lw=1.0, label="iid 25% = 无信息基准")
     b.set_xticks(xs)
-    b.set_xticklabels([f"{rule.LEGS[k]['name']}\n({ohlcv.EDGE_LABEL[ohlcv.EDGE[k][0]]})"
+    b.set_xticklabels([f"{LG.LEGS[k]['name']}\n({ohlcv.EDGE_LABEL[ohlcv.EDGE[k][0]]})"
                        for k in keys], fontsize=9)
     b.set_ylabel("触发频率（%）", fontsize=9.5)
     b.grid(axis="y", ls="--", lw=0.6, alpha=0.35)
@@ -230,7 +230,7 @@ def plot_criteria(legs, **kw):
     b.set_title("高量触发频率：D1 贴着 25%（≈ 每天四选一的噪声），D1b/D1c 才是「异动」",
                 fontsize=11, loc="left", color="#1b2b3a")
 
-    fig.suptitle("V13 · 判据三档（规格 §6 对照组 3）", x=0.055, ha="left", y=0.97,
+    fig.suptitle("V18 · 判据三档（规格 §6 对照组 3）", x=0.055, ha="left", y=0.97,
                  fontsize=14, color="#1b2b3a", weight="bold")
     fig.text(0.055, 0.012,
              "上格：只换「什么算高量」，其余规则/成本/权重全部不变 —— 三档年化只差 1.7pp，"
@@ -239,7 +239,7 @@ def plot_criteria(legs, **kw):
              "原文的锚点在定义层不含异常信息。机械规则输出，非投资建议。",
              fontsize=8.6, color="#5b6b7a", linespacing=1.6, va="bottom")
     fig.subplots_adjust(left=0.065, right=0.975, top=0.90, bottom=0.115)
-    out = os.path.join(OUT, "_v13_criteria.png")
+    out = os.path.join(OUT, "_v18_criteria.png")
     fig.savefig(out, dpi=130, facecolor="white")
     plt.close(fig)
     print(f"图: {out}")
@@ -250,7 +250,7 @@ def plot_criteria(legs, **kw):
 
 
 def plot_pool(legs, **kw):
-    """组合层：V13 / 同曝光 / 带权买入持有 + 组合仓位。"""
+    """组合层：V18 / 同曝光 / 带权买入持有 + 组合仓位。"""
     plt, mdates = _plt()
     rets, ws, wts = {}, {}, {}
     for k in legs:
@@ -261,14 +261,14 @@ def plot_pool(legs, **kw):
     for k in legs:
         idx = rets[k].index if idx is None else idx.intersection(rets[k].index)
     idx = idx.sort_values()
-    tot = sum(float(rule.LEGS[k]["band"]) for k in legs)
-    wts = {k: float(rule.LEGS[k]["band"]) / tot for k in legs}
+    tot = sum(float(LG.LEGS[k]["band"]) for k in legs)
+    wts = {k: float(LG.LEGS[k]["band"]) / tot for k in legs}
 
     r = None
     for k in legs:
         rr = rets[k].reindex(idx).fillna(0.0) * wts[k]
         r = rr if r is None else r + rr
-    nav_v13 = (1.0 + r).cumprod()
+    nav_v18 = (1.0 + r).cumprod()
 
     frame = pd.DataFrame({k: ohlcv.frame(k)["close"].reindex(idx) for k in legs}).dropna()
     idx = frame.index
@@ -284,7 +284,7 @@ def plot_pool(legs, **kw):
     same_r = inv * bh_r + (1.0 - inv) * vn.CASH_DAILY
     nav_same = (1.0 + same_r).cumprod()
 
-    m_v, m_b, m_s = vn.perf(nav_v13), vn.perf(nav_bh), vn.perf(nav_same)
+    m_v, m_b, m_s = vn.perf(nav_v18), vn.perf(nav_bh), vn.perf(nav_same)
     fig, axs = plt.subplots(2, 1, figsize=(13.5, 8.0), sharex=True,
                             gridspec_kw=dict(height_ratios=[3.0, 1.0], hspace=0.10))
     a = axs[0]
@@ -294,8 +294,8 @@ def plot_pool(legs, **kw):
     a.plot(nav_same.index, nav_same, color="#2e86c1", lw=1.2, ls="--",
            label=f"同曝光买入持有（固定 {inv:.0%} 投入）  {m_s['ann']:+.2%}/年 · "
                  f"回撤 {m_s['mdd']:.1%} · 夏普 {m_s['sharpe']:.2f}")
-    a.plot(nav_v13.index, nav_v13, color=C_NAV, lw=1.7,
-           label=f"V13 成交量清单  {m_v['ann']:+.2%}/年 · 回撤 {m_v['mdd']:.1%} · "
+    a.plot(nav_v18.index, nav_v18, color=C_NAV, lw=1.7,
+           label=f"V18 成交量清单  {m_v['ann']:+.2%}/年 · 回撤 {m_v['mdd']:.1%} · "
                  f"夏普 {m_v['sharpe']:.2f}")
     a.axhline(1.0, color="#aaa", lw=0.8, ls=":")
     a.grid(ls="--", lw=0.6, alpha=0.4)
@@ -304,7 +304,7 @@ def plot_pool(legs, **kw):
     for s in ("top", "right"):
         a.spines[s].set_visible(False)
     a.legend(loc="upper left", fontsize=9, frameon=False)
-    wtxt = "、".join(f"{rule.LEGS[k]['name']} {wts[k]:.0%}" for k in legs)
+    wtxt = "、".join(f"{LG.LEGS[k]['name']} {wts[k]:.0%}" for k in legs)
 
     b = axs[1]
     b.fill_between(wpos.index, 0, wpos * 100, step="post", color=C_NAV, alpha=0.30, lw=0)
@@ -326,27 +326,27 @@ def plot_pool(legs, **kw):
         b.xaxis.set_major_locator(mdates.YearLocator())
         b.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
-    fig.suptitle(f"V13 · 组合层：{wtxt}  ·  {idx[0].date()} ~ {idx[-1].date()}",
+    fig.suptitle(f"V18 · 组合层：{wtxt}  ·  {idx[0].date()} ~ {idx[-1].date()}",
                  x=0.055, ha="left", y=0.968, fontsize=14, color="#1b2b3a", weight="bold")
     fig.text(0.055, 0.012,
              f"上格：灰 = 与策略同权重的恒定持有（100% 投入）；蓝虚 = 把买入持有压到同一个平均投入（{inv:.0%}）；"
-             "紫 = V13。\n"
+             "紫 = V18。\n"
              f"紫线全程在蓝虚线下方 —— 同样的投入水平上，这套清单的择时是负贡献"
              f"（{m_v['ann']:+.2%} vs {m_s['ann']:+.2%}），它压掉的只是仓位与回撤。\n"
              "下格：组合加权仓位（0~100% 摆，均值即上面的平均投入）。机械规则输出，非投资建议。",
              fontsize=8.6, color="#5b6b7a", linespacing=1.6, va="bottom")
     fig.subplots_adjust(left=0.065, right=0.975, top=0.93, bottom=0.135)
-    out = os.path.join(OUT, "_v13_pool.png")
+    out = os.path.join(OUT, "_v18_pool.png")
     fig.savefig(out, dpi=130, facecolor="white")
     plt.close(fig)
     print(f"图: {out}")
-    print(f"  V13 {m_v['ann']:+.2%}/年 回撤 {m_v['mdd']:.2%} · 同曝光 {m_s['ann']:+.2%}/年 "
+    print(f"  V18 {m_v['ann']:+.2%}/年 回撤 {m_v['mdd']:.2%} · 同曝光 {m_s['ann']:+.2%}/年 "
           f"回撤 {m_s['mdd']:.2%} · 带权持有 {m_b['ann']:+.2%}/年 回撤 {m_b['mdd']:.2%}")
     return out
 
 
 def main():
-    ap = argparse.ArgumentParser(description="V13 成交量操盘笔记 · 出图")
+    ap = argparse.ArgumentParser(description="V18 成交量操盘笔记 · 出图")
     ap.add_argument("--leg", action="append", choices=list(vn.LEGS),
                     help="只画指定腿（可重复）；默认上线池三腿")
     ap.add_argument("--skip-pool", action="store_true")

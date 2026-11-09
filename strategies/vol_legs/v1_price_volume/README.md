@@ -49,7 +49,7 @@ v1_price_volume/
 └── v1_2_ma_trend_pv/            子策略 V1-2：20/60/250 量价趋势跟随（场内量价口径）
     ├── ma_trend_vol.py  ohlcv.py  backtest.py  README.md
     ├── backtest/  daily/  research/
-    └── （行情缓存上移到家族共享库 strategies/vol_legs/data/_ohlcv.json，7 只 ETF）
+    └── （行情缓存上移到**仓库级** data/_ohlcv.json，7 只 ETF，与 tech_indicators/v18 共用）
 ```
 
 > 目录层级比其它变种多一层（`v1_price_volume/<子策略>/`），路径常量因此要多推一层：

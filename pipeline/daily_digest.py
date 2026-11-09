@@ -1166,7 +1166,7 @@ def _vol_v6_row(label, d):
     p = d.get("params") or {}
     macd = p.get("macd") or [50, 200]
     floor = _f(p.get("floor"), 0.5)
-    vol_win, vol_tgt = int(_f(p.get("vol_window"), 120)), _f(p.get("vol_target"), 0.15)
+    vol_win, vol_tgt = int(_f(p.get("vol_window"), 120)), _f(p.get("vol_target"), 0.10)
 
     def _act(x):
         t = str(x.get("action") or "无").strip()

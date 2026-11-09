@@ -207,9 +207,9 @@ def main():
             bucket[tgt] = r
             sens_b.append((f"{'闸门+波动' if gate else '纯波动层'} · 目标 {tgt:.0%}", r, gate, tgt))
     for win in (60, 250):
-        over = dict(VOL_TARGET=0.15, VOL_WINDOW=win)
+        over = dict(VOL_TARGET=G.VOL_TARGET, VOL_WINDOW=win)
         st = G.state_b(d_otc["px"], **over)["state"]
-        sens_b.append((f"纯波动层 · 目标 15% · 窗口 {win} 日",
+        sens_b.append((f"纯波动层 · 目标 {G.VOL_TARGET:.0%} · 窗口 {win} 日",
                        run_block(d_otc["px"], st, d_otc["start"]["B"], "otc", G.params(**over)),
                        False, None))
 
@@ -461,20 +461,20 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
     # ---- 6. B 的分解
     A("## 6. B 控回撤：闸门与波动层各占多少")
     A("")
-    A("| 组成（目标 15%/120 日） | 年化 | 最大回撤 | 夏普 | Calmar | 平均仓位 |")
+    A(f"| 组成（目标 {G.VOL_TARGET:.0%}/120 日） | 年化 | 最大回撤 | 夏普 | Calmar | 平均仓位 |")
     A("|---|---:|---:|---:|---:|---:|")
-    for nm, r in (("闸门 + 波动层（v5 口径）", b_gate[0.15]),
-                  ("**纯波动层（默认 B）**", b_pure[0.15]),
+    for nm, r in (("闸门 + 波动层（v5 口径）", b_gate[G.VOL_TARGET]),
+                  ("**纯波动层（默认 B）**", b_pure[G.VOL_TARGET]),
                   ("恒持满带（无风控）", otc["BH"])):
         m = r["m"]
         A(f"| {nm} | {pct(m['ann'])} | {pct(m['mdd'])} | {num(m['sharpe'])} | "
           f"{num(r['calmar'])} | {r['exp']:.0%} |")
     A("")
-    dlt = (b_pure[0.15]["m"]["ann"] - b_gate[0.15]["m"]["ann"]) * 100
-    dd_gate_gain = abs(b_pure[0.15]["m"]["mdd"] - b_gate[0.15]["m"]["mdd"]) * 100
+    dlt = (b_pure[G.VOL_TARGET]["m"]["ann"] - b_gate[G.VOL_TARGET]["m"]["ann"]) * 100
+    dd_gate_gain = abs(b_pure[G.VOL_TARGET]["m"]["mdd"] - b_gate[G.VOL_TARGET]["m"]["mdd"]) * 100
     A(f"> **四象限闸门在黄金上不划算**：它把年化让掉 {num(abs(dlt))}pp，只换来回撤浅 "
-      f"{num(dd_gate_gain)}pp（{pct(b_gate[0.15]['m']['mdd'])} vs "
-      f"{pct(b_pure[0.15]['m']['mdd'])}）。与 "
+      f"{num(dd_gate_gain)}pp（{pct(b_gate[G.VOL_TARGET]['m']['mdd'])} vs "
+      f"{pct(b_pure[G.VOL_TARGET]['m']['mdd'])}）。与 "
       "`v5_trend_gate/research/_v5_sens_legs.md` 的逐腿结论一致：黄金跌破年线后多次 V 型反转"
       "（2016、2024、2025 都是），闸门减在坑里。**所以 B 默认关掉闸门**（`GATE_ON=False`）；"
       "若你要的是「连 -22% 也不想看到」，再把它打开，用 2.4pp 年化买 1.2pp 回撤。")
@@ -485,8 +485,8 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
     A("参考：闸门口径下的四象限日数占比 —— " + " · ".join(
         f"{name} {int(q.get(name, 0)) / tot:.0%}" for name in G.QUADS) + "。")
     A(f"> 波动层的作用机制是「已实现波动冲高 → 压仓位」，所以它天然在暴跌里生效："
-      f"15% 目标下平均只压掉 {1 - b_pure[0.15]['exp']:.0%} 的仓位，却把回撤从 "
-      f"{pct(otc['BH']['m']['mdd'])} 压到 {pct(b_pure[0.15]['m']['mdd'])}。")
+      f"{G.VOL_TARGET:.0%} 目标下平均只压掉 {1 - b_pure[G.VOL_TARGET]['exp']:.0%} 的仓位，却把回撤从 "
+      f"{pct(otc['BH']['m']['mdd'])} 压到 {pct(b_pure[G.VOL_TARGET]['m']['mdd'])}。")
     A("")
 
     # ---- 7. 分段与逐年

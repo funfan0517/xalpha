@@ -3,11 +3,12 @@
 
 家族现在有 10 个变种，标的池不是同一个，硬塞进一张图没有意义，故拆成两组：
 
-**第一组 v1–v6 × 全部七腿**（`rule.LEG_ORDER`，README.md §2.1）
+**第一组 v1–v5 × 全部七腿**（`rule.LEG_ORDER`，README.md §2.1）
 - 七腿逐腿时机家族：v1 MA20 下车 / v2 BOLL 突破 / v3 MACD+BOLL / v5 趋势闸门
   （v5 取 README 默认口径：七腿全套闸门 + 自适应波动层，**不是**纯信号层）；
-- 沪深300 单标的方法论：v4 ERP 股债通道 / v6 PE 分位仓位带
-  —— 它们不发生在七腿内部，只参与组合层对比与沪深300 基准对照。
+- 沪深300 单标的方法论：v4 ERP 股债通道（原 v6 PE 分位带已于 2026-11-07 删除，
+  v6 改为「黄金 ETF 三口径」v6_gold，与沪深300 无关，不进本对比）
+  —— 它不发生在七腿内部，只参与组合层对比与沪深300 基准对照。
 
 **第二组 v7–v10 × 仅纳指100 + 标普500**（四支同池，才有同尺子比较的意义）
 - v7 年线闸门（月末 + 2 月确认 + 波动层）/ v8 金叉 50/200（日频，对照组）
@@ -61,10 +62,11 @@ _ROOT = os.path.dirname(os.path.dirname(_VL))         # 仓库根（推导，不
 for _p in (_HERE, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-for _d in ("v1_ma20", "v2_boll_breakout", "v3_macd_boll", "v5_trend_gate",
-           "v4_erp_band", "v6_pe_band",
-           "v7_us_gate", "v8_golden_cross", "v9_vol_target", "v10_vol_layer"):
-    _pp = os.path.join(_VL, _d)
+for _d in (("v1_price_volume", "v1_1_ma20"), ("v2_boll_breakout",), ("v3_macd_boll",),
+           ("v5_trend_gate",), ("v4_erp_band",), ("v7_us_gate",),
+           ("v8_golden_cross",), ("v9_vol_target",), ("v10_vol_layer",)):
+    # V1 自 2026-11-07 起是家族（v1_price_volume/v1_1_ma20），路径多一层
+    _pp = os.path.join(_VL, *_d)
     if _pp not in sys.path:
         sys.path.insert(0, _pp)
 
@@ -76,7 +78,6 @@ import rule                               # noqa: E402
 vdata._otc_stale = lambda: False          # type: ignore[attr-defined]
 
 import boll                               # noqa: E402
-import band as v6band                     # noqa: E402
 import erp as v4erp                       # noqa: E402
 import ladder as v4ladder                 # noqa: E402
 import golden_cross as v8gc               # noqa: E402
@@ -95,14 +96,14 @@ LEGS = rule.LEG_ORDER
 NAMES = {k: rule.LEGS[k]["name"] for k in LEGS}
 SLEEVE = rule.SLEEVE_PP                    # 40pp
 
-# ---------------------------------------------------------------- 第一组：v1–v6
+# ---------------------------------------------------------------- 第一组：v1–v5
 TIMING = ["v1", "v2", "v3", "v5"]
 TIMING_COLOR = {"v1": "#1f77b4", "v2": "#d62728", "v3": "#2ca02c", "v5": "#9467bd",
                 "v5p": "#c5b0d5"}
 STRAT_NAME = {
     "v1": "V1 MA20下车", "v2": "V2 BOLL突破", "v3": "V3 MACD+BOLL",
     "v5": "V5 趋势闸门", "v5p": "V5 纯趋势(关波动层)",
-    "v4": "V4 ERP股债通道", "v6": "V6 PE分位带",
+    "v4": "V4 ERP股债通道",
     "BH": "买入持有",
 }
 C_UP, C_DOWN = "#d33", "#1f8a4c"
@@ -260,24 +261,6 @@ def v4_hs300_nav():
     return rebase(r["nav"])
 
 
-def v6_hs300_nav():
-    """V6 PE 分位仓位带（沪深300，默认 `REBAL_FREQ="weekly"` 定档）-> 归一净值。
-
-    费率显式置零：`simulate()` 默认会扣 `rule.FEE_BUY/FEE_SELL`，而 v1/v2/v3/v5 在本表是零费，
-    不置零就等于只给 v6 单方面加成本（v6 自己的报告是含费的，见 §1.2）。
-    其余参数一律走 `params()` 默认（10 年窗口、档位表、阶梯 5 份、RSI 扳机、利差否决）。
-    """
-    frame = v6band.load_frame("hs300")
-    p = dict(v6band.params(), FEE_BUY=0.0, FEE_SELL=0.0)
-    ind = v6band.indicators(frame, p, "hs300")
-    ok = ind["pct"].dropna()
-    ind = ind.loc[ok.index[0]:]          # 与 v6 自己的 run_mode 一致：首个有效分位起算（前面无分位不决策）
-    me = v6band.monthly_signals(ind, p)
-    bands_df, _events = v6band.band_series(ind, me, p)
-    sim = v6band.simulate(ind, bands_df, p)
-    return rebase(sim["nav"])
-
-
 def compute_group_a():
     hs300_px = vdata.otc_series_for_leg("hs300")
 
@@ -300,7 +283,7 @@ def compute_group_a():
         port_navs[vx] = rebase(agg_portfolio(navs))
 
     special = {}
-    for vx, fn in (("v4", v4_hs300_nav), ("v6", v6_hs300_nav)):
+    for vx, fn in (("v4", v4_hs300_nav),):
         try:
             special[vx] = fn()
         except Exception as e:  # noqa: BLE001
@@ -585,10 +568,10 @@ def plot_leg_overlay(leg, data, info):
         "v5 取 README 默认口径（含自适应波动层）；v5p 是关掉波动层的纯趋势对照，用来隔离波动层的贡献。",
     ]
     if leg == "hs300":
-        notes.append("v4（ERP 股债通道）/ v6（PE 分位带）是沪深300 单标的方法论，"
+        notes.append("v4（ERP 股债通道）是沪深300 单标的方法论，"
                      "与逐腿择时不同层，见 `_v1v6_comprehensive.png`，不在本图。")
     else:
-        notes.append("v4（ERP 股债通道）/ v6（PE 分位带）只对沪深300 成立，套不到这条腿，故不在本图。")
+        notes.append("v4（ERP 股债通道）只对沪深300 成立，套不到这条腿，故不在本图。")
     if leg in ("a500", "hs300"):
         notes.append("注意：A500 与沪深300 的场外序列在 2025-03-27 之前是同一只 `000051`，两图前段会高度相似。")
 
@@ -725,7 +708,7 @@ def plot_leg_group_b(leg, grp_all):
 # ================================================================ 主流程
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
-    print("第一组：v1–v6 × 七腿（场外复权净值，T+1 成交，零费率）…")
+    print("第一组：v1–v5 × 七腿（场外复权净值，T+1 成交，零费率）…")
     a = compute_group_a()
 
     print("第二组：v7–v10 × 纳指/标普（统一 0.10% / 1.40%）…")
@@ -765,7 +748,7 @@ def main():
         if vx in a["port_navs"]:
             items_a.append((vx, STRAT_NAME[vx] + ("（七腿组合）" if vx != "v5p" else "（七腿组合·对照）"),
                             a["port_navs"][vx]))
-    for vx in ("v4", "v6"):
+    for vx in ("v4",):
         if vx in a["special"]:
             items_a.append((vx, STRAT_NAME[vx] + "（沪深300方法论）", a["special"][vx]))
     items_a.append(("bench_a", "沪深300 买入持有（基准）", a["hs300_bh"]))
@@ -773,14 +756,14 @@ def main():
     idx_a = common_index(*[s for _k, _l, s in items_a])
     png_a, idx_a, rows_a = plot_comprehensive(
         items_a, idx_a,
-        "第一次综合对比 · v1–v6（七腿时机 + 沪深300 方法论）",
+        "第一次综合对比 · v1–v5（七腿时机 + 沪深300 方法论）",
         f"统一窗口 {idx_a[0].date()} ~ {idx_a[-1].date()}"
-        f"（{(idx_a[-1] - idx_a[0]).days / 365.25:.1f} 年，受 v4/v6 起点约束）· "
+        f"（{(idx_a[-1] - idx_a[0]).days / 365.25:.1f} 年，受 v4 起点约束）· "
         "上格净值 / 下格回撤 · 基准 = 沪深300 买入持有",
         os.path.join(OUTDIR, "_v1v6_comprehensive.png"),
         notes=[
             "上格 = 净值（统一窗口起点归 1），下格 = 回撤；虚线 = 沪深300 买入持有基准。",
-            "v1/v2/v3/v5 是七腿组合（按 rule 目标带权重：带权 = band/40）；v4/v6 是沪深300 单标的方法论，"
+            "v1/v2/v3/v5 是七腿组合（按 rule 目标带权重：带权 = band/40）；v4 是沪深300 单标的方法论，"
             "与基准同池不同层，只作方法论对照。",
             "v5 用 README 默认口径（七腿全套闸门 + 自适应波动层）；v5p 是关掉波动层的纯趋势对照。",
             "零费率口径；含申赎费时结论会变（v1 MA20 年笔数最高，见各变种 README 成本节）。",
@@ -829,7 +812,7 @@ def main():
             m, cal = metrics(r)
             out.append(dict(vx=vx, kind="七腿组合", ann=m["ann"], mdd=m["mdd"],
                             sharpe=m["sharpe"], calmar=cal, vol=m["vol"]))
-        for vx in ("v4", "v6"):
+        for vx in ("v4",):
             if vx not in a["special"]:
                 continue
             r = rebase(a["special"][vx]).reindex(idx).ffill()
@@ -881,17 +864,17 @@ def main():
         "# 波动资产 · 变种横向对比（两次综合对比 · v1–v10）",
         "",
         "> 家族有 10 个变种，但**标的池不是同一个**，所以拆成两次综合对比：",
-        "> **第一组 v1–v6 × 全部七腿**、**第二组 v7–v10 × 仅纳指100 + 标普500**。",
+        "> **第一组 v1–v5 × 全部七腿**、**第二组 v7–v10 × 仅纳指100 + 标普500**。",
         "> 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）；成交 = T 日盘后算信号、T+1 净值成交；"
         "空仓按货基 1.40% 计息。",
         "> 第一组零费率（与各变种回测主表一致）；第二组统一单边 0.10%（与各变种 README 的「同尺子」表一致）。",
         "",
-        "## 1. 第一次综合对比 · v1–v6（七腿时机 + 沪深300 方法论）",
+        "## 1. 第一次综合对比 · v1–v5（七腿时机 + 沪深300 方法论）",
         "",
-        f"![v1–v6 综合对比](_v1v6_comprehensive.png)",
+        f"![v1–v5 综合对比](_v1v6_comprehensive.png)",
         "",
         f"统一窗口 **{idx_a[0].date()} ~ {idx_a[-1].date()}**"
-        f"（{(idx_a[-1] - idx_a[0]).days / 365.25:.1f} 年；受 v4/v6 起点约束）。"
+        f"（{(idx_a[-1] - idx_a[0]).days / 365.25:.1f} 年；受 v4 起点约束）。"
         "上格净值、下格回撤，虚线 = 沪深300 买入持有基准。",
         "",
         "| 策略 | 类型 | 年化 | 最大回撤 | 夏普 | Calmar | 波动 | vs 沪深300 年化差 |",
@@ -907,7 +890,7 @@ def main():
     L += [
         "",
         "> v1/v2/v3/v5 是**七腿组合**（按 `rule` 目标带权重：带权 = band/40，满仓 = 40pp）；"
-        "v4/v6 是**沪深300 单标的方法论**，与基准同池、不同层，只作方法论对照，不与七腿组合比排名。",
+        "v4 是**沪深300 单标的方法论**，与基准同池、不同层，只作方法论对照，不与七腿组合比排名。",
         "> v5 取 README 默认口径（七腿全套闸门 + 自适应波动层）；**v5p = 关掉波动层的纯趋势对照**，"
         "用来隔离「波动层到底贡献了什么」。",
         "",
@@ -952,8 +935,6 @@ def main():
         "| 同规则、**含费** 0.10% / 0.50% | ⚠ 仅费率：零费 +11.97% vs 含费 +11.27%（15.4 年） |",
         "| V5 趋势闸门 | `state_machine` 默认（`GATE_ALL` + `VOL_USE`）＋零费＋**全段起算** "
         "| 同规则、含费 + 双边滑点 0.10%、**预热 269 日后**起算 | ⚠ 费率＋窗口（逐腿表见 1.2.2） |",
-        "| V6 PE 分位带 | `params()` 默认（weekly / 10 年窗口 / 档位表 / 阶梯 / RSI 扳机 / 利差否决）＋零费 "
-        "| 同规则、含费 | ⚠ 仅费率：零费 +3.92% vs 含费 +3.81%（21.8 年） |",
         "| V7 年线闸门 | `build` 默认参数，成本 0.10%、空仓 1.40% | 同 | ✅ 完全一致 |",
         "| V8 金叉 50/200 | 同上 | 同 | ✅ 完全一致 |",
         "| V9 波动率目标 | 成本 0.10%、空仓 1.40%（统一尺子） | **0.03% / 2.0%** | ⚠ 仅费率：+13.05% vs +13.24%（14.2 年） |",
@@ -962,13 +943,13 @@ def main():
         "> 为什么统一成零费/同一费率：横向比较**必须同尺子**，否则比的是费率差不是规则差。"
         "各变种自身的报告仍用各自的默认成本，读「这条规则本身值多少」时以那边为准。",
         "",
-        "#### 1.2.1 本次核对修掉的两处真错",
+        "#### 1.2.1 本次核对修掉的真错",
         "",
         "1. **V4 之前画的是旧口径**：`erp_frame()['target']` 是引擎自带的**百分位 + 趋势过滤 80/50/20 阶梯**"
         "（15.4 年零费 +5.50%），不是 v4 默认的两带滞回（同区间零费 **+11.97%**）。"
         "已改为 `ladder.frame()['target']`，§1 表里 v4 的读数随之从 2.40% 修正为现在的数。",
-        "2. **V6 之前被单方面扣费**：`simulate()` 默认扣 `rule.FEE_BUY/FEE_SELL`，而其它九支在表里是零费 —— "
-        "已显式置零；同时按 v6 自己的 `run_mode` 用「首个有效 PE 分位」起算，不再把前面无分位的空仓段计入。",
+        "2. **V6 已于 2026-11-07 删除**（v6 改为分位口径无关的黄金三口径 `v6_gold`），本对比不再包含它；"
+        "原「V6 被单方面扣费」的历史结论留在 git 历史里。",
         "",
         "#### 1.2.2 v5 的两套口径（逐腿对号）",
         "",
@@ -1018,8 +999,8 @@ def main():
             L.append(f"![{NAMES[leg]} 各时机策略对比]({os.path.basename(leg_overlay[leg])})")
             L.append("")
     L += [
-        "> v4/v6 只对沪深300 成立（ERP 股债通道、PE 分位带），不进这些图；"
-        "要看 v4/v6 请回 §1 的组合层对比图。",
+        "> v4 只对沪深300 成立（ERP 股债通道），不进这些图；"
+        "要看 v4 请回 §1 的组合层对比图。",
         "> 判读：策略线在虚线之上 = 该腿存在时机红利；全线在虚线之下 = 这条腿适合买入持有"
         "（典型如纳指/标普的长牛段）。",
         "",
@@ -1065,7 +1046,7 @@ def main():
         "",
         "## 3. 跨组结论",
         "",
-        "### 3.1 七腿（v1–v6）",
+        "### 3.1 七腿（v1–v5）",
         "",
     ]
     best_by_leg = {leg: STRAT_NAME[info["best"]] for leg, info in leg_info.items()}
@@ -1077,7 +1058,7 @@ def main():
     L += [
         "- **A 股宽基（A500 / 沪深300）**：BOLL 突破（v2）通常最稳 —— 年化超额为正且回撤压得最狠。",
         "- **港股（恒生科技）与科创50**：波动最大、时机红利最高（超额两位数 pp 的常客），但绝对回撤仍大。",
-        "- **v4 / v6 不是择时**：它们是「沪深300 与国债之间摆多少」「这笔钱最多投几成」，"
+        "- **v4 不是择时**：它是「沪深300 与国债之间摆多少」，"
         "只应与沪深300 基准对照，不要拿去和七腿组合比排名。",
         "",
         "### 3.2 美股两腿（v7–v10）",

@@ -1,0 +1,661 @@
+{
+  "strategy": "vol_legs",
+  "variant": "v13_volume_notes",
+  "title": "V13 成交量操盘笔记（阿基米德笔记2.0 第一章）· 每日操作",
+  "as_of": "2026-11-06",
+  "generated_at": "2026-11-07 16:17",
+  "pool": [
+    "kc50",
+    "hkt",
+    "gold"
+  ],
+  "reference": [
+    "a500",
+    "hs300",
+    "ndx",
+    "spx"
+  ],
+  "rules": {
+    "high_vol_mode": "quantile",
+    "high_vol_quantile": 0.95,
+    "window_days": 3,
+    "priority": [
+      "clear",
+      "reduce",
+      "buy",
+      "watch"
+    ],
+    "exec": "next_open",
+    "position": {
+      "clear": 0.0,
+      "reduce": 0.5,
+      "watch": 1.0,
+      "buy": 1.0,
+      "heavy": 1.5
+    }
+  },
+  "legs": {
+    "a500": {
+      "leg": "a500",
+      "name": "中证A500",
+      "role": "核心腿",
+      "band": 2.5,
+      "code": "563360",
+      "edge": "不接",
+      "edge_note": "宽基 ETF：量由做市与申赎套利主导，高量多是活跃度噪声",
+      "date": "2026-11-06",
+      "close": 1.112,
+      "S": 1.091,
+      "R": 1.125,
+      "anchor_age": 2,
+      "in_window": true,
+      "hv": false,
+      "rvol": 1.2411426175826874,
+      "body": 0.0040000000000000036,
+      "up": 0.010999999999999899,
+      "dn": 0.0030000000000001137,
+      "atr": 0.025549999999999982,
+      "dist_S": 0.019248395967002896,
+      "dist_R": -0.01155555555555543,
+      "mult": 0.5,
+      "prev_mult": 1.0,
+      "delta_mult": -0.5,
+      "action": "减仓",
+      "rule": "S3+S4",
+      "why": "S3 窗内高低点下移 + S4 压力线下方顶分型",
+      "conflict": false,
+      "signals": [
+        "S3",
+        "S4",
+        "W3",
+        "W4"
+      ],
+      "conflict20": 0.1,
+      "signal20": 0.95,
+      "fresh": "缓存",
+      "target_pp": 1.25
+    },
+    "hs300": {
+      "leg": "hs300",
+      "name": "沪深300",
+      "role": "核心腿",
+      "band": 2.5,
+      "code": "510300",
+      "edge": "不接",
+      "edge_note": "宽基 ETF：同上（文档点名的 510300）",
+      "date": "2026-11-06",
+      "close": 4.124,
+      "S": 4.076,
+      "R": 4.179,
+      "anchor_age": 3,
+      "in_window": true,
+      "hv": false,
+      "rvol": 0.6066700905291647,
+      "body": 0.010999999999999233,
+      "up": 0.04499999999999993,
+      "dn": 0.018000000000000682,
+      "atr": 0.0777000000000001,
+      "dist_S": 0.011776251226692791,
+      "dist_R": -0.013161043311797238,
+      "mult": 0.5,
+      "prev_mult": 1.0,
+      "delta_mult": -0.5,
+      "action": "减仓",
+      "rule": "S3+S4",
+      "why": "S3 窗内高低点下移 + S4 压力线下方顶分型",
+      "conflict": false,
+      "signals": [
+        "S3",
+        "S4",
+        "W3",
+        "W4",
+        "W5"
+      ],
+      "conflict20": 0.1,
+      "signal20": 0.9,
+      "fresh": "缓存",
+      "target_pp": 1.25
+    },
+    "ndx": {
+      "leg": "ndx",
+      "name": "纳指100",
+      "role": "核心腿",
+      "band": 10.0,
+      "code": "513100",
+      "edge": "不接",
+      "edge_note": "QDII：量被外汇额度与溢价套利污染",
+      "date": "2026-11-06",
+      "close": 2.159,
+      "S": 2.262,
+      "R": 2.4,
+      "anchor_age": 11,
+      "in_window": false,
+      "hv": false,
+      "rvol": 0.829227427512663,
+      "body": 0.007000000000000117,
+      "up": 0.014000000000000234,
+      "dn": 0.0129999999999999,
+      "atr": 0.05110000000000001,
+      "dist_S": -0.045534924845269775,
+      "dist_R": -0.10041666666666671,
+      "mult": 0.0,
+      "prev_mult": 0.0,
+      "delta_mult": 0.0,
+      "action": "不动",
+      "rule": "S4",
+      "why": "S4 压力线下方顶分型",
+      "conflict": false,
+      "signals": [
+        "S4",
+        "W4"
+      ],
+      "conflict20": 0.05,
+      "signal20": 0.9,
+      "fresh": "缓存",
+      "target_pp": 0.0
+    },
+    "spx": {
+      "leg": "spx",
+      "name": "标普500",
+      "role": "核心腿",
+      "band": 10.0,
+      "code": "513500",
+      "edge": "不接",
+      "edge_note": "QDII：同上（文档点名的 513500）",
+      "date": "2026-11-06",
+      "close": 2.588,
+      "S": 2.659,
+      "R": 2.69,
+      "anchor_age": 16,
+      "in_window": false,
+      "hv": false,
+      "rvol": 1.5239384481270446,
+      "body": 0.07699999999999996,
+      "up": 0.0030000000000001137,
+      "dn": 0.0,
+      "atr": 0.04634999999999996,
+      "dist_S": -0.026701767581797542,
+      "dist_R": -0.03791821561338282,
+      "mult": 0.5,
+      "prev_mult": 0.5,
+      "delta_mult": 0.0,
+      "action": "不动",
+      "rule": "S4",
+      "why": "S4 压力线下方顶分型",
+      "conflict": false,
+      "signals": [
+        "S4",
+        "T5",
+        "W3"
+      ],
+      "conflict20": 0.05,
+      "signal20": 0.95,
+      "fresh": "缓存",
+      "target_pp": 5.0
+    },
+    "kc50": {
+      "leg": "kc50",
+      "name": "科创50",
+      "role": "进攻腿",
+      "band": 2.5,
+      "code": "588000",
+      "edge": "谨慎可试",
+      "edge_note": "主题/行业 ETF：较贴原意，需先过量能失真检验",
+      "date": "2026-11-06",
+      "close": 1.326,
+      "S": 1.3,
+      "R": 1.358,
+      "anchor_age": 1,
+      "in_window": true,
+      "hv": false,
+      "rvol": 1.096205020780771,
+      "body": 0.03100000000000014,
+      "up": 0.03600000000000003,
+      "dn": 0.0,
+      "atr": 0.06480000000000004,
+      "dist_S": 0.020000000000000018,
+      "dist_R": -0.02356406480117823,
+      "mult": 0.0,
+      "prev_mult": 0.0,
+      "delta_mult": 0.0,
+      "action": "不动",
+      "rule": "S3+S4+S6",
+      "why": "S3 窗内高低点下移 + S4 压力线下方顶分型 + S6 上影线碰压力过不去",
+      "conflict": false,
+      "signals": [
+        "S3",
+        "S4",
+        "S6",
+        "W3"
+      ],
+      "conflict20": 0.1,
+      "signal20": 0.9,
+      "fresh": "缓存",
+      "target_pp": 0.0
+    },
+    "hkt": {
+      "leg": "hkt",
+      "name": "恒生科技",
+      "role": "进攻腿",
+      "band": 2.5,
+      "code": "513180",
+      "edge": "谨慎可试",
+      "edge_note": "主题/行业 ETF：同上",
+      "date": "2026-11-06",
+      "close": 0.51,
+      "S": 0.496,
+      "R": 0.517,
+      "anchor_age": 1,
+      "in_window": true,
+      "hv": true,
+      "rvol": 1.5061613010149788,
+      "body": 0.006000000000000005,
+      "up": 0.009000000000000008,
+      "dn": 0.0030000000000000027,
+      "atr": 0.014050000000000007,
+      "dist_S": 0.02822580645161299,
+      "dist_R": -0.013539651837524147,
+      "mult": 0.5,
+      "prev_mult": 0.5,
+      "delta_mult": 0.0,
+      "action": "不动",
+      "rule": "S4+S6",
+      "why": "S4 压力线下方顶分型 + S6 上影线碰压力过不去",
+      "conflict": false,
+      "signals": [
+        "S4",
+        "S6",
+        "W1",
+        "W3",
+        "W4"
+      ],
+      "conflict20": 0.2,
+      "signal20": 0.85,
+      "fresh": "缓存",
+      "target_pp": 1.25
+    },
+    "gold": {
+      "leg": "gold",
+      "name": "黄金",
+      "role": "避险腿",
+      "band": 10.0,
+      "code": "518880",
+      "edge": "谨慎可试",
+      "edge_note": "商品 ETF：文档未点名，按「谨慎可试」处理",
+      "date": "2026-11-06",
+      "close": 8.253,
+      "S": 8.4,
+      "R": 9.607,
+      "anchor_age": 1,
+      "in_window": true,
+      "hv": false,
+      "rvol": 1.0803228372484992,
+      "body": 0.06700000000000017,
+      "up": 0.0,
+      "dn": 0.02400000000000091,
+      "atr": 0.11970000000000036,
+      "dist_S": -0.01750000000000007,
+      "dist_R": -0.14093889871968346,
+      "mult": 0.0,
+      "prev_mult": 0.5,
+      "delta_mult": -0.5,
+      "action": "清仓",
+      "rule": "S1+S10",
+      "why": "S1 高量破位 + S10 大量次日阴",
+      "conflict": false,
+      "signals": [
+        "S1",
+        "S3",
+        "S4",
+        "S10"
+      ],
+      "conflict20": 0.0,
+      "signal20": 0.6,
+      "fresh": "缓存",
+      "target_pp": 0.0
+    }
+  },
+  "flow": {
+    "kc50": [
+      {
+        "date": "2026-10-26",
+        "action": "清仓",
+        "rule": "S10",
+        "signals": [
+          "B1",
+          "S4",
+          "S10",
+          "W2"
+        ],
+        "mult": 0.0,
+        "close": 1.381
+      },
+      {
+        "date": "2026-10-27",
+        "action": "（不变）",
+        "rule": "S1",
+        "signals": [
+          "S1",
+          "S3"
+        ],
+        "mult": 0.0,
+        "close": 1.32
+      },
+      {
+        "date": "2026-10-28",
+        "action": "（不变）",
+        "rule": "S1",
+        "signals": [
+          "S1",
+          "S2",
+          "W4"
+        ],
+        "mult": 0.0,
+        "close": 1.354
+      },
+      {
+        "date": "2026-10-29",
+        "action": "（不变）",
+        "rule": "",
+        "signals": [
+          "T1"
+        ],
+        "mult": 0.0,
+        "close": 1.293
+      },
+      {
+        "date": "2026-10-30",
+        "action": "（不变）",
+        "rule": "W1",
+        "signals": [
+          "T1",
+          "W1",
+          "W8"
+        ],
+        "mult": 0.0,
+        "close": 1.228
+      },
+      {
+        "date": "2026-11-02",
+        "action": "（不变）",
+        "rule": "S3+T7",
+        "signals": [
+          "S3",
+          "T1",
+          "T7",
+          "W1",
+          "W4",
+          "W8"
+        ],
+        "mult": 0.0,
+        "close": 1.26
+      },
+      {
+        "date": "2026-11-03",
+        "action": "（不变）",
+        "rule": "S1+S10",
+        "signals": [
+          "S1",
+          "S3",
+          "S10",
+          "T1",
+          "T7",
+          "W1",
+          "W8"
+        ],
+        "mult": 0.0,
+        "close": 1.215
+      },
+      {
+        "date": "2026-11-04",
+        "action": "（不变）",
+        "rule": "S2+W1",
+        "signals": [
+          "B1",
+          "S2",
+          "W1"
+        ],
+        "mult": 0.0,
+        "close": 1.34
+      },
+      {
+        "date": "2026-11-05",
+        "action": "（不变）",
+        "rule": "W1",
+        "signals": [
+          "W1"
+        ],
+        "mult": 0.0,
+        "close": 1.358
+      },
+      {
+        "date": "2026-11-06",
+        "action": "（不变）",
+        "rule": "S3+S4+S6",
+        "signals": [
+          "S3",
+          "S4",
+          "S6",
+          "W3"
+        ],
+        "mult": 0.0,
+        "close": 1.326
+      }
+    ],
+    "hkt": [
+      {
+        "date": "2026-10-26",
+        "action": "清仓",
+        "rule": "S10",
+        "signals": [
+          "B1",
+          "S10",
+          "W2",
+          "W4"
+        ],
+        "mult": 0.0,
+        "close": 0.482
+      },
+      {
+        "date": "2026-10-27",
+        "action": "（不变）",
+        "rule": "S1",
+        "signals": [
+          "S1"
+        ],
+        "mult": 0.0,
+        "close": 0.475
+      },
+      {
+        "date": "2026-10-28",
+        "action": "（不变）",
+        "rule": "S4",
+        "signals": [
+          "B1",
+          "S2",
+          "S4",
+          "W4"
+        ],
+        "mult": 0.0,
+        "close": 0.48
+      },
+      {
+        "date": "2026-10-30",
+        "action": "（不变）",
+        "rule": "",
+        "signals": [
+          "W3",
+          "W7"
+        ],
+        "mult": 0.0,
+        "close": 0.468
+      },
+      {
+        "date": "2026-11-02",
+        "action": "上车",
+        "rule": "B1+B3",
+        "signals": [
+          "B1",
+          "B3",
+          "T1"
+        ],
+        "mult": 1.0,
+        "close": 0.479
+      },
+      {
+        "date": "2026-11-03",
+        "action": "（不变）",
+        "rule": "B2",
+        "signals": [
+          "B2",
+          "W4"
+        ],
+        "mult": 1.0,
+        "close": 0.481
+      },
+      {
+        "date": "2026-11-04",
+        "action": "（不变）",
+        "rule": "W1",
+        "signals": [
+          "B2",
+          "B3",
+          "W1"
+        ],
+        "mult": 1.0,
+        "close": 0.491
+      },
+      {
+        "date": "2026-11-05",
+        "action": "减仓",
+        "rule": "T7",
+        "signals": [
+          "B1",
+          "B2",
+          "T1",
+          "T7",
+          "T9",
+          "W1"
+        ],
+        "mult": 0.5,
+        "close": 0.517
+      },
+      {
+        "date": "2026-11-06",
+        "action": "（不变）",
+        "rule": "S4+S6",
+        "signals": [
+          "S4",
+          "S6",
+          "W1",
+          "W3",
+          "W4"
+        ],
+        "mult": 0.5,
+        "close": 0.51
+      }
+    ],
+    "gold": [
+      {
+        "date": "2026-10-26",
+        "action": "（不变）",
+        "rule": "",
+        "signals": [
+          "W3",
+          "W4",
+          "W7"
+        ],
+        "mult": 0.5,
+        "close": 8.185
+      },
+      {
+        "date": "2026-10-28",
+        "action": "（不变）",
+        "rule": "",
+        "signals": [
+          "T9",
+          "W3"
+        ],
+        "mult": 0.5,
+        "close": 8.226
+      },
+      {
+        "date": "2026-10-30",
+        "action": "（不变）",
+        "rule": "S4+S5",
+        "signals": [
+          "S4",
+          "S5",
+          "T1"
+        ],
+        "mult": 0.5,
+        "close": 8.115
+      },
+      {
+        "date": "2026-11-02",
+        "action": "（不变）",
+        "rule": "S5",
+        "signals": [
+          "S5",
+          "T1",
+          "W4"
+        ],
+        "mult": 0.5,
+        "close": 7.941
+      },
+      {
+        "date": "2026-11-03",
+        "action": "（不变）",
+        "rule": "",
+        "signals": [
+          "T1",
+          "T9",
+          "W3"
+        ],
+        "mult": 0.5,
+        "close": 7.989
+      },
+      {
+        "date": "2026-11-04",
+        "action": "（不变）",
+        "rule": "T7",
+        "signals": [
+          "T1",
+          "T7"
+        ],
+        "mult": 0.5,
+        "close": 8.229
+      },
+      {
+        "date": "2026-11-05",
+        "action": "（不变）",
+        "rule": "S9+T7",
+        "signals": [
+          "S9",
+          "T1",
+          "T6",
+          "T7",
+          "T9",
+          "W1",
+          "W4"
+        ],
+        "mult": 0.5,
+        "close": 8.42
+      },
+      {
+        "date": "2026-11-06",
+        "action": "清仓",
+        "rule": "S1+S10",
+        "signals": [
+          "S1",
+          "S3",
+          "S4",
+          "S10"
+        ],
+        "mult": 0.0,
+        "close": 8.253
+      }
+    ]
+  },
+  "note": "T 日收盘信号 -> T+1 开盘成交；本变种不上线，仅留档与手跑。"
+}

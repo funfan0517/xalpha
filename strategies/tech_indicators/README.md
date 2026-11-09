@@ -67,8 +67,10 @@
 > `backtest.py` 只做「载入引擎 → 传入本变种 signal → 出报告」；规则本体在各自 `rule.py`，
 > 引擎不再持有任何指标逻辑（`build_signals()` 改为按名分发），全局只有一份实现。
 > **v8（仅 MA20 穿越）已于 2026-10-28 迁出本家族** —— 其标的池本就不是「全池」而是几只宽基腿，
-> 现归入组合层策略 `vol_legs` 作为第一个变种：`strategies/vol_legs/v1_ma20/`（六腿、场外复权净值口径，
-> 每日随 `run_daily_vol_legs.ps1` 第 2 步运行）。因此本目录的横截面对比（`compare.py`）不再包含 v8 一行。
+> 现归入组合层策略 `vol_legs` 的**第 1 号变种家族 V1（量价）**：`strategies/vol_legs/v1_price_volume/v1_1_ma20/`（七腿、场外复权净值口径，
+> 2026-11-07 家族改组时由 `v1_ma20/` 下沉为子策略 V1-1；同日新增量价子策略 V1-2 `v1_2_ma_trend_pv/`）。
+> 两条子策略 2026-10-30 起均退出每日流程与看板（`daily.enabled=false`），需要时手跑各自的 `daily/_daily_scan.py`。
+> 因此本目录的横截面对比（`compare.py`）不再包含 v8 一行。
 > **v16 原为 BOLL 上轨突破，已于 2026-10-30 迁出本家族** —— 它本来就是 BOLL 的「另一套逻辑」
 > （突破做多，与 v15 的反转方向相反），迁出后归入组合层策略 `vol_legs` 作为第三个变种：
 > `strategies/vol_legs/v2_boll_breakout/`（六腿场外复权净值口径，规则参数与实现原样保留，

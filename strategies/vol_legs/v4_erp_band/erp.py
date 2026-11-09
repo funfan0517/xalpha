@@ -61,7 +61,7 @@
 
 ## 6. 复用的主策略口径
 绩效指标 `engine.metrics`（rf = 货基 1.40%）、现金利率 `rule.CASH_ANNUAL`、
-费率量级 `rule.FEE_BUY/FEE_SELL` —— 与 vol_legs 主策略、v1_ma20 同一套算法。
+费率量级 `rule.FEE_BUY/FEE_SELL` —— 与 vol_legs 主策略、v1_1_ma20 同一套算法。
 """
 import math
 import os

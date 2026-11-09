@@ -200,6 +200,27 @@
 - **单标的口径（中证A500）另见 `research/_a500_trend.md`**：在「切换/年 × 确认滞后」平面上筛
   Pareto 前沿，「又快又稳」的答案是**双均线族（50/150、50/200、100/200）**，不是低滞后均线
   （HMA / KAMA 在 A500 上假警报 40%~72%、切换 26~47 次/年）。
+- **逐腿矩阵（按标的选口径，不用组合年化）见 `research/_v5_sens_legs.md`**：**18 档口径** × 7 条腿
+  （15 档谱系 + `MA20+5` / `MA60+20` / `双均线20/60+5` 三档短周期增补），
+  每条腿用**自己的全历史**、自己的恒持满带作基准，波动层关闭以隔离变量。结论（2026-11-07）：
+
+  | 腿 | 该腿推荐 | 年化（口径 vs 恒持） | 回撤（口径 vs 恒持） | 判定 |
+  |---|---|---|---|---|
+  | 科创50 | `MACD(50,200)+5日` | +8.80% vs +5.04% | −23.57% vs −45.61% | ✔ 收益型 |
+  | 恒生科技 | `MA50+5日` | +2.10% vs −0.12% | −26.79% vs −44.74% | ✔ 收益型 |
+  | 中证A500 | `MA60+20日` | +5.32% vs +5.46% | −35.10% vs −43.43% | ◇ 让 0.15pp 换 8.3pp 回撤（夏普 0.20→0.27） |
+  | 沪深300 / 纳指100 / 标普500 / 黄金 | 不套 | 最好的一档仍让 1.9~3.5pp | 回撤改善仅 1~3pp | ✗ 纯付成本 |
+
+  短周期三档（`MA20+5` / `MA60+20` / `双均线20/60+5`）**没有把谱系救回来**：平均 Δ年化
+  −4.16 / −4.45 / −5.32pp，7 条腿里 0 条为正。`MA20+5` 在 A500 上 169 次调仓（10.9 次/年）、
+  打脸 44 次，回撤只浅 1.70pp；`MA60+20` 是 A500 上唯一像样的一档（−0.15pp 换 8.33pp），
+  但它和 `MA60+10` 同一档，属风险调整型而非收益型。
+
+  **没有跨腿都稳的读数**：排第一的口径也只有 1/7 条腿同时不劣 —— 「哪个均线更好」在聚合层面永远
+  回答成「都差不多」，拆到腿上才有信号。这也是「我选策略只会用在适合的标的」这条用法的量化依据：
+  **先按标的选腿，再在该腿的明细里选口径**，不要用组合年化或跨腿平均挑口径。
+  注意科创50（4.3 年）/ 恒生科技（4.0 年）的「最优口径」是在约 1000 个交易日上挑出来的，
+  慢参数口径（MACD 50/200）接近全样本调参，方向可参考、参数别当结论。
 
 ### 3.7 波动目标层（专项研究，报告见 `research/_vol_overlay.md`）
 
@@ -331,14 +352,23 @@ python strategies/vol_legs/v5_trend_gate/daily/_daily_scan.py --no-refresh
 # 回测（逐腿 + 组合层 + 四象限 + 滞后成本 + 敏感性），产出 backtest/_v5_trend_gate_bt.{md,jsonl}
 python strategies/vol_legs/v5_trend_gate/backtest.py
 
-# 趋势线 + 操作点图（中证A500 / 科创50），产出 research/_v5_trend_{a500,kc50}.png
-python strategies/vol_legs/v5_trend_gate/research/_plot_trend.py
+# 趋势线 + 操作点图（六腿 · 默认口径），产出 research/plot_trend/_v5_trend_*.png
+python strategies/vol_legs/v5_trend_gate/research/plot_trend/_plot_trend.py
 
-# 只画一条腿
-python strategies/vol_legs/v5_trend_gate/research/_plot_trend.py --leg kc50
+# 只画一条腿 / 只出近三年 / A500 双均线口径
+python strategies/vol_legs/v5_trend_gate/research/plot_trend/_plot_trend.py --leg kc50 --years 3
+python strategies/vol_legs/v5_trend_gate/research/plot_trend/_plot_trend.py --dual 50 150
+
+# 非对称口径（快下车 MA120+5 日 / 慢上车 MA250+20 日）同类图，
+# 产出 research/plot_trend_asym/_v5_trend_*_asym{.png,_3y.png}
+python strategies/vol_legs/v5_trend_gate/research/plot_trend_asym/_plot_trend_asym.py
+python strategies/vol_legs/v5_trend_gate/research/plot_trend_asym/_plot_trend_asym.py --leg kc50 --no-vol
 
 # 趋势口径灵敏度扫描（15 档读数 + 非对称快下车），产出 research/_v5_trend_sens.{md,png}
 python strategies/vol_legs/v5_trend_gate/research/_sens_trend.py
+
+# 逐腿口径矩阵（15 档 × 7 腿，各自全历史 vs 恒持满带），产出 research/_v5_sens_legs.{md,png}
+python strategies/vol_legs/v5_trend_gate/research/_sens_legs.py
 
 # 参数自检（七腿可读、档位只落在 {0,.2,.5,1}）
 python strategies/vol_legs/v5_trend_gate/trend_gate.py
@@ -359,13 +389,17 @@ strategies/vol_legs/v5_trend_gate/
 ├── trend_gate.py            # 参数权威源 + 象限判定 + 档位状态机 + 回测引擎
 ├── backtest.py              # 逐腿 + 组合层 + 四象限定价 + 滞后成本 + 动量对照 + 敏感性
 ├── daily/_daily_scan.py     # 每日档位（七腿象限、还缺什么、最近 120 日动作流水）
-├── research/_plot_trend.py  # 趋势线 + 操作点图（A500 是「假设套闸门」的对照）
+├── research/plot_trend/_plot_trend.py        # 默认口径图（年线 / A500 双均线），产物同目录
+├── research/plot_trend_asym/_plot_trend_asym.py  # 非对称口径图（快下车+慢上车），复用上一个的 plot()
 ├── research/_sens_trend.py  # 15 档趋势口径的「灵敏度 vs 代价」扫描 + 非对称快下车实验
+├── research/_sens_legs.py   # 逐腿口径矩阵（每条腿自己全历史 vs 恒持满带，不看组合年化）
 ├── research/_vol_overlay.py # 叠加波动目标层的实测（目标 × 窗口 × 形态 + 等暴露对照 + 分段）
 ├── research/_a500_trend.py  # 中证A500 专项：「快 × 稳」Pareto 扫描 + 当下多口径读数
 ├── backtest/_v5_trend_gate_bt.md / .jsonl
-├── research/_v5_trend_a500.png / _v5_trend_kc50.png
+├── research/plot_trend/_v5_trend_*.png（六腿长期 + 近三年；A500 另有 _dual50-150 两张）
+├── research/plot_trend_asym/_v5_trend_*_asym.png / _asym_3y.png
 ├── research/_v5_trend_sens.md / _v5_trend_sens.png
+├── research/_v5_sens_legs.md / _v5_sens_legs.png
 ├── research/_vol_overlay.md       # 波动目标层实测报告（§3.7）
 ├── research/_a500_trend.md / _a500_trend.png
 └── daily/_v5_trend_gate_daily.md / .json
@@ -378,7 +412,7 @@ strategies/vol_legs/v5_trend_gate/
 
 | 变种 | 问题 | 方向 | 仓位形态 | 调仓频率 |
 |---|---|---|---|---|
-| `v1_ma20` | 什么时候下车（MA20 穿越） | 趋势跟随 | 0/1 | 13~16 次/年 |
+| `v1_1_ma20` | 什么时候下车（MA20 穿越） | 趋势跟随 | 0/1 | 13~16 次/年 |
 | `v2_boll_breakout` / `v3_macd_boll` | 什么时候追突破 | 突破追涨 | 0/1 | 2~4 次/年 |
 | `v4_erp_band` | 沪深300 vs 国债摆多少 | 估值择时 | 比例 | 数月 |
 | **`v5_trend_gate`（本）** | **带内该露多少（年线 + 年线斜率）** | **趋势分档（含「反弹不给加仓」）** | **1.0 / 0.5 / 0.2** | **0.9~3.4 次/年** |

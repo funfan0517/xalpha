@@ -692,10 +692,10 @@ def parse_v17(_cfg):
     )
 
 
-def parse_v1_ma20(_cfg):
-    base_dir = os.path.join(_ROOT, "strategies", "vol_legs", "v1_ma20", "daily")
-    json_path = os.path.join(base_dir, "_v1_ma20_daily.json")
-    md_path = os.path.join(base_dir, "_v1_ma20_daily.md")
+def parse_v1_1_ma20(_cfg):
+    base_dir = os.path.join(_ROOT, "strategies", "vol_legs", "v1_price_volume", "v1_1_ma20", "daily")
+    json_path = os.path.join(base_dir, "_v1_1_ma20_daily.json")
+    md_path = os.path.join(base_dir, "_v1_1_ma20_daily.md")
     if not os.path.exists(json_path):
         raise ValueError("产物缺失：请先跑 run_daily_vol_legs.ps1（第 2 步）")
     data = json.loads(_read(json_path))
@@ -735,7 +735,7 @@ def parse_v1_ma20(_cfg):
         badge, tone = "无动作", "none"
 
     return _entry(
-        "v1_ma20", "波动资产 V1 变种 · 七腿 MA20 穿越", data.get("as_of"), badge, tone,
+        "v1_1_ma20", "波动资产 V1 量价家族 · 子策略 V1-1（七腿 MA20 穿越）", data.get("as_of"), badge, tone,
         summary, rows,
         [["七腿", str(summ.get("n", len(legs)))], ["买入", str(len(buys))],
          ["卖出", str(len(sells))], ["持有", str(summ.get("hold", 0))],
@@ -1003,7 +1003,7 @@ _VOL_FIGS = [
     ("strategies/vol_legs/v4_erp_band/backtest/_v4_erp_band_signals.png",
      "**沪深300**（`000051`）× 10Y 国债 · V4 ERP 股债利差两带滞回的操作点"
      "（▲加仓 / ▼减仓，T 日信号 → T+1 收盘成交）"),
-    ("strategies/vol_legs/v5_trend_gate/research/_v5_trend_gold.png",
+    ("strategies/vol_legs/v5_trend_gate/research/plot_trend/_v5_trend_gold.png",
      "**黄金**（`000216` 场外复权）· V5 趋势四象限闸门全历史 2014-10 起（真实操作点 + 档位阶梯）"),
     ("strategies/vol_legs/v9_vol_target/research/_v9_vt_spx.png",
      "**标普500**（`017641` 场外复权，信号 `.INX` 美元指数）· V9 波动率目标仓位 TV15%"
@@ -1224,7 +1224,7 @@ PARSERS = {
     "gd_v5": parse_gd_v5,
     "tech_indicators": parse_tech_indicators,
     "v17_trend_gate": parse_v17,
-    "v1_ma20": parse_v1_ma20,
+    "v1_1_ma20": parse_v1_1_ma20,
     "v3_macd_boll": parse_v3_macd_boll,
     "permanent": parse_permanent,
     "vol_legs": parse_vol_legs,

@@ -11,11 +11,12 @@
 #          v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png
 #          v3_macd_boll\research\_v3_hkt.png / _v3_kc50.png
 #          v4_erp_band\backtest\_v4_erp_band_signals.png (走 research\_plot_signals.py, 不碰回测报告)
-#          v5_trend_gate\research\_v5_trend_gold.png (全历史, 不切近 3 年)
+#          v5_trend_gate\research\plot_trend\_v5_trend_gold.png (全历史, 不切近 3 年)
 #          v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png (美股两腿 · TV15%)
 #          出图失败只告警, 不阻断主流程(保留上次的图)。
 # 已退出默认流程(需要时手动跑):
-#   python strategies\vol_legs\v1_ma20\daily\_daily_scan.py          # V1 MA20 穿越
+#   python strategies\vol_legs\v1_price_volume\v1_1_ma20\daily\_daily_scan.py        # V1-1 MA20 穿越(场外净值)
+#   python strategies\vol_legs\v1_price_volume\v1_2_ma_trend_pv\daily\_daily_scan.py # V1-2 量价趋势跟随(场内量价, 会先刷 OHLCV)
 #   python strategies\vol_legs\v7_us_gate\daily\_daily_scan.py       # V7 美股年线闸门(仅 ndx/spx, 月末)
 #   python strategies\vol_legs\v8_golden_cross\daily\_daily_scan.py  # V8 美股金叉 50/200(仅 ndx/spx, 日频)
 # 参数权威源 strategies/vol_legs/rule.py::CFG 与 v3_macd_boll/macd_boll.py; 口径说明 strategies/vol_legs/README.md
@@ -76,8 +77,8 @@ Write-Host "  - v4_erp_band\backtest\_v4_erp_band_signals.png ..."
 python -W ignore strategies\vol_legs\v4_erp_band\research\_plot_signals.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v4 plot_signals failed (exit $LASTEXITCODE) - 保留上次的图" }
 
-Write-Host "  - v5_trend_gate\research\_v5_trend_gold.png ..."
-python -W ignore strategies\vol_legs\v5_trend_gate\research\_plot_trend.py --leg gold
+Write-Host "  - v5_trend_gate\research\plot_trend\_v5_trend_gold.png ..."
+python -W ignore strategies\vol_legs\v5_trend_gate\research\plot_trend\_plot_trend.py --leg gold
 if ($LASTEXITCODE -ne 0) { Write-Warning "v5 plot_trend failed (exit $LASTEXITCODE) - 保留上次的图" }
 
 Write-Host "  - v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png ..."
@@ -91,7 +92,7 @@ Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
 Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v5_trend_gate / v9_vol_target  daily\_*_daily.md (+ .json)"
 Write-Host "  Figures : v2\research\_v2_{a500,hs300}.png · v3\research\_v3_{hkt,kc50}.png ·"
-Write-Host "            v4\backtest\_v4_erp_band_signals.png · v5\research\_v5_trend_gold.png ·"
+Write-Host "            v4\backtest\_v4_erp_band_signals.png · v5\research\plot_trend\_v5_trend_gold.png ·"
 Write-Host "            v9\research\_v9_vt_{spx,ndx}.png"
 Write-Host "  Digest  : run_daily_all.ps1 末尾会跑 python pipeline\daily_digest.py, 汇总到 data\_daily_digest.html"
 Write-Host "  Note    : signal on NAV at close, place the order BEFORE 15:00 next trading day to get"

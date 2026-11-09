@@ -10,9 +10,9 @@
 唯一差别是**展示与统计窗口**：
 
 - `tail_idx()` 把每条序列尾部截到 `LOOKBACK_YEARS = 3` 年，各净值在**窗口起点重归 1**；
-- **信号仍用全历史算** —— 年线闸门要 250 日预热、v6 的 PE 分位要 10 年窗口、
-  v5 的自适应波动层要 500 日分位。若连信号也只用 3 年数据算，v5 的年线/波动层会长期空转、
-  v6 的分位会失真，画出来的就不是「近 3 年的表现」，而是「换了一套参数的另一个策略」。
+- **信号仍用全历史算** —— 年线闸门要 250 日预热、v5 的自适应波动层要 500 日分位、
+  v4 的 ERP 通道要 250 日均值。若连信号也只用 3 年数据算，它们的年线/波动层会长期空转、
+  通道会失真，画出来的就不是「近 3 年的表现」，而是「换了一套参数的另一个策略」。
 
 ## 图（本目录，均带 `_3y` 后缀，避免与全历史版混淆）
 
@@ -54,10 +54,11 @@ _ROOT = os.path.dirname(os.path.dirname(_VL))         # 仓库根（推导，不
 for _p in (_HERE, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-for _d in ("v1_ma20", "v2_boll_breakout", "v3_macd_boll", "v5_trend_gate",
-           "v4_erp_band", "v6_pe_band",
-           "v7_us_gate", "v8_golden_cross", "v9_vol_target", "v10_vol_layer"):
-    _pp = os.path.join(_VL, _d)
+for _d in (("v1_price_volume", "v1_1_ma20"), ("v2_boll_breakout",), ("v3_macd_boll",),
+           ("v5_trend_gate",), ("v4_erp_band",), ("v7_us_gate",),
+           ("v8_golden_cross",), ("v9_vol_target",), ("v10_vol_layer",)):
+    # V1 自 2026-11-07 起是家族（v1_price_volume/v1_1_ma20），路径多一层
+    _pp = os.path.join(_VL, *_d)
     if _pp not in sys.path:
         sys.path.insert(0, _pp)
 
@@ -69,7 +70,6 @@ import rule                               # noqa: E402
 vdata._otc_stale = lambda: False          # type: ignore[attr-defined]
 
 import boll                               # noqa: E402
-import band as v6band                     # noqa: E402
 import erp as v4erp                       # noqa: E402
 import ladder as v4ladder                 # noqa: E402
 import golden_cross as v8gc               # noqa: E402
@@ -93,14 +93,14 @@ LOOKBACK_YEARS = 3                         # 只看最近 3 年（滚动窗口�
 SUF = "_3y"                                # 图名后缀：与全历史版区分
 WINDOW_NOTE = f"近 {LOOKBACK_YEARS} 年窗口"
 
-# ---------------------------------------------------------------- 第一组：v1–v6
+# ---------------------------------------------------------------- 第一组：v1–v5
 TIMING = ["v1", "v2", "v3", "v5"]
 TIMING_COLOR = {"v1": "#1f77b4", "v2": "#d62728", "v3": "#2ca02c", "v5": "#9467bd",
                 "v5p": "#c5b0d5"}
 STRAT_NAME = {
     "v1": "V1 MA20下车", "v2": "V2 BOLL突破", "v3": "V3 MACD+BOLL",
     "v5": "V5 趋势闸门", "v5p": "V5 纯趋势(关波动层)",
-    "v4": "V4 ERP股债通道", "v6": "V6 PE分位带",
+    "v4": "V4 ERP股债通道",
     "BH": "买入持有",
 }
 C_UP, C_DOWN = "#d33", "#1f8a4c"
@@ -273,23 +273,6 @@ def v4_hs300_nav():
     return rebase(r["nav"])
 
 
-def v6_hs300_nav():
-    """V6 PE 分位仓位带（沪深300，默认 `REBAL_FREQ="weekly"` 定档）-> 归一净值。
-
-    分位窗口是**滚动 10 年**，所以 PE 序列必须全历史喂进去，否则窗口内的档位会失真；
-    3 年只作为展示窗口（`main` 里截）。费率显式置零（`simulate()` 默认会扣 `rule.FEE_BUY/FEE_SELL`）。
-    """
-    frame = v6band.load_frame("hs300")
-    p = dict(v6band.params(), FEE_BUY=0.0, FEE_SELL=0.0)
-    ind = v6band.indicators(frame, p, "hs300")
-    ok = ind["pct"].dropna()
-    ind = ind.loc[ok.index[0]:]          # 与 v6 自己的 run_mode 一致：首个有效分位起算
-    me = v6band.monthly_signals(ind, p)
-    bands_df, _events = v6band.band_series(ind, me, p)
-    sim = v6band.simulate(ind, bands_df, p)
-    return rebase(sim["nav"])
-
-
 def compute_group_a():
     hs300_px = vdata.otc_series_for_leg("hs300")
 
@@ -312,7 +295,7 @@ def compute_group_a():
         port_navs[vx] = rebase(agg_portfolio(navs))
 
     special = {}
-    for vx, fn in (("v4", v4_hs300_nav), ("v6", v6_hs300_nav)):
+    for vx, fn in (("v4", v4_hs300_nav),):
         try:
             special[vx] = fn()
         except Exception as e:  # noqa: BLE001
@@ -594,10 +577,10 @@ def plot_leg_overlay(leg, data, info):
         f"注意：仅 {yrs:.1f} 年样本，年化差在 ±3pp 内基本是噪声。",
     ]
     if leg == "hs300":
-        notes.append("v4（ERP 股债通道）/ v6（PE 分位带）是沪深300 单标的方法论，"
+        notes.append("v4（ERP 股债通道）是沪深300 单标的方法论，"
                      "与逐腿择时不同层，见 `_v1v6_comprehensive_3y.png`，不在本图。")
     else:
-        notes.append("v4（ERP 股债通道）/ v6（PE 分位带）只对沪深300 成立，套不到这条腿，故不在本图。")
+        notes.append("v4（ERP 股债通道）只对沪深300 成立，套不到这条腿，故不在本图。")
     if leg in ("a500", "hs300"):
         notes.append("注意：A500 与沪深300 的场外序列在 2025-03-27 之前是同一只 `000051`，两图前段会高度相似。")
 
@@ -739,7 +722,7 @@ def plot_leg_group_b(leg, grp_all):
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
     print(f"窗口：最近 {LOOKBACK_YEARS} 年（信号全历史算，只截展示窗口）")
-    print("第一组：v1–v6 × 七腿（场外复权净值，T+1 成交，零费率）…")
+    print("第一组：v1–v5 × 七腿（场外复权净值，T+1 成交，零费率）…")
     a = compute_group_a()
 
     print("第二组：v7–v10 × 纳指/标普（统一 0.10% / 1.40%）…")
@@ -779,7 +762,7 @@ def main():
         if vx in a["port_navs"]:
             items_a.append((vx, STRAT_NAME[vx] + ("（七腿组合）" if vx != "v5p" else "（七腿组合·对照）"),
                             a["port_navs"][vx]))
-    for vx in ("v4", "v6"):
+    for vx in ("v4",):
         if vx in a["special"]:
             items_a.append((vx, STRAT_NAME[vx] + "（沪深300方法论）", a["special"][vx]))
     items_a.append(("bench_a", "沪深300 买入持有（基准）", a["hs300_bh"]))
@@ -787,14 +770,14 @@ def main():
     idx_a = tail_idx(common_index(*[s for _k, _l, s in items_a]))
     png_a, idx_a, rows_a = plot_comprehensive(
         items_a, idx_a,
-        f"第一次综合对比 · v1–v6（{WINDOW_NOTE}）",
+        f"第一次综合对比 · v1–v5（{WINDOW_NOTE}）",
         f"窗口 {idx_a[0].date()} ~ {idx_a[-1].date()}"
         f"（{(idx_a[-1] - idx_a[0]).days / 365.25:.1f} 年）· "
         "上格净值 / 下格回撤 · 基准 = 沪深300 买入持有",
         os.path.join(OUTDIR, f"_v1v6_comprehensive{SUF}.png"),
         notes=[
             "上格 = 净值（窗口起点归 1），下格 = 回撤；虚线 = 沪深300 买入持有基准。",
-            "v1/v2/v3/v5 是七腿组合（按 rule 目标带权重：带权 = band/40）；v4/v6 是沪深300 单标的方法论，"
+            "v1/v2/v3/v5 是七腿组合（按 rule 目标带权重：带权 = band/40）；v4 是沪深300 单标的方法论，"
             "与基准同池不同层，只作方法论对照。",
             "v5 用 README 默认口径（七腿全套闸门 + 自适应波动层）；v5p 是关掉波动层的纯趋势对照。",
             f"窗口 = 最近 {LOOKBACK_YEARS} 年（滚动），信号用全历史算。3 年约 730 个交易日，"
@@ -847,7 +830,7 @@ def main():
             m, cal = metrics(r)
             out.append(dict(vx=vx, kind="七腿组合", ann=m["ann"], mdd=m["mdd"],
                             sharpe=m["sharpe"], calmar=cal, vol=m["vol"]))
-        for vx in ("v4", "v6"):
+        for vx in ("v4",):
             if vx not in a["special"]:
                 continue
             r = win_rebase(a["special"][vx], idx)
@@ -903,7 +886,7 @@ def main():
         "",
         f"> 本目录 = `research/v1v10_compare/` 的**同一套图、只换窗口**：全历史版看「十几年长跑谁活得久」，"
         f"这里只画**最近 {LOOKBACK_YEARS} 年**，看「按当下的市场状态，这套规则还在不在状态」。",
-        "> 仍按标的池拆两次：**第一组 v1–v6 × 全部七腿**、**第二组 v7–v10 × 仅纳指100 + 标普500**。",
+        "> 仍按标的池拆两次：**第一组 v1–v5 × 全部七腿**、**第二组 v7–v10 × 仅纳指100 + 标普500**。",
         "> 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）；成交 = T 日盘后算信号、T+1 净值成交；"
         "空仓按货基 1.40% 计息。第一组零费率；第二组统一单边 0.10%。",
         "",
@@ -911,16 +894,16 @@ def main():
         "",
         f"- **展示与统计窗口** = 每条序列尾部 {LOOKBACK_YEARS} 年，各净值在窗口起点重归 1；",
         "- **信号一律用全历史算**：年线闸门要 250 日预热、v5 自适应波动层要 500 日分位、"
-        "v6 的 PE 分位是滚动 10 年窗口 —— 只喂 3 年数据会让它们长期空转 / 档位失真，"
+        "v4 的 ERP 通道要 250 日均值 —— 只喂 3 年数据会让它们长期空转 / 档位失真，"
         "那画出来的就不是「近 3 年的表现」，而是「换了一套参数的另一个策略」；",
         f"- ⚠ **短样本**：{LOOKBACK_YEARS} 年约 730 个交易日，年化与夏普的抽样误差远大于全历史版。"
         "单腿年化差在 **±3pp 内基本是噪声**，不要把本目录的数字与全历史版逐位对比；",
         "- 想读「规则本身值多少」请看 `research/v1v10_compare/_v1v10_compare.md`（长样本）；"
         "本目录只回答「最近三年这套规则表现如何」。",
         "",
-        "## 1. 第一次综合对比 · v1–v6（七腿时机 + 沪深300 方法论）",
+        "## 1. 第一次综合对比 · v1–v5（七腿时机 + 沪深300 方法论）",
         "",
-        f"![v1–v6 综合对比](_v1v6_comprehensive{SUF}.png)",
+        f"![v1–v5 综合对比](_v1v6_comprehensive{SUF}.png)",
         "",
         f"窗口 **{idx_a[0].date()} ~ {idx_a[-1].date()}**"
         f"（{(idx_a[-1] - idx_a[0]).days / 365.25:.1f} 年）。"
@@ -939,7 +922,7 @@ def main():
     L += [
         "",
         "> v1/v2/v3/v5 是**七腿组合**（按 `rule` 目标带权重：带权 = band/40，满仓 = 40pp）；"
-        "v4/v6 是**沪深300 单标的方法论**，与基准同池、不同层，只作方法论对照，不与七腿组合比排名。",
+        "v4 是**沪深300 单标的方法论**，与基准同池、不同层，只作方法论对照，不与七腿组合比排名。",
         "> v5 取 README 默认口径（七腿全套闸门 + 自适应波动层）；**v5p = 关掉波动层的纯趋势对照**。",
         "> 七腿组合在窗口起点按目标带权重新归 1（等价于「三年前的今天等权建仓」），"
         "不是真的持有三年不动 —— 这是滚动窗口对比的固有口径。",
@@ -984,7 +967,6 @@ def main():
         "| V3 MACD+BOLL | `macd_boll.leg_slice / run`，零费 | 同上（`leg_slice` 自带预热截断） | ✅ 仅窗口 |",
         "| V4 ERP 通道 | `ladder.frame()` 的 `target`（两带滞回 hold_left）＋**零费** | 同规则、**含费** 0.10% / 0.50% | ⚠ 仅费率 |",
         "| V5 趋势闸门 | `state_machine` 默认（`GATE_ALL` + `VOL_USE`）＋零费＋**全段起算** | 同规则、含费 + 双边滑点 0.10%、**预热 269 日后**起算 | ⚠ 费率＋窗口（见 §1.2.1） |",
-        "| V6 PE 分位带 | `params()` 默认（weekly / 10 年窗口 / 档位表 / 阶梯 / RSI 扳机 / 利差否决）＋零费 | 同规则、含费 | ⚠ 仅费率 |",
         "| V7 年线闸门 | `build` 默认参数，成本 0.10%、空仓 1.40% | 同 | ✅ 完全一致 |",
         "| V8 金叉 50/200 | 同上 | 同 | ✅ 完全一致 |",
         "| V9 波动率目标 | 成本 0.10%、空仓 1.40%（统一尺子） | **0.03% / 2.0%** | ⚠ 仅费率 |",
@@ -1026,7 +1008,7 @@ def main():
             L.append(f"![{NAMES[leg]} 各时机策略对比]({os.path.basename(leg_overlay[leg])})")
             L.append("")
     L += [
-        "> v4/v6 只对沪深300 成立（ERP 股债通道、PE 分位带），不进这些图。",
+        "> v4 只对沪深300 成立（ERP 股债通道），不进这些图。",
         "> 判读：策略线在虚线之上 = 这条腿近三年存在时机红利；全线在虚线之下 = 适合买入持有。",
         "",
         "## 2. 第二次综合对比 · v7–v10（仅纳指100 + 标普500）",
@@ -1071,7 +1053,7 @@ def main():
         "",
         "## 3. 跨组结论（近 3 年视角）",
         "",
-        "### 3.1 七腿（v1–v6）",
+        "### 3.1 七腿（v1–v5）",
         "",
     ]
     best_by_leg = {leg: STRAT_NAME[info["best"]] for leg, info in leg_info.items()}
@@ -1084,7 +1066,7 @@ def main():
         "既拿到超额又把回撤压下去。",
         "- **港股（恒生科技）与科创50**：波动最大、时机红利最高，但绝对回撤仍大；"
         "3 年窗口里它们的反弹段集中在少数几个月，择时的贡献高度依赖是否躲过了那几次急跌。",
-        "- **v4 / v6 不是择时**：它们是「沪深300 与国债之间摆多少」「这笔钱最多投几成」，"
+        "- **v4 不是择时**：它是「沪深300 与国债之间摆多少」，"
         "只应与沪深300 基准对照，不要拿去和七腿组合比排名。",
         "- **和全历史版的差异**：长样本里 A 股宽基的时机红利更稳定，美股两腿更明确地适合买入持有；"
         "3 年窗口若出现相反结论，多半是窗口内某一段行情的偶然性，先去看全历史版再下判断。",

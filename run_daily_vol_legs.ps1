@@ -16,8 +16,7 @@
 #          v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png (美股两腿 · TV15%)
 #          出图失败只告警, 不阻断主流程(保留上次的图)。
 # 已退出默认流程(需要时手动跑):
-#   python strategies\vol_legs\v1_price_volume\v1_1_ma20\daily\_daily_scan.py        # V1-1 MA20 穿越(场外净值)
-#   python strategies\vol_legs\v1_price_volume\v1_2_ma_trend_pv\daily\_daily_scan.py # V1-2 量价趋势跟随(场内量价, 会先刷 OHLCV)
+#   python strategies\vol_legs\v1_price_volume\v1_1_ma20\daily\_daily_scan.py        # V1(默认) MA20 穿越(场外净值); V1-2 已于 2026-11-10 删除
 #   python strategies\vol_legs\v5_trend_gate\daily\_daily_scan.py    # V5 趋势闸门(2026-11-09 用户要求移出板块2, 不再进看板)
 #   python strategies\vol_legs\v5_trend_gate\research\plot_trend\_plot_trend.py --leg gold  # V5 黄金操作图(同上, 不再上看板)
 #   python strategies\vol_legs\v7_us_gate\daily\_daily_scan.py       # V7 美股年线闸门(仅 ndx/spx, 月末)

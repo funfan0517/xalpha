@@ -742,7 +742,7 @@ def _report(dist, crit, sigrows, base, leg_infos, m_pool, m_bh, m_same, m_all,
         f"{(s_dropclr['ann'] - s_def['ann']) * 100:+.2f}pp）。"
         "也就是说清仓（S1/S10）比减仓（S3~S9/T7）更贵 —— 它把仓位打到 0，"
         "要等 B 类信号才回补，而 B 类信号在下跌末端出现得晚。"
-        "**这是「破位就走」在 ETF 上的第二次证伪**（第一次是 v12 对支撑位的测试）。",
+        "**这是「破位就走」在 ETF 上的第二次证伪**（第一次是 v11-gate 对支撑位的测试）。",
         "> 只留减/清那一档的夏普看起来很高，但它平均曝光只有 "
         f"{fs(s_keep['exposure'])} —— 那是「不持有」的夏普，不是策略的夏普。",
         f"> **空仓起步（`START_MULT=0`）与满带起步几乎无差**：{fp(s_flat['ann'])} vs "

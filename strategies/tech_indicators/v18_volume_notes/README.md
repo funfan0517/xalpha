@@ -11,7 +11,7 @@
 > ② 绩效函数**冻结**成 `metrics.py`（不再 import `vol_legs.engine`）——
 > v18 因此可以脱离 vol_legs 独立跑，代价是那两张表要手动同步（见 `legs.py` 顶部注释）。
 > 同时 OHLCV 行情库从 `strategies/vol_legs/data/` 上移到仓库 `data/_ohlcv.json`
-> （两个家族共用，AGENTS.md §8.1）。
+> （两个家族共用，AGENTS.md §8.1；原另一个写入方 v1-2 已于 2026-11-10 删除）。
 
 ## 一句话
 
@@ -23,15 +23,16 @@
 全部判据建立在**成交量与影线**上（D1 高量 / D3 实体上影下影 / D8 观察窗），而场外复权净值
 只有一条收盘净值 —— 没有量、没有开高低，规则一条也算不出来。
 
-→ 只能走**场内 ETF 前复权日线 OHLCV**（与 `vol_legs/v1_2_ma_trend_pv` 同源、同一份库）。
+→ 只能走**场内 ETF 前复权日线 OHLCV**（仓库级 `data/_ohlcv.json`）。
 代价有两条，都写在报告里：① 美股两腿只能用人民币 ETF 代理（多一层汇率）；
 ② 停牌/一字板会挡住成交（已实现「顺延并单独计数」）。
 
 行情库：**`data/_ohlcv.json`**（仓库级；2026-11-07 从 `v1_2_ma_trend_pv/data/` 上移到
 vol_legs 家族级，2026-11-09 再上移到仓库 `data/` —— 判据是「别的策略家族也会用」，
-AGENTS.md §8.1）。v1-2 与本变种共用一份，不各存一份漂移。
-库里**不含当日盘中 bar**：两个写入方（本目录 `ohlcv.py` / v1-2 `ohlcv.py`）都在 15:05 前
-裁掉"今天"那根（`_trim_partial`），否则半成品 bar 会污染高量分位/量比/支撑压力。
+AGENTS.md §8.1）。原来由本变种与 v1-2 两个写入方共同维护，
+**2026-11-10 v1-2 删除后只剩本目录的 `ohlcv.py` 写它**（`vol_legs/v13_quad_9grid/data.py` 只读）。
+库里**不含当日盘中 bar**：写入方都在 15:05 前裁掉"今天"那根（`_trim_partial`），
+否则半成品 bar 会污染高量分位/量比/支撑压力。
 
 ## 目录结构
 
@@ -107,7 +108,7 @@ v18_volume_notes/
 
 > 结论落点：**这是持仓者的「今天该不该减」检查表，不是择时策略**。
 > 正确的用法是把 W1/W9 这类**约束**（高量当天不加仓、矛盾不动）装进现有腿，
-> 而不是把整套清单当独立变种上线（v12 对「破位就走」的证伪是同一个答案的第二次出现）。
+> 而不是把整套清单当独立变种上线（v11-gate 对「破位就走」的证伪是同一个答案的第二次出现）。
 
 ## 复现
 
@@ -133,7 +134,8 @@ python strategies/tech_indicators/v18_volume_notes/research/_plot_v18.py
 
 ## 与其它变种的关系
 
-- 数据同源：`v1_price_volume/v1_2_ma_trend_pv`（同为场内 ETF OHLCV 口径）。
+- 数据同源：场内 ETF OHLCV 口径（原来的另一用户 `vol_legs/v1_2_ma_trend_pv` 已于 2026-11-10 删除，
+  现由本变种与只读的 `vol_legs/v13_quad_9grid` 共用 `data/_ohlcv.json`）。
 - 结论同向：`v12_support_gate`（「跌破支撑就走」在 ETF 上既亏收益也不减回撤）
   与本变种的 S1/S10「破位清仓」是同一个现象的两个独立证据。
 - **不上线**：不注册 `pipeline/strategies.json`、不进 `run_daily_*.ps1`、不出每日看板卡。

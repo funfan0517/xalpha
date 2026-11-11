@@ -11,6 +11,13 @@
 > 本变种不是 —— 文档 §4.3 明令「只看信号日后 20/60/120 日前向收益分布 vs 买入持有，
 > 不在小样本上报年化/回撤」。少了这三项不是漏写，而是**遵守被验证方的验证方案**。
 
+> 📁 **本目录有两层（2026-11-10 起）**：
+> **A = 事件研究**（根目录，本 README 主体，单笔 R 口径，**不报年化/回撤**）；
+> **B = 仓位化复算**（`gate/`，代号 **v11-gate**，把同一份趋势/支撑/ATR 口径改成仓位规则后跑 NAV，
+> 报年化/回撤/夏普，见 [`gate/README.md`](gate/README.md)）。
+> 两者是「同一指标口径的两种测量」，**不是两个独立变种** —— 原独立目录 `v12_support_gate/` 已并入
+> `gate/`，v12 这个编号取消；`gate/` 下所有产物统一用 `_v11_gate_*` 前缀。
+
 ## 1. 文档 §4 的四步，落在哪
 
 | 文档 §4 的要求 | 本变种的做法 | 位置 |
@@ -75,7 +82,7 @@
    60 日被突破 **90%**（口播 60~70%，方向对但更极端）→ 只能当「不逆势空」的约束；
    下跌趋势里反弹到压力位「压住」只有 **32%**（20 日）/ **16%**（60 日）（口播 70%，**方向反了**），
    而且事件组 f20 比同腿「下跌趋势日均值」还高 **+0.60pp** —— 既不是更差的做空点，也不是更好的买点，
-   只是「下跌趋势」这件事的重复计价。所以 **v12 没有压力层不是漏了**：
+   只是「下跌趋势」这件事的重复计价。所以 **v11-gate 没有压力层不是漏了**：
    四格里没有一格能变成可执行的正贡献规则。
 7. **换趋势口径不改变任何一格**（2026-11-06 补测，报告 §7.4）：把趋势判定从 MA200·月频换成
    v5 的 **MA250 + 20 日 + 日频**（先验证两套掩码逐日一致率 **100%**，19,115 个共同交易日），
@@ -100,14 +107,24 @@
 ```
 v11_support_pressure/
 ├── support_pressure.py     规则本体：趋势 / 摆动点 / 密集区 / ATR / 事件构造 / 基础统计
-│                           （参数唯一权威源，改阈值只改这里）
-├── backtest.py             事件研究回测 + 报告生成（样本量守门 / 前向收益 / 期望值 / 分桶 /
-│                           文档四格 / 条件递进 / 带宽稳健性 / 敏感性）
-├── backtest/               _v11_support_bt.md · _v11_support_events.jsonl（逐笔事件可复核）
-├── research/               _plot_events.py → _v11_events_{a500,hs300,ndx,spx,kc50,hkt,gold}.png
-│                           probe_breakout/_probe_breakout.py → 同名 .md（右侧交易探针：站上前高再买）
+│                           （参数唯一权威源，改阈值只改这里；**A、B 两层共用**）
+├── backtest.py             A 层：事件研究回测 + 报告生成（样本量守门 / 前向收益 / 期望值 /
+│                           分桶 / 文档四格 / 条件递进 / 带宽稳健性 / 敏感性）
+├── backtest/               A 层产物：_v11_support_bt.md · _v11_support_events.jsonl
+├── research/               A 层：_plot_events.py → _v11_events_{...}.png
+│                           probe_breakout/_probe_breakout.py → 同名 .md（站上前高再买）
+├── gate/                   B 层（v11-gate）：同一口径的**仓位化复算**，见 gate/README.md
+│   ├── support_gate.py     参数权威源 + 仓位状态机（import 上一层的 build）
+│   ├── gate_bt.py          NAV 回测 + 报告（**不叫 backtest.py**：避免顶掉 A 层的同名模块）
+│   ├── backtest/           _v11_gate_bt.md · _v11_gate_bt.jsonl
+│   ├── daily/              _daily_scan.py → _v11_gate_daily.md / .json（手跑，不进每日流程）
+│   └── research/           _plot_gate_bt.py → _v11_gate_bt.png（组合六格）
+│                           _plot_gate.py → _v11_gate_{leg}[_3y].png（单腿操作图）
 └── README.md
 ```
+
+改趋势 / 支撑 / ATR 的定义**只改 `support_pressure.py`** —— `gate/` 直接 import 它的 `build`，
+两层口径不会各写一份而漂移（这是把两层放在同一目录的主要理由）。
 
 图的读法：上格 = 净值 + 趋势底纹（▲ 触线、点线支撑、虚线止损）；中格 = `close/support − 1`，
 绿带 = 到线阈值（能直接看出「贴线买入」总发生在下探段）；下两格 = f60 分布
@@ -128,22 +145,58 @@ python strategies/vol_legs/v11_support_pressure/research/_plot_events.py --leg g
 
 # 右侧交易探针（站上前高再买，秒级）
 python strategies/vol_legs/v11_support_pressure/research/probe_breakout/_probe_breakout.py
+
+# ---- B 层（gate/）：仓位化复算 ----
+# 自检：七腿档位分布 / 平均曝光 / 年换手
+python strategies/vol_legs/v11_support_pressure/gate/support_gate.py
+# NAV 回测 + 报告（约 2 分钟：16 档消融 × 7 腿）
+python strategies/vol_legs/v11_support_pressure/gate/gate_bt.py
+# 图（复用 gate_bt 的统计，保证图与报告同源）
+python strategies/vol_legs/v11_support_pressure/gate/research/_plot_gate_bt.py
+python strategies/vol_legs/v11_support_pressure/gate/research/_plot_gate.py --leg kc50 --years 3
+# 今日操作（手跑；--no-refresh 用本地缓存、不联网）
+python strategies/vol_legs/v11_support_pressure/gate/daily/_daily_scan.py --no-refresh
 ```
 
 改口径只在 `support_pressure.py` 顶部常量：`TREND_FREQ`（monthly/daily）、`SUP_MODE`（pivot/profile）、
 `BAND`、`STOP_ATR`、`RR`、`COOLDOWN`、`TREND_SIDE`（up/down）。`backtest.py` 的 `SENS` 表改完重跑即可。
+B 层的仓位参数（`NEAR` / `HYST` / `COOL` / `ACTION_GAP` / `USE_SUPPORT` …）在 `gate/support_gate.py` 顶部。
 
 ## 6. 与主策略 / 其它变种的关系
 
 - **不叠加、不进每日流程**（`pipeline/strategies.json` 里没有它，`daily.enabled` 也就不存在）。
-  v11 的事件是「几十笔/十几年」级别，做每日看板没有意义。
+  v11 的事件是「几十笔/十几年」级别，做每日看板没有意义；`gate/daily/` 也只是**手跑**的复盘表。
+- 与 **v5 的关系（B 层）**：`v11-gate 纯趋势`（MA200 月频）与 v5（MA250 日频）年化在约 1pp 内互有
+  胜负，但换手只有 v5 的 45~60% —— 它是「v5 的慢速对照」，不是替代品（§7 与 `gate/README.md` §7）。
 - 与 **v5_trend_gate** 同族但不同层：v5 用 MA250 日频把仓位带切成 1.0/0.5/0.2 三档；
   v11 用 MA200 月频 + 位置条件做**事件研究**，不产生任何仓位。82% 共线说明它不是新信号。
 - 与 **v9_vol_target / v7_us_gate** 无关（那是美股两腿的风险预算与年线闸门）。
 - 与**主策略的回撤阶梯**不冲突也不互补：主策略的阶梯是「跌了才加仓」，v11 的事件是「跌到支撑才买」，
   两者都在跌的时候动手，但 v11 已被本报告证明是负增量 —— **不要把它接到主策略上**。
 
-## 7. 已知局限（用之前必须知道的）
+## 7. B 层：仓位化复算（`gate/` · v11-gate）—— 一句话，支撑位连仓位口径也过不了
+
+把 §3 的四条结论原样翻译成仓位规则（趋势不成立→观察仓 0.2 / 距支撑 ≤3% 贴线→半仓 0.5 /
+`close < support` 破位→清仓 + 冷却 20 日 / 不做空），七腿 NAV 回测（成本与记账复用 v5）：
+
+| | 七腿（2022-08~2026-11） | 五腿长窗口（2014-08~2026-11） |
+|---|---|---|
+| 买入持有 | +14.47% / -12.52% | +13.26% / -19.61% |
+| V5 默认 | +12.74% / -9.95% | +9.52% / -16.72% |
+| **v11-gate 纯趋势**（去支撑层） | +12.37% / -12.37% · 8.6 次/年 | +10.67% / -19.61% · 6.5 次/年 |
+| **v11-gate 完整** | +8.99% / -11.51% · **61 次/年** | +5.67% / -12.36% · 45.7 次/年 |
+
+**支撑层是确定的负贡献**：撤掉它年化 +8.99% → +12.37%（+3.38pp）、换手 61 → 8.6 次/年，
+回撤几乎不动（-12.37% → -11.51%）。拆开看，「只留破位清仓」+7.18% 且回撤**反而更深**（-16.05%，
+卖在低点等价格站回支撑 +3% 才回补，正好错过反弹第一段）；「只留贴线减半」+11.11%（-1.26pp，
+多出的 1.37pp/年 成本 > 0.66pp/60 日的收益增量）；「开 ATR 跟踪止损 1.5×ATR」-0.32%/年、118 次/年、
+曝光 16%（**§3 结论 3 的口径边界**：单笔 + 固定 5R 才成立，逐日跟踪就是高频割肉）。
+
+所以 A、B 两层给的是**同一答案的两个独立证据**（单笔口径 + 逐日仓位口径都指向「支撑位不是 alpha」），
+剩下的趋势层与 v5 等价、只是更省交易 —— **故 `gate/` 也不上线**。细节（消融 16 档 / 逐腿 / 逐年 /
+三段 / 图 / 今日操作表）见 [`gate/README.md`](gate/README.md)。
+
+## 8. 已知局限（用之前必须知道的）
 
 - **只有收盘价**（无 OHLCV、无成交量）—— 见 §2 的两处口径妥协。ATR 与「密集区」都是降级实现。
 - **支撑/压力有主观性**：本实现用「机械摆动点 + 冷却」压到可复现，但不等于原作者的看图方式。

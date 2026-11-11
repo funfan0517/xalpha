@@ -68,9 +68,10 @@
 > `backtest.py` 只做「载入引擎 → 传入本变种 signal → 出报告」；规则本体在各自 `rule.py`，
 > 引擎不再持有任何指标逻辑（`build_signals()` 改为按名分发），全局只有一份实现。
 > **v8（仅 MA20 穿越）已于 2026-10-28 迁出本家族** —— 其标的池本就不是「全池」而是几只宽基腿，
-> 现归入组合层策略 `vol_legs` 的**第 1 号变种家族 V1（量价）**：`strategies/vol_legs/v1_price_volume/v1_1_ma20/`（七腿、场外复权净值口径，
-> 2026-11-07 家族改组时由 `v1_ma20/` 下沉为子策略 V1-1；同日新增量价子策略 V1-2 `v1_2_ma_trend_pv/`）。
-> 两条子策略 2026-10-30 起均退出每日流程与看板（`daily.enabled=false`），需要时手跑各自的 `daily/_daily_scan.py`。
+> 现归入组合层策略 `vol_legs` 的**第 1 号变种 V1**：`strategies/vol_legs/v1_price_volume/v1_1_ma20/`（七腿、场外复权净值口径，
+> 2026-11-07 家族改组时由 `v1_ma20/` 下沉为子策略 V1-1，同日新增的量价子策略 V1-2 已于 2026-11-10 删除，
+> 故 **v1_1_ma20 即 V1 的默认实现**）。
+> 它 2026-10-30 起退出每日流程与看板（`daily.enabled=false`），需要时手跑 `daily/_daily_scan.py`。
 > 因此本目录的横截面对比（`compare.py`）不再包含 v8 一行。
 > **v16 原为 BOLL 上轨突破，已于 2026-10-30 迁出本家族** —— 它本来就是 BOLL 的「另一套逻辑」
 > （突破做多，与 v15 的反转方向相反），迁出后归入组合层策略 `vol_legs` 作为第三个变种：
@@ -92,8 +93,10 @@
 > 按用户要求改名 **V18**。它是本家族里**唯一用 OHLCV + 成交量**的变种（判据全在量与影线上），
 > 也是唯一沿用「七腿目标带 + 场内成交 + 单边 7bp + 空仓计货基」口径的变种：
 > 腿表/成本冻结在 `v18_volume_notes/legs.py`、绩效函数冻结在 `metrics.py`（不反向 import vol_legs）。
-> 行情库是**仓库级 `data/_ohlcv.json`**（与 `vol_legs/v1_2_ma_trend_pv` 共用，两个写入方都在
-> 15:05 前裁掉当日半成品 bar）。
+> 行情库是**仓库级 `data/_ohlcv.json`**。原来的另一个写入方
+> `vol_legs/v1_2_ma_trend_pv/ohlcv.py` 已随 V1-2 于 2026-11-10 删除，
+> **现在唯一的写入方是本目录的 `v18_volume_notes/ohlcv.py`**（`vol_legs/v13_quad_9grid` 只读）；
+> 写入方都在 15:05 前裁掉当日半成品 bar。
 > **回测结论：不上线** —— 上线池三腿年化 +1.83% vs 同曝光买入持有 +7.39%，回撤持平，
 > 即「只降仓位、不产生超额」；故**不进 `compare.py`、不进每日 6 策略表、未注册 `pipeline/strategies.json`**，
 > 需要时手跑 `v18_volume_notes/backtest.py` 与 `daily/_daily_scan.py`。

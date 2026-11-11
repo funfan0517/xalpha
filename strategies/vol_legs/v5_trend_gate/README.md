@@ -216,6 +216,16 @@
   打脸 44 次，回撤只浅 1.70pp；`MA60+20` 是 A500 上唯一像样的一档（−0.15pp 换 8.33pp），
   但它和 `MA60+10` 同一档，属风险调整型而非收益型。
 
+- **另一类读数（结构 × 量能 × 关键位 × 节奏）见 `research/quad_pv/_quad_pv.md`**：用户 2026-11-09
+  给的定性四象限清单的量化版，在**场内 ETF 的 OHLCV** 上测（场外净值没有成交量，这一维测不了）。
+  三个结论：① 四格里只有**「回调」**有稳定正 alpha（池化未来 60 日中位 +3.19%、胜率 68%，
+  基准 +1.57% / 55%）；② **「下跌」格（放量跌破关键位）未来 20 日反而最好**（+1.99%，四格最高），
+  在纳指/标普上未来 60 日 +5.96% / +9.11%（胜率 74% / 89%）—— 放量破位在宽基 ETF 上是
+  均值回归买点，不是撤退信号；③ 严格版只覆盖 28%~37% 的交易日，「四条件同时满足」在日线上是
+  稀疏事件，更像「关键日判据」而非逐日仓位规则。仓位化后只在科创50（+5.89% vs 恒持 −2.92%）、
+  黄金（优于 MA250）上有用，宽基/美股全面输给恒持；「只买回调」窄版在 4/6 条腿上优于严格版。
+  与 v11/v11-gate 的衔接：破位**只用于降档**，没有采用已被证伪的「破位清仓 + 冷却 20 日」。
+
   **没有跨腿都稳的读数**：排第一的口径也只有 1/7 条腿同时不劣 —— 「哪个均线更好」在聚合层面永远
   回答成「都差不多」，拆到腿上才有信号。这也是「我选策略只会用在适合的标的」这条用法的量化依据：
   **先按标的选腿，再在该腿的明细里选口径**，不要用组合年化或跨腿平均挑口径。
@@ -393,6 +403,7 @@ strategies/vol_legs/v5_trend_gate/
 ├── research/plot_trend_asym/_plot_trend_asym.py  # 非对称口径图（快下车+慢上车），复用上一个的 plot()
 ├── research/_sens_trend.py  # 15 档趋势口径的「灵敏度 vs 代价」扫描 + 非对称快下车实验
 ├── research/_sens_legs.py   # 逐腿口径矩阵（每条腿自己全历史 vs 恒持满带，不看组合年化）
+├── research/quad_pv/_quad_pv.py  # 「结构×量能×关键位×节奏」四象限的量化与实证（场内 OHLCV）
 ├── research/_vol_overlay.py # 叠加波动目标层的实测（目标 × 窗口 × 形态 + 等暴露对照 + 分段）
 ├── research/_a500_trend.py  # 中证A500 专项：「快 × 稳」Pareto 扫描 + 当下多口径读数
 ├── backtest/_v5_trend_gate_bt.md / .jsonl
@@ -400,6 +411,7 @@ strategies/vol_legs/v5_trend_gate/
 ├── research/plot_trend_asym/_v5_trend_*_asym.png / _asym_3y.png
 ├── research/_v5_trend_sens.md / _v5_trend_sens.png
 ├── research/_v5_sens_legs.md / _v5_sens_legs.png
+├── research/quad_pv/_quad_pv.md / _quad_pv.png
 ├── research/_vol_overlay.md       # 波动目标层实测报告（§3.7）
 ├── research/_a500_trend.md / _a500_trend.png
 └── daily/_v5_trend_gate_daily.md / .json

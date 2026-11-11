@@ -258,8 +258,8 @@
       "pipeline_mode": "rotation"
     },
     "v1_1_ma20": {
-      "name": "波动资产 V1 量价家族 · 子策略 V1-1（MA20 穿越 · 纯价基线 · 七腿逐腿进出时点）",
-      "family": "strategies/vol_legs/v1_price_volume/README.md（2026-11-07 由 v1_ma20 改组为「量价」家族, 本子策略是家族内的纯价基线）",
+      "name": "波动资产 V1 · MA20 穿越（V1 的默认实现 · 七腿逐腿进出时点）",
+      "family": "strategies/vol_legs/v1_price_volume/README.md（2026-11-07 由 v1_ma20 改组为「量价」家族; 2026-11-10 删除量价子策略 V1-2 后, 本子策略即 **V1 的默认（也是唯一）实现**）",
       "source_methodology": "strategies/vol_legs/v1_price_volume/v1_1_ma20/README.md（规则权威源 strategies/vol_legs/v1_price_volume/v1_1_ma20/ma20.py::MA_WIN; 标的池继承主策略 strategies/vol_legs/rule.py::LEGS）· 原 tech_indicators/v8_ma20 → 2026-10-28 迁入 vol_legs 成为 v1_ma20 → 2026-11-07 随家族改组下沉为 v1_1_ma20（规则本体未改）",
       "universe": {
         "offshore_pool": "data/_universe.md",
@@ -306,69 +306,7 @@
         "signal_json": "strategies/vol_legs/v1_price_volume/v1_1_ma20/daily/_v1_1_ma20_daily.json",
         "automation": "(未创建, 随手跑)"
       },
-      "note": "2026-10-28 由 tech_indicators/v8_ma20 迁入 vol_legs 成为第一个变种（原 4 只小池改为六腿、口径改场外复权净值; v1.4 起七腿）。2026-11-07 随 V1 家族改组（v1_ma20 -> v1_price_volume, 内分 v1_1/v1_2）下沉为 **v1_1_ma20**, 规则本体未改, 定位为家族内的**纯价基线**（只用价格, 不看成交量, 与量价子策略 V1-2 对照）。**定位**: 主策略回答「组合层仓位带怎么摆」, 本子策略回答「每条腿什么时候下车」; 两者可叠加但不可互相替代。**回测诚实结论**（场外净值口径, 数据至 2026-11-06, 组合层七腿共同窗口 2021-09~2026-11）: 择时 7.79%/年、回撤 -9.20%、夏普 0.83, 平均只投入 57%; 静态带 10.25%/-17.45%/0.73 —— **只降回撤, 不增收益**; 逐腿 4/7 跑赢买入持有（只有科创50 +15.10pp、恒生科技 +3.00pp、沪深300 +0.80pp、A500 +0.72pp 为正; 纳指 -7.74pp、标普 -6.94pp、黄金 -2.72pp）。**成本是决定性变量**: 逐腿 13~16 笔/年, 按 A 类真实费率扣费后组合年化 7.79% -> 0.55%（扣费后只剩 3/7 跑赢）—— 这正是家族里再造一个低频量价子策略（V1-2, 1~2 笔/年）的直接动因。**已知边界**: QDII 腿净值滞后 T+1~T+2, 实盘比回测更慢一步; C 类销售服务费未计（023299/011609/012805 约 0.2%/年）; 未计大额限购/额度关闭顺延/赎回确认时滞; 组合层共同窗口受 012805（2021-08 成立）限制。",
-      "pipeline_mode": "full_pool"
-    },
-    "v1_2_ma_trend_pv": {
-      "name": "波动资产 V1 量价家族 · 子策略 V1-2（20/60/250 量价趋势跟随 · 七腿逐腿进出时点）",
-      "family": "strategies/vol_legs/v1_price_volume/README.md（与 v1_1_ma20 同一家族: v1_1 是纯价基线, 本子策略是价+量）",
-      "source_methodology": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/README.md（规则权威源 strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/ma_trend_vol.py 的 SMA/ATR/ADX/VOL/RISK 常量; 标的池继承主策略 strategies/vol_legs/rule.py::LEGS）· 2026-11-07 用户按「20/60/250 均线 + 量能 + ATR/ADX + 风险预算」的中长期趋势跟踪体系描述新建",
-      "universe": {
-        "offshore_pool": "data/_universe.md",
-        "signal": "七腿**场内 ETF 前复权日线 OHLCV（含成交量）**: 563360(A500)/510300(沪深300)/513100(纳指,人民币代理)/513500(标普,人民币代理)/588000(科创50)/513180(恒生科技)/518880(黄金)",
-        "data": "data/_ohlcv.json（仓库级 OHLCV 库, 与 tech_indicators/v18_volume_notes 共用; 由 v1_2_ma_trend_pv/ohlcv.py 或 v18/ohlcv.py 增量刷新, 内部走 xa.get_daily; 15:05 前不写入当日盘中 bar）",
-        "note": "**口径与家族其它变种不同源**: 量价规则必须有成交量, 而场外复权净值没有成交量 -> 只能用场内 ETF。美股两腿用人民币 ETF 代理(513100/513500), 因为美元指数本地库只有收盘价; 代价是信号里掺汇率。全腿出信号, 不做 A/B 分级"
-      },
-      "rules": [
-        "大环境: 收盘 > MA250 且 年线扣抵向上（close > close.shift(250), 数学上等价于 MA250 今日上行）",
-        "建仓①突破: 近 5 日上穿 MA60 且 收盘 ≥ MA60 + max(1ATR, 2%), ADX ≥ 25, 量比 ≥ 1.5",
-        "建仓②回踩(主路径): MA20 > MA60 且 站上 MA20 且 今日收盘上行 且 近 10 日回踩到 MA20 +1% 以内, 近 3 日量比 ≥ 1.5",
-        "建仓③粘合: 近 10 日三线极差 ≤ 2.5% 且 放量长阳(≥2%) 站上三线最高",
-        "休眠: ADX < 20 一律不开新仓（建仓①另需 ADX ≥ 25）",
-        "仓位: 单笔风险 2% ÷ 止损幅度, 上限 = 该腿额度（止损幅度夹在 3%~8%）",
-        "初始止损: min(close − 1.5ATR, 近 10 日最低 − 0.5%); 移动保护: 浮盈 ≥4ATR 后启用 峰值 − 6ATR; 跌破 MA20 且距 MA60 ≤2% 减半, 站回恢复",
-        "清仓: 触发止损 / 放量或有效(>2%)跌破 MA60 / 年线转弱（价在年线下且年线向下）; 平仓后冷却 5 个交易日",
-        "成交: T 日收盘信号, 回测 pos = w.shift(1)（家族统一口径）; 单边摩擦 7.5bp（佣金万 2.5 + 滑点 5bp, ETF 免印花税）",
-        "空仓按货基 rule.CASH_ANNUAL（1.40%）逐日计息"
-      ],
-      "thresholds": {
-        "authoritative": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/ma_trend_vol.py::SMA_FAST/MID/SLOW / ATR_N / ADX_N / VOL_MULT / ADX_ON/OFF / RISK_PCT / STOP_ATR / MIN_STOP/MAX_STOP / TRAIL_ATR/TRAIL_ARM / COST_ONE_WAY",
-        "ma": [20, 60, 250],
-        "atr_n": 14,
-        "adx_n": 14,
-        "vol_mult": 1.5,
-        "adx_on": 25,
-        "adx_off": 20,
-        "risk_pct": 0.02,
-        "stop_range": [0.03, 0.08],
-        "cost_one_way_bp": 7.5,
-        "trade_at": "T 日收盘（回测 pos = w.shift(1)）"
-      },
-      "backtest": {
-        "engine": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/backtest.py",
-        "raw_out": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/backtest/_v1_2_bt.jsonl",
-        "report": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/backtest/_v1_2_bt.md",
-        "research": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/research/_plot_leg.py -> _v1_2_<leg>.png（价格 + 20/60/250 + 成交量 + 进出手）",
-        "window": "逐腿各自 MA250 成形日起（A500 2025-10 起仅 1 年、科创50 2021-11、恒生科技 2022-06、沪深300 2014-01、纳指 2014-05、标普 2015-01、黄金 2014-08）; 组合层取**并集**（缺数据的腿不占权重、权重在可用腿间归一）2014-01~2026-11; 不接受 --codes 分批"
-      },
-      "select": {
-        "out_active_md": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/daily/_v1_2_daily.md",
-        "out_active_json": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/daily/_v1_2_daily.json",
-        "min_sample_years": 0.0,
-        "criteria": "不做 A/B 分级: 池由 rule.LEGS 固定, 七腿全部出信号（pipeline_mode=full_pool 使 daily 跳过闸门）"
-      },
-      "daily": {
-        "block": "vol",
-        "codes": [],
-        "runner": "",
-        "runner_note": "留空: 未接入 run_daily_vol_legs.ps1（板块2 自 2026-10-30 起只留 v3_macd_boll 一张变种卡）; 需要时手跑 daily/_daily_scan.py",
-        "enabled": false,
-        "enabled_note": "2026-11-07 新建, 未上看板（与 v1_1 一致: 用户 2026-10-30 要求板块2 去掉 V1 系列）。手跑: python strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/daily/_daily_scan.py",
-        "signal_report": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/daily/_v1_2_daily.md",
-        "signal_json": "strategies/vol_legs/v1_price_volume/v1_2_ma_trend_pv/daily/_v1_2_daily.json",
-        "automation": "(未创建, 随手跑)"
-      },
-      "note": "2026-11-07 新建：用户给出「20/60/250 均线 + 量能确认 + ATR/ADX 过滤 + 风险预算配仓 + 小止损」的中长期趋势跟踪体系描述, 按条落地为 V1 量价家族的第二个子策略。**定位**: 与 v1_1_ma20 同层（逐腿进出时点）, 但它是**价+量**: 年线定牛熊、60 线控生死、20 线找波段, 扣抵预判拐头, 放量确认进场, ADX 休眠过滤震荡, 仓位由 2% 风险预算换算, 止损写在状态机里。**回测诚实结论**（场内 ETF 量价口径, 数据至 2026-11-06）: 逐腿年化 0.8%~3.8%、回撤 -6.1%~-12.0%（买入持有 -24%~-56%, 7/7 更小）, 但平均只在场 4%~21%; 换成交集口径「同曝光买入持有」后只有 3/7 加分、中位 0.00pp（最好科创50 +2.23pp、最差纳指 -1.16pp）; 组合层 12.8 年 3.20%/年（扣费）、回撤 -5.13%、夏普 0.59, vs 同曝光买入持有 3.36%/-3.22%/0.96 -> **-0.16pp** —— **在这七条长期上行的宽基/商品 ETF 上, 这套量价择时没能跑赢「只按同样暴露持有」**。**唯一明确优势**: 换手 1~2 笔/年（v1_1 是 13~16）, 累计成本 0.3%~2.7%、年化拖累 0.06~0.24pp（v1_1 掉 -7pp 量级）。**分市**: 熊市里策略日均收益恒等于货基（年线 + ADX 休眠确实把它挡在熊市外）, 代价是牛市也常空仓。**已知边界**: 口径与家族其它变种不同源（场内价格、无分红再投、含折溢价与汇率; 美股腿是人民币代理）; A500 仅 1 年样本且零信号; 每腿 4~21 笔, 胜率/盈亏比置信区间很宽, 原始描述的「胜率 35%~42%、盈亏比 3.2~4.5」在本仓库标的上无法验证（实测胜率中位 54%、盈亏比中位 2.30）; 止损/移动止损参数在 4 组候选里选过（结论一致: 都跑不过同曝光基准）; 未计 ETF 折溢价偏离/大额冲击成本。**归因与优化验证**（research/attrib/_attrib.py → _attrib.md, 2026-11-07 离线跑）: 成交再滞后一天 +0.21pp（回测没占到「当天收盘成交」的便宜）; **关掉量能门槛 +1.34pp、夏普 0.59→0.95**; 关掉 ADX 休眠 +0.73pp; 关掉移动止损+减半 +0.13pp 但回撤恶化; 风险预算 2%→5%/10% 分别 +1.77/+1.99pp（夏普不动, 纯加杠杆）; 持有型过滤器 ①MA20→②+年线→③+ADX→④+量能 的择时超额四层全为负（-2.51/-1.95/-1.39/-1.14pp）; 半底仓+半信号年化 4.48%/回撤 -9.14%/夏普 0.62, 但同曝光后仍 -1.02pp。→ **结论: 量能/ADX 在日线 ETF 上没有正的边际信息, 决定结果的是暴露而非信号; 想降回撤直接用主策略阶梯/闸门, 要真做量价应转向横截面选腿（另立课题）。**",
+      "note": "2026-10-28 由 tech_indicators/v8_ma20 迁入 vol_legs 成为第一个变种（原 4 只小池改为六腿、口径改场外复权净值; v1.4 起七腿）。2026-11-07 随 V1 家族改组（v1_ma20 -> v1_price_volume, 内分 v1_1/v1_2）下沉为 **v1_1_ma20**, 规则本体未改。**2026-11-10 用户要求 v1_1 作为 V1 的默认策略, 同日删除量价子策略 V1-2**（与同曝光买入持有差 -0.16pp、量能无正边际, 结论留在 v1_price_volume/README.md), 故本子策略现为 V1 的唯一实现。**定位**: 主策略回答「组合层仓位带怎么摆」, 本子策略回答「每条腿什么时候下车」; 两者可叠加但不可互相替代。**回测诚实结论**（场外净值口径, 数据至 2026-11-06, 组合层七腿共同窗口 2021-09~2026-11）: 择时 7.79%/年、回撤 -9.20%、夏普 0.83, 平均只投入 57%; 静态带 10.25%/-17.45%/0.73 —— **只降回撤, 不增收益**; 逐腿 4/7 跑赢买入持有（只有科创50 +15.10pp、恒生科技 +3.00pp、沪深300 +0.80pp、A500 +0.72pp 为正; 纳指 -7.74pp、标普 -6.94pp、黄金 -2.72pp）。**成本是决定性变量**: 逐腿 13~16 笔/年, 按 A 类真实费率扣费后组合年化 7.79% -> 0.55%（扣费后只剩 3/7 跑赢）—— 当时正因此再造了一个低频量价子策略（V1-2, 1~2 笔/年）, 但它与同曝光买入持有差 -0.16pp、量能维度无正边际, 已于 2026-11-10 删除。**已知边界**: QDII 腿净值滞后 T+1~T+2, 实盘比回测更慢一步; C 类销售服务费未计（023299/011609/012805 约 0.2%/年）; 未计大额限购/额度关闭顺延/赎回确认时滞; 组合层共同窗口受 012805（2021-08 成立）限制。",
       "pipeline_mode": "full_pool"
     },
     "v2_boll_breakout": {

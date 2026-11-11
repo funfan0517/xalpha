@@ -116,7 +116,7 @@ def main():
     a, b = "2021-02-10", "2024-02-02"          # 基准的最大回撤区间（已实测）
 
     rows = []
-    rows.append(run_one(df, bond, k=6.0, arm=4.0, reentry="ma", reentry_n=20))  # V1-2 式
+    rows.append(run_one(df, bond, k=6.0, arm=4.0, reentry="ma", reentry_n=20))  # 原 V1-2 式（V1-2 已于 2026-11-10 删除）
     for k in GRID_K:
         for rn in GRID_REENTRY:
             rows.append(run_one(df, bond, k=k, arm=0.0, reentry="ma", reentry_n=rn))

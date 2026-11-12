@@ -419,8 +419,8 @@
       "pipeline_mode": "full_pool"
     },
     "vol_variants": {
-      "name": "波动类变种操作一览 · v2 / v3 / v4 / v6 / v9",
-      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v2_boll_breakout,v3_macd_boll,v4_erp_band,v6_gold,v9_vol_target}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
+      "name": "波动类变种操作一览 · v2 / v3 / v4 / v6 / v9 / v12",
+      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v2_boll_breakout,v3_macd_boll,v4_erp_band,v6_gold,v9_vol_target,v12_octo_trend}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
       "daily": {
         "block": "vol",
         "codes": [],
@@ -429,7 +429,7 @@
         "signal_report": "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.md",
         "automation": "(随各变种扫描)"
       },
-      "note": "板块2 的变种操作汇总: 一行一个变种(v2/v3/v4/v6/v9), 列 = 变种/动作统计/动作/明细(参考板块5 列法)。★ = 该变种的重点标注标的: v2→中证A500/沪深300, v3→科创50/恒生科技, v4→沪深300, v6→黄金的 B 控回撤(A 长期配置 / C 低仓位占坑只作对照、不标 ★, 2026-11-09 用户指定), v9→标普500/纳指100; 空仓/低仓的重点腿也会列出, 便于一眼看到状态。v9 的括号里是带内仓位(如 66%/满仓), 不是 0/1。**v6 是黄金单标的三口径**(A 长期配置 / B 控回撤 / C 低仓位占坑), 三条互斥、同一笔钱的三种拿法, 明细里逐条写「当前仓位 + 今日动作 + 触发依据」; 看板读的是 _v6_gold_daily.json 的 action/dir/cond 字段(由 _daily_scan.py 写, 阈值不在 pipeline 侧复刻)。**2026-11-09 用户要求把 v5 趋势闸门整体移出板块2**(行 + 黄金操作图 _v5_trend_gold.png 都不再展示), 其产物仍留在 v5_trend_gate/daily/, 需要时手跑。图墙十张: v2 两张 + v3 两张 + v4 一张 + v6 三张 + v9 两张, 由 run_daily_vol_legs.ps1 第 3 步每日重画。",
+      "note": "板块2 的变种操作汇总: 一行一个变种(v2/v3/v4/v6/v9/v12), 列 = 变种/动作统计/动作/明细(参考板块5 列法)。★ = 该变种的重点标注标的: v2→中证A500/沪深300, v3→科创50/恒生科技, v4→沪深300, v6→黄金的 B 控回撤(A 长期配置 / C 低仓位占坑只作对照、不标 ★, 2026-11-09 用户指定), v9→标普500/纳指100, v12→沪深300(八态趋势的执行范围); 空仓/低仓的重点腿也会列出, 便于一眼看到状态。v9 的括号里是带内仓位(如 66%/满仓), 不是 0/1; v12 的括号里是「八态态名 + 该态的许可上限」(如「慢跌 20%」)。**v6 是黄金单标的三口径**(A 长期配置 / B 控回撤 / C 低仓位占坑), 三条互斥、同一笔钱的三种拿法, 明细里逐条写「当前仓位 + 今日动作 + 触发依据」; 看板读的是 _v6_gold_daily.json 的 action/dir/cond 字段(由 _daily_scan.py 写, 阈值不在 pipeline 侧复刻)。**2026-11-09 用户要求把 v5 趋势闸门整体移出板块2**(行 + 黄金操作图 _v5_trend_gold.png 都不再展示), 其产物仍留在 v5_trend_gate/daily/, 需要时手跑。图墙十一张: v2 两张 + v3 两张 + v4 一张 + v6 三张 + v9 两张 + v12 一张, 由 run_daily_vol_legs.ps1 第 3 步每日重画。",
       "pipeline_mode": "summary"
     },
     "v5_trend_gate": {
@@ -737,6 +737,75 @@
         "automation": "(未创建, 随 vol_legs 定时任务)"
       },
       "note": "2026-11-04 按用户指定文档 S-A 落地（标的池只有纳指100 + 标普500）; **2026-11-06 用户要求在每日操作板块2 的变种层加入 v9, 重点标的 = 标普500 / 纳指100**, 每日扫描与两张单腿图并入 run_daily_vol_legs.ps1 第 2/3 步。**定位**: 与 v1/v2/v3/v5 同一层（逐腿进出时点）, 但产物是**带内仓位比例**（0~100%）而不是 0/1 或三档 —— 不判断涨跌, 只调风险预算: 高波动降仓、波动回落补仓。**回测诚实结论**（2012-08~2026-11, 14.2 年, 含 0.03% 单边）: 纳指腿默认 +14.08% / −16.06% / 夏普 0.89 vs 买入持有 +16.51% / −29.47% / 0.77（让渡 2.43pp 年化, 换 13.41pp 回撤）; 标普腿 +11.86% / −17.15% / 0.85 vs +13.27% / −30.50% / 0.75; 组合 50/50 +13.12% / −15.92% / 0.89 vs 静态 +15.11% / −28.17% / 0.78。**快减/快补是净增益**: 相对文档月度档 +0.45pp 年化且回撤再浅 3.77pp。**失效模式**: 低波动阴跌（波动率没起来, 满仓挨打）; 2020 型急跌只能减轻不能免疫; 2018 型急跌后 V 反是负贡献（−4.81pp vs 月度档）; 长样本（1995 起）2000-2002 回撤 −42.11% —— 减不到底, 适合短促急跌的一条腿, 不作美股主策略。",
+      "pipeline_mode": "full_pool"
+    },
+    "v12_octo_trend": {
+      "name": "波动资产 V12 变种 · 八态趋势（急涨/慢涨/弱回调/强回调 ｜ 急跌/慢跌/弱反弹/强反弹）→ 仓位许可上限",
+      "source_methodology": "G:/tradingagents/hs300_trend/八态趋势参数规格.md v1.1（2026-11-09 定稿）+ 参考实现 hs300_trend/state8_final.py::classify · 2026-11-12 落地为 strategies/vol_legs/v12_octo_trend（参数权威源 rule.py）",
+      "universe": {
+        "signal": "场内 7 腿 ETF 前复权日线（data/_ohlcv.json）· A股 3 腿（a500/hs300/kc50）的 rvol 用 SH000300 指数量能（data/_cn_index_klines.json, 本变种 data.py 维护）",
+        "exec": "场内 ETF（510300 为执行范围）；场外 A 类赎回 0.5% 会吃光 24 次/年的换手, 只能场内执行",
+        "note": "池 = 主策略同一批 7 腿, 但**本变种硬依赖成交量**（强弱回调/反弹靠 rvol 分档）, 场外净值没有量, 所以口径是 ETF 价格而非场外复权净值, 与 v1/v2/v3/v5 不可直接相加比较"
+      },
+      "rules": [
+        "结构（三票多数决）: s1 = MA20>MA60 · s2 = MA60 > MA60[-20] · s3 = close > MA250, S = s1+s2+s3",
+        "定 regime: S >= 2 连续 5 日 -> 向上; S <= 1 连续 5 日 -> 向下（不是三票全 AND; 全 AND 有 32% 空窗, 规格 §2 第 1 步）",
+        "向上四态: close>=MA20 且 z20>=1.2 = 急涨, 否则慢涨; close<MA20 且 close>MA60 且 rvol<=0.85 = 弱回调, 否则强回调",
+        "向下四态: close>=MA20 且 rvol>=1.2 = 强反弹, 否则弱反弹; close<MA20 且 z20<=-1.2 = 急跌, 否则慢跌",
+        "反转确认: 强回调连续 2 日 -> regime 翻向下; 强反弹连续 2 日 -> 翻向上（当日状态不变, 次日起按新 regime）",
+        "仓位许可（本仓库加的映射, 按规格 §3/§4 后验统计定）: 急涨 100% / 慢涨 50% / 弱回调 100% / 强回调 50% / 急跌 50% / 慢跌 20% / 弱反弹 20% / 强反弹 50%",
+        "升格确认 2 日、降格立即生效（态层迟滞, 只影响换手）; T 日收盘判态, T+1 起承担仓位; 空仓计货基 1.40%; 单边 5bp"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/vol_legs/v12_octo_trend/rule.py（规格 §1 参数表逐字镜像 + CAP 映射 + VOL_MODE）",
+        "pool": [
+          "hs300"
+        ],
+        "ma": [
+          20,
+          60,
+          250
+        ],
+        "z_th": 1.2,
+        "z_burst": 1.5,
+        "rvol_hi": 1.2,
+        "rvol_lo": 0.85,
+        "vote_confirm": 5,
+        "flip_confirm": 2,
+        "up_confirm": 2,
+        "warmup": 270,
+        "vol_mode": "market（A股腿用 SH000300 指数量能; ETF 自身量会把弱回调/强回调的符号做反）",
+        "cost": 0.0005,
+        "cash_annual": 0.014
+      },
+      "backtest": {
+        "engine": "strategies/vol_legs/v12_octo_trend/backtest.py",
+        "raw_out": "strategies/vol_legs/v12_octo_trend/backtest/_v12_octo_trend_bt.jsonl",
+        "report": "strategies/vol_legs/v12_octo_trend/backtest/_v12_octo_trend_bt.md",
+        "figures": "strategies/vol_legs/v12_octo_trend/research/_v12_state_hs300.png（八态色带 + 许可阶梯, research/_plot_state.py）· _v12_states.png（八态后验）",
+        "window": "沪深300 2014-02 ~ 2026-11（12.3 年, 510300 前复权）; 诊断腿各取自身起点",
+        "note": "逐腿 + 组合（等权/等波动）+ 八态后验（规格 §3 复算）+ 敏感性（research/_sweep.md: 升格确认 1/2/3/5、映射反证、曝光匹配基准）+ 量能口径探针（research/probe_volume/）+ 移植验伪（research/probe_spec_port/）"
+      },
+      "select": {
+        "out_active_md": "strategies/vol_legs/v12_octo_trend/daily/_v12_daily.md",
+        "out_active_json": "strategies/vol_legs/v12_octo_trend/daily/_v12_daily.json",
+        "min_sample_years": 0.0,
+        "criteria": "不做 A/B 分级: 执行范围 = rule.CORE_LEGS（只有沪深300, 规格标定标的）; 其余 6 腿只诊断; 勿跑 run_flow select"
+      },
+      "daily": {
+        "block": "vol",
+        "codes": [
+          "hs300"
+        ],
+        "runner": "",
+        "runner_note": "留空: 本变种写在 run_daily_vol_legs.ps1 第 2 步（默认联网, 需要最新成交量）; 若在这里再填同一个 .ps1, run_daily_all 会把 vol_legs 跑两遍",
+        "enabled": false,
+        "enabled_note": "2026-11-12 接入每日操作: 产物由 run_daily_vol_legs.ps1 每日刷新并进板块2「变种操作一览」卡; 不单独出卡（与 v3/v9 同一种用法）",
+        "signal_report": "strategies/vol_legs/v12_octo_trend/daily/_v12_daily.md",
+        "signal_json": "strategies/vol_legs/v12_octo_trend/daily/_v12_daily.json",
+        "automation": "(未创建, 随 vol_legs 定时任务)"
+      },
+      "note": "2026-11-12 按用户指定文档「八态趋势参数规格 v1.1」落地。**定位**: 与 v13（趋势许可九宫格）同层不同轴 —— v13 是 S(0~3)×力度 的九宫格, v12 是 regime×位置×速度×量能 的八态; 两者都在场内 7 腿上跑、都用 data/_ohlcv.json, **不可叠加在同一份额度上**（对同一笔钱给两个上限）。**量能口径是本变种最大的坑**: 用 510300 自身成交量当 rvol 分母时沪深300 的「弱回调−强回调」分离度是 −0.77pp（符号反）, 换 SH000300 指数量能 +0.20pp / 上证量 +0.64pp, 见 research/probe_volume/_probe_volume.md。**回测诚实结论**（沪深300 2014-02~2026-11, 12.3 年, 场内前复权, 单边 5bp）: +9.40% / −20.83% / 夏普 0.66 vs 恒持 +7.17% / −45.45% / 0.26; **曝光匹配**（恒定 45%）基准 +4.61% / −21.98% / 0.32 —— 同样的回撤水平下多赚 4.8pp/年, 低回撤不是靠低仓位而是靠选态。组合层 6 腿等波动 +9.65% / −8.35% / 1.30 vs 恒持 +14.99% / −17.70% / 1.10。**敏感性**: UP_CONFIRM 1/2/3/5 夏普 0.53/0.66/0.55/0.48（2 是唯一凸起但相邻不崩, 换手 495->298->107）; 映射反证（慢涨满仓）夏普掉到 0.30, 说明「钱在急里」这一刀成立; 摩擦吃掉 0.54pp/年（24.3 次/年）。**已知局限**: 只有沪深300 是执行范围（规格 §7.4 要求 z_th/rvol 在标普/纳指上重标）; 弱回调这一格在 2013+ 样本只剩 +0.20pp, 真实贡献来自「急涨满仓 / 慢跌压到 20%」两端; 中证A500 样本不足 1 年不可当证据。",
       "pipeline_mode": "full_pool"
     },
     "dividend": {

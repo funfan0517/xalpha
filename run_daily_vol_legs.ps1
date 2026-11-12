@@ -3,17 +3,20 @@
 # 口径: 信号 + 记账 + 执行 **全部用场外基金复权净值**(rule.SIGNAL_MODE="otc")
 # 盘后运行: 刷新场外净值(023299/000051/270042/017641/011609/012805/000216) -> 复算七腿状态
 #          (回撤阶梯/趋势闸门/季度再平衡) -> 输出「下一交易日该下单的那一笔」
-# 第 2 步: 变种每日产物 —— v2 BOLL突破 / v3 MACD+BOLL / v4 ERP股债通道 / v6 黄金三口径 / v9 波动率目标
+# 第 2 步: 变种每日产物 —— v2 BOLL突破 / v3 MACD+BOLL / v4 ERP股债通道 / v6 黄金三口径 / v9 波动率目标 / v12 八态趋势
 #          (v2/v3 七腿逐腿进出时点; v4 = 沪深300×国债 ERP 通道, 单标的;
 #           v6 = 黄金单标的的三口径 A 长期配置 / B 控回撤 / C 低仓位占坑;
-#           v9 = 美股两腿 纳指100/标普500 的波动率目标仓位, 月末定仓 + 月中快减/快补)
+#           v9 = 美股两腿 纳指100/标普500 的波动率目标仓位, 月末定仓 + 月中快减/快补;
+#           v12 = 八态趋势(急涨/慢涨/弱回调/强回调 | 急跌/慢跌/弱反弹/强反弹) -> 仓位许可上限,
+#                 执行范围只有沪深300; 它是唯一**硬依赖成交量**的变种, 自己刷新 ETF OHLCV + 指数量能)
 #          产物写入各变种 daily\*, 由 pipeline\daily_digest.py 汇总到板块2「变种操作一览」卡。
-# 第 3 步: 刷新十张重点图的 PNG(复用第 1/2 步刚刷新的缓存, 只重画不重算回测):
+# 第 3 步: 刷新十一张重点图的 PNG(复用第 1/2 步刚刷新的缓存, 只重画不重算回测):
 #          v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png
 #          v3_macd_boll\research\_v3_hkt.png / _v3_kc50.png
 #          v4_erp_band\backtest\_v4_erp_band_signals.png (走 research\_plot_signals.py, 不碰回测报告)
 #          v6_gold\daily\_v6_gold_A.png / _v6_gold_B.png / _v6_gold_C.png (三口径全历史)
 #          v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png (美股两腿 · TV15%)
+#          v12_octo_trend\research\_v12_state_hs300.png (八态色带 + 许可阶梯)
 #          出图失败只告警, 不阻断主流程(保留上次的图)。
 # 已退出默认流程(需要时手动跑):
 #   python strategies\vol_legs\v1_price_volume\v1_1_ma20\daily\_daily_scan.py        # V1(默认) MA20 穿越(场外净值); V1-2 已于 2026-11-10 删除
@@ -65,6 +68,12 @@ Write-Host "  - v9 vol target ..."
 python -W ignore strategies\vol_legs\v9_vol_target\daily\_daily_scan.py --no-refresh
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9_vol_target daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
 
+Write-Host "  - v12 octo trend (八态) ..."
+# 默认联网: v12 需要**最新成交量**（ETF OHLCV + 沪深300 指数量能）, 第 1 步只刷场外净值, 没有量。
+# 网络失败时脚本内部退化为用缓存并在报告里标注, 不会中断。
+python -W ignore strategies\vol_legs\v12_octo_trend\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v12_octo_trend daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
 # 第 3 步: 刷新十张重点图(只重画, 不重算回测; 失败只告警)
 Write-Host ""
 Write-Host "[3/3] Refreshing 10 key figures (v2 a500/hs300 · v3 hkt/kc50 · v4 erp signals · v6 gold A/B/C · v9 spx/ndx) ..."
@@ -90,16 +99,21 @@ Write-Host "  - v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png ..."
 python -W ignore strategies\vol_legs\v9_vol_target\research\_plot_target.py --leg spx --leg ndx
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9 plot_target failed (exit $LASTEXITCODE) - 保留上次的图" }
 
+Write-Host "  - v12_octo_trend\research\_v12_state_hs300.png ..."
+python -W ignore strategies\vol_legs\v12_octo_trend\research\_plot_state.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v12 plot_state failed (exit $LASTEXITCODE) - 保留上次的图" }
+
 Write-Host ""
 Write-Host "Done."
 Write-Host "  Report  : strategies\vol_legs\daily\_vol_legs_report.md"
 Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
-Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v6_gold / v9_vol_target  daily\_*_daily.md (+ .json)"
+Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v6_gold / v9_vol_target / v12_octo_trend  daily\_*_daily.md (+ .json)"
 Write-Host "            (v5_trend_gate 2026-11-09 起移出板块2, 需要时手跑, 见文件头)"
 Write-Host "  Figures : v2\research\_v2_{a500,hs300}.png · v3\research\_v3_{hkt,kc50}.png ·"
 Write-Host "            v4\backtest\_v4_erp_band_signals.png ·"
-Write-Host "            v6_gold\daily\_v6_gold_{A,B,C}.png · v9\research\_v9_vt_{spx,ndx}.png"
+Write-Host "            v6_gold\daily\_v6_gold_{A,B,C}.png · v9\research\_v9_vt_{spx,ndx}.png ·"
+Write-Host "            v12_octo_trend\research\_v12_state_hs300.png"
 Write-Host "  Digest  : run_daily_all.ps1 末尾会跑 python pipeline\daily_digest.py, 汇总到 data\_daily_digest.html"
 Write-Host "  Note    : signal on NAV at close, place the order BEFORE 15:00 next trading day to get"
 Write-Host "            that day's NAV. QDII NAV prints T+1~T+2 -- do not cancel inside the window."

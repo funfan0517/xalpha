@@ -73,10 +73,12 @@ def main():
     legs = vdata.available()
     dfs = {leg: vdata.frame(leg) for leg in legs}
 
-    results, rows, cur = {}, [], []
+    results, rows, cur, specs = {}, [], [], {}
     for leg in legs:
         r = engine.backtest_leg(leg, df=dfs[leg])
+        rs = engine.backtest_leg(leg, df=dfs[leg], opt=False)   # 规格口径（对照）
         results[leg] = r
+        specs[leg] = rs
         if r["perf"] is None:
             rows.append(dict(leg=leg, name=r["name"], bars=len(dfs[leg]),
                              start=None, end=str(dfs[leg].index[-1].date()),
@@ -88,7 +90,9 @@ def main():
                          start=str(r["start"].date()), end=str(r["end"].date()),
                          ann=r["perf"]["ann"], mdd=r["perf"]["mdd"],
                          sharpe=r["perf"]["sharpe"], expo=r["expo"], acts=len(r["acts"]),
-                         bh_ann=b["ann"], bh_mdd=b["mdd"], note=""))
+                         bh_ann=b["ann"], bh_mdd=b["mdd"], cap=r["cap_txt"],
+                         ann_spec=rs["perf"]["ann"], mdd_spec=rs["perf"]["mdd"],
+                         sharpe_spec=rs["perf"]["sharpe"], note=""))
         last = r["cx"].iloc[-1]
         cur.append(dict(leg=leg, name=r["name"], state=last["state"],
                         regime=last["regime"], z20=float(last["z20"]),
@@ -105,11 +109,16 @@ def main():
         f"**必须用量能**，场外净值没有量，这是家族里唯一硬依赖成交量的变种。"
         f"T 日收盘判态、T+1 起承担仓位 · 空仓计货基 {rule.CASH_ANNUAL:.2%} · "
         f"摩擦单边 {rule.FEE_SIDE * 1e4:.1f}bp · 预热 {rule.WARMUP} 根。",
-        "> 许可映射（**按规格 §3/§4 的后验统计定，不按回测调**）："
+        "> 许可映射（**规格原表，按 §3/§4 的后验统计定，不按回测调**）："
         + " · ".join(f"{k} {v:.0%}" for k, v in rule.CAP.items())
-        + f" · 升格确认 {rule.UP_CONFIRM} 日（降格立即）。",
+        + f" · 升格确认 {rule.UP_CONFIRM} 日（降格立即）。"
+        + (f"\n> **生效口径 = v12.1**（`rule.OPT={rule.OPT}`）："
+           + "；".join(f"{rule.NAMES[l]} {rule.cap_version(l)}"
+                      for l in rule.LEGS if rule.cap_version(l) != "规格 CAP")
+           + "。§1b 给两版对照，`rule.OPT=False` 可一键回到规格口径。"
+           if rule.OPT else "\n> **生效口径 = 规格 CAP**（`rule.OPT=False`）。"),
         "",
-        "## 1. 逐腿",
+        "## 1. 逐腿（按当前生效口径）",
         "",
         "| 腿 | 样本 | 年化 | 最大回撤 | 夏普 | 平均许可 | 调仓 | 恒持年化 | 恒持回撤 | 差 |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -122,6 +131,21 @@ def main():
         L.append(f"| {r['name']} | {r['start']} ~ {r['end']}（{r['bars']} 根） | "
                  f"{pct(r['ann'])} | {pct(r['mdd'])} | {r['sharpe']:.2f} | {r['expo']:.0%} | "
                  f"{r['acts']} | {pct(r['bh_ann'])} | {pct(r['bh_mdd'])} | {edge:+.2f}pp |")
+
+    # ---------------- v12.1 vs 规格口径
+    if rule.OPT:
+        L += ["", "## 1b. v12.1 vs 规格口径（同一窗口/同一成本，只有许可与波动覆盖不同）", "",
+              "来源：`research/opt_ashare/_opt_ashare.md`（次日/5 日期望重标）→ "
+              "`strategies/vol_legs/research/v12v13_compare/_v12v13_compare.md`（20.7 年指数样本裁决）。",
+              "",
+              "| 腿 | 规格年化 | 规格回撤 | 规格夏普 | v12.1年化 | v12.1回撤 | v12.1夏普 | Δ夏普 | 生效许可 |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---|"]
+        for r in rows:
+            if r["ann"] is None:
+                continue
+            L.append(f"| {r['name']} | {pct(r['ann_spec'])} | {pct(r['mdd_spec'])} | "
+                     f"{r['sharpe_spec']:.2f} | {pct(r['ann'])} | {pct(r['mdd'])} | "
+                     f"{r['sharpe']:.2f} | {r['sharpe'] - r['sharpe_spec']:+.2f} | {r.get('cap', '—')} |")
 
     # ---------------- 组合层
     L += ["", "## 2. 组合层（A500 样本不足 1 年，不进组合；两种配权）", ""]
@@ -155,10 +179,12 @@ def main():
         ss = engine.state_stats(rc["df"]["close"].loc[rc["start"]:],
                                rc["cx"].loc[rc["start"]:])
         L += [f"有效 {ss['days']} 天 · 基准 fwd20 {pct(ss['base'])}", "",
-              "| 状态 | 占比 | fwd20 | 胜率 | 许可 |", "|---|---:|---:|---:|---:|"]
+              "| 状态 | 占比 | fwd20 | 胜率 | 许可·规格 | 许可·v12.1 |",
+              "|---|---:|---:|---:|---:|---:|"]
         for x in ss["rows"]:
             L.append(f"| {x['state']} | {x['share']:.1%} | {pct(x['fwd'])} | "
-                     f"{x['win']:.1%} | {rule.cap_of(x['state']):.0%} |")
+                     f"{x['win']:.1%} | {rule.cap_of(x['state']):.0%} | "
+                     f"{rule.cap_of(x['state'], leg=core):.0%} |")
         L += ["", "**四组配对分离度**（fwd20 差 / 胜率差）：", "",
               "| 配对 | fwd20 差 | 胜率差 | 样本 |", "|---|---:|---:|---|"]
         for p in ss["pairs"]:
@@ -182,15 +208,16 @@ def main():
         L.append(f"| {r['name']} | " + " | ".join(pct(by.get(s)) for s in rule.STATE_ORDER) + " |")
 
     L += ["", "## 4. 当前状态（最新一根 bar）", "",
-          "| 腿 | 状态 | regime | z20 | rvol | 许可 | 样本内平均许可 | 截至 |",
-          "|---|---|---|---:|---:|---:|---:|---|"]
+          "| 腿 | 状态 | regime | z20 | rvol | 许可 | 规格口径许可 | 样本内平均许可 | 截至 |",
+          "|---|---|---|---:|---:|---:|---:|---:|---|"]
     for c in cur:
+        w_sp = float(specs[c["leg"]]["w"].iloc[-1])
         L.append(f"| {c['name']} | {c['state']} | {c['regime']} | {c['z20']:+.2f} | "
-                 f"{c['rvol']:.2f} | {c['w']:.0%} | {c['expo']:.0%} | {c['end']} |")
+                 f"{c['rvol']:.2f} | {c['w']:.0%} | {w_sp:.0%} | {c['expo']:.0%} | {c['end']} |")
 
     L += [
         "",
-        "## 5. 读法（六条，先看这里再看数字）",
+        "## 5. 读法（七条，先看这里再看数字）",
         "",
         f"1. **执行范围只有 {rule.NAMES[core]}**：规格 §7.4 自己写了「z_th / rvol 阈值建议在"
         "标普/纳指上重标」。没重标之前把同一条阈值套到美股/黄金上属于跨样本搬运，"
@@ -212,6 +239,10 @@ def main():
         "（规格 −0.28%），映射仍按规格压到 20%。理由是不拿 13 年 ETF 数据反推参数 —— "
         "真按本样本改就该给它 50%，那等于用后验统计调参，换台机器/换个窗口就翻回去。"
         "代价是这条腿少赚一点，收益是参数仍然只有**一个出处**（规格）。",
+        "7. **v12.1 只改了两个旋钮，且每个都有样本外依据**：`强回调` 50%→20%（两腿都亏）、"
+        "科创50 额外 `强反弹` 100% + `急跌` 20% + `σ` 覆盖 25%。沪深300 **不加** `强反弹` —— "
+        "换到 2006-2026 的指数样本（含 2008）后它会带来 −41.1% 的回撤（`research/"
+        "v12v13_compare` §F）。`rule.OPT=False` 一键回退规格口径。",
         "",
         "> 机械规则输出，非投资建议。",
     ]

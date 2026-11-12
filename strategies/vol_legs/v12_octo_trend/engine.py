@@ -199,6 +199,20 @@ def positions(states, up_confirm=None, cap_map=None):
     return pd.Series(w, index=states.index if hasattr(states, "index") else None)
 
 
+def vol_target(df, w, vt):
+    """波动率目标覆盖：`w' = min(w, vt / σ20)`。
+
+    `σ20` 用当日收盘可得的日收益标准差（年化），与 `z20`/`rvol` 同窗口；仓位 T+1 才生效，
+    所以没有前视。用途是给「年化波动是别人两倍」的腿（科创50）压风险预算，
+    **不改判定、只压上限**，证据见 `research/opt_ashare/_opt_ashare.md` §3.2。
+    """
+    n = int(rule.VOL_WIN)
+    sig = df["close"].pct_change().rolling(n, min_periods=n).std() * np.sqrt(rule.TRADING_DAYS)
+    # 暖机段没有 σ -> 用 0.05 当下限，使 vt/σ 足够大、不约束仓位（等价于"不覆盖"）
+    sig = sig.fillna(0.05).clip(lower=0.05)
+    return pd.concat([w, (float(vt) / sig).rename("cap")], axis=1).min(axis=1)
+
+
 # ---------------------------------------------------------------- 净值与指标
 def run(df, w):
     px = df["close"]
@@ -269,12 +283,16 @@ def state_stats(px, cx, horizon=20):
 
 
 # ---------------------------------------------------------------- 单腿回测
-def backtest_leg(leg, df=None, up_confirm=None, params=None):
-    """-> dict(leg, name, df, ind, cx, w, nav, perf, acts, expo, start, end, bars)。
+def backtest_leg(leg, df=None, up_confirm=None, params=None, opt=None):
+    """-> dict(leg, name, df, ind, cx, w, w_spec, nav, perf, acts, expo, start, end, bars)。
 
     `start` = 第一根「出状态」的 bar（暖机之后），净值与统计都从那里起算 ——
     与 v13 的 `sm["start"]` 同口径，避免拿暖机段的 0 仓摊薄年化。
+
+    `opt`：None = 跟随 `rule.OPT`；True = 该腿的 `CAP_OPT` + 波动覆盖（v12.1）；
+    False = 强制规格口径。`w` 是生效口径，`w_spec` 恒为规格口径（对照用）。
     """
+    opt = rule.OPT if opt is None else bool(opt)
     import importlib
     vdata = importlib.import_module("data")
     # 仓库里有 5 个 `data.py`（本策略根 + 各变种）。名字解析到别人身上不会报错，只会**静默换一套行情**，
@@ -287,14 +305,21 @@ def backtest_leg(leg, df=None, up_confirm=None, params=None):
     df = vdata.frame(leg) if df is None else df
     ind = indicators(df, p)
     cx = classify(ind, p)
-    w = positions(cx["state"], up_confirm=up_confirm)
+    w_spec = positions(cx["state"], up_confirm=up_confirm, cap_map=rule.CAP)
+    w = positions(cx["state"], up_confirm=up_confirm,
+                  cap_map=rule.cap_map(leg) if opt else rule.CAP)
+    vt = rule.vol_target_of(leg) if opt else None
+    if vt:
+        w = vol_target(df, w, vt)
     first = cx["state"].notna()
     if not first.any():
-        return dict(leg=leg, name=rule.NAMES[leg], df=df, ind=ind, cx=cx, w=w, nav=None,
-                    perf=None, acts=[], expo=np.nan, start=None, end=df.index[-1], bars=0)
+        return dict(leg=leg, name=rule.NAMES[leg], df=df, ind=ind, cx=cx, w=w, w_spec=w_spec,
+                    nav=None, perf=None, acts=[], expo=np.nan, start=None, end=df.index[-1],
+                    bars=0, opt=opt, cap_txt=rule.cap_version(leg) if opt else "规格 CAP")
     st = int(np.argmax(first.to_numpy()))
     nav = run(df, w).loc[df.index[st]:]
     w_st = w.loc[df.index[st]:]
-    return dict(leg=leg, name=rule.NAMES[leg], df=df, ind=ind, cx=cx, w=w, nav=nav,
+    return dict(leg=leg, name=rule.NAMES[leg], df=df, ind=ind, cx=cx, w=w, w_spec=w_spec, nav=nav,
                 perf=perf(nav), acts=actions(w_st), expo=float(w_st.mean()),
-                start=df.index[st], end=df.index[-1], bars=len(nav))
+                start=df.index[st], end=df.index[-1], bars=len(nav),
+                opt=opt, cap_txt=rule.cap_version(leg) if opt else "规格 CAP")

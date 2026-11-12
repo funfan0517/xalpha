@@ -112,6 +112,12 @@ def main():
         "**T 日收盘出信号，T+1 收盘前执行**。",
         f"> 许可映射：{' · '.join(f'{k} {v:.0%}' for k, v in rule.CAP.items())}"
         f" · 升格确认 {rule.UP_CONFIRM} 日（降格立即）。",
+        ("**生效口径 = v12.1**（`rule.OPT=True`）："
+         + "；".join(f"{rule.NAMES[l]} {rule.cap_version(l)}"
+                    for l in rule.LEGS if rule.cap_version(l) != "规格 CAP")
+         + "。依据 `research/opt_ashare/` 与 `strategies/vol_legs/research/v12v13_compare/`；"
+           "括号里的许可已按腿生效，`rule.OPT=False` 可回退规格口径。")
+        if rule.OPT else "生效口径 = 规格 CAP（`rule.OPT=False`）。",
         f"> 执行范围：**{' + '.join(rule.NAMES[l] for l in rule.CORE_LEGS)}**"
         f"（规格的标定标的；其余腿只诊断，理由见 `rule.CORE_LEGS` 注释）。",
         "",
@@ -121,7 +127,7 @@ def main():
     if todo:
         L += ["| 腿 | 代码 | 状态（昨日 → 今日） | 许可 | 幅度 | 依据 |", "|---|---|---|---:|---:|---|"]
         for x in todo:
-            why = (f"`{x['state']}` 许可 {rule.cap_of(x['state']):.0%}；"
+            why = (f"`{x['state']}` 许可 {rule.cap_of(x['state'], leg=x['leg']):.0%}；"
                    f"z20 {fmt(x['z20'], 2)} · rvol {fmt(x['rvol'], 2)} · "
                    f"距MA20 {fmt(x['vs_ma20'], 1)}%")
             L.append(f"| {x['name']} | `{x['code']}` | {x['cap_prev_state']} → **{x['state']}** | "
@@ -152,7 +158,7 @@ def main():
     if rc is not None and rc["start"] is not None:
         st = rc["cx"]["state"].loc[rc["start"]:]
         chg = st[st != st.shift(1)].dropna()
-        items = "；".join(f"{t.date()} {s}（许可 {rule.cap_of(s):.0%}）"
+        items = "；".join(f"{t.date()} {s}（许可 {rule.cap_of(s, leg=core):.0%}）"
                           for t, s in list(chg.items())[-8:])
         L.append(f"- **{rule.NAMES[core]}**：{items}")
         L.append(f"- 最近 20 个交易日的态：{' → '.join(str(s) for s in st.tail(20).tolist())}")
@@ -182,7 +188,10 @@ def main():
         as_of=str(date.date()),
         variant="v12_octo_trend",
         core=rule.CORE_LEGS,
-        cap=rule.CAP,
+        cap_opt={l: rule.cap_map(l) for l in rule.LEGS} if rule.OPT else None,
+        cap_spec=rule.CAP,
+        cap_version={l: rule.cap_version(l) for l in rule.LEGS},
+        vol_target=rule.VOL_TARGET if rule.OPT else {},
         up_confirm=rule.UP_CONFIRM,
         vol_mode=rule.VOL_MODE,
         legs=[{k: (str(v) if isinstance(v, (np.str_,)) else

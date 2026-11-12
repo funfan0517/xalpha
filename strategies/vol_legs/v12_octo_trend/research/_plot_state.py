@@ -102,7 +102,8 @@ def one(leg, r):
     last_state = str(st.iloc[-1])
     ax.set_title(f"{rule.NAMES[leg]}（{rule.LEGS[leg][0]}）· 当前 {last_state}"
                  f"（regime {cx['regime'].iloc[-1]}）· 许可 {float(w.iloc[-1]):.0%}"
-                 f" · z20 {float(cx['z20'].iloc[-1]):+.2f} · rvol {float(cx['rvol'].iloc[-1]):.2f}",
+                 f" · z20 {float(cx['z20'].iloc[-1]):+.2f} · rvol {float(cx['rvol'].iloc[-1]):.2f}"
+                 f" · {rule.cap_version(leg)}",
                  fontsize=12.5, color="#1b2b3a", weight="bold", loc="left")
 
     handles = [Line2D([], [], color=C_PRICE, lw=1.15, label="收盘"),
@@ -137,7 +138,7 @@ def one(leg, r):
     ax3.set_yticks([])
     ax3.set_ylim(0, 1)
     ax3.set_ylabel("八态", fontsize=9)
-    ax3.legend(handles=[Patch(color=STATE_COLOR[s], label=f"{s} {rule.cap_of(s):.0%}")
+    ax3.legend(handles=[Patch(color=STATE_COLOR[s], label=f"{s} {rule.cap_of(s, leg=leg):.0%}")
                         for s in rule.STATE_ORDER],
                fontsize=7.4, frameon=False, ncol=8, loc="upper center",
                bbox_to_anchor=(0.5, -0.55))
@@ -175,7 +176,7 @@ def summary(leg, r):
            label="占比（左轴）")
     ax.set_ylabel("占比（%）", fontsize=9.5)
     ax.set_xticks(x)
-    ax.set_xticklabels([f"{s}\n许可 {rule.cap_of(s):.0%}" for s in states], fontsize=9)
+    ax.set_xticklabels([f"{s}\n许可 {rule.cap_of(s, leg=leg):.0%}" for s in states], fontsize=9)
     ax.set_ylim(0, max(shares) * 1.22)
     ax.grid(axis="y", ls="--", lw=0.5, alpha=0.3)
     for s_ in ("top", "right"):

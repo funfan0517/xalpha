@@ -34,6 +34,11 @@
 主口径不计申赎费（与族内回测一致）；A 类的腿在图注里给出扣费后的年化/回撤。
 
 产物：`<变种目录>/research/_<prefix>_<key>.png`。机械规则输出，非投资建议。
+
+`--years 3` 只画**末端 3 年**，产物为 `_<prefix>_<key>_3y.png`（不覆盖全样本那张）：
+信号与净值仍在**全样本**上算（窗口首日的仓位是真实仓位），只是截取窗口并把窗口首日净值
+归 1，避免窗口起点带着此前累积的收益；样本本身不足 N 年的腿（如 A500 仅 1.6 年）照画，
+标题不写「近 N 年」，图注注明「本图即全部样本」。
 """
 import argparse
 import os
@@ -107,7 +112,7 @@ def _tv_params(mod):
     return tv, win
 
 
-def plot(key, spec, prefix, out_dir, with_bridge=False):
+def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
     """画一条腿：`spec` 见模块 docstring / 各变种 `research/_plot_leg.py`。"""
     import matplotlib
     matplotlib.use("Agg")
@@ -140,13 +145,21 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
     mk_w = mark_full.loc[warm:]
     nav_w = spec["run"](px_w, sig_w)                        # 主口径：不计申赎费
     ini = cut if real_only else warm
-    px, sig = px_w.loc[ini:], sig_w.loc[ini:]
-    nav = nav_w.loc[ini:]
-    pos = mk_w.shift(1).fillna(0).astype(float).loc[ini:]    # 标点用：0/1 入场序列
+    # 近 N 年窗口（`--years 3`）：信号、净值仍在**全样本**上算（否则起点仓位/指标不是真实值），
+    # 算完再从窗口首日截取，净值以窗口首日为 1 重新归位 —— 否则窗口起点会带着之前累积的收益。
+    win_years = float(years or 0.0)
+    start = ini
+    if win_years > 0:
+        _from = px_w.index[-1] - pd.DateOffset(days=int(round(win_years * 365.25)))
+        _p = min(int(px_w.index.searchsorted(_from)), len(px_w.index) - 2)
+        start = max(pd.Timestamp(ini), pd.Timestamp(px_w.index[_p]))
+    px, sig = px_w.loc[start:], sig_w.loc[start:]
+    nav = nav_w.loc[start:]
+    pos = mk_w.shift(1).fillna(0).astype(float).loc[start:]   # 标点用：0/1 入场序列
     # 下格用：实际生效仓位 =「信号 × 波动上限」（`sig`）再按 T+1 成交滞后一天，与 `expo` 同口径
-    pos_eff = sig_w.shift(1).fillna(0.0).clip(0.0, 1.0).loc[ini:]
-    if real_only:
-        nav = nav / nav.iloc[0]                             # 以成立日为 1 重新归位
+    pos_eff = sig_w.shift(1).fillna(0.0).clip(0.0, 1.0).loc[start:]
+    if real_only or win_years > 0:
+        nav = nav / nav.iloc[0]                             # 以起点（成立日 / 窗口首日）为 1 重新归位
 
     hold = px / px.iloc[0]
     d = pos.diff().fillna(0).to_numpy()
@@ -167,7 +180,7 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
     vol = None
     if tv:
         vol = (px_full.astype(float).pct_change()
-               .rolling(vwin, min_periods=vwin).std() * float(np.sqrt(252.0))).loc[ini:]
+               .rolling(vwin, min_periods=vwin).std() * float(np.sqrt(252.0))).loc[start:]
 
     # 上下两格共享 x 轴：上格 = 净值 + 买卖点；下格 = 仓位（0/1 入场台阶 vs 含波动上限的实际仓位）+ σ
     fig = plt.figure(figsize=(13.5, 9.0))
@@ -263,8 +276,11 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
     else:
         fee_txt = f" {meta['fee_note']}，故扣费前后同一条线。"
 
-    fig.suptitle(f"{meta['name']}（{meta['code']}, 场外复权净值）· {spec['short']}择时 vs 买入持有"
-                 + ("    |    成立以来 " if real_only else "    |    ")
+    # 样本本身不足 N 年时（A500 只有 1.6 年），别再在标题写「近 3 年」，否则和「成立以来」自相矛盾
+    win_eff = bool(win_years) and yrs >= win_years * 0.95
+    win_txt = f"近 {win_years:g} 年 " if win_eff else ""
+    fig.suptitle(f"{meta['name']}（{meta['code']}, 场外复权净值）· {win_txt}{spec['short']}择时 vs 买入持有"
+                 + ("    |    成立以来 " if (real_only and start == ini) else "    |    ")
                  + f"{px.index[0].date()} ~ {px.index[-1].date()}",
                  x=0.055, ha="left", y=0.965, fontsize=14, color="#1b2b3a", weight="bold")
     note = ["两条线同起点归 1：灰 = 该标的复权净值（含分红再投），紫 = 该变种择时的组合净值；"
@@ -283,6 +299,13 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
                     "两条线以成立日为 1 重新归位。")
         note.append("信号仍按族内主口径在含桥接的全样本上算（桥接只用来撑指标窗口）；"
                     f"样本仅 {yrs:.1f} 年，年化与夏普的统计意义有限。")
+    if win_years:
+        if yrs < win_years * 0.95:
+            note.append(f"该腿可用样本只有 {yrs:.1f} 年（不足 {win_years:g} 年），本图即全部样本；"
+                        "净值与仓位以起点为 1 起算。")
+        else:
+            note.append(f"本图只画末端 {yrs:.1f} 年（{px.index[0].date()} 起）：净值与仓位都以窗口首日"
+                        "为 1 重新起算，更早的历史见同目录里无 `_3y` 后缀的那张。")
     txt = fig.text(0.055, 0.012, "\n".join(note), fontsize=8.6, color="#5b6b7a",
                    linespacing=1.55, va="bottom")
     gs.update(left=0.065, right=0.945, top=0.855, bottom=0.12)
@@ -292,12 +315,14 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
         fig.transFigure.inverted())
     gs.update(left=0.065, right=0.945, top=0.855, bottom=bb.y1 + 0.045)
 
-    out = os.path.join(out_dir, f"_{prefix}_{key}.png")
+    sfx = f"_{win_years:g}y" if win_years else ""
+    out = os.path.join(out_dir, f"_{prefix}_{key}{sfx}.png")
     fig.savefig(out, dpi=130, facecolor="white")
     plt.close(fig)
 
     print(f"图: {out}")
-    print(f"  {meta['name']} {px.index[0].date()} ~ {px.index[-1].date()}（{yrs:.1f} 年）· "
+    print(f"  {meta['name']} {px.index[0].date()} ~ {px.index[-1].date()}（{yrs:.1f} 年）"
+          + (f" · 近 {win_years:g} 年窗口" if win_eff else "") + " · "
           f"买入持有 {ph['ann']:+.2%}/年 · 回撤 {ph['mdd']:.2%} · 夏普 {ph['sharpe']:.2f} · "
           f"累计 {ph['cum']:+.1%}")
     print(f"  {tag} 择时 {pn['ann']:+.2%}/年 · 回撤 {pn['mdd']:.2%} · 夏普 {pn['sharpe']:.2f} · "
@@ -314,6 +339,8 @@ def cli(spec, prefix, out_dir, desc="单腿图（买入持有 vs 择时，标买
                     help="只画指定腿（可重复）；默认全部")
     ap.add_argument("--with-bridge", action="store_true",
                     help="A500 也画桥接段（默认只画 023299 成立之后的真实净值）")
+    ap.add_argument("--years", type=float, metavar="N",
+                    help="只画末端 N 年（如 3），文件名加 _3y 后缀，不覆盖全样本那张")
     args = ap.parse_args()
     for key in (args.leg or list(SERIES)):
-        plot(key, spec, prefix, out_dir, with_bridge=args.with_bridge)
+        plot(key, spec, prefix, out_dir, with_bridge=args.with_bridge, years=args.years)

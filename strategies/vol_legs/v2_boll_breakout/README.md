@@ -54,7 +54,8 @@ v2_boll_breakout/
 │   └── _v2_boll_breakout_legs.png         七腿价格 + 三轨 + 买卖点（2×3）
 ├── research/
 │   ├── _plot_leg.py                       单腿图脚本（薄封装 `strategies/vol_legs/_plot_leg_core.py`）
-│   └── _v2_{a500,hs300,kc50}.png          买入持有 vs V2 择时（上格）+ 仓位与 σ20（下格）
+│   ├── _v2_{a500,hs300,kc50}.png          买入持有 vs V2 择时（上格）+ 仓位与 σ20（下格）
+│   └── _v2_{a500,hs300,kc50}_3y.png       同上，但只画末端 3 年（`--years 3`，不覆盖全样本）
 └── README.md
 ```
 
@@ -73,6 +74,7 @@ python strategies/vol_legs/v2_boll_breakout/backtest.py
 #        下格 = 0/1 入场台阶 vs 含波动上限的实际仓位，右轴 σ20 与 20% 目标）
 python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py            # 默认七腿全画（本目录已产出的是 a500 / hs300 / kc50 三张）
 python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py --leg hkt  # 只画一只
+python strategies/vol_legs/v2_boll_breakout/research/_plot_leg.py --years 3  # 只画末端 3 年 → _v2_<leg>_3y.png
 ```
 
 图的画法与口径（七条腿、双线标注、A500/标普 只画成立后）见

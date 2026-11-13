@@ -62,6 +62,7 @@ v3_macd_boll/
 ├── research/               _plot_leg.py（薄封装 vol_legs/_plot_leg_core.py）
 │                           · _v3_{a500,hs300,ndx,spx,kc50,hkt,gold}.png
 │                             （上格买入持有 vs 择时 + 双线买卖点；下格 = 仓位与 σ20，七腿各一张）
+│                           · _v3_<leg>_3y.png（同上但只画末端 3 年，`--years 3`）
 └── README.md
 ```
 
@@ -81,6 +82,7 @@ python strategies/vol_legs/v3_macd_boll/backtest.py
 #        下格 = 0/1 入场台阶 vs 含波动上限的实际仓位，右轴 σ20 与 20% 目标）
 python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py            # 七腿全画（a500/hs300/ndx/spx/kc50/hkt/gold）
 python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py --leg hkt  # 只画一只
+python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py --years 3  # 只画末端 3 年 → _v3_<leg>_3y.png
 ```
 
 - **A500 默认只画 `023299` 成立（2025-03-27）之后的真实净值**（同口径还有**标普500 `017641`，成立 2023-04-06**），

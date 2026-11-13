@@ -10,7 +10,10 @@ ER 自适应窗口）一条没改：
 - **价格** = `data.series_for_leg(leg)` 场外**复权净值**（`rule.SIGNAL_MODE`，含分红再投 /
   汇率 / 跟踪误差），与主策略、v1_1_ma20 同一列；
 - **成交** = T 日盘后算信号、**T+1 净值成交**（`pos = sig.shift(1)`），与 vol_legs §2.4 同一纪律；
-- **空仓**按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益（否则择时会被现金拖累误伤）。
+- **空仓**按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益（否则择时会被现金拖累误伤）；
+- **波动上限层**（`TV`，默认 0.20，设 None/0 关闭）：信号为 1 时实际仓位再乘
+  `min(1, TV/σ20_年化)`，入场判定完全不变、只压 σ 高时的仓位深度（2026-11-13 加入，
+  依据 `research/beat_best/_beat_best.md`）。
 
 与源变种的两处**必然**差异（都是换池后绕不开的）：
 
@@ -56,6 +59,15 @@ MACD_FAST, MACD_SLOW, MACD_SIG = 12, 26, 9      # 与 _gen_indicators.macd_serie
 W_FAST, W_SLOW, K = 20, 30, 2.0                 # 布林自适应窗口（趋势态 20 / 震荡态 30）
 ER_N, ER_HI, ER_LO = 20, 0.40, 0.30             # Kaufman 效率比：≥0.40 趋势态、≤0.30 震荡态
 WARMUP = 60                                     # 与 tech_indicators 基线引擎同口径
+
+# 波动上限层（2026-11-13 加入，可配）：信号为 1 时实际仓位再乘 min(1, TV/σ20_年化)。
+# 依据 research/beat_best/_beat_best.md：科创50 上「V3 信号 × 波动上限 20%」夏普 0.67→0.81、
+# 回撤 −10.74%→−5.27%，参数邻域 15/20/25% 三格全部仍超越基线（3/3，是机制不是拟合）。
+# 设 TV=None 或 0 即回到纯 0/1 口径。
+TV = 0.20
+TV_WIN = 20
+TV_DEAD = 0.05      # 仓位变化 < 5pp 不动（压换手，场外申赎费很贵）
+TV_GAP = 5          # 两次调整至少间隔 5 个交易日
 
 CASH_ANNUAL = rule.CASH_ANNUAL
 CASH_DAILY = (1.0 + CASH_ANNUAL) ** (1.0 / 252) - 1.0
@@ -163,6 +175,40 @@ def signal(px):
     return pd.Series(sig, index=px.index)
 
 
+def vol_cap(px, tv=None, win=None, dead=None, gap=None):
+    """波动上限系数 `min(1, TV / σ)`，∈(0,1]；`tv=0` 时恒为 1（关闭）。
+
+    σ = `win` 日已实现波动年化（`rolling.std()`，ddof=1），**`shift(1)` 后才生效** ——
+    当日仓位只能用昨日及以前的波动信息。预热期 σ 为 NaN → 系数 0（与 `signal()` 预热期空仓一致）。
+
+    **死区 + 限速**（`TV_DEAD` / `TV_GAP`，默认 5pp / 5 日）：σ 每天在变，不加限制就会每天调一点，
+    场外 A 类赎回费 0.50% 会把收益吃掉 —— 实测 V3 组合层含费年化 4.61% → 2.64%。
+    机制与 `v5_trend_gate/trend_gate.py::vol_scale` 相同。
+    """
+    tv = TV if tv is None else tv
+    win = TV_WIN if win is None else int(win)
+    dead = TV_DEAD if dead is None else float(dead)
+    gap = TV_GAP if gap is None else int(gap)
+    s = px.astype("float64")
+    if not tv:
+        return pd.Series(1.0, index=px.index)
+    vol = s.pct_change().rolling(int(win), min_periods=int(win)).std() * math.sqrt(252.0)
+    raw = (float(tv) / vol).clip(upper=1.0).shift(1)
+    out = np.zeros(len(raw))
+    cur, last = 0.0, -10 ** 9
+    for i, v in enumerate(raw.to_numpy(dtype=float)):
+        if not np.isnan(v) and (i - last) >= gap and abs(v - cur) >= dead - 1e-12:
+            cur, last = float(v), i
+        out[i] = cur
+    return pd.Series(out, index=px.index)
+
+
+def weight(px, sig, tv=None, win=None, dead=None, gap=None):
+    """最终仓位权重 = 0/1 信号 × 波动上限（连续 [0,1]）。`run()` 直接吃这个序列。"""
+    cap = vol_cap(px, tv=tv, win=win, dead=dead, gap=gap)
+    return (sig.astype(float) * cap).clip(0.0, 1.0)
+
+
 def signal_fixed(px, w=W_SLOW):
     """固定布林窗口（对照用，禁用自适应）：窗口恒为 w。"""
     close = px.to_numpy(dtype=float)
@@ -194,7 +240,8 @@ def signal_fixed(px, w=W_SLOW):
 def run(px, sig, cash=None, fee=None):
     """次日成交的 0/1 择时净值（起点 = 传入区间首日）。
 
-    fee=(买入费率, 卖出费率) 时，按仓位翻转在当日扣费（0→1 收申购费、1→0 收赎回费）。
+    fee=(买入费率, 卖出费率) 时，按**仓位变动比例**在当日扣费（0→1 等价于一次申购费，
+    连续仓位 —— 如波动上限层 —— 按实际变动的比例收）。
     """
     cash = CASH_DAILY if cash is None else cash
     ret = px.pct_change().fillna(0.0)
@@ -202,7 +249,7 @@ def run(px, sig, cash=None, fee=None):
     r = pos * ret + (1.0 - pos) * cash
     if fee:
         d = pos.diff().fillna(pos)
-        r = r - (d > 0) * float(fee[0]) - (d < 0) * float(fee[1])
+        r = r - d.clip(lower=0.0) * float(fee[0]) - (-d.clip(upper=0.0)) * float(fee[1])
     return (1.0 + r).cumprod()
 
 

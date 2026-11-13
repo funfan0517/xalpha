@@ -65,7 +65,8 @@ python strategies/vol_legs/v1_price_volume/v1_1_ma20/backtest.py
 # 逐腿详报
 python strategies/vol_legs/v1_price_volume/v1_1_ma20/research/backtest.py
 
-# 单腿图：买入持有 vs V1-1 择时（两条线同起点归 1，▲/▼ 同时标在指数曲线与策略线上）
+# 单腿图：买入持有 vs V1-1 择时（上格两条线同起点归 1，▲/▼ 同时标在指数曲线与策略线上；
+#        下格 = 实际仓位 —— 本变种没有波动上限层，所以就是 0/1 台阶，只作版式对齐用）
 python strategies/vol_legs/v1_price_volume/v1_1_ma20/research/_plot_leg.py
 python strategies/vol_legs/v1_price_volume/v1_1_ma20/research/_plot_leg.py --leg hkt   # 只画一只
 ```

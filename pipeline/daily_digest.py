@@ -979,7 +979,8 @@ def parse_vol_legs(_cfg):
 # strategies/vol_legs/v5_trend_gate/daily/，需要时手跑该变种的 _daily_scan.py。
 _VOL_VARIANTS = [
     ("v2", "V2 BOLL突破",
-     "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json", {"a500", "hs300"}),
+     "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json",
+     {"a500", "hs300", "kc50"}),
     ("v3", "V3 MACD+BOLL",
      "strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.json", {"kc50", "hkt"}),
     ("v4", "V4 ERP股债通道",
@@ -992,14 +993,17 @@ _VOL_VARIANTS = [
      "strategies/vol_legs/v12_octo_trend/daily/_v12_daily.json", {"hs300"}),
 ]
 
-# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的十一张单腿/操作点图。
+# 板块2 的图墙：`run_daily_vol_legs.ps1` 第 3 步每天重画的十二张单腿/操作点图。
 # 每张图下面标注**是哪个标的的图**（代码 + 场外复权口径），改图名时这里跟着改。
 _VOL_FIGS = [
     ("strategies/vol_legs/v2_boll_breakout/research/_v2_a500.png",
-     "**中证A500**（`023299` 场外复权）· V2 BOLL(35,2) 上轨突破择时 vs 买入持有"
+     "**中证A500**（`023299` 场外复权）· V2 BOLL(35,2) 上轨突破 + 波动上限 20% vs 买入持有"
      "（只画 2025-03-27 成立后的真实净值）"),
     ("strategies/vol_legs/v2_boll_breakout/research/_v2_hs300.png",
-     "**沪深300**（`000051` 场外复权）· V2 BOLL(35,2) 上轨突破择时 vs 买入持有"),
+     "**沪深300**（`000051` 场外复权）· V2 BOLL(35,2) 上轨突破 + 波动上限 20% vs 买入持有"),
+    ("strategies/vol_legs/v2_boll_breakout/research/_v2_kc50.png",
+     "**科创50**（`011609` 场外复权）· V2 BOLL(35,2) 上轨突破 + 波动上限 20% vs 买入持有"
+     "（2026-11-13 起纳入 V2 重点标的）"),
     ("strategies/vol_legs/v3_macd_boll/research/_v3_hkt.png",
      "**恒生科技**（`012805` 场外复权）· V3 MACD+BOLL 择时 vs 买入持有"),
     ("strategies/vol_legs/v3_macd_boll/research/_v3_kc50.png",
@@ -1275,11 +1279,12 @@ def parse_vol_variants(_cfg):
         "vol_variants", "波动类变种操作一览 · v2 / v3 / v4 / v6 / v9 / v12", as_of,
         f"买 {n_buy} / 卖 {n_sell}", tone, summary, rows,
         [["变种", str(len(rows))],
-         ["重点腿", "A500/沪深300 · 科创50/恒生科技 · 沪深300 · 黄金（v6-B 控回撤） · "
+         ["重点腿", "A500/沪深300/科创50 · 科创50/恒生科技 · 沪深300 · 黄金（v6-B 控回撤） · "
                     "标普500/纳指100 · 沪深300（v12 八态）"],
          ["买入", str(n_buy)], ["卖出", str(n_sell)]],
         note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
-             "★ = 该变种的**重点标注标的**：v2→中证A500/沪深300；v3→科创50/恒生科技；"
+             "★ = 该变种的**重点标注标的**：v2→中证A500/沪深300/**科创50**（2026-11-13 新增）；"
+             "v3→科创50/恒生科技；"
              "v4→沪深300；v6→黄金的 **B 控回撤**（A 长期配置 / C 低仓位占坑只作对照，"
              "不标 ★）；v9→标普500/纳指100。v2/v3 为七腿逐腿择时（突破追涨型），"
              "v4 为沪深300×国债 ERP 通道（单标的，无 A500 腿）；"

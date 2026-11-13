@@ -33,12 +33,24 @@ OUTDIR = os.path.join(_HERE, "backtest")
 
 
 def leg_rows():
+    """逐腿：V3 信号 × 波动上限（零费 / 扣真实申赎费）vs 买入持有。
+
+    **主表口径已含 `TV`**（默认 20%，`mb.TV`）；笔数/胜率仍按 0/1 入场统计，
+    `exposure` 用实际持仓权重。纯 0/1 的对照见 `tv_leg_rows()`。
+    """
     rows = []
     for k in mb.LEGS:
         cfg = mb.rule.LEGS[k]
-        px, sig, s20, s30 = mb.leg_slice(k)
-        nav = mb.run(px, sig)
-        nav_fee = mb.run(px, sig, fee=mb.FEE[k])
+        px_full = mb.load(k)
+        sig_full = mb.signal(px_full)
+        w_full = mb.weight(px_full, sig_full)
+        start = px_full.index[min(mb.WARMUP, max(len(px_full) - 2, 0))]
+        px, sig = px_full.loc[start:], sig_full.loc[start:]
+        w = w_full.loc[start:]
+        s20 = mb.signal_fixed(px_full, w=mb.W_FAST).loc[start:]
+        s30 = mb.signal_fixed(px_full, w=mb.W_SLOW).loc[start:]
+        nav = mb.run(px, w)
+        nav_fee = mb.run(px, w, fee=mb.FEE[k])
         bh = px / px.iloc[0]
         tr = mb.trades(sig, px)
         m, b, mf = mb.perf(nav), mb.perf(bh), mb.perf(nav_fee)
@@ -51,7 +63,7 @@ def leg_rows():
             ann=m["ann"], mdd=m["mdd"], vol=m["vol"], sharpe=m["sharpe"],
             ann_fee=mf["ann"], mdd_fee=mf["mdd"], sharpe_fee=mf["sharpe"],
             fee_buy=mb.FEE[k][0], fee_sell=mb.FEE[k][1],
-            exposure=mb.exposure(sig), exposure_w20=mb.exposure(s20),
+            exposure=float(w.shift(1).fillna(0).mean()), exposure_w20=mb.exposure(s20),
             exposure_w30=mb.exposure(s30),
             trades=st["n"], win_rate=st["win_rate"], payoff=st["payoff"], pf=st["pf"],
             avg_bars=st["bars"], per_year=st["n"] / years,
@@ -67,8 +79,10 @@ def leg_rows():
 def portfolio_rows():
     """-> (frame, rows, navs, sigs)。rows 里每档都带自己的平均投入。"""
     frame = mb.common_frame()
-    sigs_a = {k: mb.signal(mb.load(k)).reindex(frame.index).fillna(0).astype(int)
-              for k in frame.columns}
+    sigs_a = {}
+    for k in frame.columns:
+        _px = mb.load(k)
+        sigs_a[k] = mb.weight(_px, mb.signal(_px)).reindex(frame.index).fillna(0.0)
     sigs20 = {k: mb.signal_fixed(mb.load(k), w=mb.W_FAST).reindex(frame.index).fillna(0).astype(int)
               for k in frame.columns}
     sigs30 = {k: mb.signal_fixed(mb.load(k), w=mb.W_SLOW).reindex(frame.index).fillna(0).astype(int)
@@ -83,9 +97,10 @@ def portfolio_rows():
         "静态带（按带权恒定持有）": mb.portfolio(frame, signals=None),
         "七腿等权（恒定持有）": mb.portfolio(frame, signals=None, weight=eq),
     }
+    _inv_a = sum(mb.W[k] * float(sigs_a[k].shift(1).fillna(0).mean()) for k in frame.columns)
     inv_of = {
-        "V3 自适应（按带权）": sum(mb.W[k] * mb.exposure(sigs_a[k]) for k in frame.columns),
-        "V3 自适应（扣申赎费）": sum(mb.W[k] * mb.exposure(sigs_a[k]) for k in frame.columns),
+        "V3 自适应（按带权）": _inv_a,
+        "V3 自适应（扣申赎费）": _inv_a,
         "V3 固定窗口 w20": sum(mb.W[k] * mb.exposure(sigs20[k]) for k in frame.columns),
         "V3 固定窗口 w30": sum(mb.W[k] * mb.exposure(sigs30[k]) for k in frame.columns),
         "静态带（按带权恒定持有）": 1.0,
@@ -97,6 +112,45 @@ def portfolio_rows():
         rows.append(dict(name=name, cum=m["cum"], ann=m["ann"], vol=m["vol"],
                          mdd=m["mdd"], sharpe=m["sharpe"], invested=inv_of[name]))
     return frame, rows, navs
+
+
+TVS = [0.0, 0.15, 0.20, 0.25]      # 波动上限（0 = 关闭，回到纯 0/1）
+
+
+def tv_table(frame):
+    """波动上限敏感性：逐腿中位 + 组合层（同一共同窗口；`tv=0` = 纯 0/1 基线）。"""
+    out = []
+    for tv in TVS:
+        anns, mdds, shs, exps = [], [], [], []
+        for k in frame.columns:
+            px = frame[k]
+            w = mb.weight(px, mb.signal(px), tv=tv)
+            m = mb.perf(mb.run(px, w))
+            anns.append(m["ann"]); mdds.append(m["mdd"]); shs.append(m["sharpe"])
+            exps.append(float(w.shift(1).fillna(0).mean()))
+        sigs = {k: mb.weight(frame[k], mb.signal(frame[k]), tv=tv) for k in frame.columns}
+        mp = mb.perf(mb.portfolio(frame, signals=sigs))
+        out.append(dict(tv=tv, ann=float(pd.Series(anns).median()),
+                        mdd=float(pd.Series(mdds).median()),
+                        sharpe=float(pd.Series(shs).median()), expo=float(pd.Series(exps).mean()),
+                        port_ann=mp["ann"], port_mdd=mp["mdd"], port_sharpe=mp["sharpe"]))
+    return out
+
+
+def tv_leg_rows(frame):
+    """逐腿：纯 0/1 vs 波动上限 `mb.TV`（同一窗口，零费用）。"""
+    out = []
+    for k in frame.columns:
+        px = frame[k]
+        sig = mb.signal(px)
+        w0, w1 = sig.astype(float), mb.weight(px, sig, tv=mb.TV)
+        a, b = mb.perf(mb.run(px, w0)), mb.perf(mb.run(px, w1))
+        out.append(dict(leg=k, name=mb.rule.LEGS[k]["name"],
+                        ann0=a["ann"], mdd0=a["mdd"], sharpe0=a["sharpe"],
+                        ann1=b["ann"], mdd1=b["mdd"], sharpe1=b["sharpe"],
+                        expo0=float(w0.shift(1).fillna(0).mean()),
+                        expo1=float(w1.shift(1).fillna(0).mean())))
+    return out
 
 
 def segments(frame):
@@ -116,6 +170,8 @@ def main():
     os.makedirs(OUTDIR, exist_ok=True)
     rows = leg_rows()
     frame, prows, navs = portfolio_rows()
+    tv = tv_table(frame)
+    tv_legs = tv_leg_rows(frame)
 
     with open(os.path.join(OUTDIR, "_v3_macd_boll_bt.jsonl"), "w", encoding="utf-8") as f:
         for r in rows:
@@ -147,6 +203,8 @@ def main():
         f"| **观望** | 布林带平行走平、净值在通道内震荡 → 无突破即不进场（自然空仓） |",
         f"| **窗口自适应** | Kaufman 效率比 ER({mb.ER_N})：≥{mb.ER_HI:.2f} → 趋势态窗口 {mb.W_FAST}（窄通道早抓）；"
         f"≤{mb.ER_LO:.2f} → 震荡态窗口 {mb.W_SLOW}（宽通道滤假突破）；带滞回，k={mb.K:g} |",
+        f"| **波动上限** | `TV = {mb.TV:.0%}`（设 None 关闭）：持仓时仓位 × `min(1, TV/σ{mb.TV_WIN}年化)`，"
+        "入场判定不变。**下面各主表已含这一层**（2026-11-13 起） |",
         "",
         f"> MACD({mb.MACD_FAST},{mb.MACD_SLOW},{mb.MACD_SIG}) 与 BOLL 由净值本地自算"
         "（源变种读场内 ETF 的预计算指标库，场外基金代码不在其中）；样本自第 "
@@ -183,6 +241,53 @@ def main():
         L.append(f"| {r['name']} | {mb.fmt_pct(r['cum'], 1)} | {mb.fmt_pct(r['ann'])} | "
                  f"{r['vol'] * 100:.2f}% | {mb.fmt_pct(r['mdd'])} | {r['sharpe']:.2f} | "
                  f"{r['invested']:.0%} |")
+
+    L += [
+        "",
+        f"### 波动上限层（`TV` = {mb.TV:.0%}，可配）",
+        "",
+        "> 信号 0/1 完全不变；**持仓时**仓位再乘 `min(1, TV / σ20年化)`。σ 用 20 日已实现波动年化、"
+        "`shift(1)` 后才生效；成本按仓位变动比例计（0→1 与一次申赎费等价）。",
+        "",
+        "| 波动上限 | 逐腿中位年化 | 逐腿中位回撤 | 逐腿中位夏普 | 组合年化 | 组合回撤 | 组合夏普 | 平均投入 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for t in tv:
+        lab = "关闭（纯 0/1）" if not t["tv"] else f"{t['tv']:.0%}"
+        mark = " **(默认)**" if abs(t["tv"] - (mb.TV or 0)) < 1e-12 else ""
+        L.append(f"| {lab}{mark} | {mb.fmt_pct(t['ann'])} | {mb.fmt_pct(t['mdd'])} | "
+                 f"{t['sharpe']:.2f} | {mb.fmt_pct(t['port_ann'])} | {mb.fmt_pct(t['port_mdd'])} | "
+                 f"{t['port_sharpe']:.2f} | {t['expo']:.0%} |")
+
+    L += ["", f"#### 逐腿：纯 0/1 → 波动上限 {mb.TV:.0%}", "",
+          "| 腿 | 年化 | 最大回撤 | 夏普 | 曝光 |",
+          "|---|---:|---:|---:|---:|"]
+    for r in tv_legs:
+        L.append(f"| {r['name']} | {mb.fmt_pct(r['ann0'])} → **{mb.fmt_pct(r['ann1'])}** | "
+                 f"{mb.fmt_pct(r['mdd0'])} → **{mb.fmt_pct(r['mdd1'])}** | "
+                 f"{r['sharpe0']:.2f} → **{r['sharpe1']:.2f}** | "
+                 f"{r['expo0']:.0%} → {r['expo1']:.0%} |")
+    _best = max(tv_legs, key=lambda z: z["sharpe1"] - z["sharpe0"])
+    # 纯 0/1 的含费对照（与含 TV 的口径完全同源，只差这一层）
+    _sig_off = {k: mb.signal(mb.load(k)).reindex(frame.index).fillna(0.0)
+                for k in frame.columns}
+    _off_fee = mb.perf(mb.portfolio(frame, signals=_sig_off, fee=True))
+    _off_nf = mb.perf(mb.portfolio(frame, signals=_sig_off))
+    L += ["", f"> 改善最大的是 **{_best['name']}**（夏普 {_best['sharpe0']:.2f} → "
+              f"{_best['sharpe1']:.2f}，回撤 {mb.fmt_pct(_best['mdd0'])} → "
+              f"{mb.fmt_pct(_best['mdd1'])}）。这条规则曝光只有 10%~20%，"
+              "波动上限真正压的是「少数几次进场时刚好撞上高波动」的那几笔 —— "
+              "`research/beat_best` 里科创50 的邻域 15/20/25% 三格全部仍超越纯 0/1，"
+              "所以这一层是机制而不是拟合。",
+          "",
+          f"> ⚠ **含费口径必须分开看**：零费组合夏普 {_off_nf['sharpe']:.2f} → "
+          f"{adapt['sharpe']:.2f}（这一层是加分），但按**场外 A 类申赎费**（0.10% / 0.50%）扣完是 "
+          f"{_off_fee['sharpe']:.2f} → {adapt_fee['sharpe']:.2f}"
+          f"（年化 {mb.fmt_pct(_off_fee['ann'])} → {mb.fmt_pct(adapt_fee['ann'])}）—— "
+          "**连续仓位多出来的小额调仓会把申赎费放大**。所以这一层在 V3 上只适合**低费率通道**"
+          "（C 类免申赎 / 场内 ETF）；走 A 类时建议把 `TV` 设 None 关闭，"
+          "或把 `TV_DEAD` / `TV_GAP` 再放宽（当前 5pp / 5 日）。",
+          ]
 
     d_ann = (adapt["ann"] - base_band["ann"]) * 100
     d_ann_fee = (adapt_fee["ann"] - base_band["ann"]) * 100

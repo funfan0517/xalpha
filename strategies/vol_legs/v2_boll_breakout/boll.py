@@ -15,7 +15,12 @@
   避免同一段趋势里重复发信号；
 - **卖出**：`close[t] < mid[t]` —— 跌回中轨即退出，不等下轨；
 - 窗口未满（NaN）时维持上一状态；**只看收盘，盘中触碰不算**；
-- 可选止损（`PARAMS["STOP"]`，默认 None=关闭）：自建仓日收盘价回撤达标且当日收盘仍低于成本则平仓。
+- 可选止损（`PARAMS["STOP"]`，默认 None=关闭）：自建仓日收盘价回撤达标且当日收盘仍低于成本则平仓；
+- **波动上限层**（`PARAMS["TV"]`，默认 0.20 = 20%，设 None 关闭）：信号为 1 时，实际仓位再乘
+  `min(1, TV / σ20_年化)` —— 入场完全不变，只在波动高的时段把仓位压浅。依据
+  `research/beat_best/_beat_best.md`：科创50 上「V2 突破 × 波动上限 20%」夏普 0.67→0.83、
+  回撤 −10.74%→−8.69%，且参数邻域 2/3 仍超越基线（相邻格 15% 更好，说明 20% 不是最优点，
+  是**取整的默认值**，可调）。
 
 与主策略的关系：
 - **标的池完全一致** = `rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 /
@@ -49,7 +54,8 @@ import engine           # noqa: E402
 import rule             # noqa: E402
 
 # ---------------------------------------------------------------- 1. 参数（唯一权威源）
-PARAMS = {"N": 35, "K": 2.0, "STOP": None}
+PARAMS = {"N": 35, "K": 2.0, "STOP": None, "TV": 0.20, "TV_WIN": 20,
+          "TV_DEAD": 0.05, "TV_GAP": 5}
 LABEL = "V2 BOLL上轨突破"
 VARIANT = "BOLL_BREAK"
 
@@ -121,13 +127,49 @@ def signal(px, n=None, k=None, stop=None):
     return pd.Series(sig, index=px.index, dtype=int), mid, upper
 
 
+def vol_cap(px, tv=None, win=None, dead=None, gap=None):
+    """波动上限系数 `min(1, TV / σ)`，∈(0,1]；`tv=0` 时恒为 1（关闭）。
+
+    σ = `win` 日已实现波动年化（`rolling.std()`，ddof=1），**`shift(1)` 后才生效** ——
+    当日的仓位只能用昨日及以前的波动信息，否则就是用当天收益算当天仓位（前视）。
+    预热期内 σ 为 NaN → 系数取 0（与 `signal()` 预热期空仓一致，不会凭空满仓）。
+
+    **死区 + 限速**（`PARAMS["TV_DEAD"]` / `TV_GAP`，默认 5pp / 5 日）：σ 每天都在变，
+    不加限制就会每天调一点，场外申赎费（A 类卖 0.50%）会把收益全吃掉 —— 实测 V3 组合层
+    含费年化 4.61% → 2.64%。这两个限制与 `v5_trend_gate/trend_gate.py::vol_scale` 同一机制。
+    """
+    tv = PARAMS["TV"] if tv is None else tv
+    win = PARAMS["TV_WIN"] if win is None else int(win)
+    dead = PARAMS["TV_DEAD"] if dead is None else float(dead)
+    gap = PARAMS["TV_GAP"] if gap is None else int(gap)
+    s = pd.Series(np.asarray(px, dtype=float), index=px.index)
+    if not tv:
+        return pd.Series(1.0, index=px.index)
+    vol = s.pct_change().rolling(int(win), min_periods=int(win)).std() * math.sqrt(252.0)
+    raw = (float(tv) / vol).clip(upper=1.0).shift(1)
+    out = np.zeros(len(raw))
+    cur, last = 0.0, -10 ** 9
+    for i, v in enumerate(raw.to_numpy(dtype=float)):
+        if not np.isnan(v) and (i - last) >= gap and abs(v - cur) >= dead - 1e-12:
+            cur, last = float(v), i
+        out[i] = cur
+    return pd.Series(out, index=px.index)
+
+
+def weight(px, sig, tv=None, win=None, dead=None, gap=None):
+    """最终仓位权重 = 0/1 信号 × 波动上限（连续 [0,1]）。`run()` 直接吃这个序列。"""
+    cap = vol_cap(px, tv=tv, win=win, dead=dead, gap=gap)
+    return (sig.astype(float) * cap).clip(0.0, 1.0)
+
+
 # ---------------------------------------------------------------- 3. 引擎
 def run(px, sig, cash=None, fee=None, lag=1):
     """择时净值（起点 = 首个有值日，仓位按 lag 日成交）。
 
     lag=1（默认）= T 日盘后算信号、T+1 净值成交，与主策略 §2.4 同一纪律；
     lag=2 仅用于「QDII 净值再滞后一天」的敏感性对照。
-    fee=(买入费率, 卖出费率) 时按仓位翻转在成交日扣费（0→1 收申购费、1→0 收赎回费）。
+    fee=(买入费率, 卖出费率) 时，按**仓位变动比例**在成交日扣费（0→1 等价于一次申购费，
+    连续仓位 —— 如波动上限层 —— 按实际变动的比例收）。
     """
     cash = CASH_DAILY if cash is None else cash
     ret = px.pct_change().fillna(0.0)
@@ -135,7 +177,7 @@ def run(px, sig, cash=None, fee=None, lag=1):
     r = pos * ret + (1.0 - pos) * cash
     if fee:
         d = pos.diff().fillna(pos)
-        r = r - (d > 0) * float(fee[0]) - (d < 0) * float(fee[1])
+        r = r - d.clip(lower=0.0) * float(fee[0]) - (-d.clip(upper=0.0)) * float(fee[1])
     return (1.0 + r).cumprod()
 
 
@@ -208,8 +250,8 @@ def portfolio(frame, signals=None, weight=None, fee=False, lag=1):
     r = (inv * ret).sum(axis=1) + (1.0 - inv.sum(axis=1)) * CASH_DAILY
     if fee:
         d = pos.diff().fillna(pos)
-        buy = sum((d[k] > 0) * float(FEE[k][0]) * weight[k] for k in frame.columns)
-        sell = sum((d[k] < 0) * float(FEE[k][1]) * weight[k] for k in frame.columns)
+        buy = sum(d[k].clip(lower=0.0) * float(FEE[k][0]) * weight[k] for k in frame.columns)
+        sell = sum((-d[k].clip(upper=0.0)) * float(FEE[k][1]) * weight[k] for k in frame.columns)
         r = r - buy - sell
     return (1.0 + r).cumprod()
 
@@ -246,11 +288,14 @@ def _self_check():
     for k in LEGS:
         px = load(k)
         sig, mid, upper = signal(px)
+        w = weight(px, sig)
         assert len(sig) == len(px)
         assert set(sig.unique()) <= {0, 1}
+        assert float(w.max()) <= 1.0 + 1e-9 and float(w.min()) >= 0.0
         print(f"{k:6s} {rule.LEGS[k]['name']:8s} {px.index[0].date()} ~ {px.index[-1].date()} "
               f"n={len(px):5d} 中轨末值={mid.iloc[-1]:.4f} 上轨末值={upper.iloc[-1]:.4f} "
-              f"仓位={int(sig.iloc[-1])} 曝光={exposure(sig):.0%}")
+              f"信号={int(sig.iloc[-1])} 仓位={float(w.iloc[-1]):.0%} "
+              f"曝光={exposure(sig):.0%}→{float(w.shift(1).fillna(0).mean()):.0%}")
     print("带权(Σ=1): " + "  ".join(f"{k}={W[k]:.3f}" for k in LEGS))
 
 

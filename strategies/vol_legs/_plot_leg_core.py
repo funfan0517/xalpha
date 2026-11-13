@@ -25,6 +25,12 @@
 - 实心、画在**策略线**上 = 同一笔发生时组合净值的位置（看「这笔赚了还是亏了」）；
 - 细竖线把同一笔的两个点连起来，竖线越长 = 当时策略净值与指数偏离越大。
 
+**下格 = 仓位**（2026-11-13 起，与 v8/v9/v10 的单腿图版式对齐），与上格共享 x 轴：
+- **灰虚线台阶** = 0/1 入场状态（`mark_signal` 滞后一天），只有 100% / 0% 两档；
+- **蓝线 + 面积** = 实际生效仓位 = 0/1 信号 × `min(1, TV/σ20年化)`（带 5pp 死区 / 5 日限速，所以是阶梯）；
+- **右轴橙线** = σ20 年化、**橙色虚线** = `TV` 目标波动 —— 两条线的缝隙就是波动上限层压掉的仓位。
+没有波动上限层的变种（V1-1）下格只画 0/1 仓位，右轴不出现。
+
 主口径不计申赎费（与族内回测一致）；A 类的腿在图注里给出扣费后的年化/回撤。
 
 产物：`<变种目录>/research/_<prefix>_<key>.png`。机械规则输出，非投资建议。
@@ -77,6 +83,30 @@ def load_px(key, mod):
     return vdata.otc_series(SERIES[key]["code"]).dropna()
 
 
+def _tv_params(mod):
+    """读变种的波动上限层参数 `(TV, TV_WIN)`；没有这一层时返回 `(None, 20)`。
+
+    V2 把参数放在 `PARAMS` dict（`PARAMS["TV"]`），V3 是模块级同名变量（`TV`、`TV_WIN`），
+    这里两种写法都兼容，免得绘图再去 import 各变种的具体常量名。
+    """
+    p = getattr(mod, "PARAMS", None)
+    if isinstance(p, dict):
+        tv = p.get("TV")
+        win = p.get("TV_WIN", 20)
+    else:
+        tv = getattr(mod, "TV", None)
+        win = getattr(mod, "TV_WIN", 20)
+    try:
+        tv = float(tv) if tv else None
+    except (TypeError, ValueError):
+        tv = None
+    try:
+        win = int(win or 20)
+    except (TypeError, ValueError):
+        win = 20
+    return tv, win
+
+
 def plot(key, spec, prefix, out_dir, with_bridge=False):
     """画一条腿：`spec` 见模块 docstring / 各变种 `research/_plot_leg.py`。"""
     import matplotlib
@@ -91,6 +121,9 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
     meta = SERIES[key]
     px_full = load_px(key, mod)
     sig_full = spec["signal"](px_full)                      # 全样本算信号，保证预热正确
+    # 净值用 `signal`（可以是连续仓位，如波动上限层）；▲▼ 标点用 `mark_signal`（0/1 入场判定，
+    # 否则每一次仓位微调都会被画成一个买卖点，图会被几百个标记糊住）。未提供时两者相同。
+    mark_full = spec.get("mark_signal", spec["signal"])(px_full)
     warm = px_full.index[min(int(spec["warmup"]), len(px_full) - 2)]
 
     # 桥接段（目前只有 A500：2025-03-27 之前是 000051 沪深300）
@@ -104,11 +137,14 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
 
     # 先在「预热后」的整段上跑净值（保证起始日的仓位是真实仓位），再截到要画的区间
     px_w, sig_w = px_full.loc[warm:], sig_full.loc[warm:]
+    mk_w = mark_full.loc[warm:]
     nav_w = spec["run"](px_w, sig_w)                        # 主口径：不计申赎费
     ini = cut if real_only else warm
     px, sig = px_w.loc[ini:], sig_w.loc[ini:]
     nav = nav_w.loc[ini:]
-    pos = sig_w.shift(1).fillna(0).astype(float).loc[ini:]
+    pos = mk_w.shift(1).fillna(0).astype(float).loc[ini:]    # 标点用：0/1 入场序列
+    # 下格用：实际生效仓位 =「信号 × 波动上限」（`sig`）再按 T+1 成交滞后一天，与 `expo` 同口径
+    pos_eff = sig_w.shift(1).fillna(0.0).clip(0.0, 1.0).loc[ini:]
     if real_only:
         nav = nav / nav.iloc[0]                             # 以成立日为 1 重新归位
 
@@ -120,12 +156,24 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
     ph, pn = spec["perf"](hold), spec["perf"](nav)
     yrs = (px.index[-1] - px.index[0]).days / 365.25
     n_round = (len(buys) + len(sells)) / 2.0
-    expo = float(pos.mean())
+    expo = float(sig.shift(1).fillna(0).mean())             # 实际持仓（含波动上限），不是入场天数占比
 
     hold_v = hold.to_numpy()
     x = px.index
 
-    fig, ax = plt.subplots(figsize=(13.5, 7.2))
+    # 波动上限层参数：V2 在 PARAMS dict 里（TV/TV_WIN），V3 是模块级同名变量，
+    # V1-1 没有这一层 → tv=None，下格退化成纯 0/1 仓位。
+    tv, vwin = _tv_params(mod)
+    vol = None
+    if tv:
+        vol = (px_full.astype(float).pct_change()
+               .rolling(vwin, min_periods=vwin).std() * float(np.sqrt(252.0))).loc[ini:]
+
+    # 上下两格共享 x 轴：上格 = 净值 + 买卖点；下格 = 仓位（0/1 入场台阶 vs 含波动上限的实际仓位）+ σ
+    fig = plt.figure(figsize=(13.5, 9.0))
+    gs = fig.add_gridspec(2, 1, height_ratios=[3.55, 1.25], hspace=0.09)
+    ax = fig.add_subplot(gs[0])
+    axp = fig.add_subplot(gs[1], sharex=ax)
     ax.plot(hold.index, hold_v, color="#555", lw=1.15,
             label=f"{meta['name']}（买入持有）  {ph['ann']:+.1%}/年 · 回撤 {ph['mdd']:.1%} · "
                   f"夏普 {ph['sharpe']:.2f}")
@@ -170,6 +218,41 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
     else:
         ax.xaxis.set_major_locator(mdates.YearLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.tick_params(labelbottom=False)                       # x 刻度交给下格
+
+    # ---- 下格：仓位（左轴）+ σ 年化（右轴）
+    # 虚线台阶 = 0/1 入场状态（`mark_signal`，未经波动上限压制）；实线/面积 = 实际仓位。
+    # 两条线的缝隙就是「波动上限层」压掉的那部分仓位，压了多少一眼可见。
+    C_POS, C_LVL, C_SIG = "#2c6fbb", "#9aa5b1", "#e07b39"
+    pe_v = pos_eff.to_numpy() * 100.0
+    axp.fill_between(x, 0.0, pe_v, color=C_POS, alpha=0.13, lw=0, zorder=1)
+    axp.step(x, pos.to_numpy() * 100.0, where="post", color=C_LVL, lw=0.9, ls="--",
+             alpha=0.95, zorder=2)
+    axp.plot(x, pe_v, color=C_POS, lw=1.25, zorder=4)
+    axp.set_ylim(-6.0, 112.0)
+    axp.set_yticks([0, 25, 50, 75, 100])
+    axp.set_yticklabels([f"{t}%" for t in (0, 25, 50, 75, 100)],
+                        fontsize=8.2, color=C_POS)
+    axp.set_ylabel("实际仓位", fontsize=9, color=C_POS)
+    axp.grid(ls="--", lw=0.55, alpha=0.28)
+    axp.set_axisbelow(True)
+    axp.tick_params(axis="y", length=2)
+    axp.spines["top"].set_visible(False)
+    axp.set_xlabel("成交日 = 信号次日（T+1 净值）｜下格虚线 = 0/1 入场状态，"
+                   "实线/面积 = 乘波动上限后的实际仓位", fontsize=9, color="#5b6b7a")
+
+    if vol is not None:
+        axv = axp.twinx()
+        vol_v = vol.to_numpy(dtype=float) * 100.0
+        axv.plot(x, vol_v, color=C_SIG, lw=0.95, alpha=0.85, zorder=3)
+        axv.axhline(tv * 100.0, color=C_SIG, lw=1.0, ls="--", alpha=0.75, zorder=2)
+        _vmax = float(np.nanmax(vol_v)) if np.isfinite(vol_v).any() else 70.0
+        axv.set_ylim(0.0, max(70.0, _vmax * 1.05))
+        axv.set_ylabel(f"σ{vwin}（年化）", fontsize=9, color=C_SIG)
+        axv.tick_params(axis="y", colors=C_SIG, labelsize=8.2, length=2)
+        axv.spines["top"].set_visible(False)
+        axv.text(x[-1], tv * 100.0, f" 目标 {tv:.0%}", va="center", ha="left",
+                 fontsize=8.0, color=C_SIG)
 
     fee = meta["fee"]
     pf = None
@@ -189,6 +272,11 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
             f"{spec['cash']:.2%} 计息。",
             "▲/▼ 同时画在两处：空心 = 该笔在指数上的价位，实心 = 同一笔在策略净值上的位置，"
             "细竖线把两点连起来。",
+            ("下格：虚线台阶 = 0/1 入场状态（100% / 0%），蓝线 = 实际生效仓位 = 0/1 信号 × "
+             f"min(1, {tv:.0%}/σ{vwin}年化)，右轴橙线 = σ{vwin} 年化、橙色虚线 = {tv:.0%} 目标；"
+             "σ 高于目标才压仓，且带 5pp 死区 / 5 日限速（所以是阶梯而非日频曲线）。"
+             if tv else
+             "下格：蓝线 = 实际生效仓位（本变种无波动上限层，与 0/1 入场状态重合）。"),
             fee_txt.strip() + "  ·  机械规则输出，非投资建议。"]
     if real_only:
         note.append(f"本图只画 {meta['code']} 成立（{cut.date()}）之后的真实净值，桥接段不显示；"
@@ -197,12 +285,12 @@ def plot(key, spec, prefix, out_dir, with_bridge=False):
                     f"样本仅 {yrs:.1f} 年，年化与夏普的统计意义有限。")
     txt = fig.text(0.055, 0.012, "\n".join(note), fontsize=8.6, color="#5b6b7a",
                    linespacing=1.55, va="bottom")
-    fig.subplots_adjust(left=0.065, right=0.975, top=0.855, bottom=0.12)
+    gs.update(left=0.065, right=0.945, top=0.855, bottom=0.12)
     # 先画一次量出图注实际高度，再把坐标区抬到它上沿之上（行数变化时不会压到日期刻度）
     fig.canvas.draw()
     bb = txt.get_window_extent(fig.canvas.get_renderer()).transformed(
         fig.transFigure.inverted())
-    fig.subplots_adjust(left=0.065, right=0.975, top=0.855, bottom=bb.y1 + 0.045)
+    gs.update(left=0.065, right=0.945, top=0.855, bottom=bb.y1 + 0.045)
 
     out = os.path.join(out_dir, f"_{prefix}_{key}.png")
     fig.savefig(out, dpi=130, facecolor="white")

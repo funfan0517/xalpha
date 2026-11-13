@@ -75,7 +75,7 @@ def mk_table(items):
     for x in sorted(items, key=lambda z: z["dist"], reverse=True):
         out.append(f"| {x['name']} | `{x['exec']}` | {x['date']} | {x['nav']:.4f} | "
                    f"{x['dif']:+.4f} / {x['dea']:+.4f} | {x['er']:.2f}（{x['window']}） | "
-                   f"{x['dist_kind']} {x['dist']:+.2%} | {'持仓' if x['pos'] else '空仓'} | "
+                   f"{x['dist_kind']} {x['dist']:+.2%} | {x['pos_txt']} | "
                    f"{x['fresh']} |")
     return out
 
@@ -100,6 +100,7 @@ def main():
         up = float((up_f if fast_now else up_s).iloc[-1])
         mid = float((mid_f if fast_now else mid_s).iloc[-1])
         pos = int(sig.iloc[-1])
+        w_now = float(macd_boll.weight(px, sig).iloc[-1])   # 0/1 信号 × 波动上限
         # 空仓时看「还要涨多少能上穿上轨」，持仓时看「跌多少跌破中轨」
         dist_kind = "距中轨" if pos else "距上轨"
         dist = float(px.iloc[-1] / (mid if pos else up) - 1.0)
@@ -110,7 +111,9 @@ def main():
             "dif": float(dif.iloc[-1]), "dea": float(dea.iloc[-1]), "er": er_last,
             "window": window_state(er_last), "upper": up, "mid": mid,
             "dist_kind": dist_kind, "dist": dist,
-            "pos": pos, "action": act(sig),
+            "pos": pos, "w": w_now, "level": (f"{w_now:.0%}" if pos else ""),
+            "pos_txt": ("空仓" if pos == 0 else f"持仓 {w_now:.0%}"),
+            "action": act(sig),
             "fresh": freshness(leg, px.index[-1].date().isoformat(), fails),
         })
         s = sig.to_numpy()
@@ -135,6 +138,9 @@ def main():
         "`死叉` 或 收盘**跌破中轨** → 卖出；其余维持 0/1 仓位。",
         f"> 布林窗口按 ER({macd_boll.ER_N}) 滞回：≥{macd_boll.ER_HI:.2f} 用 {macd_boll.W_FAST}（趋势态）/ "
         f"≤{macd_boll.ER_LO:.2f} 用 {macd_boll.W_SLOW}（震荡态）/ 中间维持上档。",
+        f"> **波动上限 {macd_boll.TV:.0%}（可配 `macd_boll.TV`，设 None 关闭）**："
+        f"信号为持仓时，实际仓位 = min(1, {macd_boll.TV:.0%} / σ{macd_boll.TV_WIN}年化) "
+        "—— 入场判定不变，只在波动高时压浅仓位。表内「当前仓位」即该实际仓位。",
         f"> 空仓按货基 {macd_boll.CASH_ANNUAL:.2%} 计息；成交按 **T+1 净值**（T 日盘后算，T+1 15:00 前提交）。",
         f"> 七腿 {len(rows)} 只：最新 {len(rows) - len(stale)} 只 · 滞后/失败 {len(stale)} 只。"
         "**QDII 腿（纳指 / 标普 / 恒生科技）净值本身滞后 1~2 日，信号随之延后。**",
@@ -174,7 +180,7 @@ def main():
         L.append(f"| {x['name']} | {x['role']} | {x['band']:g}pp | `{x['exec']}` "
                  f"{x['exec_name']} | {x['date']} | {x['nav']:.4f} | "
                  f"{x['dif']:+.4f} / {x['dea']:+.4f} | {x['er']:.2f}（{x['window']}） | "
-                 f"{x['dist_kind']} {x['dist']:+.2%} | {'持仓' if x['pos'] else '空仓'} | "
+                 f"{x['dist_kind']} {x['dist']:+.2%} | {x['pos_txt']} | "
                  f"{x['action']} | {x['fresh']} |")
 
     L += ["", "## 非最新数据", ""] + (mk_table(stale) if stale else ["（全部为最新）"])
@@ -201,7 +207,9 @@ def main():
             "rule": {"buy": "DIF>0且DIF>DEA+开口+上穿上轨", "sell": "死叉或跌破中轨",
                      "trade_at": "T+1 净值", "cash_annual": macd_boll.CASH_ANNUAL,
                      "window_fast": macd_boll.W_FAST, "window_slow": macd_boll.W_SLOW,
-                     "er_hi": macd_boll.ER_HI, "er_lo": macd_boll.ER_LO},
+                     "er_hi": macd_boll.ER_HI, "er_lo": macd_boll.ER_LO,
+                     "tv": macd_boll.TV, "tv_win": macd_boll.TV_WIN,
+                     "sizing": "持仓时仓位=min(1, TV/σ20年化)，入场不变"},
             "summary": {"n": len(rows), "buy": len(buys), "sell": len(sells),
                         "hold": len(held), "empty": len(empty), "stale": len(stale),
                         "fail": len(fails)},

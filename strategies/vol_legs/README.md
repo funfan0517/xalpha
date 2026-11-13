@@ -270,7 +270,8 @@ strategies/vol_legs/
 │                  #   probe_us_gate_vs_vt/（v7 vs v9 同口径对决）、probe_published_us/（外部策略扫描）、
 │                  #   vol_layer_v2v3/（波动层在 v2/v3 实测）、v1v10_compare/（10 变种两次综合对比）、
 │                  #   v1v10_compare_3y/（同一套图，只把展示窗口截到最近 3 年）、
-│                  #   best_by_leg/（**各标的最优策略清单**：只读各变种产物汇编，含年化/回撤/夏普）
+│                  #   best_by_leg/（**各标的最优策略清单**：只读各变种产物汇编，含年化/回撤/夏普）、
+│                  #   beat_best/（**单标的「超过当前最优」搜索**：重写四条基线 + 15 档候选 + 邻域检验）
 ├── data/          # _val_inputs.json(人工回填: FOMC、PB/ERP 分位、保险丝、QDII 额度)
 ├── backtest/      # _vol_legs_bt.md / .json
 ├── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
@@ -669,3 +670,14 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > 不参与排序，理由写在清单 §2。
 > 跑一次：`python strategies/vol_legs/research/best_by_leg/_best_by_leg.py`
 > （任一变种回测产物更新后重跑即可刷新）。
+
+> **再往前推一步：能不能超过上面的「当前最优」** —— 见
+> [`research/beat_best/_beat_best.md`](research/beat_best/_beat_best.md)
+> （2026-11-13）。七条腿各自照规则**重写基线并同尺重算**（同一份场外净值、申 0.10%/赎 0.50%、
+> 空仓 1.40%、T+1 收盘成交），再跑 15 档候选 + 参数邻域检验。结论：**只有科创50 能被超越**
+> —— `V3 信号 × 波动上限 20%`（C8）夏普 0.67 → **0.81**、回撤 −10.74% → **−5.27%**，邻域 3/3；
+> `V2 突破 × 波动上限 20%`（C11）年化 9.78% → **13.54%**、夏普 0.83，但邻域只 2/3。
+> 其余六条腿的「最佳候选」与基线差距都在 0.05 以内 —— **现有的 V2/V9/V3/V6-B 就是这几类简单
+> 规则的局部最优**，加方向层（V9+年线）、松出场（V2+年线）、压缩过滤、跟踪止损全部更差。
+> 再往前只能换信息源（估值分位 / 量能 / 宏观），且必须先做「发布日 vs 可得日」错位检验。
+> 跑一次：`python strategies/vol_legs/research/beat_best/_beat_best.py`

@@ -38,6 +38,7 @@ import boll  # noqa: E402
 OUTDIR = os.path.join(_HERE, "backtest")
 
 STOPS = [None, 0.05, 0.08, 0.10, 0.15]
+TVS = [0.0, 0.15, 0.20, 0.25]      # 波动上限（0 = 关闭，回到纯 0/1）
 PARAM_GRID = [(20, 2.0), (35, 2.0), (55, 2.0), (35, 1.5), (35, 2.5)]
 LAG_FEE = [
     ("T+1 成交（主口径，零费用）", 1, False),
@@ -74,7 +75,11 @@ def _mirror_signal(px, n=None, k=None):
 
 
 def leg_rows():
-    """逐腿：BOLL 上轨突破（零费 / 扣真实申赎费）vs 买入持有。"""
+    """逐腿：BOLL 上轨突破 × 波动上限（零费 / 扣真实申赎费）vs 买入持有。
+
+    **主表口径已含 `PARAMS["TV"]`**（默认 20%）；`trades` / 胜率仍按 0/1 入场笔数统计，
+    `exposure` 用实际持仓权重。纯 0/1 的对照见 `tv_table()` / `tv_leg_rows()`。
+    """
     rows = []
     for k in boll.LEGS:
         cfg = boll.rule.LEGS[k]
@@ -83,8 +88,9 @@ def leg_rows():
         start = mid_full.first_valid_index()
         px = px_full.loc[start:]
         sig = sig_full.loc[start:]
-        nav = boll.run(px, sig)
-        nav_fee = boll.run(px, sig, fee=boll.FEE[k])
+        w = boll.weight(px, sig)                     # 信号 × 波动上限
+        nav = boll.run(px, w)
+        nav_fee = boll.run(px, w, fee=boll.FEE[k])
         bh = px / px.iloc[0]
         tr = boll.trades(sig, px)
         m, b, mf = boll.perf(nav), boll.perf(bh), boll.perf(nav_fee)
@@ -97,7 +103,8 @@ def leg_rows():
             ann=m["ann"], mdd=m["mdd"], vol=m["vol"], sharpe=m["sharpe"],
             ann_fee=mf["ann"], mdd_fee=mf["mdd"], sharpe_fee=mf["sharpe"],
             fee_buy=boll.FEE[k][0], fee_sell=boll.FEE[k][1],
-            exposure=boll.exposure(sig), trades=st["n"], win_rate=st["win_rate"],
+            exposure=float(w.shift(1).fillna(0).mean()), trades=st["n"],
+            win_rate=st["win_rate"],
             payoff=st["payoff"], pf=st["pf"], avg_bars=st["bars"],
             per_year=st["n"] / years,
             bh_ann=b["ann"], bh_mdd=b["mdd"], bh_vol=b["vol"], bh_sharpe=b["sharpe"],
@@ -110,8 +117,8 @@ def leg_rows():
 
 
 def portfolio_rows(frame):
-    """组合层：BOLL 择时（零费 / 扣费）/ 静态带 / 七腿等权。"""
-    sigs = {k: boll.signal(frame[k])[0] for k in frame.columns}
+    """组合层：BOLL 择时 × 波动上限（零费 / 扣费）/ 静态带 / 七腿等权。"""
+    sigs = {k: boll.weight(frame[k], boll.signal(frame[k])[0]) for k in frame.columns}
     navs = [
         ("V2 BOLL 择时（按带权）", boll.portfolio(frame, signals=sigs)),
         ("V2 BOLL 择时（扣申赎费）", boll.portfolio(frame, signals=sigs, fee=True)),
@@ -120,7 +127,7 @@ def portfolio_rows(frame):
                                                 weight={k: 1.0 / len(frame.columns)
                                                         for k in frame.columns})),
     ]
-    invested = sum(boll.W[k] * boll.exposure(sigs[k]) for k in frame.columns)
+    invested = sum(boll.W[k] * float(sigs[k].shift(1).fillna(0).mean()) for k in frame.columns)
     rows, nav_by = [], {}
     for i, (name, nav) in enumerate(navs):
         m = boll.perf(nav)
@@ -180,6 +187,46 @@ def stop_table(frame):
         out.append(dict(stop=stp, med_ann=float(np.median(anns)),
                         med_mdd=float(np.median(mdds)), med_sharpe=float(np.median(shs)),
                         trades=n_tr, port_ann=mp["ann"]))
+    return out
+
+
+def tv_table(frame):
+    """波动上限敏感性：逐腿中位 + 组合层（同一共同窗口；`tv=0` = 纯 0/1 基线）。"""
+    out = []
+    for tv in TVS:
+        anns, mdds, shs, exps, port_sharpe = [], [], [], [], []
+        for k in frame.columns:
+            px = frame[k]
+            w = boll.weight(px, boll.signal(px)[0], tv=tv)
+            m = boll.perf(boll.run(px, w))
+            anns.append(m["ann"])
+            mdds.append(m["mdd"])
+            shs.append(m["sharpe"])
+            exps.append(float(w.shift(1).fillna(0).mean()))
+        sigs = {k: boll.weight(frame[k], boll.signal(frame[k])[0], tv=tv) for k in frame.columns}
+        mp = boll.perf(boll.portfolio(frame, signals=sigs))
+        port_sharpe.append(mp["sharpe"])
+        out.append(dict(tv=tv, ann=float(np.median(anns)), mdd=float(np.median(mdds)),
+                        sharpe=float(np.median(shs)),
+                        expo=float(np.mean(exps)), port_ann=mp["ann"],
+                        port_mdd=mp["mdd"], port_sharpe=mp["sharpe"]))
+    return out
+
+
+def tv_leg_rows(frame):
+    """逐腿：纯 0/1 vs 波动上限 `PARAMS["TV"]`（同一窗口，零费用）。"""
+    out = []
+    tv = boll.PARAMS["TV"]
+    for k in frame.columns:
+        px = frame[k]
+        sig = boll.signal(px)[0]
+        w0, w1 = sig.astype(float), boll.weight(px, sig, tv=tv)
+        a, b = boll.perf(boll.run(px, w0)), boll.perf(boll.run(px, w1))
+        out.append(dict(leg=k, name=boll.rule.LEGS[k]["name"],
+                        ann0=a["ann"], mdd0=a["mdd"], sharpe0=a["sharpe"],
+                        ann1=b["ann"], mdd1=b["mdd"], sharpe1=b["sharpe"],
+                        expo0=float(w0.shift(1).fillna(0).mean()),
+                        expo1=float(w1.shift(1).fillna(0).mean())))
     return out
 
 
@@ -312,6 +359,8 @@ def main():
     sigs, prows, nav_by = portfolio_rows(frame)
     lagfee = lag_fee_table(frame)
     stops = stop_table(frame)
+    tv = tv_table(frame)
+    tv_legs = tv_leg_rows(frame)
     params = param_table(frame)
     dirs = [direction_row(frame, "BOLL 上轨突破（本变种）", lambda p: boll.signal(p)),
             direction_row(frame, "BOLL 镜像反转（下轨买 / 上穿中轨卖）", _mirror_signal)]
@@ -348,6 +397,9 @@ def main():
         "- **平仓**：`close < mid`（跌回中轨即退出，不等下轨）",
         "- **无反向开空**；盘中触碰不算，只看收盘；无信号时空仓等待",
         f"- **止损**：默认关闭（`PARAMS['STOP']=None`），敏感性见下文",
+        f"- **波动上限**：`PARAMS['TV'] = {boll.PARAMS['TV']:.0%}`（设 None 关闭）—— 持仓时仓位 × "
+        f"`min(1, TV / σ{boll.PARAMS['TV_WIN']}年化)`，入场判定不变。**下面各主表已含这一层**"
+        "（2026-11-13 起），纯 0/1 的对照见「波动上限层」一节",
         "",
         "> 规则与参数权威源 `boll.py::PARAMS`；指标在规则内自算，不依赖指标库；"
         "绩效统一走 `../engine.metrics()`（无风险利率 = 货基 1.40%）。",
@@ -442,9 +494,10 @@ def main():
 
     L += [
         "",
-        "## 成交时滞 × 费率敏感性",
+        "## 成交时滞 × 费率敏感性（纯 0/1 口径，隔离入场层的影响）",
         "",
-        "> 主口径已是「T 日盘后算信号 → T+1 净值成交」（场外 15:00 前提交才拿当日净值）。"
+        "> 本节**不含波动上限**（`TV`）—— 它扫的是成交纪律与费用，混进仓位层就看不清了。"
+        "主口径已是「T 日盘后算信号 → T+1 净值成交」（场外 15:00 前提交才拿当日净值）。"
         "T+2 模拟 QDII 腿「净值再滞后一天」的最坏情况；费率按每条腿的**实际执行代码**取"
         "（A 类 270042/017641/000216 申购 0.10% + 赎回 0.50%；C 类 023299/011609/012805 申赎免费，"
         "但约 0.2%/年销售服务费**未计入**）。",
@@ -459,7 +512,49 @@ def main():
 
     L += [
         "",
-        "## 止损敏感性（零费用 · T+1 成交）",
+        "## 波动上限层（`PARAMS[\"TV\"]`，默认 20%）",
+        "",
+        "> 信号 0/1 完全不变；**持仓时**仓位再乘 `min(1, TV / σ20年化)`。σ 取 20 日已实现波动年化，"
+        "`shift(1)` 后才生效（当日仓位只用昨日及以前的波动），预热期取 0。"
+        "成本按**仓位变动比例**计 —— 0→1 时与原来的一次申赎费完全等价。",
+        "",
+        "| 波动上限 | 逐腿中位年化 | 逐腿中位回撤 | 逐腿中位夏普 | 组合年化 | 组合回撤 | 组合夏普 | 平均投入 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for t in tv:
+        lab = "关闭（纯 0/1）" if not t["tv"] else f"{t['tv']:.0%}"
+        mark = " **(默认)**" if t["tv"] == boll.PARAMS["TV"] else ""
+        L.append(f"| {lab}{mark} | {boll.fmt_pct(t['ann'])} | {boll.fmt_pct(t['mdd'])} | "
+                 f"{t['sharpe']:.2f} | {boll.fmt_pct(t['port_ann'])} | {boll.fmt_pct(t['port_mdd'])} | "
+                 f"{t['port_sharpe']:.2f} | {t['expo']:.0%} |")
+
+    L += ["", f"### 逐腿：纯 0/1 → 波动上限 {boll.PARAMS['TV']:.0%}", "",
+          "| 腿 | 年化 | 最大回撤 | 夏普 | 曝光 |",
+          "|---|---:|---:|---:|---:|"]
+    for r in tv_legs:
+        L.append(f"| {r['name']} | {boll.fmt_pct(r['ann0'])} → **{boll.fmt_pct(r['ann1'])}** | "
+                 f"{boll.fmt_pct(r['mdd0'])} → **{boll.fmt_pct(r['mdd1'])}** | "
+                 f"{r['sharpe0']:.2f} → **{r['sharpe1']:.2f}** | "
+                 f"{r['expo0']:.0%} → {r['expo1']:.0%} |")
+    _best = max(tv_legs, key=lambda z: z["sharpe1"] - z["sharpe0"])
+    _off_fee = boll.perf(boll.portfolio(frame, signals={k: boll.signal(frame[k])[0]
+                                                       for k in frame.columns}, fee=True))
+    L += ["", f"> 改善最大的是 **{_best['name']}**（夏普 {_best['sharpe0']:.2f} → "
+              f"{_best['sharpe1']:.2f}，回撤 {boll.fmt_pct(_best['mdd0'])} → "
+              f"{boll.fmt_pct(_best['mdd1'])}）：**高波动腿受益最大，低波动腿几乎不变**"
+              "（20% 高于它们的常态波动，系数恒为 1）。20% 是取整的默认值、不是最优值 —— "
+              "`research/beat_best` 的邻域里 15% 的数字更好看，但那是另一层风险偏好选择，"
+              "这里不为了好看去挑参数。",
+          "",
+          f"> 含费口径（各腿真实申赎费）**同样改善**：组合夏普 {_off_fee['sharpe']:.2f} → "
+          f"{prows[1]['sharpe']:.2f}、年化 {boll.fmt_pct(_off_fee['ann'])} → "
+          f"{boll.fmt_pct(prows[1]['ann'])} —— V2 的换手本来就低（2~3 笔/年），"
+          "这一层没有把费用放大；`dead`/`gap`（默认 5pp / 5 日）就是为了防止连续仓位天天调仓。",
+          ]
+
+    L += [
+        "",
+        "## 止损敏感性（零费用 · T+1 成交 · 纯 0/1 口径）",
         "",
         "> 止损自建仓日收盘价起算，同样只在收盘判定。建仓价在上轨（= mid + 2σ），"
         "**中轨离建仓价只差几个百分点** —— 中轨出场本身就是硬止损，百分比止损未必来得及触发。",

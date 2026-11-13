@@ -164,6 +164,27 @@
    沪深300 只取「强回调 20%」（`强反弹 100%` 在 2006-2026 指数样本上被证伪，回撤 −31.8%→−37.3%），
    科创50 取全部三条 + σ 覆盖。`rule.OPT=False` 一键回退规格口径，§4.1/§4.2 的数字即生效口径。
 
+### 4.5 组合层与执行层（2026-11-12 专项研究）
+
+单独一篇：[`research/portfolio_ops/_portfolio_ops.md`](research/portfolio_ops/_portfolio_ops.md)。
+**单腿规则一行没改**，只在给定的 6 腿净值/仓位上问「组合与执行还能省什么」。结论是
+**组合层已经没有可优化的风险问题**：
+
+1. **组合 σ 目标 / 回撤闸门 / 腿间共振折扣，三个都没用** —— 6 腿等波动的最大回撤全样本只有
+   −8.06%（单腿沪深300 是 −14.88%），闸门几乎不触发；再减一次仓等于和八态抢同一份信号。
+2. **换手 deadband 是空操作**：`CAP` 档距本来就是 20%~50%，一次调仓的 `|Δw|` 远超任何阈值，
+   能削掉的只有 σ 覆盖带来的细调 —— 组合摩擦仍是 **0.64pp/年**。换手问题只能从档距与
+   `UP_CONFIRM` 治，不能从执行后治。
+3. **执行必须按收盘价成交**：T+1 开盘比收盘低 **0.08 夏普**（年化 −0.55pp），拖到 T+2 低 **0.14**
+   （−0.83pp，共同窗口）。减仓本身是对下跌的反应，晚一个时点就多扛一次隔夜跳空 ——
+   「等盘中预演确认再下单」不是免费的。
+4. **空仓的钱**：现金利率是线性外生项（+1pp ≈ +0.5pp 年化，夏普不涨），把货基换成短债/逆回购是
+   零风险的；「空仓买黄金」把沪深300 单腿从 +9.18%/−14.88% 推到 +14.80%/−30.30% —— 那是
+   **改风险预算**，不是现金增强。
+5. **腿集才是下一个真正的杠杆**：去掉黄金 −0.45 夏普、去掉美股双雄 −0.41（**低相关才是 1.33 夏普的
+   来源**）；而**港股腿是唯一在拖累的（+0.21）** —— 它同时与沪深300 相关 0.58、量能还是代理量能。
+   要重标就补 `HSI` 指数量能，补不到就把它降级为纯诊断腿。
+
 ## 5. 已知局限（用之前必须知道）
 
 - **执行范围只有沪深300**：其余 6 腿的信号没重标阈值，只作诊断。要给美股/黄金上线，
@@ -176,8 +197,9 @@
   换窗口就翻回去 —— 宁可少赚，也要让参数只有**一个出处**（规格）。
 - **口径不可与场外净值策略混算**：ETF 价格口径无分红再投、含折溢价；美股两腿 513100/513500
   是人民币代理、信号里掺汇率。v1/v2/v3/v5 的场外复权净值系统性高 0.4~1.1pp/年（README §2.2）。
-- **摩擦吃掉 0.54pp/年**（24.3 次调仓/年，单边 5bp）；换成场外 A 类（赎回 0.5%）会被吃光 ——
-  **这条策略只能场内 ETF 执行**。
+- **摩擦吃掉 0.64pp/年**（组合层实测，v12.1 口径；单边 5bp，沪深300 单腿 33 次调仓/年）。
+  换手削不掉的（`UP_CONFIRM` 已经是唯一旋钮，deadband 无效，见 §4.5）；换成场外 A 类（赎回 0.5%）
+  会被吃光 —— **这条策略只能场内 ETF 执行**。
 - **中证A500 样本不足 1 年**（563360 于 2024-10 上市，预热 270 根后剩 231 根），它那一行不可当证据。
 - **八态的 32% 日子落在「慢」里**（慢涨 21.9% + 慢跌 18.8%），规格 §7.1 已说它们信息量低 ——
   别拿「今天是慢涨」去解释短期涨跌。
@@ -205,9 +227,10 @@ python strategies/vol_legs/v12_octo_trend/research/_plot_state.py --all
 python strategies/vol_legs/v12_octo_trend/data.py            # 只读：库状态 + 每腿量能口径
 python strategies/vol_legs/v12_octo_trend/data.py --refresh  # 联网增量
 
-# 两个研究脚本
+# 三个研究脚本
 python strategies/vol_legs/v12_octo_trend/research/probe_volume/_probe_volume.py   # 量能口径
 python strategies/vol_legs/v12_octo_trend/research/_sweep.py                        # 敏感性/反证
+python strategies/vol_legs/v12_octo_trend/research/portfolio_ops/_portfolio_ops.py  # 组合层与执行层
 ```
 
 每日流程：`run_daily_vol_legs.ps1` 第 2 步跑 `daily/_daily_scan.py --no-refresh`
@@ -230,7 +253,8 @@ strategies/vol_legs/v12_octo_trend/
     ├── _sweep.py                # _v12_sweep.md（升格确认 + 映射反证 + 曝光匹配）
     ├── probe_volume/_probe_volume.py   # _probe_volume.md（ETF量 vs 指数量）
     ├── probe_spec_port/_probe_spec_port.py  # _probe_spec_port.md（与规格参考实现逐日比对）
-    └── opt_ashare/_opt_ashare.py       # _opt_ashare.md（A股宽基优化：归因 + 6 个候选 + 分折检验）
+    ├── opt_ashare/_opt_ashare.py       # _opt_ashare.md（A股宽基优化：归因 + 6 个候选 + 分折检验）
+    └── portfolio_ops/_portfolio_ops.py # _portfolio_ops.md（组合 σ / 回撤闸门 / deadband / 执行时点 / 现金 / 共振 / 腿集）
 ```
 
 新增的**仓库级数据**：`data/_cn_index_klines.json`（`SH000300` / `SH000001` 的收盘 + 成交量，

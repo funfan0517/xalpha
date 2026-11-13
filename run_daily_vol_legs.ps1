@@ -10,8 +10,8 @@
 #           v12 = 八态趋势(急涨/慢涨/弱回调/强回调 | 急跌/慢跌/弱反弹/强反弹) -> 仓位许可上限,
 #                 执行范围只有沪深300; 它是唯一**硬依赖成交量**的变种, 自己刷新 ETF OHLCV + 指数量能)
 #          产物写入各变种 daily\*, 由 pipeline\daily_digest.py 汇总到板块2「变种操作一览」卡。
-# 第 3 步: 刷新十一张重点图的 PNG(复用第 1/2 步刚刷新的缓存, 只重画不重算回测):
-#          v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png
+# 第 3 步: 刷新十二张重点图的 PNG(复用第 1/2 步刚刷新的缓存, 只重画不重算回测):
+#          v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png / _v2_kc50.png (科创50 2026-11-13 起纳入重点)
 #          v3_macd_boll\research\_v3_hkt.png / _v3_kc50.png
 #          v4_erp_band\backtest\_v4_erp_band_signals.png (走 research\_plot_signals.py, 不碰回测报告)
 #          v6_gold\daily\_v6_gold_A.png / _v6_gold_B.png / _v6_gold_C.png (三口径全历史)
@@ -74,12 +74,12 @@ Write-Host "  - v12 octo trend (八态) ..."
 python -W ignore strategies\vol_legs\v12_octo_trend\daily\_daily_scan.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v12_octo_trend daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
 
-# 第 3 步: 刷新十张重点图(只重画, 不重算回测; 失败只告警)
+# 第 3 步: 刷新十一张重点图(只重画, 不重算回测; 失败只告警)
 Write-Host ""
-Write-Host "[3/3] Refreshing 10 key figures (v2 a500/hs300 · v3 hkt/kc50 · v4 erp signals · v6 gold A/B/C · v9 spx/ndx) ..."
+Write-Host "[3/3] Refreshing 11 key figures (v2 a500/hs300/kc50 · v3 hkt/kc50 · v4 erp signals · v6 gold A/B/C · v9 spx/ndx) ..."
 
-Write-Host "  - v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png ..."
-python -W ignore strategies\vol_legs\v2_boll_breakout\research\_plot_leg.py --leg a500 --leg hs300
+Write-Host "  - v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png / _v2_kc50.png ..."
+python -W ignore strategies\vol_legs\v2_boll_breakout\research\_plot_leg.py --leg a500 --leg hs300 --leg kc50
 if ($LASTEXITCODE -ne 0) { Write-Warning "v2 plot_leg failed (exit $LASTEXITCODE) - 保留上次的图" }
 
 Write-Host "  - v3_macd_boll\research\_v3_hkt.png / _v3_kc50.png ..."
@@ -110,7 +110,7 @@ Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
 Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v6_gold / v9_vol_target / v12_octo_trend  daily\_*_daily.md (+ .json)"
 Write-Host "            (v5_trend_gate 2026-11-09 起移出板块2, 需要时手跑, 见文件头)"
-Write-Host "  Figures : v2\research\_v2_{a500,hs300}.png · v3\research\_v3_{hkt,kc50}.png ·"
+Write-Host "  Figures : v2\research\_v2_{a500,hs300,kc50}.png · v3\research\_v3_{hkt,kc50}.png ·"
 Write-Host "            v4\backtest\_v4_erp_band_signals.png ·"
 Write-Host "            v6_gold\daily\_v6_gold_{A,B,C}.png · v9\research\_v9_vt_{spx,ndx}.png ·"
 Write-Host "            v12_octo_trend\research\_v12_state_hs300.png"

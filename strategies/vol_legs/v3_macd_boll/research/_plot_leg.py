@@ -35,10 +35,12 @@ import _plot_leg_core as core          # noqa: E402
 SPEC = dict(
     mod=macd_boll,
     tag="V3",
-    short="V3（MACD+BOLL）",
-    line="V3 择时（MACD+BOLL）",
+    short=f"V3（MACD+BOLL + 波动上限 {macd_boll.TV:.0%}）",
+    line=f"V3 择时（MACD+BOLL 自适应 + 波动上限 {macd_boll.TV:.0%}）",
     warmup=macd_boll.WARMUP,
-    signal=lambda px: macd_boll.signal(px),
+    # 净值走「信号 × 波动上限」的连续仓位；▲▼ 仍按 0/1 入场判定标
+    signal=lambda px: macd_boll.weight(px, macd_boll.signal(px)),
+    mark_signal=lambda px: macd_boll.signal(px),
     run=lambda px, sig, fee=None: macd_boll.run(px, sig, fee=fee),
     perf=macd_boll.perf,
     cash=macd_boll.CASH_ANNUAL,

@@ -61,7 +61,7 @@ v3_macd_boll/
 ├── daily/                  _daily_scan.py · _v3_macd_boll_daily.{md,json}
 ├── research/               _plot_leg.py（薄封装 vol_legs/_plot_leg_core.py）
 │                           · _v3_{a500,hs300,ndx,spx,kc50,hkt,gold}.png
-│                             （买入持有 vs 择时，两条线 + 双线买卖点，七腿各一张）
+│                             （上格买入持有 vs 择时 + 双线买卖点；下格 = 仓位与 σ20，七腿各一张）
 └── README.md
 ```
 
@@ -77,7 +77,8 @@ python strategies/vol_legs/v3_macd_boll/macd_boll.py
 # 回测（逐腿 + 组合层 + 分段 + 逐年 + 成本）
 python strategies/vol_legs/v3_macd_boll/backtest.py
 
-# 单腿图：买入持有 vs V3 择时（两条线同起点归 1，▲/▼ 标买卖点）
+# 单腿图：买入持有 vs V3 择时（上格两条线同起点归 1，▲/▼ 标买卖点；
+#        下格 = 0/1 入场台阶 vs 含波动上限的实际仓位，右轴 σ20 与 20% 目标）
 python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py            # 七腿全画（a500/hs300/ndx/spx/kc50/hkt/gold）
 python strategies/vol_legs/v3_macd_boll/research/_plot_leg.py --leg hkt  # 只画一只
 ```

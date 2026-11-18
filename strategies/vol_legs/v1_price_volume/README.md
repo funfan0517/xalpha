@@ -6,7 +6,7 @@
 `vol_legs`（波动资产操作规则）的**第 1 号变种**。原 `v1_ma20` 于 **2026-11-07** 改组为本目录
 「量价家族」（内分 V1-1 纯价 / V1-2 量价）；**2026-11-10 按用户要求删除 V1-2，
 `v1_1_ma20/` 即 V1 的默认（也是唯一）实现** —— 目录名保留 `v1_price_volume` 只为不打断
-`pipeline/strategies.json`、`research/v1v10_compare/` 与本家族各处已经写死的路径。
+`pipeline/strategies.json` 与本家族各处已经写死的路径。
 
 一句话定位：**主策略回答「组合层仓位带怎么摆」**（阶梯 / 年线闸门 / 再平衡），
 **本变种回答「每条腿什么时候该下车、什么时候再上车」**。两者可叠加，不可替代。
@@ -47,9 +47,9 @@ V1-2（`v1_2_ma_trend_pv/`，2026-11-07 新建）用 20/60/250 三条均线 + �
 2. `data/_ohlcv.json`（仓库级，判据「别的策略也会用」）**写入方只剩
    `strategies/tech_indicators/v18_volume_notes/ohlcv.py`**；`v13_quad_9grid/data.py` 只读，
    其注释已改为指向 v18；
-3. `v5_trend_gate/research/quad_pv/` 原来 import 本目录的 `ma_trend_vol.prepare()`，
+3. 原 v5 的 `research/quad_pv/`（已随 v5 变种删除）原来 import 本目录的 `ma_trend_vol.prepare()`，
    现改为自带最小指标面板（`_quad_pv.py::prepare()`），该研究可独立重跑；
-4. `research/v1v10_compare/` 与 `research/best_by_leg/` 的 V1 列本来就用 `ma20.py`，不受影响。
+4. `research/best_by_leg/` 的 V1 列本来就用 `ma20.py`，不受影响。
 
 代码与产物（含 `ma_trend_vol.py` / `ohlcv.py` / `backtest/_v1_2_bt.*` / `research/attrib/`）
 见 git 历史；结论摘要保留在本节与本变种 README（`README.md` §9）。

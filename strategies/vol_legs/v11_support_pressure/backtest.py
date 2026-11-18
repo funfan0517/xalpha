@@ -32,8 +32,7 @@ except Exception:  # noqa: BLE001
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _VL = os.path.dirname(_HERE)
-_V5 = os.path.join(_VL, "v5_trend_gate")      # 只给 §7.4 的口径校验用（不参与默认路径）
-for _p in (_HERE, _VL, _V5):
+for _p in (_HERE, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -335,7 +334,7 @@ def down_rows(**kw):
 
 
 # ---------------------------------------------------------------- 4.5 换成 v5 的年线口径
-V5_KW = dict(MA_WIN=250, SLOPE_N=20, TREND_FREQ="daily")   # = v5_trend_gate 的趋势读数
+V5_KW = dict(MA_WIN=250, SLOPE_N=20, TREND_FREQ="daily")   # = 共享 _trend_gate 的趋势读数
 
 
 def quad_check(**kw):
@@ -345,7 +344,7 @@ def quad_check(**kw):
     已知唯一差异是边界写法 —— v5 的 `readout` 用 `close >= ma`、v11 用 `close > ma`，
     只会在「收盘恰好等于均线」那一天分歧（浮点下几乎不会发生）。
     """
-    import trend_gate as tg                    # 只在口径对照时依赖 v5，默认路径不加硬依赖
+    import _trend_gate as tg                   # 只在口径对照时依赖共享状态机，默认路径不加硬依赖
     out = []
     for k in sp.LEGS:
         px = sp.load(k)

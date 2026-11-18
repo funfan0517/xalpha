@@ -104,9 +104,9 @@
 - **深破位豁免在两条美股腿上作用相反**：标普 2020-02-28 月末已破年线 −3.05%，豁免让它 3 月就减半 → 年化 +7.93% vs +7.48%；
   纳指 2 月末还在年线上，跌破是 3 月一次性完成的，豁免只是让它错过 4 月反抽 → +11.38% vs +13.25%。**组合层净赚**靠的是标普腿救回的回撤。
 
-## 4. 与 v5（趋势闸门）的区别 —— 两支别混
+## 4. 与原 v5（趋势闸门）的区别 —— 两支别混（v5 已于 2026-11-18 删除）
 
-| | `v5_trend_gate` | 本变种 `v7_us_gate` |
+| | 原 v5（状态机现为共享 `_trend_gate.py`） | 本变种 `v7_us_gate` |
 |---|---|---|
 | 池 | 七腿 | **全七腿**（2026-11-17 起） |
 | 均线 | MA250 + 四象限（价/线/斜率） | **MA200，只判价格与均线** |
@@ -207,5 +207,5 @@ python strategies/vol_legs/v7_us_gate/daily/_daily_scan.py --no-refresh # 离线
 
 > 回测：`python strategies/vol_legs/v7_us_gate/backtest.py`（产物 `backtest/_v7_us_gate_bt.{md,jsonl}`）。
 > 自检：`python strategies/vol_legs/v7_us_gate/us_gate.py`。
-> 融合研究：`strategies/vol_legs/research/probe_fusion/_probe_fusion.md`。
+> 融合研究：`v7_us_gate/research/probe_fusion/_probe_fusion.md`。
 > 模拟结果，非投资建议。

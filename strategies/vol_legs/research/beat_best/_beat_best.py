@@ -260,7 +260,7 @@ def v9_tv(px, tv=0.15, win=20, drift=0.05,
 
 
 def v6_b(px, target=0.10, win=120, dead=0.15, gap=10, floor=0.20):
-    """V6-B（照 `v5_trend_gate/trend_gate.py::vol_scale` 重写：死区 + 限速 + 下限）。"""
+    """V6-B（照 `_trend_gate.py::vol_scale` 重写：死区 + 限速 + 下限）。"""
     ret = px.pct_change().fillna(0.0)
     vol = ret.rolling(win, min_periods=win).std() * math.sqrt(TD)
     raw = (target / vol).clip(lower=floor, upper=1.0).shift(1)
@@ -280,7 +280,7 @@ BASE_FN = {"v2": v2_boll, "v3": v3_macdboll, "v9": v9_tv, "v6b": v6_b}
 
 # ---------------------------------------------------------------- 候选（参数事先固定）
 def deadband(w, dead=0.05, gap=5):
-    """仓位层的死区 + 限速（与 `v5_trend_gate/trend_gate.py::vol_scale` 同一机制）。
+    """仓位层的死区 + 限速（与 `_trend_gate.py::vol_scale` 同一机制）。
 
     没有这两个限制的「日频波动目标」会一天调一点，换手 150+ 次/年 —— 那不是策略差，
     是**实现没做完**。所有日频候选都先过这一层，才和 V9（月度 + 补丁）/ V6-B（死区 15%）

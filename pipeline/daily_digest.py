@@ -85,6 +85,28 @@ def _rel(path):
     return os.path.relpath(path, _ROOT).replace("\\", "/")
 
 
+def _proxy_mismatch_note(codes):
+    """场内信号代理与场外执行标的**跟踪指数不同源**的腿（基差风险）—— 只列本卡池内命中的。
+
+    清单由 ``pipeline/universe.py::proxy_mismatch`` 从 `data/_universe.md` 的「指数代码」列派生
+    （场内外不同源时该列写成 ``A(场外) / B(场内)``），新增标的一入库就自动带进脚注，
+    不用再靠人工比对 74 行。``codes`` = 本卡出现的场内代码；无命中时返回空串。
+    """
+    if not codes:
+        return ""
+    if _DIR not in sys.path:
+        sys.path.insert(0, _DIR)
+    import universe  # 同目录 pipeline/universe.py（唯一池解析，勿改名为 pipeline.universe）
+    hit = [m for m in universe.proxy_mismatch() if m["inner_code"] in set(codes)]
+    if not hit:
+        return ""
+    legs = "、".join(
+        f"{m['inner_code']} {m['inner_name']}（{m['inner_index']}）≠ 场外 {m['off_code']}（{m['off_index']}）"
+        for m in hit)
+    return (f"｜⚠ 信号代理与执行标的不同源（基差风险）：{legs}。"
+            "这些腿的买卖点按场内代理指数解读，不代表场外基金同步涨跌。")
+
+
 def _section(lines, keyword):
     """取 markdown 中以 ``## ...keyword...`` 开头到下一个二级标题之间的行。"""
     start = None
@@ -533,6 +555,9 @@ def parse_tech_indicators(_cfg):
     if not names:
         raise ValueError("strategies.json 的 daily.strategies 为空")
     ncol = len(names)
+    # 池内代码先取出来：下面的循环会用 `detail` 承接每行的明细文本（覆盖上表的 list），
+    # 之后再从 `detail` 里反推池代码会拿到单个字符。
+    pool_codes = {cells[0] for cells in detail if len(cells) >= 6 + ncol}
     group = {n: {"buy": [], "sell": [], "hold": [], "none": [], "watch": [], "avoid": []}
              for n in names}
     amap = {"买入": "buy", "卖出": "sell", "持有": "hold",
@@ -610,6 +635,7 @@ def parse_tech_indicators(_cfg):
     data = f"ETF 行情 {as_of}"
     if v9d or v10d:
         data += f" · V9 {v9d or '—'} / V10 {v10d or as_of}"
+    mis_note = _proxy_mismatch_note(pool_codes)
     return _entry(
         "tech_indicators", f"技术指标（{ncol} 策略）", as_of, badge, tone, summary, rows,
         [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)],
@@ -620,7 +646,8 @@ def parse_tech_indicators(_cfg):
              "最后一行「V17 闸门」是趋势四象限（年线位置 × 年线斜率）的缩影：只列今日加减仓标的"
              "与处于上涨趋势（满仓维持）的标的，54 只逐只象限见 "
              "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.md —— "
-             "它与上面 6 个指标策略口径不同（单标的分档，非 0/1 择时），读数不可直接互比。",
+             "它与上面 6 个指标策略口径不同（单标的分档，非 0/1 择时），读数不可直接互比。"
+             + mis_note,
         src=_rel(path),
         data=data,
         cols=["策略", "动作统计", "动作", "该策略的操作明细"],
@@ -682,7 +709,7 @@ def parse_v17(_cfg):
          ["今日加仓", str(n_buy)], ["今日减仓", str(n_sell)]],
         note="V17 · 趋势四象限闸门（年线位置 × 年线斜率 → 满仓/半仓/观察仓）：close 在 MA250 上/下 × "
              "MA250 近 20 日朝上/朝下，两个都朝上才是上涨趋势（满仓），其余三格都不给加仓许可。"
-             "规则从 vol_legs/v5_trend_gate 照搬、数据源换成家族 54 只场内 ETF 收盘价。"
+             "规则沿用 vol_legs 的趋势四象限闸门（现为共享模块 _trend_gate.py）、数据源换成家族 54 只场内 ETF 收盘价。"
              "它是单标的分档（非 0/1 择时），压低各标的仓位、换回撤，不保证增收益；"
              "滞后是设计特性（年线确认进入下跌趋势时价格通常已跌掉两位数）。"
              "明细见 strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.html。",
@@ -977,8 +1004,8 @@ def parse_vol_legs(_cfg):
 # 板块2 的 v2/v3/v4/v6/v9/v12 各自有逐腿产物，这里合成一张「变种操作一览」卡，
 # 并把每个变种的**重点标注标的**用 ★ + 加粗突出（即使当天空仓也列出，便于一眼看到重点腿状态）；
 # 非重点的其余腿也一并列出各自的仓位状态，标注「仅供参考」。
-# v5 趋势闸门 2026-11-09 按用户要求从板块2 整体移除（行 + 黄金操作图），产物仍留在
-# strategies/vol_legs/v5_trend_gate/daily/，需要时手跑该变种的 _daily_scan.py。
+# （原 v5 趋势闸门卡片已于 2026-11-18 随该变种删除；其状态机保留为
+#  strategies/vol_legs/_trend_gate.py，供 v4/v6/v11 复用。）
 _VOL_VARIANTS = [
     ("v2", "V2 BOLL突破",
      "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json",
@@ -1046,7 +1073,7 @@ _VOL_FIGS = [
 
 
 def _vol_classify(x):
-    """逐腿动作归一：买入 / 卖出 / 持有 / 空仓（兼容 v5 的 '维持' + state 档位）。"""
+    """逐腿动作归一：买入 / 卖出 / 持有 / 空仓（兼容带档位口径的 '维持' + state）。"""
     t = str(x.get("action") or "")
     if "买" in t or "加仓" in t:
         return "买入"
@@ -1145,7 +1172,7 @@ def _vol_v4_row(label, d):
               f"计划仓位 {plan:.0%}，**离开本带才执行**（带内不动）")
     if erp is not None and z is not None:
         detail += f" · ERP {float(erp):.2f} / z {float(z):.2f}"
-    # 带内趋势提前（v5 MA250+20）：B0 读到上涨就买满、B2 读到下跌就清仓
+    # 带内趋势提前（共享状态机 MA250+20）：B0 读到上涨就买满、B2 读到下跌就清仓
     tq = rd.get("trend_q")
     if tq and tq != "—":
         detail += f" · 趋势 {tq}"
@@ -1168,7 +1195,7 @@ def _vol_v4_row(label, d):
 def _vol_v6_row(label, d):
     """V6 是**黄金单标的**的三口径（A 长期配置 / B 控回撤 / C 低仓位占坑）。
 
-    与 v2/v3/v5「七腿逐腿」不同，它的产物里没有 ``legs``：三条口径并列在 ``A``/``B``/``C``
+    与 v2/v3 等「七腿逐腿」变种不同，它的产物里没有 ``legs``：三条口径并列在 ``A``/``B``/``C``
     三个字典里，各自给出「当前仓位 + 今日动作 + 触发依据」。它回答的是「投给黄金的这笔钱
     该怎么拿」，三条**互斥**（不是三个标的），末尾固定点明「选一条执行」。
 
@@ -1233,7 +1260,6 @@ def _vol_v6_row(label, d):
 def parse_vol_variants(_cfg):
     """板块2 的变种操作一览：v2 / v3 / v4 / v6 / v9 / v12（一行一个变种，★=重点标的）。
 
-    v5 趋势闸门 2026-11-09 按用户要求整体移出板块2（行 + 黄金操作图）。
     v12 八态趋势 2026-11-12 加入；2026-11-18 执行范围由「只做沪深300」扩到全七腿，
     故七腿都是 ★（卡片写「★全七腿（均执行）」），额度按回测 §1c 的 Δ夏普排。
     """

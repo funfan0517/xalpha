@@ -136,7 +136,7 @@ def vol_cap(px, tv=None, win=None, dead=None, gap=None):
 
     **死区 + 限速**（`PARAMS["TV_DEAD"]` / `TV_GAP`，默认 5pp / 5 日）：σ 每天都在变，
     不加限制就会每天调一点，场外申赎费（A 类卖 0.50%）会把收益全吃掉 —— 实测 V3 组合层
-    含费年化 4.61% → 2.64%。这两个限制与 `v5_trend_gate/trend_gate.py::vol_scale` 同一机制。
+    含费年化 4.61% → 2.64%。这两个限制与 `_trend_gate.py::vol_scale` 同一机制。
     """
     tv = PARAMS["TV"] if tv is None else tv
     win = PARAMS["TV_WIN"] if win is None else int(win)

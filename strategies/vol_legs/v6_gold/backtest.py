@@ -463,7 +463,7 @@ def render(d, blk, common_block, segs, seg_data, yrs, year_data,
     A(f"> **四象限闸门在黄金上不划算**：它把年化让掉 {num(abs(dlt))}pp，只换来回撤浅 "
       f"{num(dd_gate_gain)}pp（{pct(b_gate[G.VOL_TARGET]['m']['mdd'])} vs "
       f"{pct(b_pure[G.VOL_TARGET]['m']['mdd'])}）。与 "
-      "`v5_trend_gate/research/_v5_sens_legs.md` 的逐腿结论一致：黄金跌破年线后多次 V 型反转"
+      "原 v5 的逐腿结论一致：黄金跌破年线后多次 V 型反转"
       "（2016、2024、2025 都是），闸门减在坑里。**所以 B 默认关掉闸门**（`GATE_ON=False`）；"
       "若你要的是「连 -22% 也不想看到」，再把它打开，用 2.4pp 年化买 1.2pp 回撤。")
     A("")
@@ -563,7 +563,7 @@ def render(d, blk, common_block, segs, seg_data, yrs, year_data,
     A("2. **A 的保险丝滞后 60 日**：它避开的是以年计的阴跌（2013-2015），"
       "躲不掉三个月级别的急跌，也抓不住 V 型反转（2026 这轮就没赶上）。")
     A(f"3. **B 的改善集中在波动冲高的年份**：本样本里贡献最大的是 {best} —— "
-      "`v5_trend_gate/research/_vol_overlay.md` 已量化「黄金的改善全部来自 2023-2026」，"
+      "原 v5 的波动层研究已量化「黄金的改善全部来自 2023-2026」，"
       "等于用最近这一段给策略打分，别外推。")
     A("4. **C 的换手对成本极敏感**：调仓次数直接决定成本，注意场内溢价 —— "
       "`|溢价| > 2% 不买`（主策略 §8 硬过滤）。")

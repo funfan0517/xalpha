@@ -25,7 +25,7 @@
 5. `close` 创 52 周新高 → 阶梯计数归零；
 6. FOMC 决议日 ±5 个交易日 → 不加仓（输入 `data/_val_inputs.json::fomc_days`，留空即不生效）。
 
-**B 的规则**：直接复用 `../v5_trend_gate/trend_gate.py` 的档位状态机（四象限 {1.0/0.5/0.2}
+**B 的规则**：直接复用 `../_trend_gate.py`（原 v5 状态机，已下沉为 vol_legs 共享模块）的档位状态机（四象限 {1.0/0.5/0.2}
 + 5/20 日阶梯 + 5 日间隔帽），外面套一层**波动目标** `scale = clip(0.10 / 120日已实现波动, 0.2, 1)`，
 只压满带。`GATE_ON=False` 退化为「纯波动层、不做趋势判断」——`research/_vol_overlay.md` 里
 那一档 Calmar 更高（0.37 vs 0.25），所以两条都留着对照。
@@ -55,7 +55,7 @@ except Exception:  # noqa: BLE001
 
 _HERE = os.path.dirname(os.path.abspath(__file__))              # .../vol_legs/v6_gold
 _VL = os.path.dirname(_HERE)                                    # strategies/vol_legs
-_V5 = os.path.join(_VL, "v5_trend_gate")
+_TG = os.path.join(_VL, "_trend_gate.py")        # 原 v5 状态机（共享模块）
 _ROOT = os.path.dirname(os.path.dirname(_VL))                   # 仓库根
 for _p in (_HERE, _VL):
     if _p not in sys.path:
@@ -279,8 +279,8 @@ def state_a(px, **kw):
 
 # ---------------------------------------------------------------- 4. B 控回撤
 def _tg():
-    """按绝对路径载入 v5 的 trend_gate（避免与 tech_indicators/v17 的同名模块撞名）。"""
-    path = os.path.join(_V5, "trend_gate.py")
+    """按绝对路径载入共享的 `_trend_gate`（避免与 tech_indicators/v17 的同名模块撞名）。"""
+    path = _TG
     name = "_v6_gold_trend_gate"
     if name in sys.modules:
         return sys.modules[name]

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """V17 趋势四象限闸门 · 数据装载（家族 54 只场内 ETF 收盘价面板）。
 
-与 v5_trend_gate 的核心差别：**数据源从 vol_legs 的七腿场外复权净值，换成 tech_indicators
+与 vol_legs 趋势四象限闸门（原 v5，现共享 `_trend_gate.py`）的核心差别：**数据源从七腿场外复权净值，换成 tech_indicators
 家族的 54 只场内 ETF 收盘价**。行情来自共享十年库 `data/_long_klines.json`（close），
 标的池唯一入口是 `../_pool.py`（`data/_universe.md` 前四类），与 v9/v10/v16 同池 ——
 **改池子只改 `data/_universe.md`**，这里不放任何硬编码代码。

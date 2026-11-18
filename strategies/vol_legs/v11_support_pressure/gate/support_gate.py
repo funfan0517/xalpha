@@ -22,7 +22,7 @@ v11-gate 回答「这条腿今天该露出多少带」（组合 NAV 口径，报
 两者**共用同一份趋势/支撑/ATR 实现**（直接 import 父目录 `support_pressure.build`），口径不会漂移：
 改趋势或支撑的定义只改父目录，v11-gate 自动跟随。
 
-成本与记账复用 `v5_trend_gate.trend_gate`（`fee_of / portfolio / perf / run_leg`），
+成本与记账复用共享模块 `_trend_gate`（`fee_of / portfolio / perf / run_leg`），
 所以「v11-gate vs V5」的差异**只来自规则**，不来自记账口径。
 C 类腿（023299/011609/012805）的销售服务费仍未计入（与 v1~v9 同一处妥协）。
 
@@ -37,13 +37,13 @@ import pandas as pd
 _HERE = os.path.dirname(os.path.abspath(__file__))   # strategies/vol_legs/v11_support_pressure/gate
 _V11 = os.path.dirname(_HERE)                        # strategies/vol_legs/v11_support_pressure
 _VL = os.path.dirname(_V11)                          # strategies/vol_legs
-for _p in (_HERE, _V11, _VL, os.path.join(_VL, "v5_trend_gate")):
+for _p in (_HERE, _V11, _VL):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 import rule as base            # noqa: E402  波动资产总规则（LEGS / LEG_ORDER / SLEEVE_PP / band）
 import support_pressure as v11  # noqa: E402  趋势 / 摆动点 / ATR 的唯一实现（口径同源）
-import trend_gate as tg        # noqa: E402  成本表 + NAV 记账（v5 的对照口径）
+import _trend_gate as tg       # noqa: E402  成本表 + NAV 记账（共享状态机）
 
 LEGS = base.LEG_ORDER
 SLEEVE_PP = base.SLEEVE_PP

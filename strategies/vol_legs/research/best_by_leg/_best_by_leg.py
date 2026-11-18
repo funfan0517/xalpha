@@ -113,7 +113,7 @@ def mk(leg, vx, label, r, src, *, ann=None, mdd=None, sharpe=None, calmar=None,
        fee="", layer="leg", bench=False, note=""):
     """统一成一行。字段缺失就留 None，表格里显示「—」。
 
-    ⚠ **含费优先**：V1 / V2 / V3 / V5 的产物把零费当主列、含费放 `*_fee`。
+    ⚠ **含费优先**：V1 / V2 / V3 的产物把零费当主列、含费放 `*_fee`。
     只要调用方没显式指定 ann/sharpe/mdd，这里自动取含费字段，
     保证清单里所有行是同一把尺子（否则高换手的 MA20 会被系统性高估）。
     """
@@ -205,18 +205,6 @@ def rows_v4():
                       start=start, end=end, years=years,
                       fee="含费（月末回锚）", layer="股债",
                       note="沪深300 vs 国债的 0/100 摆仓，不是这条腿的择时；不参与选优"))
-    return out
-
-
-def rows_v5():
-    out = []
-    for r in _load_jsonl("v5_trend_gate/backtest/_v5_trend_gate_bt.jsonl"):
-        leg = r.get("leg")
-        if leg not in rule.LEGS or r.get("gate") != "是":
-            continue
-        out.append(mk(leg, "v5", "V5 趋势闸门（含波动层）", r,
-                      "v5_trend_gate/backtest/_v5_trend_gate_bt.jsonl",
-                      fee="含费", note="年线四象限给档位，波动层只压满带"))
     return out
 
 
@@ -317,7 +305,7 @@ def rows_v12():
 
     注意两条口径差：① `z_th`/`rvol` 仍是规格在沪深300 上的标定值（两条 A股腿有按腿的
     `CAP_OPT`/σ 覆盖，其余五腿走规格 `CAP`）；② `expo` 是「平均许可」（带内允许仓位），
-    不是实际成交后的平均仓位 —— 与 v5/v13 的同名列不完全同义，跨行比仓位时注意。
+    不是实际成交后的平均仓位 —— 与 v13 的同名列不完全同义，跨行比仓位时注意。
     """
     out = []
     for r in _load_jsonl("v12_octo_trend/backtest/_v12_octo_trend_bt.jsonl"):
@@ -351,7 +339,7 @@ def rows_bh():
 
 def collect():
     rows = []
-    for fn in (rows_ladder, rows_bh, rows_v5, rows_v6, rows_v12, rows_v13,
+    for fn in (rows_ladder, rows_bh, rows_v6, rows_v12, rows_v13,
                lambda: rows_simple("v1_price_volume/v1_1_ma20/backtest/_v1_1_ma20_bt.jsonl",
                                    "v1", "V1 MA20 穿越（下车）",
                                    "含费（A 类 0.10/0.50 · C 类 0）",
@@ -617,13 +605,13 @@ def render(picked, rows):
     # ---- 口径
     L.append("## 3. 口径与维护")
     L.append("")
-    L.append("1. **价格口径分三组**：V1 / V2 / V3 / V5 / V7~V10 / V12 / V13 / 主策略 = 真实指数"
+    L.append("1. **价格口径分三组**：V1 / V2 / V3 / V7~V10 / V12 / V13 / 主策略 = 真实指数"
              "（六条指数腿走真实指数，黄金走场内 518880）；V4 / V6 = 各自固定口径"
              "（V4 沪深300 指数 × ERP，V6 场内 518880）。"
              "跨口径比较时先看「费率口径」列，别把两组的年化直接相减。")
     L.append("2. **费率一律取含费**：V1 / V2 / V3 的产物把零费当主列（`ann` / `sharpe`）、"
              "含费放在 `ann_fee` / `sharpe_fee`，本清单**取含费**（A 类腿 0.10% 买 + 0.50% 卖）；"
-             "V5 / V6 / V7~V12 / V13 / 主策略的默认口径本身含费；V4 含月末回锚费用。"
+             "V6 / V7~V12 / V13 / 主策略的默认口径本身含费；V4 含月末回锚费用。"
              "差异极大，别忽略：A 类腿一年 12~15 笔、单笔往返 0.6%，一年就吃掉 7~9pp，"
              "能把跑赢买入持有的腿直接打成负的（逐腿「年化拖累」见 v1 报告的「成本」表）。"
              "**但「都含费」≠「费率相同」**：V13 单边 5bp、V7~V10 单边 10bp、A 类往返 60bp、"

@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V5 变种：趋势四象限闸门（年线位置 × 年线 20 日斜率）。
+"""波动资产 · 趋势四象限闸门状态机（年线位置 × 年线 20 日斜率）。
+
+**跨变种共享模块**：原 `v5_trend_gate` 变种（2026-11-18 按用户要求删除）的规则实现，
+现由 v4（带内趋势提前）、v6（B 控回撤的档位状态机）、v11-gate（成本表 + NAV 记账的
+对照基线）复用。改这里等于同时改这三处口径，勿轻动。
 
 来源：用户 2026-11-02 的「趋势判断」说明。核心命题是**趋势判断不是预测**，而是把
 已经发生的价格结构压缩成一个可计算的布尔值；工程上只有两个数：
@@ -52,7 +56,7 @@
 
 观察仓 0.2 与主策略 `rule.OBSERVE_PP`（0.5pp / 2.5pp 带）同比例，减半 1.25pp 与之拉开一档。
 
-## 3.5 读数口径（研究用；默认不动，报告见 `research/_v5_trend_sens.md`）
+## 3.5 读数口径（研究用；默认不动）
 
 `KIND` 决定「趋势读数」是哪条线（`ma` / `donchian` / `dual_ma` / `momentum` / `macd`），
 四象限与档位阶梯不变 —— **换口径只是换温度计，不是换规则**。15 档实测：更灵敏的确认确实存在
@@ -79,7 +83,7 @@
   量级解耦，一套参数套七条腿，不必给每条腿挑绝对数。
 - `"fixed"`：`target = VOL_TARGET`（绝对年化波动），需要逐腿标定，仅作对照保留。
 
-⚠ 三个必须知道的点（`research/_vol_overlay.md` 实测）：
+⚠ 三个必须知道的点（原 v5 变种实测结论）：
 
 1. **`gain=1` 不等于「平均不压」**。`E[ref/vol] ≠ ref/E[vol]`（Jensen），中位参考 + gain=1 时
    平均曝光只有 63%，结构性地常年留 37% 现金。所以默认用**分位参考**（只在尾部压）。
@@ -116,10 +120,10 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_VL = os.path.dirname(_HERE)                        # strategies/vol_legs
-_ROOT = os.path.dirname(os.path.dirname(_VL))       # 仓库根
-for _p in (_HERE, _VL):
+_HERE = os.path.dirname(os.path.abspath(__file__))   # strategies/vol_legs
+_VL = _HERE                                          # 口径名沿用：策略根
+_ROOT = os.path.dirname(_VL)                         # 仓库根
+for _p in (_HERE,):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -127,13 +131,13 @@ import data as vdata    # noqa: E402
 import engine           # noqa: E402
 import rule             # noqa: E402
 
-LABEL = "V5 趋势四象限闸门"
+LABEL = "趋势四象限闸门（MA250+20）"
 
 # ---------------------------------------------------------------- 1. 参数（唯一权威源）
 MA_WIN = 250            # 年线（A 股口径 250，不是美股 200）
 SLOPE_N = 20            # 年线斜率回看交易日数
 
-# 趋势「读数」口径：默认均线法。研究脚本 `research/_sens_trend.py` 会换这几档做灵敏度对比
+# 趋势「读数」口径：默认均线法。研究脚本会换这几档做灵敏度对比
 # （它们全部映射成同一组 (above, up) 两个布尔量，档位阶梯不改）：
 #   ma        价格 vs MA(MA_WIN)
 #   donchian  价格 vs 唐奇安通道中轨 (N 日最高+最低)/2
@@ -158,7 +162,7 @@ ACTION_GAP = 5          # 同一腿两次调仓的最小间隔（频率帽第二
 FULL, HALF, OBSERVE = 1.0, 0.5, 0.2      # 满带 / 半仓 / 观察仓（带的占比）
 LEVEL_TXT = {1.0: "满带", 0.5: "半仓", 0.2: "观察仓", 0.0: "空仓"}    # 档位中文名（图与每日共用）
 
-# ============ 波动层（第三层风险预算，默认开启；实测见 research/_vol_overlay.md） ============
+# ============ 波动层（第三层风险预算，默认开启；实测见原 v5 变种报告） ============
 # 关掉即退化成纯趋势版（v5.0 口径）：`VOL_USE=False`。
 VOL_USE = True
 VOL_APPLY = "full_only"   # "full_only"=只压满带（半仓/观察仓原样，语义最干净）/ "mul"=乘全部档位 / "cap"=min
@@ -213,8 +217,7 @@ QUADS = ("上涨趋势", "反弹", "高位回调", "下跌趋势")
 # 各腿「判趋势用哪种读数」—— 逐腿实测的结论（每日报告的「板块2」直接引用这张表）。
 # 数字都是该腿**自己样本**上的回测：2026-11-03 起默认七腿全套装闸门（GATE_ALL=True），
 # 下表每一行都是该腿当前的真实读数。样本：A500 16.2 年、纳指 13.0 年、标普 13.2 年、黄金 12.0 年、
-# 科创50 4.4 年、恒生科技 4.1 年。研究过程见 research/_a500_trend.md、research/_v5_sens_legs.md
-# 与 research/plot_trend/_v5_trend_*.png（非对称口径图在 research/plot_trend_asym/）。
+# 科创50 4.4 年、恒生科技 4.1 年（逐腿研究随原 v5 变种一并归档，结论保留在本表）。
 # v1.4 新增的沪深300 没有单独立项（它与 A500 的场外序列 2025-03 前完全相同），沿用 A500 的结论。
 TREND_READ = {
     "a500": dict(

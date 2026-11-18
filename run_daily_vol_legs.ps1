@@ -22,8 +22,6 @@
 #          出图失败只告警, 不阻断主流程(保留上次的图)。
 # 已退出默认流程(需要时手动跑):
 #   python strategies\vol_legs\v1_price_volume\v1_1_ma20\daily\_daily_scan.py        # V1(默认) MA20 穿越(真实指数); V1-2 已于 2026-11-10 删除
-#   python strategies\vol_legs\v5_trend_gate\daily\_daily_scan.py    # V5 趋势闸门(2026-11-09 用户要求移出板块2, 不再进看板)
-#   python strategies\vol_legs\v5_trend_gate\research\plot_trend\_plot_trend.py --leg gold  # V5 黄金操作图(同上, 不再上看板)
 #   python strategies\vol_legs\v7_us_gate\daily\_daily_scan.py       # V7 年线闸门(全七腿, 月末)
 #   python strategies\vol_legs\v8_golden_cross\daily\_daily_scan.py  # V8 金叉 50/200(全七腿, 日频)
 # 参数权威源 strategies/vol_legs/rule.py::CFG 与 v3_macd_boll/macd_boll.py; 口径说明 strategies/vol_legs/README.md
@@ -44,7 +42,6 @@ if ($LASTEXITCODE -ne 0) { throw "vol_legs scan failed" }
 # 第 2 步: 变种逐腿/单标的每日产物(v2 BOLL / v3 MACD+BOLL / v4 ERP股债 / v6 黄金三口径 / v9 波动率目标)
 # 复用第 1 步刚刷新的指数库缓存; v4 额外 --refresh 更新自己的 CSI/国债 CSV。
 # 变种单跑失败只告警、不阻断主流程(保留上次产物, 汇总卡照常出)。
-# v5 趋势闸门 2026-11-09 按用户要求移出板块2 -> 已从本脚本移除(见文件头「已退出默认流程」)。
 Write-Host ""
 Write-Host "[2/3] Recomputing variants (v2 BOLL / v3 MACD+BOLL / v4 ERP / v6 gold A-B-C / v9 vol target) ..."
 
@@ -112,7 +109,6 @@ Write-Host "  Report  : strategies\vol_legs\daily\_vol_legs_report.md"
 Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
 Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v6_gold / v9_vol_target / v12_octo_trend  daily\_*_daily.md (+ .json)"
-Write-Host "            (v5_trend_gate 2026-11-09 起移出板块2, 需要时手跑, 见文件头)"
 Write-Host "  Figures : v2\research\_v2_{a500,hs300,kc50}.png · v3\research\_v3_{hkt,kc50}.png ·"
 Write-Host "            v4\backtest\_v4_erp_band_signals.png ·"
 Write-Host "            v6_gold\daily\_v6_gold_{A,B,C}.png · v9\research\_v9_vt_{spx,ndx}.png ·"

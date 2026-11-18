@@ -174,19 +174,15 @@ _TREND_CACHE = {}
 def trend_quad(df, ma_win=None, slope_n=None, leg=None):
     """读 v5 的「MA250+20」四象限，对齐到本策略的交易日 -> (up, dn) 两个布尔序列。
 
-    直接复用 `v5_trend_gate` 的 `load` / `indicators`，**不自己用 `close` 重算** —— 实测
-    用本策略的指数收盘近似，会把 7.5% 的交易日判成不同象限（分红/净值口径差异），那就
-    不是「v5 的趋势」了。
+    直接复用 `_trend_gate`（原 v5 状态机，已下沉为 vol_legs 共享模块）的 `load` / `indicators`，
+    **不自己用 `close` 重算** —— 实测用本策略的指数收盘近似，会把 7.5% 的交易日判成不同象限
+    （分红/净值口径差异），那就不是同一条趋势读数了。
 
     up : 「上涨趋势」象限（close > MA250 且 20 日斜率 > 0）
     dn : 「下跌趋势」象限（close < MA250 且 20 日斜率 < 0）
     中间两态（反弹 / 高位回调）不参与触发。
     """
-    v5_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                          "v5_trend_gate")
-    if v5_dir not in sys.path:
-        sys.path.insert(0, v5_dir)
-    import trend_gate as tg
+    import _trend_gate as tg
 
     w = int(CFG["trend_ma"] if ma_win is None else ma_win)
     n = int(CFG["trend_slope"] if slope_n is None else slope_n)

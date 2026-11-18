@@ -4,7 +4,7 @@
 > v11 回答「这笔交易值不值」（单笔 R 口径，**不报年化/回撤**，见 `../../`（父目录的事件研究））；
 > 本层回答「这条腿今天该露出多少带」（组合 NAV 口径）—— 两者的趋势/支撑/ATR 是**同一份代码**
 > （v11-gate 直接 import v11 的 `build`），口径不会漂移。
-> 成本、滑点、货基利息、NAV 记账全部复用 `v5_trend_gate`（`fee_of / portfolio / run_leg`），
+> 成本、滑点、货基利息、NAV 记账全部复用共享模块 `_trend_gate`（`fee_of / portfolio / run_leg`），
 > 所以「v11-gate vs V5」的差异**只来自规则**。
 
 ## 1. 规则（参数权威源 = `support_gate.py`）

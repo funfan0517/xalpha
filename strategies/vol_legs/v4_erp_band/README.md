@@ -191,7 +191,7 @@ python strategies/vol_legs/v4_erp_band/research/stop_overlay/_stop_overlay.py
   几乎必向下）。14.2 年多触发 **3 次**（2018-05-08 / 2020-02-04 买满、2024-05-24 清仓），
   年化 +0.38pp、回撤不变，在 15 次交易的噪声内。放宽到「只要斜率>0」触发 7 次反而更差（+11.83%）。
   参数 `CFG["trend_intra"]`，口径由 `CFG["trend_ma"]=250` / `trend_slope=20` 定，直接复用
-  `v5_trend_gate` 的 `indicators`（用本策略 `close` 近似会有 **7.5%** 的交易日判成不同象限）。
+  `_trend_gate`（原 v5，已下沉为 vol_legs 共享模块）的 `indicators`（用本策略 `close` 近似会有 **7.5%** 的交易日判成不同象限）。
 - **锚健康度 H 只观测、不交易**：`H = 1 − |z − ERP 1250 日分位|`（分位 0=最贵、1=最便宜），
   背离 `|z − 分位| > 0.4` 判「脱钩」。每日报告 `daily/_v4_erp_band_daily.md` §6 给当前值与
   最近脱钩段，看板卡片也带一行。实测脱钩占 **14.5%** 天数、26 段、中位 **4 个交易日**，

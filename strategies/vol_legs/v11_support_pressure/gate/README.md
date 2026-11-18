@@ -86,7 +86,7 @@ v11_support_pressure/gate/
 ```
 
 依赖方向：`v11-gate → 父目录 v11`（趋势/支撑/ATR 用 `support_pressure.build`，**口径同源**）
-+ `v11-gate → v5_trend_gate`（成本表、`run_leg / portfolio / perf` 记账，**对照公平**）。
++ `v11-gate → _trend_gate`（成本表、`run_leg / portfolio / perf` 记账，**对照公平**）。
 改趋势或支撑的定义只改父目录的 `support_pressure.py`。
 
 > ⚠ 合并时踩到的坑：本层与父层各有一个 `backtest.py`（v11 的 956 行事件研究 / v12 的 NAV 回测），
@@ -142,7 +142,7 @@ python strategies/vol_legs/v11_support_pressure/gate/daily/_daily_scan.py --no-r
 （每条都跌破了各自最近一个确认前低），而纯趋势档里有 1 条是满带 —— 这正是支撑层
 「同时清仓、再同时错过反弹第一段」的形态，也是它在 NAV 口径上比 v11 单笔口径更差的原因。
 
-单腿操作图（版式对齐 v5 的 `_v5_trend_{leg}.png`）：上格 = 净值 + MA200 + 前低支撑阶梯 +
+单腿操作图（沿用家族单腿操作点图的版式）：上格 = 净值 + MA200 + 前低支撑阶梯 +
 四态底色 + ▲▼ 操作点；中格 = 距支撑%（绿带 0~3% = 贴线）；下格 = 带内档位阶梯。
 
 ```powershell

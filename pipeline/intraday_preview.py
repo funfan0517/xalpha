@@ -185,7 +185,8 @@ def preview_tech(rt):
 
 
 # ---------------------------------------------------------------- 板块2 变种
-# v5 趋势闸门 2026-11-09 按用户要求移出板块2（看板不再读它的产物，预演也就不必重算）。
+# 原 v5 趋势闸门已于 2026-11-18 删除（状态机下沉为 strategies/vol_legs/_trend_gate.py）；
+# 看板不再读它的产物，预演也就不必重算。
 _VOL_SCANS = (
     ("v2", "v2_boll_breakout", "boll", "_v2_boll_daily", False),
     ("v3", "v3_macd_boll", "macd_boll", "_v3_macd_boll_daily", True),

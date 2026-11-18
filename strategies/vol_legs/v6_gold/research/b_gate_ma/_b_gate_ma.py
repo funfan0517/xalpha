@@ -451,7 +451,7 @@ def main():
       f"{num(slow['m']['sharpe'])}，减仓侧 {pct(conf_rows[2][1]['m']['ann'])} / "
       f"{pct(conf_rows[2][1]['m']['mdd'])} / 夏普 {num(conf_rows[2][1]['m']['sharpe'])}。"
       "方向是：**减仓要快（趋势坏了先减），恢复要慢（等右侧确认）** —— "
-      "与 `v5_trend_gate` 的 `MODE=\"asym\"`（快线下车、慢线上车）同一个结论；"
+      "与原 v5 的 `MODE=\"asym\"`（快线下车、慢线上车）同一个结论；"
       "而用户的字面口径恰好两头都不带迟滞。")
     A("")
 

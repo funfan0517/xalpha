@@ -1,0 +1,33 @@
+{
+  "strategy": "v14",
+  "name": "v14 中证A500 · V3 MACD+BOLL（当前 ★1）",
+  "status": "研究确认无提升",
+  "leg": "a500",
+  "as_of": "2026-11-17",
+  "generated": "2026-11-18",
+  "rule": {
+    "rule": "V3 MACD+BOLL 开口突破（原生 macd_boll.weight）+ 波动上限 TV20%",
+    "trade_at": "T 日收盘信号 → T+1 收盘成交",
+    "fee_side": 0.001,
+    "cash_annual": 0.014
+  },
+  "current_position": 0.0,
+  "next_target": 0.0,
+  "action": "空仓",
+  "legs": [
+    {
+      "leg": "a500",
+      "name": "v14 中证A500 · V3 MACD+BOLL（当前 ★1）",
+      "code": "023299",
+      "action": "空仓",
+      "state": 0.0,
+      "pending": 0.0,
+      "pos": 0.0,
+      "level_txt": "当前 0% → 目标 0%",
+      "date": "2026-11-17",
+      "close": 4763.67
+    }
+  ],
+  "recent_flow": [],
+  "note": "_beat_best_top3.md：候选 E2 全样本赢、后段输；保持当前 ★1 V3。"
+}

@@ -1,0 +1,33 @@
+{
+  "strategy": "v15",
+  "name": "v15 沪深300 · MIN2 双确认（V2∩V12）",
+  "status": "★ 研究超越项",
+  "leg": "hs300",
+  "as_of": "2026-11-17",
+  "generated": "2026-11-18",
+  "rule": {
+    "rule": "min(V2 BOLL 突破仓位, V12 八态趋势许可上限)——两条都认可才持仓",
+    "trade_at": "T 日收盘信号 → T+1 收盘成交",
+    "fee_side": 0.001,
+    "cash_annual": 0.014
+  },
+  "current_position": 0.0,
+  "next_target": 0.0,
+  "action": "空仓",
+  "legs": [
+    {
+      "leg": "hs300",
+      "name": "v15 沪深300 · MIN2 双确认（V2∩V12）",
+      "code": "000051",
+      "action": "空仓",
+      "state": 0.0,
+      "pending": 0.0,
+      "pos": 0.0,
+      "level_txt": "当前 0% → 目标 0%",
+      "date": "2026-11-17",
+      "close": 3976.46
+    }
+  ],
+  "recent_flow": [],
+  "note": "_beat_best_top3.md：同尺夏普 0.77→0.97、后段 0.27→0.36，毛夏普 0.82→1.05（信号效应）。"
+}

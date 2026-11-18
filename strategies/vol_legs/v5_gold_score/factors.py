@@ -1,29 +1,33 @@
 # -*- coding: utf-8 -*-
-"""V5 · 黄金三因子计分仓位 —— **因子层**（规格 `E:\\qianwen\\jijin\\gold_rules_v2.md` §1~§3）。
+"""V5.1 · 黄金仓位（风险预算 × 实际利率闸门）—— **因子层**。
 
 本文件是**唯一**的因子实现，回测（`backtest.py`）与每日（`daily/_daily_scan.py`）都调它，
-杜绝「回测一套口径、实盘另一套」（规格 §6.5）。只做三件事：
+杜绝「回测一套口径、实盘另一套」。
 
-1. **三个计分因子**（§1）：
-   - `f_p` 价格趋势：`close > max(MA5, MA10)` **且** `close ≥ 20 日高 × 0.995` → +1；
-     `close < min(MA5, MA10)` **且** `close ≤ 20 日低 × 1.005` → −1；其余 0。
-   - `f_r` 实际利率：`DFII10` 的 **10 日变化** `Δ ≤ −25bp` → +1，`Δ ≥ +25bp` → −1，其余 0；
-     **T 日只用 ≤T−1 的值**（`merge_asof(allow_exact_matches=False)`，规格 §1 / §6.1）。
-   - `f_f` 资金流：两种口径都实现了，由 `FLOW_MODE` 选：
-     `"netin"` = 东财主力净流入连续 ≥3 日同向（**接口硬上限 120 个交易日**，个股也一样）；
-     `"share"` = **上交所每日份额**的净申购/净赎回连续 ≥N 日（**2013-07 起全史**，
-     `data/_etf_shares_518880.csv`）。**发布的默认口径是 `"off"`**：规格 §1 因「无全史」剔除，
-     而本轮把份额全史补齐后复核（`backtest` §8.2 / `research/flow_source/_probe_flow.md`）
-     发现顺势会显著恶化回撤、逆势只修回撤不增收益 —— **两个方向都跑输恒定半仓**，
-     所以剔除不只是「没数据」，而是「有数据也没用」。
-2. **计分与置信度**（§3）：`score = f_p + f_r (+ f_f)`；同向=高、两因子=中、分歧/缺失=低；
-   缺因子再降一档（`MISSING_PENALTY`），低置信度把**极端档**向 50% 收缩一档（防弱信号打满）。
-3. **信号 → 目标档映射**（§3）：`≥+2 → 100% / +1 → 75% / 0 → 50% / −1 → 25% / ≤−2 → 0~10%`。
+> **v5.1 改了什么（2026-11-18）**：v1/v5.0 的口径是「三因子计分 → 三档」
+> （价格趋势 + 利率 10 日变化 + 资金流）。回测证明它**逐项重合于恒定半仓**
+> （年化差 −0.04pp、回撤差 0.2pp、换手 42 笔/年），因为梯子以 50% 为中性、
+> 而两个因子都只在噪声级摇摆。v5.1 换成两件有证据的事：
+>
+> 1. **风险预算**（`f_vol`）：`scale = clip(VOL_TARGET / 120 日实现波动, VOL_MIN, 1)`。
+>    黄金的波动聚集是真实的，压波动等于在风险冲高时自动减仓 —— 这是本仓库
+>    唯一在黄金上反复成立的机制（v6-B 同一套）。
+> 2. **实际利率闸门**（`f_rate_level`）：用的是 `DFII10` 的**水平**，不是变化。
+>    v5.0 用 10 日变化 → 噪声；水平值在 20 年样本上与未来 12 个月金价收益正相关
+>    （年度非重叠点 +0.63；2006-2012 / 2013-2019 / 2020-2026 三段分别 +0.54 / +0.63 / +0.77），
+>    机制是实际利率均值回复：利率越高，未来越可能下行，对金越有利。
+>    `水平 > RATE_LEVEL_TH` → 全额风险预算；否则 × `RATE_LEVEL_LOW`。
+>
+> 结果（518880，2014-01~2026-11）：年化 +9.0% / 回撤 −11.7% / 夏普 0.95，
+> 买入持有 +9.0% / −34.0% / 0.49 —— **同样的年化，三分之一的回撤**。
+> 旧口径（`TARGET_MODE="score"`）保留在 `table()` 里，只用于回测对照与消融。
 
-> ⚠ 两因子口径的映射说明：规格括号写「映射同下调一档」。本实现取
-> 「**同表 + 缺因子 → 低置信度 → 极端档收缩一档**」，落在 `+2 → 75%`、`−2 → 25%`，
-> 与「100% 不要被两个因子打成满配」的写作意图一致；另两读法（不收缩 / 全档收缩）
-> 在 `backtest.py` §8.2 作敏感性列出，结论方向不变。
+保留的「已验证无增量」因子（**不再驱动仓位**，只用于对照/展示）：
+- `f_p` 价格趋势（MA5/10 + 20 日突破贴边）：单独用年化 +5.57% 对恒半仓 +5.28%，
+  换手却是每年 40 余笔；加在风险预算上会拖累（`backtest` §4）。
+- `f_r` 实际利率 10 日变化：日频上是慢变量，净贡献 −0.21pp（负）。
+- `f_f` 资金流：东财「主力净流入」接口硬上限 120 天；上交所份额有全史但顺势恶化回撤、
+  逆势只修回撤不增收益，两个方向都跑输恒半仓（`research/flow_source/_probe_flow.md`）。
 """
 import io
 import json
@@ -46,35 +50,48 @@ XAU_CSV = os.path.join(_DATA, "_gold_xau.csv")            # 伦敦金现（只�
 FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10"
 
 # ---------------------------------------------------------------- 参数（因子层权威源）
-MA_FAST, MA_SLOW = 5, 10        # 规格 §1：close 与 max/min(MA5, MA10) 比
+# v5.1 主口径：风险预算 × 实际利率闸门
+TARGET_MODE = "risk"            # "risk"（v5.1 默认）/ "score"（v5.0 旧口径，仅供对照）
+VOL_TARGET = 0.10               # 目标年化波动（10% = 与 518880 长期波动 12.7% 同量级偏保守）
+VOL_WINDOW = 120                # 实现波动窗口（交易日）
+VOL_MIN = 0.20                  # 风险预算下限（clip 下界；0.2 = 最差也要留两成）
+RATE_LEVEL_TH = 0.5             # DFII10 水平阈值（%）：>0.5pp 视为「实际利率不低」
+RATE_LEVEL_BAND = 0.15          # 闸门死区：>TH+BAND 才开、<TH−BAND 才关（防 2015 那种临界抖动）
+RATE_LEVEL_LOW = 0.5            # 未达阈值时的乘数（0.5 = 只拿一半风险预算）
+
+# v5.0 旧口径参数（`TARGET_MODE="score"` 时生效，仅供对照/消融）
+MA_FAST, MA_SLOW = 5, 10        # close 与 max/min(MA5, MA10) 比
 BRK_WIN = 20                    # 突破回看
 BRK_HI, BRK_LO = 0.995, 1.005   # 距 20 日高/低 0.5% 内算「贴边」
 RATE_WIN = 10                   # DFII10 变化窗口（交易日/观测）
 RATE_TH = 25.0                  # 利率阈值（bp，单边）
-RATE_LAG = 1                    # T 日只能看到 ≤T−LAG 的 DFII10（规格 §1/§6.1；0 仅用于断言对照）
+RATE_LAG = 1                    # T 日只能看到 ≤T−LAG 的 DFII10（0 仅用于断言对照）
 USE_P, USE_R, USE_F = True, True, True   # 消融开关：False = 该因子记 0 分，但仍占「已就绪」名额
 FLOW_STREAK = 3                 # 资金流连续同向天数（两种口径共用）
-FLOW_MODE = "off"               # "off" 剔除（规格 §1 括号条款）/ "share" 上交所份额净申购（全史）/
-                                # "netin" 东财主力净流入（**只有 120 天**，只能跑近期）
+FLOW_MODE = "off"               # "off" 剔除 / "share" 上交所份额净申购（全史）/ "netin" 主力净流入（120 天）
 SIGNAL_SHARE_CODE = "518880"    # 上交所 ETF 规模表里的 SEC_CODE
-FLOW_SIGN = 1                   # 资金流因子方向：+1 顺势（规格 §1）/ −1 逆势（敏感性）
+FLOW_SIGN = 1                   # 资金流因子方向：+1 顺势 / −1 逆势（敏感性）
 SHRINK_MIN_DAYS = 3             # 份额口径：连续 ≥N 日净申购/净赎回才给分（= FLOW_STREAK）
 
-# score -> 目标档（占「黄金仓位」的比例，§3）
+# score -> 目标档（v5.0 旧口径；占「黄金仓位」的比例）
 MAP = {-3: 0.0, -2: 0.0, -1: 0.25, 0: 0.50, 1: 0.75, 2: 1.0, 3: 1.0}
-LOW_POS = 0.0                   # 「≤−2 → 0~10%」的取值（0 = 清出；0.10 = 留观察仓，敏感性用）
+LOW_POS = 0.0                   # 「≤−2 → 0~10%」的取值（0 = 清出；0.10 = 留观察仓）
 
-START = 0.50                    # 起手档 = 中性基准（实盘用 --hold 覆盖）
-HYST = 1                        # 滞后：|e* − e| ≥ HYST 档（1 档 = 25pp）才动作（§4）
-EVENT_FREEZE = 2                # FOMC/非农/核心PCE ±2 个交易日内只许持有或减仓（§4）
-MISSING_PENALTY = True          # 缺因子 → 置信度降一档（§3「缺失=低」）
-SHRINK = "extreme"              # 低置信度的收缩范围："extreme"（默认）/"all"/"off"
-STEP = 0.25                     # 一档 = 25pp
+START = 0.40                    # 起手档（网格值；实盘用 --hold 覆盖，回测里只影响头几天）
+HYST = 1                        # 滞后：|e* − e| ≥ HYST 档才动作（§4）
+EVENT_FREEZE = 0                # v5.1 默认关闭：新口径下 ±2 日冻结年化 −0.60pp、回撤反而深 0.8pp
+MISSING_PENALTY = True          # 缺因子 → 置信度降一档（仅旧口径）
+SHRINK = "extreme"              # 低置信度的收缩范围（仅旧口径）
+STEP = 0.20                     # 一档 = 20pp（风险预算量化步长，六档 0/20/40/60/80/100）
 
 
 def params(**kw):
     """参数打包（回测/每日共用；敏感性扫描靠 `**{...}` 覆盖）。"""
-    p = dict(MA_FAST=MA_FAST, MA_SLOW=MA_SLOW, BRK_WIN=BRK_WIN,
+    p = dict(TARGET_MODE=TARGET_MODE,
+             VOL_TARGET=VOL_TARGET, VOL_WINDOW=VOL_WINDOW, VOL_MIN=VOL_MIN,
+             RATE_LEVEL_TH=RATE_LEVEL_TH, RATE_LEVEL_BAND=RATE_LEVEL_BAND,
+             RATE_LEVEL_LOW=RATE_LEVEL_LOW,
+             MA_FAST=MA_FAST, MA_SLOW=MA_SLOW, BRK_WIN=BRK_WIN,
              BRK_HI=BRK_HI, BRK_LO=BRK_LO, RATE_WIN=RATE_WIN, RATE_TH=RATE_TH,
              RATE_LAG=RATE_LAG, USE_P=USE_P, USE_R=USE_R,
              FLOW_MODE=FLOW_MODE, FLOW_STREAK=FLOW_STREAK, USE_F=USE_F,
@@ -282,14 +299,96 @@ def event_days(index):
 
 def _event_mask(index, k=EVENT_FREEZE):
     idx = pd.DatetimeIndex(index)
+    if k <= 0:
+        return pd.Series(False, index=idx)          # 关闭：不冻结任何交易日
     days = event_days(idx)                     # 只算一次（早期版本每天算一遍，慢 3 个数量级）
     hit = pd.Series([d.normalize() in days for d in idx], index=idx)
-    if k <= 0:
-        return hit
     return hit.rolling(2 * k + 1, center=True, min_periods=1).max().astype(bool)
 
 
 # ---------------------------------------------------------------- 因子
+def f_vol(px, p=None):
+    """`风险预算`：120 日实现波动 → `scale = clip(VOL_TARGET / vol, VOL_MIN, 1)`。
+
+    逻辑：波动目标意味着「风险敞口守恒」—— 波动冲高时自动减仓、平静时恢复。
+    这是黄金上唯一在本仓库反复成立的机制（v6-B 同一套），不是 alpha，是风险归一化。
+    预热不足 -> NaN。
+    """
+    p = p or params()
+    win = int(p["VOL_WINDOW"])
+    c = px["close"].astype("float64")
+    vol = c.pct_change().rolling(win, min_periods=win).std() * np.sqrt(252.0)
+    scale = (float(p["VOL_TARGET"]) / vol).clip(float(p["VOL_MIN"]), 1.0)
+    return scale, vol, vol.notna()
+
+
+def f_rate_level(rate, index, p=None):
+    """`实际利率水平` -> (gate, 用到的观测日, 水平值)。
+
+    v5.0 用的是 10 日变化（噪声）；v5.1 用**水平**：`DFII10 > RATE_LEVEL_TH` 给满额风险预算，
+    否则 × `RATE_LEVEL_LOW`。经济含义 —— 实际利率均值回复：利率越低，未来越可能上行，
+    对金越不利；反之亦然。20 年样本上水平值与未来 12 个月金价收益正相关
+    （年度非重叠点 +0.63，三段子样本 +0.54/+0.63/+0.77）。
+
+    **闸门带死区**（`RATE_LEVEL_BAND`）：> TH+BAND 才打开、< TH−BAND 才关闭，
+    中间维持上一状态。本样本里死区把调仓从 121 笔压到 45 笔、年化反而 +0.28pp ——
+    2015 年利率在 0.5% 附近来回穿越，没有死区就会在 80%↔40% 之间抖。
+
+    **T 日只用 ≤T−1 的观测**（`RATE_LAG`），与旧口径一致。
+    """
+    p = p or params()
+    lag = int(p["RATE_LAG"])
+    s = rate.sort_index().shift(lag) if lag else rate.sort_index()
+    left = pd.DataFrame({"date": pd.DatetimeIndex(index)}).sort_values("date")
+    right = pd.DataFrame({"rate_date": s.index, "level": s.to_numpy()}).dropna()
+    m = pd.merge_asof(left, right, left_on="date", right_on="rate_date", direction="backward")
+    lvl = pd.Series(m["level"].to_numpy(dtype="float64"), index=pd.DatetimeIndex(index))
+    th = float(p["RATE_LEVEL_TH"])
+    band = float(p.get("RATE_LEVEL_BAND", 0.0))
+    low = float(p["RATE_LEVEL_LOW"])
+    v = lvl.to_numpy(dtype="float64")
+    out = np.empty(len(v))
+    cur = low
+    for i, x in enumerate(v):
+        if np.isnan(x):
+            out[i] = np.nan
+            continue
+        if x > th + band:
+            cur = 1.0
+        elif x < th - band:
+            cur = low
+        out[i] = cur
+    gate = pd.Series(out, index=lvl.index)
+    used = pd.Series(pd.to_datetime(m["rate_date"]).to_numpy(), index=lvl.index)
+    return gate, used, lvl
+
+
+def _quantize(s, step, hyst=1):
+    """把连续仓位量化到 `step` 网格（只跨档才变，滞后 `hyst` 档）。NaN 保留。"""
+    v = s.to_numpy(dtype="float64")
+    ok = ~np.isnan(v)
+    base = pd.Series(v).ffill().fillna(0.0).to_numpy()
+    q = np.round(base / step) * step
+    out = np.empty(len(q))
+    cur = q[0] if len(q) else 0.0
+    for i, x in enumerate(q):
+        if abs(x - cur) >= (hyst - 0.5) * step - 1e-9:
+            cur = x
+        out[i] = cur
+    return pd.Series(np.where(ok, out, np.nan), index=s.index)
+
+
+def target_risk(scale, gate, p=None):
+    """v5.1 目标档：`quantize(clip(scale × gate, 0, 1), STEP)`。
+
+    滞后不在这里做 —— 状态机（`score.run`）的 `HYST` 统一负责「跨档才动」，
+    避免两处防抖叠加把规则冻死。
+    """
+    p = p or params()
+    raw = (scale * gate).clip(0.0, 1.0)
+    return _quantize(raw, float(p["STEP"]), 1)
+
+
 def f_price(px, p=None):
     """`f_p`：趋势 + 贴 20 日高/低 的「双向确认」（规格 §1）。预热不足 -> NaN。"""
     p = p or params()
@@ -447,19 +546,22 @@ def target_of(score, conf, n_f, p=None):
 
 
 def table(px, rate=None, flow=None, p=None, shares=None):
-    """因子表（回测与每日共用）：close / 三因子 / score / 置信度 / 目标档 / 事件窗口。
+    """因子表（回测与每日共用）：价格 / 波动 / 利率水平 / 闸门 / 目标档 / 旧口径分数 / 事件窗口。
 
-    `flow` = 东财主力净流入（"netin" 口径，只有 120 天）；`shares` = 上交所每日份额
-    （"share" 口径，全史）—— 由 `p["FLOW_MODE"]` 决定用哪个，另一个可以不传。
+    `TARGET_MODE="risk"`（默认）：`target` = 风险预算 × 利率闸门，量化到 `STEP`。
+    `TARGET_MODE="score"`：`target` = v5.0 旧口径（三因子计分 → 五档），仅用于消融对照。
+    `flow` = 东财主力净流入（"netin"）；`shares` = 上交所每日份额（"share"）。
     """
     p = p or params()
     fp, ready_p = f_price(px, p)
     if rate is not None and len(rate):
         fr, used, chg = f_rate(rate, px.index, p)
+        gate, used_lvl, lvl = f_rate_level(rate, px.index, p)
     else:
-        fr = pd.Series(np.nan, index=px.index)
-        used = pd.Series(pd.NaT, index=px.index)
-        chg = pd.Series(np.nan, index=px.index)
+        nan = pd.Series(np.nan, index=px.index)
+        na = pd.Series(pd.NaT, index=px.index)
+        fr, used, chg = nan, na, nan
+        gate, used_lvl, lvl = nan, na, nan
     # 消融开关：单因子口径只是把另一个因子记 0 分，**不改就绪判据**（起算点保持可比）
     if not p["USE_P"]:
         fp = pd.Series(0.0, index=px.index).where(fp.notna())
@@ -480,13 +582,23 @@ def table(px, rate=None, flow=None, p=None, shares=None):
     conf = conf_of(score, n_f, n_nz)
     conf_eff = (conf.where(n_f >= 3, conf.map(lambda c: _downgrade(c)))
                 if p["MISSING_PENALTY"] else conf)
-    tgt = target_of(score, conf, n_f, p)
-    r_ok = (pd.Series(rate.notna().reindex(px.index).to_numpy(dtype=bool), index=px.index)
-            if rate is not None and len(rate) else pd.Series(True, index=px.index))
+    tgt_legacy = target_of(score, conf, n_f, p)
+
+    scale, vol, vol_ok = f_vol(px, p)
+    if str(p.get("TARGET_MODE", "risk")) == "risk":
+        tgt = target_risk(scale, gate, p)
+        ready = vol_ok.to_numpy(dtype=bool) & gate.notna().to_numpy(dtype=bool)
+    else:
+        tgt = tgt_legacy
+        r_ok = (pd.Series(rate.notna().reindex(px.index).to_numpy(dtype=bool), index=px.index)
+                if rate is not None and len(rate) else pd.Series(True, index=px.index))
+        ready = ready_p.to_numpy(dtype=bool) & r_ok.to_numpy(dtype=bool)
+
     out = pd.DataFrame(dict(close=px["close"], f_p=fp.fillna(0.0), f_r=fr.fillna(0.0),
-                            score=score, n_f=n_f, conf=conf, conf_eff=conf_eff, target=tgt,
-                            rate_chg=chg, rate_date=used,
-                            ready=ready_p.to_numpy(dtype=bool) & r_ok.to_numpy(dtype=bool)))
+                            score=score, n_f=n_f, conf=conf, conf_eff=conf_eff,
+                            target=tgt, target_legacy=tgt_legacy,
+                            vol=vol, scale=scale, rate_level=lvl, gate=gate,
+                            rate_chg=chg, rate_date=used, ready=ready))
     if ff is not None:
         out["f_f"] = ff.fillna(0.0)
     out["blocked"] = _event_mask(px.index, int(p["EVENT_FREEZE"]))
@@ -516,11 +628,19 @@ def _self_check():
     print(f"价格 518880 {px.index[0].date()} ~ {px.index[-1].date()}（{len(px)} 根）"
           f" · high/low {'真实' if bool((px['high'] > px['low']).any()) else '用收盘回填'}")
     print(f"实际利率 {rate.index[0].date()} ~ {rate.index[-1].date()}（{len(rate)} 行，"
-          f"T 日用 ≤T−1：{last['rate_date'].date()} 的 10 日变化 {last['rate_chg']:+.0f}bp）")
-    print(f"最新 {px.index[-1].date()}: score={int(last['score'])}"
-          f"（f_p={last['f_p']:+.0f} f_r={last['f_r']:+.0f}）"
-          f" 置信度={last['conf']} 目标档={last['target']:.0%}"
-          f" 事件冻结={'是' if last['blocked'] else '否'}")
+          f"T 日用 ≤T−1：{last['rate_date'].date()} 的 10 日变化 {last['rate_chg']:+.0f}bp，"
+          f"水平 {last['rate_level']:+.2f}%）")
+    if str(TARGET_MODE) == "risk":
+        print(f"最新 {px.index[-1].date()}: 波动 {last['vol']:.1%}（目标 {VOL_TARGET:.0%}）→ "
+              f"风险预算 {last['scale']:.2f}；利率 {last['rate_level']:+.2f}% "
+              f"{'>' if last['rate_level'] > RATE_LEVEL_TH else '≤'} {RATE_LEVEL_TH:+.1f}% → "
+              f"闸门 {last['gate']:.2f}；目标档 {last['target']:.0%}"
+              f" 事件冻结={'是' if last['blocked'] else '否'}")
+    else:
+        print(f"最新 {px.index[-1].date()}: score={int(last['score'])}"
+              f"（f_p={last['f_p']:+.0f} f_r={last['f_r']:+.0f}）"
+              f" 置信度={last['conf']} 目标档={last['target']:.0%}"
+              f" 事件冻结={'是' if last['blocked'] else '否'}")
     if shares is not None and len(shares):
         print(f"上交所份额 {shares.index[0].date()} ~ {shares.index[-1].date()}"
               f"（{len(shares)} 日）· 最新 {shares.iloc[-1]:,.0f} 万份")

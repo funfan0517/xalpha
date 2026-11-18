@@ -67,6 +67,34 @@ Write-Host "  - v9 vol target ..."
 python -W ignore strategies\vol_legs\v9_vol_target\daily\_daily_scan.py --no-refresh
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9_vol_target daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
 
+Write-Host "  - v14 中证A500 单腿 ..."
+python -W ignore strategies\vol_legs\v14_a500_v3\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v14 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
+Write-Host "  - v15 沪深300 单腿 ..."
+python -W ignore strategies\vol_legs\v15_hs300_min2\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v15 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
+Write-Host "  - v16 纳指100 单腿 ..."
+python -W ignore strategies\vol_legs\v16_ndx_v10\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v16 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
+Write-Host "  - v17 标普500 单腿 ..."
+python -W ignore strategies\vol_legs\v17_spx_max2\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v17 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
+Write-Host "  - v18 科创50 单腿 ..."
+python -W ignore strategies\vol_legs\v18_kc50_e2tv\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v18 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
+Write-Host "  - v19 恒生科技 单腿 ..."
+python -W ignore strategies\vol_legs\v19_hkt_v3\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v19 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
+Write-Host "  - v20 黄金 单腿 ..."
+python -W ignore strategies\vol_legs\v20_gold_v6b\daily\_daily_scan.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v20 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+
 Write-Host "  - v12 octo trend (八态) ..."
 # 默认联网: v12 需要**最新成交量**（同源指数量能 + 518880 自身量）, 第 1 步只刷收盘价, 没有量。
 # 网络失败时脚本内部退化为用缓存并在报告里标注, 不会中断。
@@ -75,7 +103,7 @@ if ($LASTEXITCODE -ne 0) { Write-Warning "v12_octo_trend daily scan failed (exit
 
 # 第 3 步: 刷新十二张重点图(只重画, 不重算回测; 失败只告警)
 Write-Host ""
-Write-Host "[3/3] Refreshing 12 key figures (v2 a500/hs300/kc50 · v3 hkt/kc50 · v4 erp signals · v6 gold A/B/C · v9 spx/ndx · v12 hs300) ..."
+Write-Host "[3/3] Refreshing 12 key figures + 14 single-leg figures (v14~v20 long + 3y) ..."
 
 Write-Host "  - v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png / _v2_kc50.png ..."
 python -W ignore strategies\vol_legs\v2_boll_breakout\research\_plot_leg.py --leg a500 --leg hs300 --leg kc50
@@ -98,6 +126,48 @@ Write-Host "  - v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png ..."
 python -W ignore strategies\vol_legs\v9_vol_target\research\_plot_target.py --leg spx --leg ndx
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9 plot_target failed (exit $LASTEXITCODE) - 保留上次的图" }
 
+Write-Host "  - v14 中证A500 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v14_a500_v3\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v14 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v14_a500_v3\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v14 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+Write-Host "  - v15 沪深300 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v15_hs300_min2\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v15 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v15_hs300_min2\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v15 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+Write-Host "  - v16 纳指100 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v16_ndx_v10\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v16 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v16_ndx_v10\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v16 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+Write-Host "  - v17 标普500 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v17_spx_max2\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v17 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v17_spx_max2\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v17 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+Write-Host "  - v18 科创50 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v18_kc50_e2tv\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v18 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v18_kc50_e2tv\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v18 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+Write-Host "  - v19 恒生科技 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v19_hkt_v3\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v19 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v19_hkt_v3\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v19 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+Write-Host "  - v20 黄金 长期图 + 近三年图 ..."
+python -W ignore strategies\vol_legs\v20_gold_v6b\research\_plot_leg.py
+if ($LASTEXITCODE -ne 0) { Write-Warning "v20 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+python -W ignore strategies\vol_legs\v20_gold_v6b\research\_plot_leg.py --years 3
+if ($LASTEXITCODE -ne 0) { Write-Warning "v20 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+
 Write-Host "  - v12_octo_trend\research\_v12_state_hs300.png ..."
 # --leg hs300: 执行范围 2026-11-18 已扩到七腿, 但看板只嵌标定腿这一张; 不传 --leg 会画全部七张(慢且无用)
 python -W ignore strategies\vol_legs\v12_octo_trend\research\_plot_state.py --leg hs300
@@ -109,7 +179,8 @@ Write-Host "  Report  : strategies\vol_legs\daily\_vol_legs_report.md"
 Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
 Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v6_gold / v9_vol_target / v12_octo_trend  daily\_*_daily.md (+ .json)"
-Write-Host "  Figures : v2\research\_v2_{a500,hs300,kc50}.png · v3\research\_v3_{hkt,kc50}.png ·"
+Write-Host "  Figures : v14~v20\research\_v{14..20}_{leg}.png (+ _3y.png) ·"
+Write-Host "            v2\research\_v2_{a500,hs300,kc50}.png · v3\research\_v3_{hkt,kc50}.png ·"
 Write-Host "            v4\backtest\_v4_erp_band_signals.png ·"
 Write-Host "            v6_gold\daily\_v6_gold_{A,B,C}.png · v9\research\_v9_vt_{spx,ndx}.png ·"
 Write-Host "            v12_octo_trend\research\_v12_state_hs300.png"

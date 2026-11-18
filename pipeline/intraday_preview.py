@@ -289,11 +289,25 @@ def preview_vol_variants(rt):
                 "v9_vol_target/daily/_v9_vol_target_daily.md",
                 "v9_vol_target/daily/_v9_vol_target_daily.json",
                 "v12_octo_trend/daily/_v12_daily.md",
-                "v12_octo_trend/daily/_v12_daily.json"):
+                "v12_octo_trend/daily/_v12_daily.json",
+                "v14_a500_v3/daily/_v14_daily.md",
+                "v14_a500_v3/daily/_v14_daily.json",
+                "v15_hs300_min2/daily/_v15_daily.md",
+                "v15_hs300_min2/daily/_v15_daily.json",
+                "v16_ndx_v10/daily/_v16_daily.md",
+                "v16_ndx_v10/daily/_v16_daily.json",
+                "v17_spx_max2/daily/_v17_daily.md",
+                "v17_spx_max2/daily/_v17_daily.json",
+                "v18_kc50_e2tv/daily/_v18_daily.md",
+                "v18_kc50_e2tv/daily/_v18_daily.json",
+                "v19_hkt_v3/daily/_v19_daily.md",
+                "v19_hkt_v3/daily/_v19_daily.json",
+                "v20_gold_v6b/daily/_v20_daily.md",
+                "v20_gold_v6b/daily/_v20_daily.json"):
         src = os.path.join(vl, rel.replace("/", os.sep))
         if os.path.exists(src):
             shutil.copyfile(src, _tpath(f"strategies/vol_legs/{rel}"))
-    _note("v4（月度 ERP）/ v9（美股未开盘）/ v12（硬依赖指数量能）无盘中源，沿用上一次收盘")
+    _note("v4（月度 ERP）/ v9（美股未开盘）/ v12（硬依赖指数量能）/ v14~v20（单腿专用，无独立盘中源）无盘中源，沿用上一次收盘")
 
 
 # ---------------------------------------------------------------- 板块3 风格轮动
@@ -418,7 +432,7 @@ def main():
     for key in ("tech_indicators", "vol_variants", "growth_div_rotation", "gd_v5"):
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
-    for key in ("permanent", "vol_legs", "dividend", "dividend_v9"):
+    for key in ("permanent", "vol_legs", "dividend", "dividend_v9", "bond_cash"):
         if key in entries:
             _mark(entries[key], "🟡", "无盘中数据源（场外净值/月度估值/美股未开盘），沿用上一收盘")
 
@@ -432,11 +446,9 @@ def main():
     # 变种卡口径再补一句：v2/v3/v6 是盘中代理，不是正式口径
     if "vol_variants" in entries:
         entries["vol_variants"]["note"] += (
-            "\n\n> v2/v3 的正式口径是**真实指数**（六腿）、黄金用场内 `518880`：指数没有稳定盘中源，"
-            "预演按跟踪 ETF 的实时涨幅外推末根（563360 / 510300 / 588000 / 513180）。"
-            "v6 三条口径共用 `518880`，末根直接换实时价。"
-            "v4（月度 ERP）、v9（美股夜间才开盘）、v12（硬依赖指数量能，盘中量不完整会判错态）"
-            "无盘中源，沿用上一次收盘。图墙本次不重画。")
+            "\n\n> 本卡 2026-11-18 起只列 v14~v20 七个单标的策略，均无独立盘中源，"
+            "预演沿用上一次收盘的 daily 产物（图墙本次不重画）。"
+            "收盘价一翻结论可能整条变，只用于提前准备，不作为成交依据。")
         entries["vol_variants"]["imgs"] = []
 
     _emit(entries)

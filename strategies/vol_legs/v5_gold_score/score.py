@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-"""V5 · 黄金计分仓位（价格趋势 + 实际利率 → 五档目标仓位）· 核心模块。
+"""V5.1 · 黄金仓位（风险预算 × 实际利率闸门 → 六档目标仓位）· 核心模块。
 
 **定位**：只针对「投给黄金的这笔钱」给操作推荐（买入/卖出/持有 + 目标仓位档 0~100%），
-不涉及总资金占比。规格来源 `E:\\qianwen\\jijin\\gold_rules_v2.md`（简化版 · 编码 + 回测规格）。
-标的与数据：信号价 = 场内 `518880` 黄金ETF（OHLCV，2013-07 起）；实际利率 = FRED `DFII10`
-（2003 起）；资金流 = 东财主力净流入（**只有 120 天** → 按规格 §1 括号条款**剔除计分**）。
+不涉及总资金占比。标的与数据：信号价 = 场内 `518880` 黄金ETF（OHLCV，2013-07 起）；
+实际利率 = FRED `DFII10`（2003 起）。
 
-与同族 `v6_gold/` 的区别：v6 是「黄金这笔钱怎么拿」的三条**无宏观因子**口径
-（保险丝 / 波动目标 / MACD）；本变种是**多因子计分 → 五档仓位**，多了实际利率这一维。
+与同族 `v6_gold/` 的区别：v6 是「黄金这笔钱怎么拿」的三条**纯价格**口径
+（保险丝 / 波动目标 / MACD）；本变种在波动目标之上多了**实际利率水平**这一维，
+闸门不开时只拿一半风险预算。
 
-**规则（规格 §3~§4 逐条）**：见 `factors.py` 顶部；本文件负责状态机与记账：
-1. `state[t]` = t 日收盘成交后的仓位（占黄金仓位的比例）；
-2. T 日收盘算信号 → **T+1 收盘成交**（`state[t+1] = target[t]`）；
-3. 滞后：`|e* − e| ≥ 1 档（25pp）`才动，否则持有（`HYST`）；
-4. 事件冻结：FOMC / 非农 / 核心PCE ±2 个交易日内**只许持有或减仓，不加仓**；
-5. 成本：万 2.5 单边佣金（`FEE`，默认 `SLIP=0`），空仓按货基 `rule.CASH_ANNUAL` 计息。
+**规则（v5.1）**：
+1. `scale = clip(10% / 120 日实现波动, 0.2, 1)` —— 风险预算；
+2. `gate  = 1.0 if DFII10(T−1) > 0.5% else 0.5` —— 实际利率水平闸门；
+3. `e* = 量化(clip(scale × gate, 0, 1), 20%)` —— 六档 0/20/40/60/80/100%；
+4. `state[t]` = t 日收盘成交后的仓位；T 日收盘算信号 → **T+1 收盘成交**；
+5. 滞后：`|e* − e| ≥ 1 档（20pp）`才动；
+6. 成本：万 2.5 单边佣金（`FEE`，默认 `SLIP=0`），空仓按货基 `rule.CASH_ANNUAL` 计息。
 
 模拟结果，非投资建议。
 """
@@ -96,56 +97,70 @@ def load(refresh=False):
 
 
 # ---------------------------------------------------------------- 状态机
-def run(px, rate=None, flow=None, p=None, shares=None):
-    """-> DataFrame(state / action / done / target / score / conf / blocked / ready ...)。
+def run_target(tgt, ready, blocked=None, p=None):
+    """目标档序列 -> (实际仓位, 动作, 成交说明)。回测的状态机唯一实现。
 
-    `state[t]`：t 日收盘成交后的仓位；`action[t]`：t 日盘后给出的**下一交易日**动作
-    （买入/卖出/持有）；`done[t]`：t 日实际成交的说明（来自 t−1 的决策）。
-    `flow` = 东财主力净流入（仅 "netin" 口径用）；`shares` = 上交所每日份额（"share" 口径用）。
+    `state[t]`：t 日收盘成交后的仓位；`action[t]`：t 日盘后给出的**下一交易日**动作；
+    `done[t]`：t 日实际成交的说明（来自 t−1 的决策）。T 决策 → T+1 收盘成交。
     """
     p = p or params()
-    T = F.table(px, rate, flow, p, shares=shares)
-    idx = T.index
-    n = len(T)
-    tgt = T["target"].to_numpy(dtype=float)
-    blk = T["blocked"].to_numpy(dtype=bool)
-    ready = T["ready"].to_numpy(dtype=bool)
+    idx = tgt.index
+    n = len(tgt)
+    t = tgt.to_numpy(dtype=float)
+    rdy = np.asarray(ready, dtype=bool)
+    blk = np.zeros(n, dtype=bool) if blocked is None else np.asarray(blocked, dtype=bool)
     gap_min = float(p["HYST"]) * float(p["STEP"]) - 1e-9
 
     st = np.zeros(n)
     act = np.empty(n, dtype=object)
     act[:] = CN["hold"]
-    done = np.empty(n, dtype=object)
-    done[:] = ""
-    pend, pend_note, pend_dir = None, "", CN["hold"]
+    pend = None
     hold = float(p["START"])
-
-    for t in range(n):
-        if pend is not None:                      # 执行上一交易日的决策（T+1 收盘成交）
+    for i in range(n):
+        if pend is not None:
             hold = float(pend)
-            done[t] = pend_note
-            pend, pend_note, pend_dir = None, "", CN["hold"]
-        st[t] = hold
-        if not ready[t]:
+            pend = None
+        st[i] = hold
+        if not rdy[i]:
             continue
-        want = tgt[t]
+        want = t[i]
         if abs(want - hold) < gap_min:
-            continue                              # 滞后防抖：不足 1 档不动
-        if want > hold and blk[t]:
-            done[t] = done[t] or "事件冻结（FOMC/非农/PCE 窗口）→ 只许持有或减仓"
+            continue
+        if want > hold and blk[i]:
             continue
         pend = want
-        pend_dir = CN["buy"] if want > hold else CN["sell"]
-        act[t] = pend_dir
-        pend_note = (f"score={int(T['score'].iloc[t]):+d}（f_p={int(T['f_p'].iloc[t]):+d} "
-                     f"f_r={int(T['f_r'].iloc[t]):+d}）{T['conf'].iloc[t]}置信度 → "
-                     f"目标 {want:.0%}，{pend_dir}至 {want:.0%}")
+        act[i] = CN["buy"] if want > hold else CN["sell"]
+    return pd.Series(st, index=idx), pd.Series(act, index=idx)
 
+
+def run(px, rate=None, flow=None, p=None, shares=None):
+    """-> DataFrame(state / action / done / target / vol / gate / score ...)。
+
+    `flow` = 东财主力净流入（仅 "netin" 口径用）；`shares` = 上交所每日份额（"share" 口径用）。
+    """
+    p = p or params()
+    T = F.table(px, rate, flow, p, shares=shares)
+    st, act = run_target(T["target"], T["ready"].to_numpy(dtype=bool), T["blocked"], p)
+    mode = str(p.get("TARGET_MODE", "risk"))
+    done = np.empty(len(T), dtype=object)
+    done[:] = ""
+    for i in range(1, len(T)):                    # 成交说明：t−1 的决策写在 t 日
+        if act.iloc[i - 1] != CN["hold"]:
+            done[i] = _note(T, i - 1, act.iloc[i - 1], st.iloc[i], mode)
     out = T.copy()
-    out["state"] = st
-    out["action"] = act
+    out["state"] = st.to_numpy()
+    out["action"] = act.to_numpy()
     out["done"] = done
     return out
+
+
+def _note(T, i, act, new_state, mode="risk"):
+    r = T.iloc[i]
+    if mode == "score":
+        return (f"score={int(r['score']):+d}（f_p={int(r['f_p']):+d} f_r={int(r['f_r']):+d}）"
+                f"{r['conf']}置信度 → 目标 {r['target']:.0%}，{act}至 {new_state:.0%}")
+    return (f"波动 {r['vol']:.1%}→预算 {r['scale']:.2f}；利率 {r['rate_level']:+.2f}%→"
+            f"闸门 {r['gate']:.2f} → 目标 {r['target']:.0%}，{act}至 {new_state:.0%}")
 
 
 def run_leg(state, px, fee=None, slip=None, cash_annual=None):
@@ -238,20 +253,20 @@ def _self_check():
     st = df["state"]
     assert len(st) == len(px), "长度不一致"
     assert float(st.min()) >= -1e-9 and float(st.max()) <= 1.0 + 1e-9, "仓位越界"
-    assert set(np.round(st.unique(), 6)) <= {0.0, 0.25, 0.5, 0.75, 1.0}, st.unique()
+    assert float(((st / F.STEP) - np.round(st / F.STEP)).abs().max()) < 1e-9, st.unique()
     assert set(df["action"].unique()) <= set(CN.values()), df["action"].unique()
-    assert int(df["score"].min()) >= -3 and int(df["score"].max()) <= 3
     last = df.iloc[-1]
     b = bands(st)
     print(f"{SIGNAL_CODE} {px.index[0].date()} ~ {px.index[-1].date()} n={len(px)} · "
           f"起算 {d['start'].date()}")
-    print(f"最新 {df.index[-1].date()}: score={int(last['score']):+d} "
-          f"({last['conf_eff']}置信度) 目标 {last['target']:.0%} 当前 {last['state']:.0%} "
-          f"动作 {last['action']} · 平均仓位 {exposure(st):.0%} · "
-          f"调仓 {b['trades']} 次 / 完整往返 {b['cycles']} 段 / 清仓 {b['full_exits']} 次")
-    print(f"参数：MA{F.MA_FAST}/{F.MA_SLOW} · 突破 {F.BRK_WIN} 日 · 利率 {F.RATE_WIN} 日 "
-          f"±{F.RATE_TH:.0f}bp · 滞后 {F.HYST} 档 · 事件冻结 ±{F.EVENT_FREEZE} 日 · "
-          f"收缩 {F.SHRINK} · 资金流 {F.FLOW_MODE}（份额全史已复核，负贡献 → 剔除）")
+    print(f"最新 {df.index[-1].date()}: 波动 {last['vol']:.1%}→预算 {last['scale']:.2f} · "
+          f"利率 {last['rate_level']:+.2f}%→闸门 {last['gate']:.2f} · "
+          f"目标 {last['target']:.0%} 当前 {last['state']:.0%} 动作 {last['action']} · "
+          f"平均仓位 {exposure(st):.0%} · 调仓 {b['trades']} 次 / 完整往返 {b['cycles']} 段 / "
+          f"清仓 {b['full_exits']} 次")
+    print(f"参数：模式 {F.TARGET_MODE} · 波动目标 {F.VOL_TARGET:.0%}/{F.VOL_WINDOW}日 "
+          f"下限 {F.VOL_MIN:.0%} · 利率闸门 {F.RATE_LEVEL_TH:+.1f}pp 否则×{F.RATE_LEVEL_LOW:g} · "
+          f"步长 {F.STEP:.0%} · 滞后 {F.HYST} 档 · 事件冻结 ±{F.EVENT_FREEZE} 日")
     print(f"成本：单边 {FEE:.5%} + 滑点 {SLIP:.2%} · 现金 {CASH_ANNUAL:.2%} · 带 {BAND_PP:g}pp")
 
 

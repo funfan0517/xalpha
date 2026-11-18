@@ -1,0 +1,52 @@
+{
+  "strategy": "v16",
+  "name": "v16 纳指100 · V10 波动层（当前 ★1）",
+  "status": "研究确认无提升",
+  "leg": "ndx",
+  "as_of": "2026-11-17",
+  "generated": "2026-11-18",
+  "rule": {
+    "rule": "V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）",
+    "trade_at": "T 日收盘信号 → T+1 收盘成交",
+    "fee_side": 0.001,
+    "cash_annual": 0.014
+  },
+  "current_position": 0.2807,
+  "next_target": 0.2807,
+  "action": "买入并持有",
+  "legs": [
+    {
+      "leg": "ndx",
+      "name": "v16 纳指100 · V10 波动层（当前 ★1）",
+      "code": "270042",
+      "action": "买入并持有",
+      "state": 0.2807,
+      "pending": 0.2807,
+      "pos": 0.2807,
+      "level_txt": "当前 28% → 目标 28%",
+      "date": "2026-11-17",
+      "close": 27001.784
+    }
+  ],
+  "recent_flow": [
+    {
+      "date": "2026-10-30",
+      "action": "卖出",
+      "from_pct": 0.6015,
+      "to_pct": 0.4958
+    },
+    {
+      "date": "2026-11-06",
+      "action": "买入",
+      "from_pct": 0.4958,
+      "to_pct": 0.6416
+    },
+    {
+      "date": "2026-11-13",
+      "action": "卖出",
+      "from_pct": 0.6416,
+      "to_pct": 0.2807
+    }
+  ],
+  "note": "_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。"
+}

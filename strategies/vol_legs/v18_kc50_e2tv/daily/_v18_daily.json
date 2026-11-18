@@ -1,0 +1,52 @@
+{
+  "strategy": "v18",
+  "name": "v18 科创50 · E2×TV20 波动上限",
+  "status": "★ 研究超越项",
+  "leg": "kc50",
+  "as_of": "2026-11-17",
+  "generated": "2026-11-18",
+  "rule": {
+    "rule": "(V2 + V12 等权融合) × 波动上限 TV20%（研究同款 cap 层）",
+    "trade_at": "T 日收盘信号 → T+1 收盘成交",
+    "fee_side": 0.001,
+    "cash_annual": 0.014
+  },
+  "current_position": 0.0353,
+  "next_target": 0.0353,
+  "action": "买入并持有",
+  "legs": [
+    {
+      "leg": "kc50",
+      "name": "v18 科创50 · E2×TV20 波动上限",
+      "code": "011609",
+      "action": "买入并持有",
+      "state": 0.0353,
+      "pending": 0.0353,
+      "pos": 0.0353,
+      "level_txt": "当前 4% → 目标 4%",
+      "date": "2026-11-17",
+      "close": 1221.19
+    }
+  ],
+  "recent_flow": [
+    {
+      "date": "2026-10-22",
+      "action": "买入",
+      "from_pct": 0.0568,
+      "to_pct": 0.0654
+    },
+    {
+      "date": "2026-10-29",
+      "action": "卖出",
+      "from_pct": 0.0654,
+      "to_pct": 0.0546
+    },
+    {
+      "date": "2026-11-05",
+      "action": "卖出",
+      "from_pct": 0.0546,
+      "to_pct": 0.0353
+    }
+  ],
+  "note": "_beat_best_top3.md：同尺夏普 0.69→0.83、后段 1.50→1.80，回撤 −18.79%→−10.29%；样本仅 6 年。"
+}

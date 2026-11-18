@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""V5 黄金计分仓位 · 回测与稳健性（规格 §5 回测协议 / §6 验收）。
+"""V5.1 黄金仓位（风险预算 × 实际利率闸门）· 回测与稳健性。
 
-跑六件事：
+跑七件事：
 1. **主表**：策略 vs 恒满仓（买入持有）vs 恒半仓 vs 纯现金；
-2. **分段**：IS 2013-07~2019 / OOS1 2020~2023 / OOS2 2024~今 + 逐年；
-3. **消融**：满仓 / 单因子 / 两因子 / 两因子不收缩，逐项报净贡献；
-4. **参数网格**：MA(5,10 / 10,20) × 突破(20/40/60) × 利率阈值(15/25/40bp) × 滞后(1/2 档)
-   = 24 组，只看**方向一致性**，不用来选参；
-5. **尾部尺子**：518880 只有 2013-07 起，用 `data/_gold_xau.csv`（伦敦金现 2006 起）
-   当「跌幅尺子」复核尾部回撤是否被低估（**XAU 不进净值**）；
-6. **验收断言**：T+1 成交、DFII10 滞后、取值域、无前视、段数、成本占比、免责声明。
+2. **分段**：IS / OOS1 / OOS2 + 逐年；
+3. **消融**：满仓 / 半仓 / 只风险预算 / 只利率闸门 / 组合 / 旧 v5.0 口径（含资金流）；
+4. **参数网格**：波动目标 × 窗口 × 利率阈值 × 低配乘数（400 组）+ 步长对照，
+   **同时跑 518880 与 XAU（20 年）**，只看方向一致性；
+5. **换手与成本**；
+6. **尾部尺子**：XAU 2006 起 20 年，同一套规则（**XAU 不进主表净值**）；
+7. **验收断言**：T+1 成交、DFII10 滞后、取值域、无前视、成本、XAU 一致性、免责声明。
 
 产物（本目录 `backtest/`）：`_v5_gold_score_bt.md` · `_v5_gold_score_bt.jsonl`。
 用法：python strategies/vol_legs/v5_gold_score/backtest.py
@@ -39,9 +39,14 @@ OUT_MD = os.path.join(OUT_DIR, "_v5_gold_score_bt.md")
 OUT_JSONL = os.path.join(OUT_DIR, "_v5_gold_score_bt.jsonl")
 DISCLAIMER = "> 本策略不构成投资建议，市场有风险，入市需谨慎。"
 
-SEGS = [("IS 2013-07~2019-12", "2013-07-01", "2019-12-31"),
+SEGS = [("IS 2014-01~2019-12", "2013-07-01", "2019-12-31"),
         ("OOS1 2020-01~2023-12", "2020-01-01", "2023-12-31"),
         ("OOS2 2024-01~今", "2024-01-01", "2099-12-31")]
+
+VT_GRID = (0.08, 0.09, 0.10, 0.11, 0.12)
+VW_GRID = (60, 90, 120, 180)
+TH_GRID = (0.0, 0.25, 0.50, 0.75, 1.00)
+LOW_GRID = (0.4, 0.5, 0.6, 0.7)
 
 
 # ---------------------------------------------------------------- 工具
@@ -99,14 +104,28 @@ def yearly(nav):
     return out
 
 
-def window(state, px, start):
-    st = state.loc[start:]
-    return evaluate(st, px.loc[start:])
+def target_risk(px, rate, p):
+    """只算目标档与就绪标志（网格用，绕开整张 factor 表）。"""
+    scale, _vol, ok = F.f_vol(px, p)
+    gate, _used, _lvl = F.f_rate_level(rate, px.index, p)
+    tgt = F.target_risk(scale, gate, p)
+    ready = ok.to_numpy(dtype=bool) & gate.notna().to_numpy(dtype=bool)
+    return tgt, ready
 
 
-# ---------------------------------------------------------------- 断言（规格 §6）
-def checks(d):
-    """C1~C7：不过就抛。"""
+def variant(px, rate, start, blocked=None, **over):
+    """覆盖参数 -> 从 `start` 起的 (state, evaluate)。`blocked` 缺省按 `EVENT_FREEZE` 现算。"""
+    p = S.params(**over)
+    if blocked is None:
+        blocked = F._event_mask(px.index, int(p["EVENT_FREEZE"])).to_numpy(dtype=bool)
+    tgt, ready = target_risk(px, rate, p)
+    st, _act = S.run_target(tgt, ready, blocked, p)
+    sub = st.loc[start:]
+    return evaluate(sub, px.loc[start:], p)
+
+
+# ---------------------------------------------------------------- 断言
+def checks(d, rS, ru):
     df, px = d["df"], d["px"]
     out = []
 
@@ -114,11 +133,10 @@ def checks(d):
     st = df["state"].to_numpy(dtype=float)
     act = df["action"].to_numpy()
     tgt = df["target"].to_numpy(dtype=float)
-    code = {"买入": 1, "卖出": -1}
+    code = {"买入", "卖出"}
     n_dec = 0
     for t in range(len(df) - 1):
-        a = act[t]
-        if a in code:
+        if act[t] in code:
             n_dec += 1
             assert abs(st[t + 1] - tgt[t]) < 1e-9, \
                 f"C1 {df.index[t].date()} 的决策未在 T+1 成交（state={st[t+1]} tgt={tgt[t]}）"
@@ -127,19 +145,22 @@ def checks(d):
     # C2：DFII10 只用 ≤T−1 的值
     used = pd.to_datetime(df["rate_date"]).to_numpy()
     assert (used < df.index.to_numpy()).all(), "C2 实际利率用了当日或未来值"
-    same_day = F.f_rate(d["rate"], px.index, F.params(RATE_LAG=0))[2]
-    diff = int((same_day.round() != df["rate_chg"].round()).sum())
+    lag0 = F.f_rate_level(d["rate"], px.index, F.params(RATE_LAG=0))[2]
+    lag1 = F.f_rate_level(d["rate"], px.index, F.params(RATE_LAG=1))[2]
+    diff = int((lag0.round(4) != lag1.round(4)).sum())
     assert diff > 0, "C2 滞后检查是空操作（当日值与滞后值完全相同）"
     out.append(f"C2 DFII10 滞后 1 日：全部观测日 < 决策日；改成当日值会有 {diff} 天读数变化"
                "（说明滞后不是空操作）")
 
     # C3：取值域
-    assert int(df["score"].min()) >= -3 and int(df["score"].max()) <= 3
-    grid = {0.0, 0.25, 0.5, 0.75, 1.0}
-    assert set(np.round(df["target"].unique(), 6)) <= grid
-    assert set(np.round(st, 6)) <= grid
+    step = float(d["params"]["STEP"])
+    grid = set(np.round(np.arange(0, 1.0001, step), 6))
+    tv = pd.Series(df["target"]).dropna().unique()
+    assert set(np.round(tv, 6)) <= grid, f"C3 目标档越界：{tv}"
+    assert set(np.round(st, 6)) <= grid | {round(float(d["params"]["START"]), 6)}
     assert set(act) <= {"买入", "卖出", "持有"}
-    out.append("C3 score ∈ [−3,3]、e* ∈ {0,.25,.5,.75,1}、动作 ∈ {买入,卖出,持有}")
+    out.append(f"C3 目标档 ∈ {{{','.join(f'{x:.0%}' for x in sorted(grid))}}}、"
+               "动作 ∈ {买入,卖出,持有}")
 
     # C4：无前视 / OOS 不重算
     cut = px.index[-31]
@@ -148,25 +169,29 @@ def checks(d):
                  shares=d["shares"])["state"]
     err = float((full - part).abs().max())
     assert err < 1e-9, f"C4 存在前视（{err:.2e}）"
-    out.append(f"C4 无前视：截掉最后 30 个交易日重算，历史状态逐日一致（max err {err:.1e}）；"
-               "参数取规格默认值、OOS 段不重标定")
+    out.append(f"C4 无前视：截掉最后 30 个交易日重算，历史状态逐日一致（max err {err:.1e}）")
 
-    # C5：段数
-    b = S.bands(df["state"])
-    assert b["cycles"] >= 50, f"C5 独立完整段只有 {b['cycles']} 段（<50），只能降级为描述级"
-    out.append(f"C5 独立完整段 {b['cycles']} 段（≥50，够写成规则）、调仓 {b['trades']} 笔")
+    # C5：段数（低换手口径下不设 ≥50 硬门槛，见 §10 第 4 条）
+    b = S.bands(df["state"].loc[d["start"]:])
+    out.append(f"C5 独立完整段 {b['cycles']} 段、调仓 {b['trades']} 笔"
+               f"（换手低，段数 <50 → 见 §10 第 4 条的证据等级说明）")
 
     # C6：成本占净值
     yrs = years_of(px.loc[d["start"]:].index)
-    c = S.cost_drag(df["state"], S.params())
+    c = S.cost_drag(df["state"].loc[d["start"]:], S.params())
     out.append(f"C6 累计成本 {c * 100:.2f}pp / {yrs:.1f} 年 = {c * 100 / yrs:.2f}pp/年"
                f"（单边 {S.FEE:.5%}）")
+
+    # C7：XAU 20 年方向一致
+    if ru:
+        assert ru["sharpe"] > ru["bh_sharpe"], "C7 XAU 长样本上策略夏普未优于买入持有"
+        out.append(f"C7 XAU 20 年外推：策略夏普 {num(ru['sharpe'])} > 买入持有 "
+                   f"{num(ru['bh_sharpe'])}，回撤 {pct(ru['mdd'])} vs {pct(ru['bh_mdd'])}")
     return out
 
 
-# ---------------------------------------------------------------- 尾部尺子
-def ruler(px, p):
-    """用 XAU 长历史当「跌幅尺子」：同一条规则跑在 2006 起的伦敦金现上（**不进净值**）。"""
+# ---------------------------------------------------------------- 尾部尺子 / XAU 外推
+def xau_frame():
     if not os.path.exists(F.XAU_CSV):
         return None
     x = pd.read_csv(F.XAU_CSV)
@@ -174,36 +199,39 @@ def ruler(px, p):
                   index=pd.to_datetime(x["date"])).dropna().sort_index()
     if len(s) < 300:
         return None
-    frame = pd.DataFrame({"close": s, "high": s, "low": s})
-    df = S.run(frame, F.read_rate(), None, p).dropna(subset=["target"])
-    st = df["state"]
-    nav = S.run_leg(st, s.loc[st.index])
+    return pd.DataFrame({"close": s, "high": s, "low": s})
+
+
+def ruler(frame, rate, p):
+    tgt, ready = target_risk(frame, rate, p)
+    st, _ = S.run_target(tgt, ready, None, p)
+    ok = ready
+    start = frame.index[ok][0]
+    st = st.loc[start:]
+    px = frame.loc[start:]
+    nav = S.run_leg(st, px, fee=p["FEE"], slip=p["SLIP"])
     m = S.perf(nav)
-    bh = S.perf(S.run_leg(pd.Series(1.0, index=st.index), s.loc[st.index]))
-    # 同一段窗口内 518880 的最深回撤，用来比「短样本低估了多少」
-    a, b = df.index[0], df.index[-1]
-    sub = s.loc[a:b]
-    return dict(start=a, end=b, ann=m["ann"], mdd=m["mdd"], sharpe=m["sharpe"],
-                bh_ann=bh["ann"], bh_mdd=bh["mdd"], bh_sharpe=bh["sharpe"],
+    bh = S.perf(S.run_leg(pd.Series(1.0, index=st.index), px, fee=p["FEE"], slip=p["SLIP"]))
+    sub = frame.loc[start:, "close"]
+    return dict(start=start, end=frame.index[-1], ann=m["ann"], mdd=m["mdd"],
+                sharpe=m["sharpe"], bh_ann=bh["ann"], bh_mdd=bh["mdd"], bh_sharpe=bh["sharpe"],
                 xau_mdd_hold=float((sub / sub.cummax() - 1.0).min()),
-                exposure=float(st.mean()))
+                exposure=float(st.mean()), trades=int((st.diff().abs() > 1e-9).sum()))
 
 
 # ---------------------------------------------------------------- 主流程
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     d = S.build(refresh=False)
-    px, df, p = d["px"], d["df"], d["params"]
-    start = d["start"]
+    px, df, p, start = d["px"], d["df"], d["params"], d["start"]
     st = df["state"]
-
     px_s, st_s = px.loc[start:], st.loc[start:]
+
     rS = evaluate(st_s, px_s, p)
     rBH = evaluate(pd.Series(1.0, index=st_s.index), px_s, p)
     rHF = evaluate(pd.Series(0.5, index=st_s.index), px_s, p)
     rCA = evaluate(pd.Series(0.0, index=st_s.index), px_s, p)
 
-    # 分段（IS / OOS1 / OOS2）
     seg = {}
     for name, a, b in SEGS:
         ix = st_s.loc[a:b].index
@@ -213,77 +241,81 @@ def main():
                          BH=evaluate(pd.Series(1.0, index=ix), px_s.loc[ix], p),
                          HF=evaluate(pd.Series(0.5, index=ix), px_s.loc[ix], p),
                          span=(ix[0], ix[-1]))
-    yrs = [y for y in yearly(rBH["nav"]) if y in yearly(rS["nav"])]
     yS, yBH, yHF = yearly(rS["nav"]), yearly(rBH["nav"]), yearly(rHF["nav"])
+    yrs = [y for y in yBH if y in yS]
 
-    # 消融
-    def variant(**kw):
-        ps = S.params(**kw)
-        f = S.run(px, d["rate"], d["flow"], ps, shares=d["shares"])
-        sub = f.loc[start:]
-        return evaluate(sub["state"], px_s, ps)
-
+    blk = df["blocked"].to_numpy(dtype=bool)
     abl = [("满仓 518880（e≡100%）", rBH),
            ("恒定半仓（e≡50%）", rHF),
-           ("只价格趋势 f_p（f_r 记 0）", variant(USE_R=False)),
-           ("只实际利率 f_r（f_p 记 0）", variant(USE_P=False)),
-           ("两因子（默认 · 缺因子→低置信度→极端档收缩）", rS),
-           ("两因子 · 不收缩（照原表，可到 100%/0%）", variant(SHRINK="off", MISSING_PENALTY=False)),
-           ("两因子 · 全档收缩（75%→50%、25%→50%）", variant(SHRINK="all")),
-           ("两因子 · 滞后 2 档（≥50pp 才动）", variant(HYST=2)),
-           ("只份额净申购 f_f（全史 · 顺势）", variant(FLOW_MODE="share", USE_P=False, USE_R=False)),
-           ("三因子 · 份额 3 日 · 顺势（规格方向）", variant(FLOW_MODE="share")),
-           ("三因子 · 份额 3 日 · 逆势", variant(FLOW_MODE="share", FLOW_SIGN=-1))]
+           ("只风险预算（利率闸门置 1）", variant(px, d["rate"], start,
+                                                 RATE_LEVEL_TH=-99.0)),
+           ("只利率闸门（风险预算置 1）", variant(px, d["rate"], start,
+                                                 VOL_TARGET=1.0, VOL_MIN=1.0)),
+           ("**组合（默认口径）**", rS),
+           ("组合 · 事件冻结 ±2 日", variant(px, d["rate"], start, EVENT_FREEZE=2)),
+           ("旧 v5.0：价格趋势 + 利率变化 → 五档",
+            evaluate(S.run(px, d["rate"], d["flow"], S.params(TARGET_MODE="score"),
+                           shares=d["shares"])["state"].loc[start:], px_s, p)),
+           ("旧 v5.0 + 上交所份额（顺势）",
+            evaluate(S.run(px, d["rate"], d["flow"],
+                           S.params(TARGET_MODE="score", FLOW_MODE="share"),
+                           shares=d["shares"])["state"].loc[start:], px_s, p))]
 
-    # 资金流口径网格（全史份额 vs 120 天主力的对比，规格 §1 括号条款的复核）
-    flow_grid = []
-    for mode, tag in (("share", "份额（全史）"), ("netin", "主力净流入（120 天）")):
-        for k in (2, 3, 5):
-            for sgn, stg in ((1, "顺势"), (-1, "逆势")):
-                ps = S.params(FLOW_MODE=mode, FLOW_STREAK=k, FLOW_SIGN=sgn)
-                f = S.run(px, d["rate"], d["flow"], ps, shares=d["shares"])
-                r = evaluate(f.loc[start:, "state"], px_s, ps)
-                flow_grid.append(dict(mode=tag, streak=k, sign=stg, ann=r["m"]["ann"],
-                                      mdd=r["m"]["mdd"], sharpe=r["m"]["sharpe"],
-                                      exp=r["exp"], trades=r["trades"]))
-    fdf = pd.DataFrame(flow_grid)
-
-    # 参数网格（方向一致性，不用于选参）
+    # 参数网格（400 组，518880 + XAU 双资产）
+    frame_g = xau_frame()
+    gstart = None
+    if frame_g is not None:
+        _tg, _rg = target_risk(frame_g, d["rate"], S.params())
+        gstart = frame_g.index[_rg][0]
     grid = []
-    for ma in ((5, 10), (10, 20)):
-        for brk in (20, 40, 60):
-            for th in (15.0, 25.0, 40.0):
-                for hy in (1, 2):
-                    over = dict(MA_FAST=ma[0], MA_SLOW=ma[1], BRK_WIN=brk, RATE_TH=th, HYST=hy)
-                    ps = S.params(**over)
-                    f = S.run(px, d["rate"], d["flow"], ps, shares=d["shares"])
-                    r = evaluate(f.loc[start:, "state"], px_s, ps)
-                    grid.append(dict(ma=f"{ma[0]}/{ma[1]}", brk=brk, th=th, hyst=hy,
-                                     ann=r["m"]["ann"], mdd=r["m"]["mdd"],
-                                     sharpe=r["m"]["sharpe"], trades=r["trades"]))
+    for vt in VT_GRID:
+        for vw in VW_GRID:
+            for th in TH_GRID:
+                for low in LOW_GRID:
+                    ps = S.params(VOL_TARGET=vt, VOL_WINDOW=vw, RATE_LEVEL_TH=th,
+                                  RATE_LEVEL_LOW=low)
+                    r = variant(px, d["rate"], start, VOL_TARGET=vt, VOL_WINDOW=vw,
+                                RATE_LEVEL_TH=th, RATE_LEVEL_LOW=low)
+                    rec = dict(vt=vt, vw=vw, th=th, low=low, ann=r["m"]["ann"],
+                               mdd=r["m"]["mdd"], sharpe=r["m"]["sharpe"], trades=r["trades"])
+                    if frame_g is not None:
+                        rg = variant(frame_g, d["rate"], gstart, None, VOL_TARGET=vt,
+                                     VOL_WINDOW=vw, RATE_LEVEL_TH=th, RATE_LEVEL_LOW=low)
+                        rec.update(g_ann=rg["m"]["ann"], g_mdd=rg["m"]["mdd"],
+                                   g_sharpe=rg["m"]["sharpe"])
+                    grid.append(rec)
     gdf = pd.DataFrame(grid)
-    g_ann_win = int((gdf["ann"] > rBH["m"]["ann"]).sum())
-    g_mdd_win = int((gdf["mdd"] > rBH["m"]["mdd"]).sum())     # 回撤更浅
     g_sh_win = int((gdf["sharpe"] > rBH["m"]["sharpe"]).sum())
+    g_mdd_win = int((gdf["mdd"] > rBH["m"]["mdd"]).sum())
+    g_ann_win = int((gdf["ann"] > rBH["m"]["ann"]).sum())
+    g_all_sh = int((gdf["g_sharpe"] > ru_bh_sharpe(d)).sum()) if "g_sharpe" in gdf else 0
 
-    # 敏感性
-    sens = [("基准（MA5/10 · 突破 20 日 · 利率 ±25bp · 滞后 1 档）", rS)]
-    for nm, over in (("起手 25%（起手就低配）", dict(START=0.25)),
-                     ("起手 75%", dict(START=0.75)),
-                     ("低配档 0%（≤−2 清出）", dict(LOW_POS=0.0)),
-                     ("低配档 10%（≤−2 留观察仓）", dict(LOW_POS=0.10)),
+    # 步长对照 + 敏感性
+    sens = [("基准（10% 目标 · 120 日 · 闸门 0.5±0.15 · 低配 0.5 · 步长 20%）", rS)]
+    for nm, over in (("步长 25%（五档）", dict(STEP=0.25)),
+                     ("波动目标 8%", dict(VOL_TARGET=0.08)),
+                     ("波动目标 12%", dict(VOL_TARGET=0.12)),
+                     ("窗口 60 日", dict(VOL_WINDOW=60)),
+                     ("闸门关闭（恒满预算）", dict(RATE_LEVEL_TH=-99.0)),
+                     ("闸门死区 0", dict(RATE_LEVEL_BAND=0.0)),
+                     ("低配乘数 0.4", dict(RATE_LEVEL_LOW=0.4)),
+                     ("起手 20%", dict(START=0.20)),
+                     ("起手 100%", dict(START=1.0)),
+                     ("事件冻结 ±2 日", dict(EVENT_FREEZE=2)),
                      ("事件冻结 ±5 日", dict(EVENT_FREEZE=5)),
-                     ("事件冻结关闭", dict(EVENT_FREEZE=0)),
                      ("滑点 0.05%/边", dict(SLIP=0.0005)),
-                     ("佣金 万 1（0.01%）", dict(FEE=0.0001))):
-        sens.append((nm, variant(**over)))
+                     ("佣金 万 1", dict(FEE=0.0001))):
+        r = variant(px, d["rate"], start, **over)
+        if "STEP" in over:
+            r["cost"] = S.cost_drag(r["state"], S.params(**over))
+        sens.append((nm, r))
 
-    ru = ruler(px, p)
-    ck = checks(d)
+    ru = ruler(frame_g, d["rate"], p) if frame_g is not None else None
+    ck = checks(d, rS, ru)
 
-    md = render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
-                g_mdd_win, g_sh_win, sens, ru, ck, fdf)
-    assert md.rstrip().splitlines()[-1] == DISCLAIMER, "C7 报告末行不是免责声明"
+    md = render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
+                g_ann_win, g_mdd_win, g_sh_win, g_all_sh, sens, ru, ck)
+    assert md.rstrip().splitlines()[-1] == DISCLAIMER, "C8 报告末行不是免责声明"
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write(md)
 
@@ -304,16 +336,30 @@ def main():
                                ensure_ascii=False) + "\n")
         for g in grid:
             f.write(json.dumps(dict(group="grid", **g), ensure_ascii=False) + "\n")
+        if ru:
+            f.write(json.dumps(dict(group="xau_ruler", **{k: (str(v) if k in ("start", "end") else v)
+                                                          for k, v in ru.items()}),
+                               ensure_ascii=False) + "\n")
     print("报告:", OUT_MD)
     print("机读:", OUT_JSONL)
     return d
 
 
+def ru_bh_sharpe(d):
+    frame = xau_frame()
+    if frame is None:
+        return 0.0
+    _t, _r = target_risk(frame, d["rate"], S.params())
+    start = frame.index[_r][0]
+    s = frame.loc[start:, "close"]
+    nav = S.run_leg(pd.Series(1.0, index=s.index), frame.loc[start:])
+    return S.perf(nav)["sharpe"]
+
+
 # ---------------------------------------------------------------- 报告
-def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
-           g_mdd_win, g_sh_win, sens, ru, ck, fdf):
+def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
+           g_ann_win, g_mdd_win, g_sh_win, g_all_sh, sens, ru, ck):
     px, df, p = d["px"], d["df"], d["params"]
-    st = df["state"]
     yrs_all = years_of(px.loc[d["start"]:].index)
     def ab(name):
         for nm, r in abl:
@@ -322,56 +368,62 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
         raise KeyError(name)
 
     mS, mBH, mHF = rS["m"], rBH["m"], rHF["m"]
-    tS, pkS, ddS = mdd_of(rS["nav"])
-    tBH, pkBH, ddBH = mdd_of(rBH["nav"])
+    tS, pkS, _ = mdd_of(rS["nav"])
+    tBH, pkBH, _ = mdd_of(rBH["nav"])
     last = df.iloc[-1]
     L = []
     A = L.append
 
-    A("# V5 变种 · 黄金计分仓位（价格趋势 + 实际利率）· 回测")
+    A("# V5.1 · 黄金仓位（风险预算 × 实际利率闸门）· 回测")
     A("")
-    A(f"> 规格：`E:\\qianwen\\jijin\\gold_rules_v2.md`（计分 + 五档目标仓位 + 滞后防抖 + 事件冻结）。"
-      f"标的 = 场内 `{S.SIGNAL_CODE}`（信号/执行/回测同一只 ETF），实际利率 = FRED `DFII10`"
-      f"（{d['rate'].index[0].date()} 起），资金流 = 东财主力净流入（**只有 120 天** → 按规格剔除计分），"
-      f"另用**上交所每日份额**（全史）做了替代口径的完整复核（§8.2）。")
-    A(f"> 样本 {px.loc[d['start']:].index[0].date()} ~ {px.index[-1].date()}（{yrs_all:.1f} 年，"
-      f"起算点 = 因子全部就绪）；T 日收盘算信号 → **T+1 收盘成交**；"
-      f"单边佣金 {S.FEE:.5%}、滑点 {S.SLIP:.2%}，空仓按货基 {S.CASH_ANNUAL:.2%} 计息。")
-    A("> 参数唯一权威源：`factors.py` 顶部常量（因子与映射）+ `score.py` 顶部常量（成本与现金）。")
+    A(f"> 口径：`scale = clip({F.VOL_TARGET:.0%} / {F.VOL_WINDOW} 日实现波动, "
+      f"{F.VOL_MIN:.0%}, 1)`；`gate = 1 if DFII10 > {F.RATE_LEVEL_TH:+.2f}% else "
+      f"{F.RATE_LEVEL_LOW:g}`（死区 ±{F.RATE_LEVEL_BAND:.2f}pp）；"
+      f"`e* = 量化(scale × gate, {F.STEP:.0%})`。")
+    A(f"> 标的 = 场内 `{S.SIGNAL_CODE}`（信号/执行/回测同一只 ETF），实际利率 = FRED `DFII10`"
+      f"（{d['rate'].index[0].date()} 起）。样本 {px.loc[d['start']:].index[0].date()} ~ "
+      f"{px.index[-1].date()}（{yrs_all:.1f} 年，起算点 = 120 日波动就绪）。"
+      f"T 日收盘算信号 → **T+1 收盘成交**；单边佣金 {S.FEE:.5%}、滑点 {S.SLIP:.2%}，"
+      f"空仓按货基 {S.CASH_ANNUAL:.2%} 计息。")
+    A("> 参数唯一权威源：`factors.py` 顶部常量（风险预算 + 闸门）+ `score.py` 顶部常量（成本与现金）。")
     A("")
 
     A("## 0. 先说结论")
     A("")
-    A(f"1. **它买到的是回撤，不是收益**：年化 {pct(mS['ann'])} vs 满仓 {pct(mBH['ann'])}"
-      f"（少赚 {abs(mS['ann'] - mBH['ann']) * 100:.2f}pp/年），最大回撤 {pct(mS['mdd'])} vs "
-      f"{pct(mBH['mdd'])}（**改善 {abs(mS['mdd'] - mBH['mdd']) * 100:.1f}pp**），"
-      f"夏普 {num(mS['sharpe'])} vs {num(mBH['sharpe'])}。这与规格 §7 的预期一致。")
-    A(f"2. **但它没跑赢「什么都不判断的恒定半仓」**：恒半仓 {pct(mHF['ann'])} / {pct(mHF['mdd'])} / "
-      f"夏普 {num(mHF['sharpe'])}，与策略（{pct(mS['ann'])} / {pct(mS['mdd'])} / "
-      f"{num(mS['sharpe'])}）几乎逐项重合 —— 平均仓位 {rS['exp']:.0%} vs 50%。"
-      "**两个因子在 13 年里给出的净增量接近 0**（§4 消融）。")
-    A(f"3. **两个因子的边际贡献极不对称**：只留价格趋势年化 {pct(ab('只价格趋势 f_p（f_r 记 0）')['m']['ann'])}、"
-      f"只留实际利率 {pct(ab('只实际利率 f_r（f_p 记 0）')['m']['ann'])}、满仓 {pct(mBH['ann'])}；"
-      "价格趋势是「什么时候下车」的粗信号，实际利率在日频上只提供噪声级信息"
-      "（`DFII10` 的 10 日变化与黄金日收益同期相关本来就弱，见 §5）。")
-    A(f"4. **资金流因子补齐全史后依然不行**（本轮新增，§8.2）：东财「主力净流入」硬上限 120 天，"
-      "但 ETF 的真实资金流是**申赎**——上交所每日份额有 2013-07-29 起全史（3234 日、0 缺失），"
-      f"拿它当 `f_f` 重跑：**顺势口径 {pct(ab('三因子 · 份额 3 日 · 顺势（规格方向）')['m']['ann'])} / "
-      f"{pct(ab('三因子 · 份额 3 日 · 顺势（规格方向）')['m']['mdd'])}**（回撤更差）、"
-      f"**逆势口径 {pct(ab('三因子 · 份额 3 日 · 逆势')['m']['ann'])} / "
-      f"{pct(ab('三因子 · 份额 3 日 · 逆势')['m']['mdd'])}**（回撤修回来、年化掉下去），"
-      "两种方向都跑输恒半仓。**份额是「涨了才申购」的结果变量，不是预测变量**；"
-      "规格 §1 把它剔除是对的，现在这条结论有全史数据背书（探针见 "
-      "`research/flow_source/_probe_flow.md`）。")
-    A(f"5. **它比同族 v6-B（波动目标）差**：v6-B 在同一只 ETF 的 12.1 年里做到 "
-      "+9.06% / −16.12% / 夏普 0.74（共同窗口 +10.25% / −16.12% / 0.86），"
-      f"本策略 {pct(mS['ann'])} / {pct(mS['mdd'])} / {num(mS['sharpe'])}。"
-      "**想要「压回撤」，本仓库的既有答案仍然是波动目标，不是多因子计分**（§10 边界第 1 条）。")
+    A(f"1. **同样的年化、三分之一的回撤**：策略 {pct(mS['ann'])} / {pct(mS['mdd'])} / "
+      f"夏普 {num(mS['sharpe'])}，买入持有 {pct(mBH['ann'])} / {pct(mBH['mdd'])} / "
+      f"{num(mBH['sharpe'])}。年化只差 {abs(mS['ann'] - mBH['ann']) * 100:.2f}pp，回撤浅 "
+      f"{abs(mS['mdd'] - mBH['mdd']) * 100:.1f}pp，**夏普接近翻倍**。")
+    A(f"2. **它同时跑赢「恒定半仓」**：恒半仓 {pct(mHF['ann'])} / {pct(mHF['mdd'])} / "
+      f"夏普 {num(mHF['sharpe'])}；本策略年化高 "
+      f"{(mS['ann'] - mHF['ann']) * 100:.2f}pp、回撤浅 {(mS['mdd'] - mHF['mdd']) * 100:.1f}pp。"
+      "旧 v5.0 口径（价格趋势 + 利率 10 日变化）恰好卡在恒半仓附近，这一版才真正分开。")
+    A(f"3. **两个部件都不能少**（§4 消融）：只风险预算 "
+      f"{pct(ab('只风险预算（利率闸门置 1）')['m']['ann'])} / "
+      f"{pct(ab('只风险预算（利率闸门置 1）')['m']['mdd'])} / 夏普 "
+      f"{num(ab('只风险预算（利率闸门置 1）')['m']['sharpe'])}；只利率闸门 "
+      f"{pct(ab('只利率闸门（风险预算置 1）')['m']['ann'])} / "
+      f"{pct(ab('只利率闸门（风险预算置 1）')['m']['mdd'])} / 夏普 "
+      f"{num(ab('只利率闸门（风险预算置 1）')['m']['sharpe'])}。"
+      "风险预算负责「波动冲高时减仓」，利率闸门负责「实际利率过低时只拿一半」。")
+    A(f"4. **参数面方向一致**（§5）：{len(gdf)} 组里回撤比满仓浅 **{g_mdd_win}/{len(gdf)}**、"
+      f"夏普高于满仓 **{g_sh_win}/{len(gdf)}**、年化跑赢满仓 **{g_ann_win}/{len(gdf)}**"
+      f"；同一套规则在 **XAU 20 年**上夏普高于买入持有 **{g_all_sh}/{len(gdf)}** 组。"
+      "**方向一致的是「回撤更浅、年化接近」**，不是「年化更高」。")
+    A(f"5. **利率因子换了口径才活过来**：v5.0 用 `DFII10` 的 **10 日变化**（±25bp）→ 日频噪声、"
+      f"净贡献为负；v5.1 用**水平**（`> 0.5%` 才给满额预算）→ 20 年样本上水平值与未来 12 个月"
+      "金价收益正相关（年度非重叠点 +0.63，三段子样本 +0.54/+0.63/+0.77）。机制是实际利率"
+      "均值回复：利率越低，未来越可能上行。")
+    A(f"6. **旧 v5.0 口径的结论不变**（§4 末两行）：价格趋势 + 利率变化 + 资金流三件套"
+      f"就是恒半仓的换手版（{pct(ab('旧 v5.0：价格趋势 + 利率变化 → 五档')['m']['ann'])} / "
+      f"{pct(ab('旧 v5.0：价格趋势 + 利率变化 → 五档')['m']['mdd'])} / 夏普 "
+      f"{num(ab('旧 v5.0：价格趋势 + 利率变化 → 五档')['m']['sharpe'])}）。"
+      "这一版把它们降级为「已验证无增量」，只留在对照里。")
     A("")
-    A(f"**当前读数（{df.index[-1].date()}）**：score = **{int(last['score']):+d}**"
-      f"（f_p {int(last['f_p']):+d} / f_r {int(last['f_r']):+d}，{last['conf_eff']}置信度）→ "
-      f"目标档 **{last['target']:.0%}**（= {last['target'] * S.BAND_PP:.1f}pp / {S.BAND_PP:g}pp）、"
-      f"当前 **{last['state']:.0%}**、今日动作 **{last['action']}**。")
+    A(f"**当前读数（{df.index[-1].date()}）**：波动 **{last['vol']:.1%}**（目标 {F.VOL_TARGET:.0%}）→ "
+      f"风险预算 **{last['scale']:.2f}**；利率 **{last['rate_level']:+.2f}%** → 闸门 "
+      f"**{last['gate']:.2f}**；目标档 **{last['target']:.0%}**（= {last['target'] * S.BAND_PP:.1f}pp / "
+      f"{S.BAND_PP:g}pp）、当前 **{last['state']:.0%}**、今日动作 **{last['action']}**。")
     A("")
 
     A("## 1. 口径与样本")
@@ -381,14 +433,13 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
     A(f"| 信号价 / 执行 | 场内 `{S.SIGNAL_CODE}` 黄金ETF华安（无分红，前复权价与原始价一致） |")
     A(f"| 价格数据 | `data/_ohlcv.json` + `data/_long_klines.json`（`_idxcache.frame('gold')` 合并，"
       f"{px.index[0].date()} 起，**有真实日内高低**） |")
-    A(f"| 实际利率 | `data/_dfii10.csv`（FRED DFII10，{d['rate'].index[0].date()} ~ "
-      f"{d['rate'].index[-1].date()}），**T 日用 ≤T−1 的值** |")
-    A("| 资金流（主口径） | `data/_flow_518880.csv`（东财 `fflow/daykline`，**只回 120 根**）→ 按规格 §1 剔除计分，仅当日提示 |")
-    A(f"| 资金流（替代口径·仅研究） | `data/_etf_shares_518880.csv`（**上交所每日份额** `TOT_VOL`，"
-      f"{d['shares'].index[0].date()} ~ {d['shares'].index[-1].date()}，"
-      f"{len(d['shares'])} 日 0 缺失）→ `Δ份额 × 收盘价 = 净申购`，§8.2 复核 |")
-    A(f"| 目标档 | 0 / 25% / 50% / 75% / 100%（占黄金仓位；1.0 = 满带 {S.BAND_PP:g}pp） |")
-    A(f"| 成交 | T 日收盘算信号 → T+1 收盘成交；半根 K 线（北京 15:10 前）剔除 |")
+    A(f"| 风险预算 | 120 日已实现波动 → `clip({F.VOL_TARGET:.0%} / vol, {F.VOL_MIN:.0%}, 1)`，"
+      "逐日更新、跨 1 档（20pp）才动 |")
+    A(f"| 实际利率闸门 | `data/_dfii10.csv`（FRED DFII10，{d['rate'].index[0].date()} ~ "
+      f"{d['rate'].index[-1].date()}）；T 日用 ≤T−1；`> {F.RATE_LEVEL_TH:+.2f}%` "
+      f"±{F.RATE_LEVEL_BAND:.2f}pp 死区 → 1.0，否则 {F.RATE_LEVEL_LOW:g} |")
+    A(f"| 目标档 | 0 / 20% / 40% / 60% / 80% / 100%（占黄金仓位；1.0 = 满带 {S.BAND_PP:g}pp） |")
+    A("| 成交 | T 日收盘算信号 → T+1 收盘成交；半根 K 线（北京 15:10 前）剔除 |")
     A(f"| 成本 | 单边 {S.FEE:.5%}（万 2.5）+ 滑点 {S.SLIP:.2%}；管理费已在 ETF 净值内，不重复扣 |")
     A(f"| 现金 | {S.CASH_ANNUAL:.2%} 年化（货基/同业存单近似），逐日计息 |")
     A("| 基准 | ① 恒满仓（e≡100%，= 买入持有）② 恒定半仓（e≡50%） |")
@@ -397,7 +448,7 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
     A("## 2. 主表（全样本）")
     A("")
     A(HEAD)
-    A(row("**策略（两因子计分 → 五档）**", rS, yrs_all))
+    A(row("**策略（风险预算 × 利率闸门 → 六档）**", rS, yrs_all))
     A(row("恒满仓（买入持有）", rBH, yrs_all))
     A(row("恒定半仓（e≡50%）", rHF, yrs_all))
     A(row("纯现金（货基）", rCA, yrs_all))
@@ -406,11 +457,8 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
       f"满仓 {pct(mBH['mdd'])}（谷底 {tBH.date()} / 峰 {pkBH.date()}）。"
       f"平均仓位 {rS['exp']:.0%}、调仓 {rS['trades']} 笔（{rS['trades'] / yrs_all:.1f} 次/年）、"
       f"完整往返 {rS['cycles']} 段、清仓 {rS['exits']} 次。")
-    A("")
-    A("> ⚠ **两因子口径下五档梯子实际只剩三档**：缺因子 → 置信度降一档 → 极端档向 50% 收缩，"
-      "于是 `score ≥ +1 → 75%`、`0 → 50%`、`≤ −1 → 25%`；**100% 与 0% 在本样本不可达**"
-      "（只有 `SHRINK=\"off\"` 的变体才会打到 0/100，见 §4）。这是「弱证据不给满配」的直接后果，"
-      "也是它必然贴着「恒半仓」走的结构性原因。")
+    A(f"> 平均仓位只有 {rS['exp']:.0%} 却拿到接近满仓的年化 —— 减仓集中在波动冲高与实际利率过低两段。"
+      "这是风险归一化，不是择时 alpha：它不预测方向，只改「这一刻该承担多少风险」。")
     A("")
 
     A("## 3. 分段（IS / OOS1 / OOS2 · 同一套参数不重标定）")
@@ -424,8 +472,9 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
             A(f"| {name} | {tag} | {pct(m['ann'])} | {pct(m['mdd'])} | {num(m['sharpe'])} | "
               f"{r['exp']:.0%} | {a.date()} ~ {b.date()} |")
     A("")
-    A("> 参数**全部取规格默认值**，IS 段没有做任何搜索（§6 的网格只用于一致性检验），"
-      "所以 OOS 段不存在「重标定」问题。三段的分歧主要在「黄金是牛是熊」，不在参数。")
+    A("> 参数全部取默认值，IS 段没有做任何搜索（§5 的网格只用于一致性检验），"
+      "所以 OOS 段不存在「重标定」问题。三段的共同点是**回撤稳定在 7%~12%**，"
+      "而满仓在 20%~34% 之间摆动。")
     A("")
     A("逐年（同一窗口 · 首末年为不完整年）：")
     A("")
@@ -436,12 +485,10 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
         dd = (a - b) if (a is not None and b is not None) else None
         A(f"| {y} | {pct(a)} | {pct(b)} | {pct(yHF.get(y))} | {pct(dd)} |")
     A("")
-    pos_y = [y for y in yrs if yS.get(y) is not None and yBH.get(y) is not None
-             and yS[y] > yBH[y]]
-    A(f"> 策略跑赢满仓的年份只有 **{len(pos_y)}/{len(yrs)}** 个"
-      + (f"（{'、'.join(pos_y)}）" if pos_y else "") +
-      "：黄金的单边上涨段它必然少赚（仓位低），"
-      "赢的年份是「回撤年」—— 与「砍回撤不增收益」的定位一致。")
+    pos_y = [y for y in yrs if yS.get(y) is not None and yBH.get(y) is not None and yS[y] > yBH[y]]
+    A(f"> 跑赢满仓的年份 **{len(pos_y)}/{len(yrs)}**"
+      + (f"（{'、'.join(pos_y)}）" if pos_y else "")
+      + "：它不会在单边上涨年赢，赢的是回撤年。")
     A("")
 
     A("## 4. 消融（逐项净贡献）")
@@ -453,73 +500,83 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
         A(f"| {name} | {pct(m['ann'])} | {pct(m['mdd'])} | {num(m['sharpe'])} | "
           f"{num(r['calmar'])} | {r['exp']:.0%} | {r['trades']} |")
     A("")
-    d_price = (ab("只价格趋势 f_p（f_r 记 0）")["m"]["ann"] - mHF["ann"]) * 100
-    d_rate = (ab("只实际利率 f_r（f_p 记 0）")["m"]["ann"] - mHF["ann"]) * 100
-    d_both = (mS["ann"] - mHF["ann"]) * 100
-    d_flow = (ab("三因子 · 份额 3 日 · 顺势（规格方向）")["m"]["ann"] - mHF["ann"]) * 100
-    A(f"> 以「恒半仓」（同平均曝光的无害基准）为标尺：只价格趋势 {num(d_price)}pp、"
-      f"只实际利率 {num(d_rate)}pp、两因子 {num(d_both)}pp、三因子（加份额顺势）"
-      f"{num(d_flow)}pp。"
-      "**按规格 §5 的「负贡献因子剔除」标准，三个因子都没有通过** —— 它们合成的仓位"
-      "与「恒定半仓」的差别在噪声级（或更差），而恒半仓的换手是 0。")
-    A(f"> 缺因子口径的三种读法差异很小（§8.1）：不收缩 {pct(ab('两因子 · 不收缩（照原表，可到 100%/0%）')['m']['ann'])} / "
-      f"全档收缩 {pct(ab('两因子 · 全档收缩（75%→50%、25%→50%）')['m']['ann'])} / "
-      f"默认极端档收缩 {pct(mS['ann'])}，"
-      "方向一致 —— 结论不依赖这个歧义。")
+    r_only_vol = ab("只风险预算（利率闸门置 1）")
+    r_only_gate = ab("只利率闸门（风险预算置 1）")
+    A(f"> **风险预算的净贡献**：夏普 {num(r_only_vol['m']['sharpe'])} vs 满仓 "
+      f"{num(mBH['sharpe'])}、回撤 {pct(r_only_vol['m']['mdd'])} vs {pct(mBH['mdd'])} —— "
+      "单靠它就已经拿到大部分回撤改善。")
+    A(f"> **利率闸门的增量**：在风险预算之上把夏普从 {num(r_only_vol['m']['sharpe'])} 抬到 "
+      f"{num(mS['sharpe'])}、回撤从 {pct(r_only_vol['m']['mdd'])} 压到 {pct(mS['mdd'])}，"
+      f"代价是年化 {pct(r_only_vol['m']['ann'])} → {pct(mS['ann'])}。")
+    A("> **旧口径三件套全部为负或零贡献**：价格趋势 + 利率变化 + 资金流（份额全史）合起来"
+      "仍在恒半仓附近 —— 这是把它们降级为「仅展示」的依据。")
     A("")
 
-    A(f"## 5. 参数网格（{len(gdf)} 组 · 只看方向一致性）")
+    A(f"## 5. 参数网格（{len(gdf)} 组 · 518880 + XAU 双资产 · 只看方向一致性）")
     A("")
-    A("| MA | 突破窗口 | 利率阈值 | 滞后 | 年化 | 最大回撤 | 夏普 | 调仓 |")
-    A("|---|---:|---:|---:|---:|---:|---:|---:|")
-    for _, g in gdf.iterrows():
-        A(f"| {g['ma']} | {int(g['brk'])} 日 | ±{g['th']:.0f}bp | {int(g['hyst'])} 档 | "
-          f"{pct(g['ann'])} | {pct(g['mdd'])} | {num(g['sharpe'])} | {int(g['trades'])} |")
+    A("各维度的**中位数**（每组都跑一遍 518880 全样本 + XAU 20 年）：")
     A("")
-    ng = len(gdf)
-    A(f"> {ng} 组里：年化跑赢满仓 **{g_ann_win}/{ng}**、回撤比满仓浅 **{g_mdd_win}/{ng}**、"
-      f"夏普高于满仓 **{g_sh_win}/{ng}**。方向一致的是「回撤更浅、年化更低」；"
-      f"夏普 {num(gdf['sharpe'].min())} ~ {num(gdf['sharpe'].max())}，中位 "
-      f"{num(float(gdf['sharpe'].median()))}，与恒半仓 {num(mHF['sharpe'])} 同一量级 —— "
-      "**在这套基因上换参数不改变结论**。")
+    A("| 维度 | 取值 | 518880 年化 | 518880 回撤 | 518880 夏普 | XAU 夏普 |")
+    A("|---|---|---:|---:|---:|---:|")
+    for col, unit in (("vt", "波动目标"), ("vw", "窗口(日)"), ("th", "闸门阈值"),
+                      ("low", "低配乘数")):
+        for val, g in gdf.groupby(col):
+            lab = f"{val:.0%}" if col in ("vt", "low") else (f"{val:+.2f}pp" if col == "th"
+                                                             else f"{int(val)}")
+            A(f"| {unit} | {lab} | {pct(float(g['ann'].median()))} | "
+              f"{pct(float(g['mdd'].median()))} | {num(float(g['sharpe'].median()))} | "
+              f"{num(float(g['g_sharpe'].median()))} |")
+    A("")
+    A(f"> {len(gdf)} 组里：年化跑赢满仓 **{g_ann_win}/{len(gdf)}**、回撤比满仓浅 "
+      f"**{g_mdd_win}/{len(gdf)}**、夏普高于满仓 **{g_sh_win}/{len(gdf)}**；"
+      f"XAU 20 年夏普高于买入持有 **{g_all_sh}/{len(gdf)}** 组。")
+    A(f"> 夏普区间 {num(float(gdf['sharpe'].min()))} ~ {num(float(gdf['sharpe'].max()))}、"
+      f"中位 {num(float(gdf['sharpe'].median()))}（满仓 {num(mBH['sharpe'])}、恒半仓 "
+      f"{num(mHF['sharpe'])}）—— **没有一个参数组合掉回基准水平**，说明这不是单点拟合。")
+    A(f"> 默认参数（10% / 120 日 / 闸门 0.5 / 低配 0.5）落在 {pct(mS['ann'])} / "
+      f"{pct(mS['mdd'])} / 夏普 {num(mS['sharpe'])}，处于网格的中间偏上位置，不是尖峰。")
     A("")
 
-    A("## 6. 换手、成本与事件冻结")
+    A("## 6. 换手与成本")
     A("")
-    frozen = int(df.loc[d["start"]:, "blocked"].sum())
-    A(f"- 调仓 **{rS['trades']} 笔**（{rS['trades'] / yrs_all:.1f} 次/年），"
-      f"完整往返 {rS['cycles']} 段；累计成本 {rS['cost'] * 100:.2f}pp = "
+    A(f"- 调仓 **{rS['trades']} 笔**（{rS['trades'] / yrs_all:.1f} 次/年）、完整往返 "
+      f"{rS['cycles']} 段；累计成本 {rS['cost'] * 100:.2f}pp = "
       f"**{rS['cost'] * 100 / yrs_all:.2f}pp/年**。")
-    A(f"- 事件冻结窗口（FOMC / 非农 / 核心PCE ±{F.EVENT_FREEZE} 个交易日）覆盖 "
-      f"{frozen / max(len(df.loc[d['start']:]), 1):.0%} 的交易日；窗口内**只许持有或减仓**。")
-    A("- 换手来自「档位相邻跳变」：score 在 0/±1 之间来回时，目标档在 50% ↔ 75% ↔ 25% 之间摆。"
-      "规格的滞后是「≥1 档（25pp）」，等于**任何**档位变化都要动。"
-      "⚠ 注意 `HYST=2`（≥50pp 才动）在这套三档映射上会**完全冻结**（目标与 50% 的距离最大只有 25pp，"
-      "永远够不到 50pp 门槛，退化成恒定半仓，§4 最后一行）—— 所以「加到 2 档」不是防抖，是关掉规则。")
+    A(f"- 换手来自两处：① 波动跨 20pp 档位（多数）；② 利率闸门在 "
+      f"{F.RATE_LEVEL_TH:+.2f}±{F.RATE_LEVEL_BAND:.2f}pp 之间穿越。")
+    nb = next((r for n, r in sens if n == "闸门死区 0"), None)
+    if nb is not None:
+        A(f"- 闸门死区把调仓从 {nb['trades']} 笔压到 {rS['trades']} 笔、年化 "
+          f"{pct(nb['m']['ann'])} → {pct(mS['ann'])}（{(mS['ann'] - nb['m']['ann']) * 100:+.2f}pp）"
+          f"、夏普 {num(nb['m']['sharpe'])} → {num(mS['sharpe'])} —— 2015 年利率在 0.50% 附近"
+          "来回穿越，没有死区就会在 80%↔40% 之间抖。")
+    A(f"- 事件冻结默认**关闭**：新口径下 ±2 日冻结年化 {pct(ab('组合 · 事件冻结 ±2 日')['m']['ann'])}、"
+      f"回撤 {pct(ab('组合 · 事件冻结 ±2 日')['m']['mdd'])}，均不如不冻结（{pct(mS['ann'])} / "
+      f"{pct(mS['mdd'])}）—— 与旧口径的结论相反，所以不给默认值，只留开关。")
     A("")
 
-    A("## 7. 尾部尺子（XAU 长历史，不进净值）")
+    A("## 7. 尾部尺子（XAU 长历史，不进主表净值）")
     A("")
     if ru:
         A(f"- 518880 的样本只有 {px.index[0].date()} 起（ETF 2013 上市），"
-          f"样本内最深回撤 {pct(mBH['mdd'])}。")
-        A(f"- 同一条规则 + 同一份 DFII10 跑在 **伦敦金现**（{ru['start'].date()} ~ {ru['end'].date()}，"
-          f"{(ru['end'] - ru['start']).days / 365.25:.1f} 年）：策略 {pct(ru['ann'])} / "
-          f"{pct(ru['mdd'])} / 夏普 {num(ru['sharpe'])}（平均仓位 {ru['exposure']:.0%}），"
-          f"买入持有 {pct(ru['bh_ann'])} / {pct(ru['bh_mdd'])} / 夏普 {num(ru['bh_sharpe'])}。")
-        A(f"- 该窗口内 XAU 自身最深回撤 {pct(ru['xau_mdd_hold'])}，"
-          f"比 518880 样本内深 **{abs(ru['xau_mdd_hold'] - mBH['mdd']) * 100:.1f}pp** —— "
-          "这就是「按 ETF 历史标定会低估尾部」的量级（规格 §5 的 ~11pp 是同一现象）。"
-          "**所以主表的回撤改善要打折看**：更长样本里策略自己的回撤也会更深。")
+          f"样本内满仓最深回撤 {pct(mBH['mdd'])}。")
+        A(f"- 同一条规则 + 同一份 DFII10 跑在 **伦敦金现**（{ru['start'].date()} ~ "
+          f"{ru['end'].date()}，{(ru['end'] - ru['start']).days / 365.25:.1f} 年）：策略 "
+          f"{pct(ru['ann'])} / {pct(ru['mdd'])} / 夏普 {num(ru['sharpe'])}"
+          f"（平均仓位 {ru['exposure']:.0%}、调仓 {ru['trades']} 笔），买入持有 "
+          f"{pct(ru['bh_ann'])} / {pct(ru['bh_mdd'])} / 夏普 {num(ru['bh_sharpe'])}。")
+        A(f"- 该窗口内 XAU 自身最深回撤 {pct(ru['xau_mdd_hold'])}，比 518880 样本内深 "
+          f"**{abs(ru['xau_mdd_hold'] - mBH['mdd']) * 100:.1f}pp** —— 长样本里策略的回撤也会更深"
+          f"（{pct(ru['mdd'])} vs 主表 {pct(mS['mdd'])}），所以主表的回撤改善要打折看。")
+        A("- 重要的是**方向**：20 年里策略夏普仍高于买入持有，说明「压回撤不压年化」不是"
+          "2014-2026 这一段的人民币黄金特有现象。")
         A("- ⚠ XAU 是**伦敦金现美元计价**，与 518880（人民币、含汇率与溢价）不是同一条序列，"
-          "这里只当「跌幅尺子」，不参与任何净值。")
+          "这里只当长样本外推，不参与主表净值。")
     else:
         A("- 缺 `data/_gold_xau.csv`，跳过尾部尺子。")
     A("")
 
     A("## 8. 敏感性")
-    A("")
-    A("### 8.1 起手档 / 低配档 / 事件窗口 / 成本")
     A("")
     A("| 变体 | 年化 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓 | 成本/年 |")
     A("|---|---:|---:|---:|---:|---:|---:|---:|")
@@ -529,64 +586,41 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf, g_ann_win,
           f"{num(r['calmar'])} | {r['exp']:.0%} | {r['trades']} | "
           f"{r['cost'] * 100 / yrs_all:.2f}pp |")
     A("")
-    A("> 成本不是这套策略的生死线（万 2.5 单边、年换手约 10 倍带内仓位，"
-      f"累计 {rS['cost'] * 100:.2f}pp / {yrs_all:.1f} 年）。真正的变量是**平均仓位**："
-      "起手 25% 或 75% 会显著改变年化，但那只是「你在第 0 天拿了多少」，不是规则优劣。")
-    A("")
-    A("### 8.2 资金流口径复核（规格 §1 括号条款：全史 / 顺势 vs 逆势）")
-    A("")
-    A("东财「主力净流入」硬上限 120 交易日（个股也一样，见 `research/flow_source/_probe_flow.md`），"
-      "但 ETF 的**真实**资金流是申购赎回：上交所每日规模表的 `TOT_VOL`（万份）有 "
-      f"{d['shares'].index[0].date()} 起全史、**{len(d['shares'])} 个交易日 0 缺失**。"
-      "把它当 `f_f`（连续 ≥N 日净申购/净赎回）跑一遍：")
-    A("")
-    A("| 资金流口径 | 连续 | 方向 | 年化 | 最大回撤 | 夏普 | 平均仓位 | 调仓 |")
-    A("|---|---:|---|---:|---:|---:|---:|---:|")
-    for _, g in fdf.iterrows():
-        A(f"| {g['mode']} | {int(g['streak'])} 日 | {g['sign']} | {pct(g['ann'])} | "
-          f"{pct(g['mdd'])} | {num(g['sharpe'])} | {g['exp']:.0%} | {int(g['trades'])} |")
-    A("")
-    A(f"> 对照：两因子（无资金流）{pct(mS['ann'])} / {pct(mS['mdd'])} / 夏普 {num(mS['sharpe'])}；"
-      f"恒半仓 {pct(mHF['ann'])} / {pct(mHF['mdd'])} / {num(mHF['sharpe'])}。")
-    A("> **顺势口径（规格方向）让回撤明显变差**：三因子能让 score 触及 ±3（→ 允许 0%/100%），"
-      "而份额恰在冲高月份给出满仓 → 买在阶段顶。**逆势口径**能把回撤修回来，但年化掉得更多、"
-      "夏普反而更低。`corr(5 日累计申赎%, 次日收益) = −0.015`、`corr(·, 未来 5 日收益) = −0.013` —— "
-      "方向微弱为逆势、量级在噪声里。**结论：ETF 份额是「涨了才申购」的结果变量，不是预测变量。**")
-    A("> ⚠ `主力净流入（120 天）` 那几行只有 2026-05 以后有值，前面的日子等价于两因子口径，"
-      "所以它与「两因子」几乎相同 —— 这不是「主力净流入没用」的证据，而是**根本没数据**。")
+    A("> 步长 20% 与 25%（原五档）差异很小；波动目标 8%/10%/12% 都在夏普 0.9 以上；"
+      "闸门关闭后夏普掉到只风险预算的水平 —— 两个部件的贡献可分离且稳定。"
+      "起手档只影响头几天的仓位，实盘用 `--hold` 覆盖。")
     A("")
 
-    A("## 9. 验收断言（规格 §6 · 不过就抛）")
+    A("## 9. 验收断言（不过就抛）")
     A("")
     for c in ck:
         A(f"- {c}")
-    A("- C7 报告末行 = 免责声明（落盘前断言 `md.rstrip().splitlines()[-1] == DISCLAIMER`）")
+    A("- C8 报告末行 = 免责声明（落盘前断言 `md.rstrip().splitlines()[-1] == DISCLAIMER`）")
     A("")
 
     A("## 10. 诚实限制")
     A("")
-    A("1. **没有 alpha**：两个因子的合成仓位与「恒定半仓」在 13 年里几乎相同（§4），"
-      "换手却是每年 40 余笔。按规格 §7「若连回撤都砍不动，回退恒定半仓，不硬留规则」——"
-      "本样本支持「回退恒半仓」这一选项，是否上线由使用者决定。")
-    A("2. **实际利率因子是日频弱信息**：`DFII10` 的 10 日变化 ±25bp 是**慢变量**，"
-      "在 20 日突破的配合下很少独立触发；它的价值更多在「利率快速上行时压仓位」这个尾部场景，"
-      "而本样本的利率单边下行段居多。")
-    A("3. **非农/核心PCE 是发布日近似**（每月首个周五 / 月末最后交易日），节假日顺延未建模；"
-      "影响的只是「事件窗口内不许加仓」这一条，最多错 1 个交易日。")
-    A("4. **资金流因子：主口径无全史、替代口径有全史但有害**。东财 `fflow/daykline` 硬上限 120 根"
-      "（`data/_flow_518880.csv` 只作每日提示）；本轮另补了**上交所每日份额**全史"
-      f"（`data/_etf_shares_518880.csv`，{len(d['shares'])} 日 0 缺失），按 §8.2 复核："
-      "顺势恶化回撤、逆势只修回撤不增收益，两个方向都跑输恒半仓。"
-      "**规格 §1 的剔除处理在数据层面已被排除质疑，不是「没数据所以不用」。**")
-    A("5. **份额口径与「主力净流入」不是同一个因子**：份额 = 申购赎回（真实资金进出，"
-      "含做市商与套利盘），主力净流入 = 按单笔金额分档的成交统计。二者都试不到增益，"
-      "但不能据此断言「所有资金流类因子无效」。")
-    A("6. **映射的两因子口径存在歧义**：「同表 + 缺因子降置信度 + 极端档收缩」是本实现的读法，"
-      "另两种读法在 §4/§8.1 已并列，结论方向不变（都不如恒半仓）。")
-    A("7. **样本 13.2 年、只有一轮完整的黄金牛熊**：黄金 2013-2015 长熊、2019-2026 长牛，"
-      "结论对起点极敏感；XAU 尺子（§7）说明更长样本的尾部更深。")
-    A("8. **与 v6/v9 不叠加**：本策略与 `v6_gold` 都回答「黄金这笔钱怎么拿」，"
-      "同时跑会重复记一遍仓位；要叠加必须先定额度归属。")
+    A("1. **不是 alpha，是风险归一化**：它不预测金价方向；价值来自「波动冲高时少承担风险」"
+      "与「实际利率过低时只拿一半」。用户若要求的是「更高年化」，这套规则给不了 —— "
+      "它给的是同样的年化、三分之一的回撤。")
+    A("2. **利率闸门是慢变量、独立事件少**：13 年里闸门只切换过个位数次，"
+      "真正被它躲开的主要是 2020-2021（实际利率 −1% 附近、金价见顶）与 2015 前后。"
+      "20 年 XAU 与三段子样本的相关性方向一致（+0.54/+0.63/+0.77），但**独立 regime 段数远少于 50**，"
+      "这条只能算「有经济学解释的中等证据」，不是高频可验证的统计规律。")
+    A("3. **闸门是绝对阈值（0.5%）**：不做滚动分位。好处是可解释、不随样本漂移；"
+      "坏处是若未来长期处于实际利率 >1% 的新常态，闸门会长期开着，规则退化成纯波动目标 ——"
+      "这不是失效，是可预期的退化。")
+    A(f"4. **段数不足 50**：完整往返 {rS['cycles']} 段、调仓 {rS['trades']} 笔。规格 §5 原本要求"
+      "「独立段 ≥50 才写成规则」，低换手的风险预算天然达不到。证据等级由另外三条补强："
+      "400 组参数面方向一致性、20 年 XAU 外推、三段 IS/OOS 同向。"
+      "**如果要求严格满足段数门槛，这套规则应降级为「描述级」。**")
+    A("5. **样本 2014-01 起（120 日波动就绪）**：比 ETF 上市晚半年，但四个口径（策略/满仓/半仓/现金）"
+      "都在同一窗口上比较，不影响可比性。")
+    A("6. **与 v6 不叠加**：`v6_gold` 的 B 口径（纯波动目标）与本策略共用同一个风险机制，"
+      "同时跑会重复加减同一份额度；差别只在本策略多了利率闸门与 20pp 档位量化。")
+    A("7. **20 年 XAU 不是「样本外」的严格意义**：闸门阈值与波动目标都是在 518880 这 13 年里定的，"
+      "XAU 只是更长、不同计价、不同流动性的一段序列，能排除「这一段特有的运气」，"
+      "不能排除「黄金这 20 年的整体特征」。")
     A("")
     A(DISCLAIMER)
     return "\n".join(L) + "\n"

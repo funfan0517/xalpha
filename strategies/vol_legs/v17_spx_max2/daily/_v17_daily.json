@@ -1,0 +1,40 @@
+{
+  "strategy": "v17",
+  "name": "v17 标普500 · MAX2 任一在场（V12∪V13）",
+  "status": "★ 研究超越项",
+  "leg": "spx",
+  "as_of": "2026-11-17",
+  "generated": "2026-11-18",
+  "rule": {
+    "rule": "max(V12 八态趋势许可上限, V13 九宫格许可上限)——任一认可即持仓",
+    "trade_at": "T 日收盘信号 → T+1 收盘成交",
+    "fee_side": 0.001,
+    "cash_annual": 0.014
+  },
+  "current_position": 0.5,
+  "next_target": 0.5,
+  "action": "买入并持有",
+  "legs": [
+    {
+      "leg": "spx",
+      "name": "v17 标普500 · MAX2 任一在场（V12∪V13）",
+      "code": "017641",
+      "action": "买入并持有",
+      "state": 0.5,
+      "pending": 0.5,
+      "pos": 0.5,
+      "level_txt": "当前 50% → 目标 50%",
+      "date": "2026-11-17",
+      "close": 7340.53
+    }
+  ],
+  "recent_flow": [
+    {
+      "date": "2026-11-12",
+      "action": "卖出",
+      "from_pct": 1.0,
+      "to_pct": 0.5
+    }
+  ],
+  "note": "_beat_best_top3.md：同尺夏普 0.53→0.62、后段 0.71→0.75；毛夏普持平，增益来自换手下降。"
+}

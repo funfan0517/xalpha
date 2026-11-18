@@ -1,0 +1,127 @@
+{
+  "strategy": "稳健资产 · 债 + 现金",
+  "as_of": "2026-11-17",
+  "source": "data/_universe.md 第六类(6xx) + 第七类(7xx)",
+  "items": [
+    {
+      "num": 601,
+      "code": "012265",
+      "name": "天弘安怡30天滚动短债C",
+      "theme": "短债",
+      "role": "spare",
+      "index": "CBA00211.CS"
+    },
+    {
+      "num": 602,
+      "code": "002864",
+      "name": "广发安泽短债A",
+      "theme": "短债(长样本)",
+      "role": "spare",
+      "index": "CBA00211.CS"
+    },
+    {
+      "num": 603,
+      "code": "005623",
+      "name": "广发中债1-3年农发债A",
+      "theme": "利率 1-3 年",
+      "role": "spare",
+      "index": "CBA07003.CS"
+    },
+    {
+      "num": 604,
+      "code": "001512",
+      "name": "易方达中债3-5年国债",
+      "theme": "指数债(国债)",
+      "role": "spare",
+      "index": "CBA00633.CS"
+    },
+    {
+      "num": 605,
+      "code": "011983",
+      "name": "永赢中债3-5年政金债A",
+      "theme": "利率 3-5 年(政金)",
+      "role": "base",
+      "index": "CBA09303.CS"
+    },
+    {
+      "num": 606,
+      "code": "003376",
+      "name": "广发中债7-10年国开债A",
+      "theme": "长端利率(10Y)",
+      "role": "core_on",
+      "index": "CBA05201.CS"
+    },
+    {
+      "num": 607,
+      "code": "511090",
+      "name": "30年国债ETF鹏扬",
+      "theme": "超长 10 年以上",
+      "role": "satellite",
+      "index": "CBA21801.CS"
+    },
+    {
+      "num": 608,
+      "code": "000032",
+      "name": "易方达信用债A",
+      "theme": "信用纯债",
+      "role": "spare",
+      "index": "—(主动·信用纯债)"
+    },
+    {
+      "num": 609,
+      "code": "006884",
+      "name": "汇添富AAA信用纯债A",
+      "theme": "信用纯债 0-3 年",
+      "role": "spare",
+      "index": "CBA13701.CS"
+    },
+    {
+      "num": 610,
+      "code": "006331",
+      "name": "中银国有企业债C",
+      "theme": "国企债(含权)",
+      "role": "excluded",
+      "index": "—(基准 CBA01903.CS)"
+    },
+    {
+      "num": 611,
+      "code": "100050",
+      "name": "富国全球债券(QDII)A",
+      "theme": "全球债(QDII)",
+      "role": "satellite",
+      "index": "—(基准 IN0081)"
+    },
+    {
+      "num": 701,
+      "code": "000198",
+      "name": "天弘余额宝",
+      "theme": "货币",
+      "role": "cash",
+      "index": "—(基准 RA0007.IR)"
+    },
+    {
+      "num": 702,
+      "code": "014437",
+      "name": "鹏华同业存单AAA 7天持有",
+      "theme": "同业存单",
+      "role": "cash",
+      "index": "931059.CSI"
+    },
+    {
+      "num": 703,
+      "code": "000128",
+      "name": "大成景安短融A",
+      "theme": "短融/超短",
+      "role": "spare",
+      "index": "H11014.CSI"
+    },
+    {
+      "num": 704,
+      "code": "015863",
+      "name": "华泰柏瑞同业存单AAA 7天持有",
+      "theme": "同业存单(替补)",
+      "role": "spare",
+      "index": "931059.CSI"
+    }
+  ]
+}

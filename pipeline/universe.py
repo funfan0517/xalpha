@@ -19,7 +19,7 @@ import re
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UNIVERSE = os.path.join(_ROOT, "data", "_universe.md")
 
-# 六类 -> 报告/扫描用的分类标签
+# 七类 -> 报告/扫描用的分类标签
 LABEL = [
     (("宽基",), "宽基/另类"),
     (("全球", "QDII", "跨境"), "全球/QDII"),
@@ -27,6 +27,7 @@ LABEL = [
     (("策略", "商品", "因子"), "策略/商品"),
     (("主动", "量化"), "主动/量化"),
     (("债券",), "债券"),
+    (("现金",), "现金管理"),
 ]
 _HEAD = re.compile(r"^#+\s*(.+)$")
 _ROW = re.compile(r"^\|\s*\d+\s*\|")
@@ -93,8 +94,10 @@ def inner_rows(rows=None):
 
 
 # 2026-10-28：技术指标家族（strategies/tech_indicators 的 v1~v15）只在前四类里回测/扫描。
-#   第五类「主动/量化」没有场内代理（0 只），第六类「债券」风险属性与权益择时不同源（1 只 511260），
-#   两类都不参与技术指标择时。
+#   第五类「主动/量化」没有场内代理（0 只），第六类「债券」与第七类「现金管理」的风险属性与
+#   权益择时不同源（债 / 货基 ETF 的波动来自久期与资金面，不是股性），三类都不参与技术指标择时。
+#   注意：这里是 inner_rows 的**过滤口径**，不是 md 里的全部场内代码 —— 6xx/7xx 的 ETF
+#   （511260 / 511010 / 511580 / 511090 / 511220 / 511990 / 511360）在池内但不在扫描池。
 INNER_CATS = (1, 2, 3, 4)
 
 
@@ -110,7 +113,8 @@ def inner_codes_cats(prefixes=INNER_CATS, rows=None):
 
 
 def offshore_codes(rows=None):
-    return [r["off_code"] for r in (rows or parse())]
+    """可申赎的场外代码（跳过 `#608` / `#703` 这类只有场内壳、场外列留空的行）。"""
+    return [r["off_code"] for r in (rows or parse()) if r["off_code"]]
 
 
 def inner_codes(rows=None):
@@ -157,7 +161,8 @@ def _main():
     rows = parse()
     inn = inner_rows(rows)
     print(f"_universe.md 唯一池: {UNIVERSE}")
-    print(f"总行数 {len(rows)} (offshore {len(offshore_codes(rows))})")
+    print(f"总行数 {len(rows)} (场外可申赎 {len(offshore_codes(rows))} / 仅场内壳 "
+          f"{len(rows) - len(offshore_codes(rows))})")
     print(f"场内内池 {len(inn)} 只: {' '.join(r['code'] for r in inn)}")
     mis = proxy_mismatch(rows)
     print(f"场内外跟踪指数不同源 {len(mis)} 行:")

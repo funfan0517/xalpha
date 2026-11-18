@@ -1,0 +1,45 @@
+{
+ "date": "2026-11-17",
+ "as_of": "2026-11-17",
+ "code": "518880",
+ "price": 7.9,
+ "band_pp": 10.0,
+ "target_pp": 2.5,
+ "state_pp": 2.5,
+ "score": -1,
+ "f_p": 0,
+ "f_r": -1,
+ "f_f": null,
+ "conf": "低",
+ "n_factors": 2,
+ "rate_chg_bp": 32.0,
+ "rate_asof": "2026-11-16",
+ "target": 0.25,
+ "state": 0.25,
+ "action": "持有",
+ "dir": "",
+ "cond": "价格趋势不满足双向确认；DFII10 10 日变化 +32bp（利空）",
+ "blocked": false,
+ "hold_override": null,
+ "params": {
+  "ma": [
+   5,
+   10
+  ],
+  "brk": 20,
+  "rate_win": 10,
+  "rate_th": 25.0,
+  "hyst": 1,
+  "shrink": "extreme",
+  "fee": 0.00025,
+  "slip": 0.0,
+  "cash": 0.014
+ },
+ "acts": [
+  "2026-11-02 减仓 50%→25%",
+  "2026-11-12 加仓 25%→50%",
+  "2026-11-16 减仓 50%→25%"
+ ],
+ "hints": null,
+ "hint_conflict": false
+}

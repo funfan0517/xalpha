@@ -87,6 +87,10 @@ _lk = json.load(open("data/_long_klines.json", encoding="utf-8"))        # 收�
 | `_div_yield_m.csv` | `date, index_code, dy, method, src_index` | 2015-01-31 起，994 行 | 2026-10-31 | 外部 |
 | `_a500_pe_hist.csv` | `date, close, peg` | 2024-09-23 起，504 行 | 2026-10-26 | 外部（A500 指数 2024 才发布） |
 | `_ndx_fwd_pe_hist.csv` | `date, value, kind` | 2001-04-27 起，1291 行 | 2026-10-23（较旧） | 外部 |
+| `_dfii10.csv` | `date, value`（**美国 10 年期 TIPS 实际收益率 %，日频**） | 2003-01-02 起，5972 行 | 2026-11-16 | FRED `DFII10`，由 `strategies/vol_legs/v5_gold_score/factors.py --refresh-rate` 维护 |
+| `_flow_518880.csv` | `date, main_net`（518880 主力净流入，元） | **只有 120 根**（2026-05-25 起） | 2026-11-17 | 东财 `fflow/daykline`，`factors.py --refresh-flow`；**接口硬上限 120 日（个股同）**，不作计分因子 |
+| `_etf_shares_518880.csv` | `date, tot_vol_wan`（**上交所 518880 每日基金份额，万份** → 净申购 = Δ份额×收盘） | **2013-07-29 起全史，3234 日 0 缺失** | 2026-11-17 | 上交所 `commonQuery.do`（`STAT_DATE` 逐日），`factors.py --refresh-shares`（增量 1 请求/天、断点续传） |
+| `_gold_xau.csv` | `date, gold`（伦敦金现，美元） | 2006-11-07 起，5186 行 | 2026-11-06 | 外部/手动；只当「跌幅尺子」，不进任何净值 |
 
 ## 4. 其他
 

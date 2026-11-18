@@ -274,7 +274,7 @@ strategies/vol_legs/
 ├── v1_price_volume/            # **V1**（2026-11-07 由 v1_ma20 改组; 2026-11-10 删掉量价子策略 V1-2）:
 │   └── v1_1_ma20/             #   **V1 的默认（唯一）实现**: MA20 穿越（真实指数口径）
 ├── _trend_gate.py # 跨变种共享：趋势四象限闸门状态机（原 v5，v4/v6/v11 复用）
-    v2_boll_breakout/ v3_macd_boll/ v4_erp_band/
+    v2_boll_breakout/ v3_macd_boll/ v4_erp_band/ v5_gold_score/
     v6_gold/ v7_us_gate/ v8_golden_cross/ v9_vol_target/ v10_vol_layer/
                         # 变种目录（各自 core/backtest/daily|research）；
                         # **v7 / v8 / v9 / v10 = 波动仓位四件套**（2026-11-17 起池都扩为全七腿 rule.LEG_ORDER，
@@ -313,7 +313,9 @@ strategies/vol_legs/
 （`.NDX` / `.INX` 2010 起历史缓存，**非信号源**）、`_a500_pe_hist.csv`、**`_bt_caches/csi_000300.csv`**（沪深300 收盘 + 滚动 PE，
 v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维护）、
 **`_bt_caches/csi_000510.csv`**（A500 收盘 2005 起 + 滚动 PE 2024-09 起；原 `v4_erp_band/a500/`
-随旧 v4 变种一并删除，缓存保留、暂无消费者）、`_bt_caches/{bond10y_m,ust10y_m}.csv`。
+随旧 v4 变种一并删除，缓存保留、暂无消费者）、`_bt_caches/{bond10y_m,ust10y_m}.csv`，
+以及 v5 新引入的 **`_dfii10.csv`**（FRED 美国 10Y TIPS 实际收益率，2003 起；由
+`v5_gold_score/factors.py --refresh-rate` 维护）与 `_flow_518880.csv`（主力净流入，仅 120 天，不作计分）。
 
 ## 8. 需要人工维护的输入
 
@@ -415,6 +417,23 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
   删除时把它的状态机下沉为**跨变种共享模块 `_trend_gate.py`**：v4 的「带内趋势提前」、v6-B 的档位
   状态机、v11-gate 的成本表与 NAV 记账都直接复用该模块，口径不变。v5 自己的回测 / 日报 / 研究产物
   随目录一并移除。
+- **v5 编号同日被 `v5_gold_score/` 复用（2026-11-18，按用户指定文档 `E:\qianwen\jijin\gold_rules_v2.md`）**
+  —— **黄金计分仓位**：`f_p` 价格趋势（双均线 + 20 日高低贴边）+ `f_r` 实际利率（FRED `DFII10` 的
+  10 日变化 ±25bp，**T 日只用 ≤T−1**）+ `f_f` 资金流（东财只有 120 天历史 → 按规格剔除计分）→
+  `score ∈ [−2,+2]` → 五档目标仓位（缺因子降置信度、极端档向 50% 收缩 → 实际 75/50/25 三档），
+  滞后 ≥1 档才动、FOMC/非农/PCE ±2 日只许减仓，T+1 收盘成交。
+  **结论是否定的（如实记录）**：13.2 年 +5.24% / **-17.82%** / 夏普 0.50 / 平均仓位 48% /
+  调仓 565 笔，与「恒定半仓」+5.28% / -17.59% / 0.51 **逐项重合**，消融里两个因子都没通过规格 §5
+  的「负贡献剔除」标准；36 组参数网格方向一致（0/36 跑赢满仓年化、36/36 回撤更浅）。
+  与 `v6_gold` 是同一个问题（黄金这笔钱怎么拿）的两套答案，**不叠加**。
+  **不进每日流程、不在 `pipeline/strategies.json` 注册**（理由同上：本样本不如恒半仓），
+  手跑 `v5_gold_score/daily/_daily_scan.py` + `_plot_score.py`（长期 / 近三年两张图）。
+  新增数据 `data/_dfii10.csv`（FRED 实际利率，仓库级）、`data/_flow_518880.csv`（120 天提示缓存）与
+  **`data/_etf_shares_518880.csv`**（上交所每日份额，**2013-07-29 起全史 3234 日 0 缺失**）。
+  **资金流因子已补齐全史并复核完毕**（`v5_gold_score/research/flow_source/_probe_flow.md`）：
+  东财「主力净流入」是**接口硬上限 120 天**（个股也一样），ETF 的真实资金流只能用**份额净申购**；
+  份额口径顺势把回撤由 -17.8% 恶化到 -22.8%、逆势只修回撤不增收益，**两个方向都跑输恒定半仓**，
+  故 `FLOW_MODE="off"` 是验证过的结论而非缺数据妥协。
 - **变种 `v6_score_wf/` 已于 2026-11-02 删除**（源头是 `tech_indicators/v6_score_wf` 的六腿移植版
   —— 删除时主策略还是六腿，未随 v1.4 拆分更新：
   4 票打分 + 锚定式 Walk-Forward）。删除依据是它自己的回测结论 —— 逐腿中位 场外真实 **-9.69%**、

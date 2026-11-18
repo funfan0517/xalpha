@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V8 变种（美股两腿金叉 50/200 × 波动层 TV20）· 回测。
+"""波动资产 · V8 变种（全七腿金叉 50/200 × 波动层 TV20）· 回测。
 
-池：**只有纳指100 与标普500**（`golden_cross.POOL`），与 v7 / v9 / v10 同池。
+池：**全七腿**（`golden_cross.POOL` = rule.LEG_ORDER，2026-11-17 扩池），与 v7 / v9 / v10 同池。
 规则：`仓位 = (MA50 > MA200 ? 1 : 0) × min(1, TV/vol20)`，TV = 20%，**日频**、死区 10pp。
 口径：
-- 信号 = **美元指数**（`.NDX` / `.INX`），执行 = 场外 QDII 人民币复权净值（`data.series_for_leg`）；
+- 信号与回测 = **美元指数**（`.NDX` / `.INX`）真实收盘；执行走场外 QDII A 类；
 - 成本 = 单边 0.1%（文档主口径），另给 0.6% 的场外现实口径；
 - 空仓按货基 `rule.CASH_ANNUAL` 计息；
 - 起点口径：首日目标仓位照算，不另计建仓费。
@@ -60,7 +60,6 @@ VARIANTS = [
     ("MA100/200 × 波动层", dict(FAST=100)),
     ("MA50/150 × 波动层", dict(SLOW=150)),
     ("MA50/250 × 波动层", dict(SLOW=250)),
-    ("人民币净值信号（反例）", dict(SIGNAL="nav")),
     ("成本 0.6%（场外现实口径）", dict(COST=0.006)),
 ]
 
@@ -92,7 +91,6 @@ SENS = [
     ("成本 0.60%（场外 A 类现实）", dict(COST=0.006)),
     ("现金 0%（不付利息）", dict(CASH_ANNUAL=0.0)),
     ("现金 2.0%（v9 口径）", dict(CASH_ANNUAL=0.02)),
-    ("人民币净值信号（反例）", dict(SIGNAL="nav")),
 ]
 
 WINDOWS = [
@@ -172,7 +170,6 @@ def portfolio_all(navs, idx):
         ("死区 0pp", dict(VOL_DEAD=0.0), None),
         ("价格过滤", dict(PRICE_FILTER=True), None),
         ("死叉只减半", dict(FLOOR=0.5), None),
-        ("人民币净值信号", dict(SIGNAL="nav"), None),
     ]
     rows = []
     for name, over, w in specs:
@@ -194,18 +191,24 @@ def portfolio_all(navs, idx):
 
 
 def rival_rows(navs, idx):
-    """**同尺子**对照：v7 / v9 / v10 的默认档，同一成本(0.1%)、同一空仓计息(1.40%)。"""
+    """**同尺子**对照：v7 / v9 / v10 的默认档，同一成本(0.1%)、同一空仓计息(1.40%)。
+
+    v10 于 2026-11-17 把默认档从「固定 TV20」换成「ER20/10 + 5 日死区」，因此这里
+    **两档都列**：`ER 自适应（默认档）` 是当前默认，`固定 TV20（旧默认）` 用于承接
+    2026-11-05「加了金叉门反而更差」那条结论（它是在固定 TV20 下测出来的）。
+    """
     import us_gate as ug            # noqa: E402
     import vol_target as vt         # noqa: E402
     import vol_layer as vl10        # noqa: E402
 
     out = []
-    for name, mod in (("v7 年线闸门（默认档）", ug),
-                      ("v9 波动率目标（默认档）", vt),
-                      ("v10 纯波动层（默认档）", vl10)):
+    for name, mod, over in (("v7 年线闸门（默认档）", ug, {}),
+                            ("v9 波动率目标（默认档）", vt, {}),
+                            ("v10 ER 自适应波动层（默认档）", vl10, {}),
+                            ("v10 固定 TV20（旧默认 · 关 ER）", vl10, dict(ADAPTIVE=False))):
         stx = {}
         for leg in gc.POOL:
-            _, st, _ = mod.build(leg)
+            _, st, _ = mod.build(leg, **over)
             stx[leg] = st.reindex(idx).ffill()
         nv, inv = mod.portfolio(navs, stx, cost=gc.COST, cash=gc.CASH_ANNUAL)
         out.append(_prow(name, nv, inv, stx))
@@ -313,14 +316,15 @@ def check_all(navs, states, idx):
     out.append((f"缩仓日恒有 仓位 × vol20 == TV（{gc.TV:.0%}），死叉日残仓为 0", ok,
                 note or "两腿均通过"))
 
-    # 6) 两腿恒满时组合 == 50/50 手工复利（零费）
+    # 6) 全池恒满时组合 == 等权手工复利（零费）
     stx = {k: pd.Series(1.0, index=idx) for k in gc.POOL}
     nv, _ = gc.portfolio(navs, stx, cost=0.0)
     manual, rets = 1.0, {k: navs[k].pct_change().fillna(0.0) for k in gc.POOL}
+    w = 1.0 / len(gc.POOL)
     for i in range(len(idx)):
-        manual *= (1.0 + sum(0.5 * float(rets[k].iloc[i]) for k in gc.POOL))
+        manual *= (1.0 + sum(w * float(rets[k].iloc[i]) for k in gc.POOL))
     rel = abs(manual / float(nv.iloc[-1]) - 1.0)
-    out.append(("两腿恒满时组合 == 50/50 手工复利（零费）", bool(rel < 1e-10), f"差 {rel:.1e}"))
+    out.append((f"全池恒满时组合 == {len(gc.POOL)} 腿等权手工复利（零费）", bool(rel < 1e-10), f"差 {rel:.1e}"))
 
     # 7) 门的正确性：关波动层时「翻转次数 == 调仓次数」且买卖交替；
     #    开波动层时「每次金叉翻转的下一净值日，仓位必须离开/回到 0」
@@ -400,15 +404,17 @@ def main():
     base_nv = next(r["nav"] for r in prows if r["name"].startswith("**默认"))
     static_nv = next(r["nav"] for r in prows if r["name"].startswith("静态"))
     binary_nv = next(r["nav"] for r in prows if r["name"].startswith("纯二元"))
-    wins = []
+    wins, win_by_label = [], {}
     for label, a, b in WINDOWS:
         seg_m, seg_s = gc.window_nav(base_nv, a, b), gc.window_nav(static_nv, a, b)
         if len(seg_m) < 5 or len(seg_s) < 5:
             continue
-        wins.append(dict(win=label, ret=float(seg_m.iloc[-1] / seg_m.iloc[0] - 1.0),
-                         ret_s=float(seg_s.iloc[-1] / seg_s.iloc[0] - 1.0),
-                         mdd=gc.perf(seg_m)["mdd"], mdd_s=gc.perf(seg_s)["mdd"],
-                         start=a, end=b))
+        row = dict(win=label, ret=float(seg_m.iloc[-1] / seg_m.iloc[0] - 1.0),
+                   ret_s=float(seg_s.iloc[-1] / seg_s.iloc[0] - 1.0),
+                   mdd=gc.perf(seg_m)["mdd"], mdd_s=gc.perf(seg_s)["mdd"],
+                   start=a, end=b)
+        wins.append(row)
+        win_by_label[label] = row
 
     with open(OUT_JSONL, "w", encoding="utf-8") as f:
         for r in legs:
@@ -437,8 +443,8 @@ def main():
     base, static = prow("**默认"), prow("静态")
     binary, month = prow("纯二元"), prow("月末定仓")
     tv15, tv25, dead0 = prow("TV 15%"), prow("TV 25%"), prow("死区 0pp")
-    pflt, halff, navsig = prow("价格过滤"), prow("死叉只减半"), prow("人民币净值信号")
-    v7r, v9r, v10r = rivals
+    pflt, halff = prow("价格过滤"), prow("死叉只减半")
+    v7r, v9r, v10r, v10f = rivals
     off = _sens("**关掉波动层**")
     bad = [c for c in checks if not c[1]]
     yrs = (idx[-1] - idx[0]).days / 365.25
@@ -446,9 +452,10 @@ def main():
     yr, yr_s = gc.yearly(base_nv), gc.yearly(static_nv)
 
     L = [
-        "# 波动资产 · V8 变种：美股两腿金叉 50/200 × 波动层 TV20（日频 · 连续仓位）",
-        "> 池 = **只有纳指100 与标普500**（`golden_cross.POOL`），与 v7 / v9 / v10 同池。",
-        "> 信号 = **美元指数**（`.NDX` / `.INX`）收盘；执行 = 场外 QDII **人民币复权净值**；"
+        "# 波动资产 · V8 变种：金叉 50/200 × 波动层 TV20（日频 · 连续仓位）",
+        f"> 池 = **全七腿**（`golden_cross.POOL` = {', '.join(gc.rule.LEGS[k]['name'] for k in gc.POOL)}），"
+        "与 v7 / v9 / v10 同池（2026-11-17 扩池）。",
+        f"> {gc.vdata.us_signal_exec_desc()}；"
         f"空仓按货基 {gc.CASH_ANNUAL:.2%} 计息 · 单边成本 {p0['COST']:.1%}。",
         "> 规则权威源 `v8_golden_cross/golden_cross.py` 顶部常量。",
         "> **2026-11-05 起波动层为默认**（`VOL_ON=True`）；旧口径 `VOL_ON=False` 全部保留作对照，",
@@ -458,7 +465,7 @@ def main():
         "",
         "| 环节 | 规则 |",
         "|---|---|",
-        "| 信号价 | 美元指数收盘（**不是**人民币净值，见 §5 反例档） |",
+        "| 信号价 | 真实指数收盘（`.NDX` / `.INX`，与回测价格同源、2005 起） |",
         f"| 方向门 | MA{p0['FAST']} > MA{p0['SLOW']} → 1；否则 → 0 |",
         f"| 波动层 | × `min(1, TV / vol20)`，TV = {p0['TV']:.0%} |",
         f"| 死区 | 方向未变时 `|Δ仓位| < {p0['VOL_DEAD']:.0%}` 不动手 |",
@@ -518,7 +525,7 @@ def main():
         "| 组合 | 年化 | 回撤·日频 | 回撤·月末 | Calmar(月末) | 夏普 | 平均仓位 | 调仓 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for r in [v7r, base, v9r, v10r]:
+    for r in [v7r, base, v9r, v10r, v10f]:
         L.append(f"| {r['name']} | {gc.fmt_pct(r['ann'])} | {gc.fmt_pct(r['mdd'])} | "
                  f"{gc.fmt_pct(r['mdd_me'])} | {r['calmar_me']:.2f} | {r['sharpe']:.2f} | "
                  f"{r['expo']:.0%} | {r['trades']} |")
@@ -529,12 +536,14 @@ def main():
         f"{base['sharpe'] - v7r['sharpe']:+.2f}、调仓 {v7r['trades']} → {base['trades']} 次。"
         f"**相对 v9**：年化 {(base['ann'] - v9r['ann']) * 100:+.2f}pp、夏普 "
         f"{base['sharpe'] - v9r['sharpe']:+.2f}。",
-        f"> **v8 相对 v10**（只波动层、无方向门）：年化 "
-        f"{(base['ann'] - v10r['ann']) * 100:+.2f}pp、夏普 "
-        f"{base['sharpe'] - v10r['sharpe']:+.2f}、调仓 {base['trades']} vs {v10r['trades']} 次。"
-        "**同一层波动层，加了金叉门反而更差** —— 这是 2026-11-05 的实测结论，"
-        "也是 v10 单独成支的原因。**方向门在这段样本里是净扣分项**，"
-        "但它买的是「长熊里的保护」（本样本没有那段，见 §8）。",
+        f"> **v10 两档都列的原因**：v10 于 2026-11-17 把默认档从「固定 TV20」换成"
+        f"「ER20/10 + 5 日死区」，所以旧结论（2026-11-05「加了金叉门反而更差」）只对"
+        f"**固定 TV20** 那一行成立。当前默认档（ER 自适应）下：v8 年化 "
+        f"{(base['ann'] - v10r['ann']) * 100:+.2f}pp、夏普 {base['sharpe'] - v10r['sharpe']:+.2f}、"
+        f"调仓 {base['trades']} vs {v10r['trades']} 次；对旧默认（固定 TV20）则是 "
+        f"年化 {(base['ann'] - v10f['ann']) * 100:+.2f}pp、夏普 "
+        f"{base['sharpe'] - v10f['sharpe']:+.2f}、调仓 {base['trades']} vs {v10f['trades']} 次。"
+        "**方向门在这段样本里是净扣分项**，但它买的是「长熊里的保护」（本样本没有那段，见 §8）。",
         "",
         "## 4. 参数敏感性（组合层 · 只改一格）",
         "",
@@ -554,7 +563,7 @@ def main():
         f"> **开关对比**：关掉波动层 → {gc.fmt_pct(off['ann'])} / 回撤 {gc.fmt_pct(off['mdd'])} / "
         f"夏普 {off['sharpe']:.2f} / 调仓 {off['trades']} 次；打开（基准）→ "
         f"{gc.fmt_pct(base['ann'])} / {gc.fmt_pct(base['mdd'])} / {base['sharpe']:.2f} / "
-        f"{base['trades']} 次。**这就是这一层在 14.2 年里的全部账。**",
+        f"{base['trades']} 次。**这就是这一层在 {yrs:.1f} 年里的全部账。**",
         f"> **TV 与死区**：TV 15% / 20% / 25% → 年化 {gc.fmt_pct(tv15['ann'])} / "
         f"{gc.fmt_pct(base['ann'])} / {gc.fmt_pct(tv25['ann'])}、回撤 {gc.fmt_pct(tv15['mdd'])} / "
         f"{gc.fmt_pct(base['mdd'])} / {gc.fmt_pct(tv25['mdd'])}、调仓 {tv15['trades']} / "
@@ -568,9 +577,9 @@ def main():
         f"{(_sens('成本 0.03%')['ann'] - _sens('成本 0.60%')['ann']) * 100:.2f}pp）。"
         f"一年 {base['trades'] / max(yrs, 1e-9):.1f} 次调仓 —— **加层后它不再是最省的一支**"
         f"（v7 一年 {v7r['trades'] / max(yrs, 1e-9):.1f} 次）。",
-        f"> **人民币净值信号（反例）**：年化 {gc.fmt_pct(navsig['ann'])}（差 "
-        f"{(navsig['ann'] - base['ann']) * 100:+.2f}pp）。净值信号与执行同源，"
-        "回测里天然无跟踪误差、且滞后 1~2 天 —— **用美元指数是为了口径纯净、可复核**。",
+        "> **信号口径唯一**：2026-11-13 起信号与回测价格同源（真实指数 2005 起），"
+        "旧报告里的「人民币净值信号（反例）」档已删除 —— 没有第二套净值序列可切，"
+        "该档在唯一口径下与默认档逐位相同，不是有效对照。",
         "",
         "## 5. 压力窗口（默认档 vs 静态 50/50）",
         "",
@@ -582,13 +591,15 @@ def main():
                  f"{gc.fmt_pct(w['ret_s'])} | {gc.fmt_pct(w['mdd'])} | {gc.fmt_pct(w['mdd_s'])} |")
     L += [
         "",
-        f"> **2020 是这一层买的东西**：回撤 {gc.fmt_pct(wins[1]['mdd_s'])} → "
-        f"{gc.fmt_pct(wins[1]['mdd'])}（浅 {(wins[1]['mdd'] - wins[1]['mdd_s']) * 100:.2f}pp）；"
-        f"2018Q4 {gc.fmt_pct(wins[0]['mdd_s'])} → {gc.fmt_pct(wins[0]['mdd'])}、"
-        f"2022 {gc.fmt_pct(wins[2]['mdd_s'])} → {gc.fmt_pct(wins[2]['mdd'])}。"
-        "**慢熊里波动率一路上行，本来就该降仓** —— 这是它和「纯二元金叉」最大的差别。",
-        f"> **代价年仍在牛市**：2025 年内 {gc.fmt_pct(wins[3]['ret'])} vs 静态 "
-        f"{gc.fmt_pct(wins[3]['ret_s'])} —— 保险费，不是 bug。",
+        "> **关键窗口回撤对照**（慢熊里波动率一路上行，本来就该降仓 —— 这是它和「纯二元金叉」最大的差别）："
+        + ("；".join(
+            f"{lab} {gc.fmt_pct(win_by_label[lab]['mdd_s'])} → {gc.fmt_pct(win_by_label[lab]['mdd'])}"
+            f"（浅 {(win_by_label[lab]['mdd'] - win_by_label[lab]['mdd_s']) * 100:.2f}pp）"
+            for lab in ("2018Q4 急跌", "2020 疫情", "2022 加息熊市") if lab in win_by_label
+        ) if any(l in win_by_label for l in ("2018Q4 急跌", "2020 疫情", "2022 加息熊市")) else "本池共同样本期内无可用窗口"),
+        (f"> **代价年仍在牛市**：2025 年内 {gc.fmt_pct(win_by_label['2025 至今年内']['ret'])} vs 静态 "
+         f"{gc.fmt_pct(win_by_label['2025 至今年内']['ret_s'])} —— 保险费，不是 bug。"
+         if "2025 至今年内" in win_by_label else ""),
         "",
         "## 6. 逐年收益（默认档 vs 静态 50/50）",
         "",
@@ -625,14 +636,17 @@ def main():
         f"| 金叉 50/200（日频，不含波动层） | +16.08% | −35.74% | 0.72 | 36 |",
         "",
         "> 长样本里金叉三项全赢（**回撤砍掉 47pp**）—— 这正是它值得留一支的理由。"
-        "**但波动层在长样本里的作用未知**（本仓库无 1995 起的 QDII 净值），别把 §3 的改善外推。",
-        "> **两段证据要一起读**：短样本（2012+，含真实申赎与汇率）说「加波动层后仍打不过买入持有」，"
-        "长样本（1995+，含两次腰斩）说「方向门砍掉了 47pp 回撤」——"
-        "**前者缺它唯一起作用的两段行情，后者缺你真能拿到的成本与跟踪误差。**",
+        "**但波动层在长样本里的作用未知**（该探针只跑不含波动层的二元金叉），别把 §3 的改善外推。",
+        f"> **两段证据要一起读**：本仓库样本（{win} · 真实指数 2005 起、含 2008）"
+        "说「加波动层后仍打不过买入持有」，长样本（1995+，含两次腰斩）说「方向门砍掉了 47pp 回撤」——"
+        "**前者缺 2000-2002 那段慢熊，后者缺你真能拿到的成本与跟踪误差。**",
         "",
         "## 9. 口径与边界",
         "",
-        "1. **样本只到 2012**（QDII 净值起点）：不含 2000-2002（纳指 −83%）与 2008。",
+        "1. **样本自 2005-01-03 起**（真实指数长库，信号与回测同源）："
+        "2000-2002（纳指 −83%）不在样本内，**2008 完整在样本内**。"
+        "⚠ 2026-11-16 之前信号读 2010 起短库、净值读 2005 起长库，2005~2010 默认满仓，"
+        "所有档位回撤都被错误地钉在买入持有上；本次修复后已消除。",
         "2. **波动层治急跌、方向门治慢熊**：两者在这一支里同时存在，但**各自的验证样本都不完整** ——"
         "短样本证明了波动层的价值（2020），长样本证明了方向门的价值（2000-2008）。",
         "3. **日频换手不低**：" + f"{base['trades']} 次 / {yrs:.1f} 年 ≈ 一年 "
@@ -651,7 +665,7 @@ def main():
     print("报告:", OUT_MD)
     print("结果:", OUT_JSONL)
     print(f"窗口 {win} · {yrs:.1f} 年")
-    for r in [v7r, base, binary, v9r, v10r, static]:
+    for r in [v7r, base, binary, v9r, v10r, v10f, static]:
         print(f"  {r['name'][:34]:34s} 年化 {gc.fmt_pct(r['ann']):>9s} · "
               f"回撤·日频 {gc.fmt_pct(r['mdd']):>8s} · 回撤·月末 {gc.fmt_pct(r['mdd_me']):>8s} · "
               f"Calmar(月末) {r['calmar_me']:>5.2f} · 夏普 {r['sharpe']:>5.2f} · 仓位 {r['expo']:.0%} · "

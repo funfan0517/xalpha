@@ -1,56 +1,46 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V10 变种：**美股两腿的纯波动层**（无方向判断 · 日频 · 连续仓位）。
+"""波动资产 · V10 变种：**全七腿 ER 自适应波动层**（日频 · 无涨跌方向 · 连续仓位）。
+（2026-11-17 由 ndx/spx 两腿扩到全七腿；同日按用户指定把 `ER20/10 + 5日死区` 设为默认。）
 
-本变种**只服务纳指100 与标普500 两条腿**（池 = `("ndx", "spx")`），与 `v7_us_gate` /
-`v8_golden_cross` / `v9_vol_target` 同一个池 —— 四个变种合起来构成「美股择时矩阵」：
-
-| | v7 年线闸门 | v8 金叉 × 波动层 | v9 波动率目标 | **v10 纯波动层（本变种）** |
-|---|---|---|---|---|
-| 方向判断 | 有（MA200） | 有（MA50/MA200） | 无 | **无** |
-| 仓位 | 二元 × 波动层 | 二元 × 波动层 | 连续 0~100% | **连续 0~100%** |
-| 决策频率 | 月末 | 日频 | 月末 + 月中 | **日频** |
-| 换手（14.2 年） | 70 次 | 132 次 | 249 次 | **157 次** |
+本变种 2026-11-17 起**池 = 全七腿**（`POOL = rule.LEG_ORDER`）；此前只服务 ndx/spx 两腿。
+**回测只做分腿，不做组合层**（`backtest.py` 无组合净值、无跨腿等权、无 v7/v8/v9 组合对照）。
 
 ## 1. 规则（一句话）
-`仓位 = min(1, TV / vol20)`，TV = 20%，**没有方向门** —— 永远做多，只按各自腿的波动率决定露多少。
+`仓位 = min(1, TV(ER) / vol20)`：ER(20) 趋势态 TV=20%、震荡态 TV=10%；
+**没有涨跌方向判断** —— ER 只衡量「趋势走得干不干脆」，不预测上涨或下跌。
 
 | 环节 | 规则 |
 |---|---|
-| 信号价 | **美元指数**收盘（`.NDX` / `.INX`），不是 QDII 人民币净值 |
-| 波动率 | `vol20` = 20 日收益标准差 × √252（**每条腿各算各的**：纳指与标普的波动互不代替） |
-| 仓位 | `min(1, TV / vol20)`，TV = 20%；`vol20 ≤ 20%` 时满仓，`vol20 = 40%` 时半仓 |
-| 死区 | `|Δ仓位| < 10pp` 不动手（省换手；probe 实测无死区 → 934 次调仓，收益不变） |
+| 信号价 | 该腿**真实指数**收盘（美股为 `.NDX` / `.INX` 美元指数，黄金为 `518880`） |
+| 波动率 | `vol20` = 20 日收益标准差 × √252（**每条腿各算各的**） |
+| 风险预算 TV | ER(20) ≥ 0.40 → 趋势态 20%；≤ 0.30 → 震荡态 10%；中间维持（滞回，k=2） |
+| 仓位 | `min(1, TV(ER) / vol20)`，不加杠杆、下限 0 |
+| 死区 | 幅度 `|Δ仓位| < 10pp` 不动手；时间距上次调仓 < 5 交易日不动手 |
 | 看盘频率 | **每日收盘**（月末档作对照） |
 | 成交 | `t` 日收盘决策 → **`t+1` 收盘成交** → 新仓位自 `t+2` 起承担收益 |
-| 成本 | 单边 0.1%（文档主口径；0.6% 场外现实口径见回测 §5） |
+| 成本 | 单边 0.1%（文档主口径；0.6% 场外现实口径见回测） |
 | 空仓计息 | 未投部分按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息 |
-| 上/下限 | 恒 ≤ 100%（不加杠杆）；下限可设 `FLOOR`（默认 0，即极端波动下可以完全空仓） |
 
-**「自适应」指的是仓位随本腿实时波动率自适应**，不是目标自适应 ——
-`research/_probe_vol_layer.md` 实测：目标随长期波动漂移（TV ∝ vol250/中位）最多与常数 TV 打平、
-且换手更高；把连续系数换成五档分位则明显更差（夏普 0.50）。**所以这里 TV 写死 20%，不漂移。**
+**「自适应」有两层**：①仓位随本腿 `vol20` 变；②TV 随 ER(20) 趋势纯度在 20%/10% 间切换。
+2026-11-17 用户指定默认档 = `research/probe_er/_probe_er_adaptive_7legs.py` 的 **D 方案**
+（ER20/10 + 10pp 幅度死区 + 5 日时间死区）；固定 TV20 保留为 `ADAPTIVE=False` 对照档。
+全腿证据：ER 在 **6/7 腿**严格过线（黄金不过）；D 档在纳指后段 0.95、A500 0.58、
+科创50 0.12，且比原生少 10~15% 调仓。
 
 ## 2. 为什么单独成一支
-在 v8 的波动层专项实测里出现了一个反直觉的结果：**「金叉 × 波动层」反而打不过「只波动层」**
-（夏普 0.73 vs 0.85，回撤几乎相同）。原因是 50/200 金叉这个门太钝 —— 2020 年价格 03-09 就破年线，
-MA50 要到 04-30 才穿 MA200。既然方向门在短样本里是净扣分项，就有必要把它单独做成一支，
-让「纯风险预算」这个维度可以被独立检验、也可以被单独使用。
-
-**它和 v9 的关系**：两者都做「按波动缩放仓位」，但
-- v9 是**月末定仓 + 月中快减补丁**（低频、换手低、反应慢）；
-- v10 是**日频逐日重算**（高频、换手高、反应快）。
-
-同尺子下 v10 夏普 0.85、v9 0.88 —— **两支几乎打平，差别在换手与反应速度**（见回测 §3.1）。
+在 v8 的波动层专项实测里出现了一个反直觉结果：**「金叉 × 波动层」反而打不过「只波动层」**。
+既然价格方向门在样本里是净扣分项，v10 最初把方向门全部拿掉，只留风险预算；
+2026-11-17 起按用户指定加入 **ER 趋势纯度**这一维（仍然不判涨跌），把纯风险预算升级成
+「趋势干脆就敢持仓、来回磨就压仓」。
 
 ## 3. 已知边界（先读，再看数字）
-- **它没有方向判断，这是最大的风险**：2000-2002 那种「跌两年」的行情里，波动率只会在
-  急跌段冲高，之后长期阴跌时 vol 回落到 20% 附近 → 仓位又回到满仓。**它治急跌，不治慢熊。**
-  本仓库样本（2012 起）不含这种行情，因此**不要用本报告的数字外推长熊**。
-- **样本只到 2012**（QDII 净值起点）：不含 2000-2002 与 2008。
-- **日频换手不低**（14.2 年 157 次 ≈ 一年 11 次）：0.6% 场外口径下年化再掉约 0.6pp，
-  比 v7 敏感得多（v7 一年 5 次）。怕摩擦就用 v9 或把死区调宽。
-- **永远满仓的错觉**：平均仓位 92%，看着「几乎一直满仓」，但它在 2020-03 那几天真的降到过很低 ——
-  平均值会骗人，要看最低仓位与时间序列（图里下格）。
+- **没有涨跌方向判断，但有趋势状态门**：ER 只判「路径效率」，不判多空。
+  慢熊里 ER 会切到 10% 档，比原纯波动层好，但仍不是价格方向门。
+- **样本自真实指数起点起**（A500/HS300/NDX/SPX 2005、黄金 2013-07、
+  科创50 `SH000688` 2019-12、恒生科技 `HKHSTECH` 2020-07）；后两条腿样本短，结论降权。
+- **日频换手不低**：默认 D 档用 5 日死区压过一轮，但 ER 状态切换仍会让调仓高于固定 TV20；
+  0.6% 场外口径下要重看成本，怕摩擦就调宽死区或改用固定 TV20 / v9。
+- **永远满仓的错觉**：平均仓位高，但急跌那几天仓位会真降；要看最低仓位与时间序列。
 
 模拟结果，非投资建议。
 """
@@ -71,60 +61,61 @@ import data as vdata      # noqa: E402
 import engine             # noqa: E402
 import rule               # noqa: E402
 
-vdata._otc_stale = lambda: False   # 离线优先：只读本地缓存  # type: ignore[assignment]
 
-LABEL = "V10 美股纯波动层 TV20"
+LABEL = "V10 全七腿 ER 自适应波动层（ER20/10 + 5日死区）"
 
 # ---------------------------------------------------------------- 1. 参数（唯一权威源）
-POOL = ("ndx", "spx")           # 策略标的池：只有这两条（与 v7 / v8 / v9 同池）
-TV = 0.20                       # 目标波动 20%（年化）
+POOL = tuple(rule.LEG_ORDER)    # 策略标的池：全部七腿（2026-11-17 扩池）
+ADAPTIVE = True                 # 2026-11-17 用户指定默认：ER 切 TV20/10；False = 旧固定 TV20
+TV = 0.20                       # 趋势态目标波动（年化）
+TV_LOW = 0.10                   # 震荡态目标波动（年化）
+ER_N = 20                       # Kaufman 效率比窗口
+ER_HI, ER_LO = 0.40, 0.30       # ER 阈值（带滞回，中间维持）
 VOL_WIN = 20                    # 波动率窗口（日）。probe 里 10/20/60 都试过，20 最好
-DEAD = 0.10                     # 死区：|Δ仓位| < 10pp 不动手
+DEAD = 0.10                     # 幅度死区：|Δ仓位| < 10pp 不动手
+DEAD_DAYS = 5                   # 时间死区：距上次调仓 < 5 交易日不动手（默认 D 档）
 FLOOR = 0.0                     # 仓位下限（0 = 极端波动时可以完全空仓）
 TRIGGER = "daily"               # "daily" = 逐日重算（默认）; "month" = 月末定仓（对照）
-SIGNAL = "index"                # "index" = 美元指数（正解）; "nav" = 人民币净值（反例）
+SIGNAL = "index"                # 唯一口径：真实指数（保留字段名以兼容 params()）
 COST = 0.001                    # 单边成本（文档主口径 0.1%）
 CASH_ANNUAL = rule.CASH_ANNUAL  # 空仓计息（1.40%，与 v7/v8 同口径）
 
-W = {k: 1.0 / len(POOL) for k in POOL}     # 组合层：两腿等权（两条腿都是 10pp 带）
-
-# v8 波动层专项实测里同规则（只波动层 TV20 · 日频 · 死区 10pp）的组合层读数，供核对量级。
-# 口径相同（0.1% / 1.40% / 两腿等权），所以两者应当逐位对齐 —— 回测 §7 有一条硬断言专门查这个。
-DOC_REF = dict(ann=0.1351, vol=0.1431, mdd=-0.1878, sharpe=0.85, trades=157,
-               sample="2012-08-15~2026-11-03")
+W = {k: 1.0 / len(POOL) for k in POOL}     # 历史字段：分腿回测已不用组合权重，保留兼容
 
 
 def params(**kw):
     """参数打包：敏感性扫描用 `**{...}` 覆盖，不必改模块常量。"""
-    p = dict(POOL=POOL, TV=TV, VOL_WIN=VOL_WIN, DEAD=DEAD, FLOOR=FLOOR, TRIGGER=TRIGGER,
-             SIGNAL=SIGNAL, COST=COST, CASH_ANNUAL=CASH_ANNUAL)
+    p = dict(POOL=POOL, ADAPTIVE=ADAPTIVE, TV=TV, TV_LOW=TV_LOW,
+             ER_N=ER_N, ER_HI=ER_HI, ER_LO=ER_LO,
+             VOL_WIN=VOL_WIN, DEAD=DEAD, DEAD_DAYS=DEAD_DAYS, FLOOR=FLOOR,
+             TRIGGER=TRIGGER, SIGNAL=SIGNAL, COST=COST, CASH_ANNUAL=CASH_ANNUAL)
     p.update(kw)
     return p
 
 
 # ---------------------------------------------------------------- 2. 数据
 def load_nav(leg, mode=None):
-    """执行口径：场外 QDII 人民币复权净值（含分红再投 / 汇率）。"""
-    return vdata.series_for_leg(leg, mode=mode).dropna()
+    """该腿价格序列：恒为**美元指数真实收盘**（不含汇率 / 跟踪误差 / 分红再投）。"""
+    return vdata.series_for_leg(leg).dropna()
 
 
 def load_signal(leg, as_of=None):
-    """信号口径：**美元指数**收盘（`.NDX` / `.INX`）。
+    """信号口径：**真实指数**收盘（`.NDX` / `.INX`），与 `load_nav()` 同源、同起点。
+
+    ⚠ 必须走 `series_for_leg()`（`_global_index_klines.json`, 2005 起）。早期这里读
+    `_us_index_klines.json`（只有 2010 起），导致 2005~2010 无 vol20、仓位默认满仓，
+    2008 危机整段被计入净值 —— 所有参数档的最大回撤因此都等于买入持有。
 
     `as_of` 只保留 `<= as_of` 的观测 —— 前视检验靠它把「当时能看到的数据」真的截断掉。
     """
-    s = vdata.us_series(rule.LEGS[leg]["signal"], refresh=False).dropna()
+    s = vdata.series_for_leg(leg).dropna()
     if as_of is not None:
         s = s.loc[s.index <= pd.Timestamp(as_of)]
     return s
 
 
 def signal_of(leg, p=None, as_of=None):
-    """按 `SIGNAL` 取信号价：指数（正解）或人民币净值（反例）。"""
-    p = p or params()
-    if p["SIGNAL"] == "nav":
-        s = load_nav(leg)
-        return s.loc[s.index <= pd.Timestamp(as_of)] if as_of is not None else s
+    """信号价恒为该市场真实指数收盘（与回测价格同源），缺数据就报错。"""
     return load_signal(leg, as_of=as_of)
 
 
@@ -149,29 +140,62 @@ def vol_series(leg, p=None, as_of=None):
                                     ).std(ddof=1) * np.sqrt(252.0)
 
 
+def efficiency_ratio(px, n=ER_N):
+    """Kaufman ER(n) = |20 日净变动| / 20 日路径总变动；只判趋势纯度，不判涨跌。"""
+    s = px.astype("float64")
+    return (s - s.shift(int(n))).abs() / s.diff().abs().rolling(int(n)).sum()
+
+
+def er_state(er, hi=ER_HI, lo=ER_LO):
+    """ER≥hi → 趋势态 True；≤lo → 震荡态 False；中间维持（带滞回）。"""
+    fast, out = False, []
+    for v in er.to_numpy(dtype=float):
+        if not np.isnan(v):
+            if v >= float(hi):
+                fast = True
+            elif v <= float(lo):
+                fast = False
+        out.append(fast)
+    return pd.Series(out, index=er.index, dtype=bool)
+
+
+def tv_series(leg, p=None, as_of=None):
+    """风险预算 TV 序列：默认 ER 切 20%/10%；`ADAPTIVE=False` 时恒为 `TV`。"""
+    p = p or params()
+    sig = signal_of(leg, p, as_of=as_of)
+    if not len(sig):
+        return pd.Series(dtype="float64", index=sig.index)
+    if not p.get("ADAPTIVE", False):
+        return pd.Series(float(p["TV"]), index=sig.index)
+    er = efficiency_ratio(sig, p["ER_N"])
+    fast = er_state(er, p["ER_HI"], p["ER_LO"])
+    return pd.Series(np.where(fast, float(p["TV"]), float(p["TV_LOW"])), index=sig.index)
+
+
 def raw_scale(leg, p=None, as_of=None):
-    """未过死区的目标仓位 `clip(min(1, TV/vol), FLOOR, 1)`；预热 / vol=0 → 1.0。"""
+    """未过死区的目标仓位 `clip(min(1, TV(ER)/vol), FLOOR, 1)`；预热 / vol=0 → 1.0。"""
     p = p or params()
     sig = signal_of(leg, p, as_of=as_of)
     if not len(sig):
         return pd.Series(dtype="float64")
     v = vol_series(leg, p, as_of=as_of).reindex(sig.index)
-    s = (float(p["TV"]) / v).replace([np.inf, -np.inf], np.nan).clip(upper=1.0).fillna(1.0)
+    tv = tv_series(leg, p, as_of=as_of).reindex(sig.index)
+    s = (tv / v).replace([np.inf, -np.inf], np.nan).clip(upper=1.0).fillna(1.0)
     return s.clip(lower=float(p["FLOOR"]), upper=1.0)
 
 
-def deadzone(tgt, dead):
-    """死区：`|新目标 − 现仓| < dead` 就不动手（仓位之间没有「状态切换」可言）。"""
+def deadzone(tgt, dead, gap=0):
+    """幅度死区 + 时间死区：`|新目标−现仓|≥dead` 且距上次≥gap 日才动手。"""
     g = tgt.to_numpy(dtype=float)
     out = np.empty(len(g))
     if not len(g):
-        return pd.Series(dtype="float64")
-    hold = float(g[0])
-    out[0] = hold
+        return pd.Series(dtype="float64", index=tgt.index)
+    cur, last = float(g[0]), 0
+    out[0] = cur
     for i in range(1, len(g)):
-        if abs(g[i] - hold) >= float(dead) - 1e-12:
-            hold = g[i]
-        out[i] = hold
+        if abs(g[i] - cur) >= float(dead) - 1e-12 and (i - last) >= int(gap):
+            cur, last = float(g[i]), i
+        out[i] = cur
     return pd.Series(out, index=tgt.index, dtype="float64")
 
 
@@ -182,7 +206,8 @@ def target_raw(leg, p=None, as_of=None):
     if not len(t):
         return t
     dead = float(p["DEAD"])
-    return deadzone(t, dead) if dead > 0 else t
+    gap = int(p.get("DEAD_DAYS", 0)) if p.get("ADAPTIVE", False) else 0
+    return deadzone(t, dead, gap) if dead > 0 or gap > 0 else t
 
 
 def target_now(leg, p=None):
@@ -282,10 +307,11 @@ def portfolio(navs, states, weight=None, cost=None, cash=None):
         r, e_sum = 0.0, 0.0
         for k in cols:
             e = float(eff[k].iloc[i])                     # 昨日收盘的仓位赚今日收益
-            r += weight[k] * (e * float(rets[k].iloc[i]) + (1.0 - e) * cash_d)
-            e_sum += weight[k] * e
+            w = float(weight.get(k, 0.0))                 # 权重表可为子集，未列腿按 0
+            r += w * (e * float(rets[k].iloc[i]) + (1.0 - e) * cash_d)
+            e_sum += w * e
             if i > 0:                                     # 今日收盘成交的仓位变化才付成本
-                r -= weight[k] * abs(float(sts[k].iloc[i]) - float(sts[k].iloc[i - 1])) * c
+                r -= w * abs(float(sts[k].iloc[i]) - float(sts[k].iloc[i - 1])) * c
         nav *= (1.0 + r)
         out.append(nav)
         inv.append(e_sum)
@@ -383,12 +409,17 @@ def _self_check():
         assert float(st.max()) <= 1.0 + 1e-12 and float(st.min()) >= -1e-12, (k, st.min(), st.max())
         _n, st_m, dec_m = build(k, TRIGGER="month")
         v = float(vol_series(k).iloc[-1])
+        tv_now = float(tv_series(k).iloc[-1])
+        er_now = bool(er_state(efficiency_ratio(load_signal(k), ER_N), ER_HI, ER_LO).iloc[-1])
         print(f"{k} {rule.LEGS[k]['name']}: 净值 {nav.index[0].date()}~{nav.index[-1].date()} "
               f"n={len(nav)} · 当前 {st.iloc[-1]:.0%}（月末档 {st_m.iloc[-1]:.0%}）· "
-              f"目标 {target_now(k):.0%} = min(1, {TV:.0%}/{v:.0%}) · "
+              f"目标 {target_now(k):.0%} = min(1, {tv_now:.0%}/{v:.0%}) · "
+              f"ER {'趋势态' if er_now else '震荡态'} · "
               f"日频调仓 {len(dec)} 次 / 月末决策 {len(dec_m)} 条 · "
               f"仓位区间 {st.min():.0%}~{st.max():.0%}（均值 {st.mean():.0%}）")
-    print(f"纯波动层 · TV {TV:.0%} / vol{VOL_WIN} / 死区 {DEAD:.0%} / 下限 {FLOOR:.0%} · "
+    print(f"ER 自适应波动层（默认 {'开' if ADAPTIVE else '关'}）· ER{ER_N} "
+          f"{ER_HI:.2f}/{ER_LO:.2f} → TV {TV:.0%}/{TV_LOW:.0%} · vol{VOL_WIN} · "
+          f"死区 {DEAD:.0%}/{DEAD_DAYS}日 · 下限 {FLOOR:.0%} · "
           f"触发 {TRIGGER} · 信号 {SIGNAL} · 单边成本 {COST:.1%} · 空仓 {CASH_ANNUAL:.2%}")
 
 

@@ -3,7 +3,7 @@
 
 跑三件事：
 1. **主表**：A 长期配置 / B 控回撤 / C 低仓位占坑，各自预热完成后起算，对照「恒持满带」
-   （= 买入持有）与「纯现金」；场外 `000216` 与场内 `518880` 两套成本分开列；
+   （= 买入持有）与「纯现金」；成本统一按场内 `518880` 的佣金 + 滑点；
 2. **共同窗口**：三条口径都截到同一区间重新归 1，回答「同一段行情里谁更好」；
 3. **分解与敏感性**：A 的动作流水与回撤解剖、B 的闸门/波动层拆分、C 的参数与通道，
    外加三等分分期与逐年、六条口径断言。
@@ -60,26 +60,26 @@ def states(d, **kw):
             "C": G.state_c(px, **kw)}
 
 
-def evaluate(px, st, mode="otc", p=None):
+def evaluate(px, st, p=None):
     """单口径评价：净值 + 指标 + 曝光 + 调仓 + 成本。"""
-    fee, slip = G.fee_of(mode, p)
+    fee, slip = G.fee_of(p)
     nav = G.run_leg(st, px, fee=fee, slip=slip)
     m = G.perf(nav)
     return dict(nav=nav, m=m, calmar=G.calmar(m), exp=G.exposure(st),
                 acts=len(G.actions(st)), whip=G.whipsaw(st, px)["n"],
-                cost=G.cost_drag(st, mode, p), state=st)
+                cost=G.cost_drag(st, p), state=st)
 
 
-def run_block(px_full, st_full, start, mode="otc", p=None):
+def run_block(px_full, st_full, start, p=None):
     px = px_full.loc[start:]
-    return evaluate(px, st_full.loc[start:], mode, p)
+    return evaluate(px, st_full.loc[start:], p)
 
 
-def bench_block(px_full, start, mode="otc", p=None):
+def bench_block(px_full, start, p=None):
     px = px_full.loc[start:]
     one = pd.Series(1.0, index=px.index)
     zero = pd.Series(0.0, index=px.index)
-    return (evaluate(px, one, mode, p), evaluate(px, zero, mode, p))
+    return (evaluate(px, one, p), evaluate(px, zero, p))
 
 
 def start_of(d, k):
@@ -147,29 +147,25 @@ def mdd_of(nav):
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    d_otc = G.build("otc", refresh=True)
-    d_ex = G.build("exchange", refresh=False)
-    blocks = {}
-    for mode, d in (("otc", d_otc), ("exchange", d_ex)):
-        st = states(d)
-        blk = {}
-        for k in KEYS:
-            blk[k] = run_block(d["px"], st[k], start_of(d, k), mode, d["params"])
-            blk[k]["start"] = start_of(d, k)
-        start_all = max(blk[k]["start"] for k in KEYS)
-        blk["BH"], blk["CASH"] = bench_block(d["px"], start_all, mode, d["params"])
-        blk["BH"]["start"] = blk["CASH"]["start"] = start_all
-        blk["_common_start"] = start_all
-        blk["_px"] = d["px"]
-        blk["_st"] = st
-        blocks[mode] = blk
+    d = G.build(refresh=True)
+    st = states(d)
+    blk = {}
+    for k in KEYS:
+        blk[k] = run_block(d["px"], st[k], start_of(d, k), d["params"])
+        blk[k]["start"] = start_of(d, k)
+    start_all = max(blk[k]["start"] for k in KEYS)
+    blk["BH"], blk["CASH"] = bench_block(d["px"], start_all, d["params"])
+    blk["BH"]["start"] = blk["CASH"]["start"] = start_all
+    blk["_common_start"] = start_all
+    blk["_px"] = d["px"]
+    blk["_st"] = st
 
-    # ---- 共同窗口（场外）：三条都从同一天重新归 1
-    common = blocks["otc"]["_common_start"]
-    px_o = blocks["otc"]["_px"]
-    common_block = {k: evaluate(px_o.loc[common:], blocks["otc"]["_st"][k].loc[common:],
-                                "otc", d_otc["params"]) for k in KEYS}
-    common_block["BH"], common_block["CASH"] = bench_block(px_o, common, "otc", d_otc["params"])
+    # ---- 共同窗口：三条都从同一天重新归 1
+    common = blk["_common_start"]
+    px = blk["_px"]
+    common_block = {k: evaluate(px.loc[common:], blk["_st"][k].loc[common:],
+                                d["params"]) for k in KEYS}
+    common_block["BH"], common_block["CASH"] = bench_block(px, common, d["params"])
 
     # ---- 分段 / 逐年（共同窗口）
     segs = segments(common_block["BH"]["nav"], 3)
@@ -181,12 +177,11 @@ def main():
 
     # ---- 敏感性
     def one_a(name, **over):
-        st = G.state_a(d_otc["px"], **over)["state"]
-        return name, run_block(d_otc["px"], st, d_otc["start"]["A"], "otc", G.params(**over))
+        st = G.state_a(d["px"], **over)["state"]
+        return name, run_block(d["px"], st, d["start"]["A"], G.params(**over))
 
     sens_a = [("基准（60 日保险丝 / 阶梯 10-15-20 / 次日回带）",
-               run_block(d_otc["px"], blocks["otc"]["_st"]["A"], d_otc["start"]["A"],
-                         "otc", G.params()))]
+               run_block(d["px"], blk["_st"]["A"], d["start"]["A"], G.params()))]
     for item in (one_a("保险丝 30 日（更早降半仓）", DEGRADE_DAYS=30),
                  one_a("保险丝 90 日", DEGRADE_DAYS=90),
                  one_a("保险丝 250 日（几乎不降）", DEGRADE_DAYS=250),
@@ -202,60 +197,54 @@ def main():
     for gate, bucket in ((True, b_gate), (False, b_pure)):
         for tgt in (0.08, 0.10, 0.12, 0.15, 0.18):
             over = dict(GATE_ON=gate, VOL_TARGET=tgt)
-            st = G.state_b(d_otc["px"], **over)["state"]
-            r = run_block(d_otc["px"], st, d_otc["start"]["B"], "otc", G.params(**over))
+            st = G.state_b(d["px"], **over)["state"]
+            r = run_block(d["px"], st, d["start"]["B"], G.params(**over))
             bucket[tgt] = r
             sens_b.append((f"{'闸门+波动' if gate else '纯波动层'} · 目标 {tgt:.0%}", r, gate, tgt))
     for win in (60, 250):
         over = dict(VOL_TARGET=G.VOL_TARGET, VOL_WINDOW=win)
-        st = G.state_b(d_otc["px"], **over)["state"]
+        st = G.state_b(d["px"], **over)["state"]
         sens_b.append((f"纯波动层 · 目标 {G.VOL_TARGET:.0%} · 窗口 {win} 日",
-                       run_block(d_otc["px"], st, d_otc["start"]["B"], "otc", G.params(**over)),
+                       run_block(d["px"], st, d["start"]["B"], G.params(**over)),
                        False, None))
 
     sens_c = []
     main_pair = (G.MACD_FAST, G.MACD_SLOW)
     for fast, slow in (main_pair, (12, 26), (20, 60), (30, 100)):
         over = dict(MACD=(fast, slow, 9))
-        st = G.state_c(d_otc["px"], **over)
-        tag = "（场外 000216 · 主口径）" if (fast, slow) == main_pair else "（场外 000216）"
+        st = G.state_c(d["px"], **over)
+        tag = "（主口径）" if (fast, slow) == main_pair else ""
         sens_c.append((f"MACD {fast}/{slow}{tag}",
-                       run_block(d_otc["px"], st, start_of(d_otc, "C"), "otc", G.params(**over))))
-    st_f = G.state_c(d_otc["px"], C_TREND_FILTER=True)
-    sens_c.append((f"MACD {main_pair[0]}/{main_pair[1]} + 只在年线上方持（场外）",
-                   run_block(d_otc["px"], st_f, start_of(d_otc, "C"), "otc",
+                       run_block(d["px"], st, start_of(d, "C"), G.params(**over))))
+    st_f = G.state_c(d["px"], C_TREND_FILTER=True)
+    sens_c.append((f"MACD {main_pair[0]}/{main_pair[1]} + 只在年线上方持",
+                   run_block(d["px"], st_f, start_of(d, "C"),
                              G.params(C_TREND_FILTER=True))))
-    for fast, slow in (main_pair, (12, 26)):
-        over = dict(MACD=(fast, slow, 9))
-        st = G.state_c(d_ex["px"], **over)
-        sens_c.append((f"MACD {fast}/{slow}（场内 518880 · 万 0.3 佣金）",
-                       run_block(d_ex["px"], st, start_of(d_ex, "C"), "exchange", G.params(**over))))
 
-    checks = checks_of(d_otc, blocks["otc"]["_st"])
+    checks = checks_of(d, blk["_st"])
 
-    md = render(d_otc, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
+    md = render(d, blk, common_block, segs, seg_data, yrs, year_data,
                 sens_a, sens_b, b_gate, b_pure, sens_c, common, checks)
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write(md)
 
     with open(OUT_JSONL, "w", encoding="utf-8") as f:
-        for mode, blk in blocks.items():
-            for k in KEYS + ("BH", "CASH"):
-                r = blk[k]
-                m = r["m"]
-                f.write(json.dumps(dict(mode=mode, key=k, label=SHORT[k],
-                                        start=str(r["start"].date()),
-                                        end=str(blk["_px"].index[-1].date()),
-                                        ann=m["ann"], cum=m["cum"], vol=m["vol"], mdd=m["mdd"],
-                                        sharpe=m["sharpe"], calmar=r["calmar"],
-                                        exposure=r["exp"], acts=r["acts"],
-                                        whip=r["whip"], cost=r["cost"]),
-                                   ensure_ascii=False) + "\n")
+        for k in KEYS + ("BH", "CASH"):
+            r = blk[k]
+            m = r["m"]
+            f.write(json.dumps(dict(mode="exchange", key=k, label=SHORT[k],
+                                    start=str(r["start"].date()),
+                                    end=str(blk["_px"].index[-1].date()),
+                                    ann=m["ann"], cum=m["cum"], vol=m["vol"], mdd=m["mdd"],
+                                    sharpe=m["sharpe"], calmar=r["calmar"],
+                                    exposure=r["exp"], acts=r["acts"],
+                                    whip=r["whip"], cost=r["cost"]),
+                               ensure_ascii=False) + "\n")
         for group, items in (("A", sens_a), ("B", [(n, r) for n, r, _g, _t in sens_b]),
                              ("C", sens_c)):
             for name, r in items:
                 m = r["m"]
-                f.write(json.dumps(dict(mode="otc", group=group, key="sens", label=name,
+                f.write(json.dumps(dict(mode="exchange", group=group, key="sens", label=name,
                                         ann=m["ann"], mdd=m["mdd"], sharpe=m["sharpe"],
                                         calmar=r["calmar"], exposure=r["exp"],
                                         acts=r["acts"], whip=r["whip"], cost=r["cost"]),
@@ -304,11 +293,10 @@ def checks_of(d, st):
 
 
 # ---------------------------------------------------------------- 报告渲染
-def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
+def render(d, blk, common_block, segs, seg_data, yrs, year_data,
            sens_a, sens_b, b_gate, b_pure, sens_c, common, checks):
-    otc, ex = blocks["otc"], blocks["exchange"]
-    px_o, px_e = otc["_px"], ex["_px"]
-    rA, rB, rC, rBH = otc["A"], otc["B"], otc["C"], otc["BH"]
+    px = blk["_px"]
+    rA, rB, rC, rBH = blk["A"], blk["B"], blk["C"], blk["BH"]
     cA, cB, cC, cBH = (common_block[k] for k in ("A", "B", "C", "BH"))
     bh = cBH["m"]
     dA = cA["m"]["ann"] - bh["ann"]
@@ -319,12 +307,14 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
 
     A("# V6 变种 · 黄金 ETF 三口径策略 · 回测")
     A("")
-    A(f"> 标的：场内信号 `{G.SIGNAL_CODE}` 黄金ETF华安 / 场外执行 `{G.EXEC_CODE}` 华安黄金ETF联接A；"
-      f"目标带 **{G.BAND_PP:g}pp**（本报告内部一律记成「占带比例」，1.0 = 满带）。")
+    A(f"> 标的：**场内 `{G.SIGNAL_CODE}` 黄金ETF华安**（与全族黄金腿同一条序列）；"
+      f"价格、信号、执行都是这一只 ETF。目标带 **{G.BAND_PP:g}pp**"
+      "（本报告内部一律记成「占带比例」，1.0 = 满带）。")
+    A("> 三口径 = **同一价格 + 三套仓位规则**：A（长期配置 + 保险丝 + 回撤阶梯）、"
+      "B（A 再加波动率目标层）、C（MACD 低仓位占坑）。差别只在规则与换手，不在标的。")
     A("> 成交：T 日盘后决策 → **T+1 收盘成交**；空仓按货基 "
-      f"{G.CASH_ANNUAL:.2%} 计息；成本 = |Δ仓位| × 费率，场外 "
-      f"{G.FEE_OTC[0]:.2%}/{G.FEE_OTC[1]:.2%} + 滑点 {G.SLIP:.2%}，场内 "
-      f"{G.FEE_IN[0]:.3%}/{G.FEE_IN[1]:.3%} + 滑点 {G.SLIP_IN:.2%}。")
+      f"{G.CASH_ANNUAL:.2%} 计息；成本 = |Δ仓位| × 费率，场内佣金 "
+      f"{G.FEE[0]:.3%}/{G.FEE[1]:.3%} + 单边滑点 {G.SLIP:.2%}。")
     A("> 参数唯一权威源：`gold.py` 顶部常量（`params()` 打包，敏感性靠它覆盖）。")
     A("")
 
@@ -345,49 +335,45 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
       f"{cA['acts']} 次，最大回撤与买入持有**一模一样**（{pct(cA['m']['mdd'])}）—— "
       "因为 2026 这轮下跌到数据日只有 40 余日，还没到 60 日保险丝的门槛。"
       "它的价值在「长熊里把上限压到半仓」（2014-2015 生效过），不在当期回撤。")
-    A(f"4. **C 只在场内、且仍明确跑输**：场外 A 类（赎 0.50%）下年化掉到 "
-      f"{pct(cC['m']['ann'])}、累计成本 {cC['cost'] * 100:.1f}pp"
-      f"（{num(cC['cost'] / years_of(cC['nav']) * 100)}pp/年）；"
-      f"同一条信号放场内 `518880` 是 {pct(ex['C']['m']['ann'])} / {pct(ex['C']['m']['mdd'])} / "
-      f"夏普 {num(ex['C']['m']['sharpe'])}。**想要低仓位，B 把目标调到 8% 比 C 更好**（§8.2）。")
+    A(f"4. **C 低仓位占坑、且仍明确跑输**：年化 {pct(cC['m']['ann'])}、"
+      f"累计成本 {cC['cost'] * 100:.1f}pp"
+      f"（{num(cC['cost'] / years_of(cC['nav']) * 100)}pp/年）。"
+      "**想要低仓位，B 把目标调到 8% 比 C 更好**（§8.2）。")
     A("")
     A("**所以选择标准不是「谁年化高」，而是「你要黄金干什么」**："
       "长期配置、不想管（A，但要知道它≈买入持有+一条慢保险丝）/ 压组合波动（B）/ "
-      "必须有明确进出信号（C，仅场内且接受跑输）。")
+      "必须有明确进出信号（C，接受跑输）。")
     A("")
 
     # ---- 1. 口径与样本
     A("## 1. 口径与样本")
     A("")
-    A("| 口径 | 代码 | 区间 | 交易日 | 各口径起算点（预热后） |")
-    A("|---|---|---|---:|---|")
-    A(f"| 场外净值（主口径） | `{G.EXEC_CODE}` | {px_o.index[0].date()} ~ {px_o.index[-1].date()} "
-      f"| {len(px_o)} | A {otc['A']['start'].date()} / B {otc['B']['start'].date()} / "
-      f"C {otc['C']['start'].date()} |")
-    A(f"| 场内收盘（对照） | `{G.SIGNAL_CODE}` | {px_e.index[0].date()} ~ {px_e.index[-1].date()} "
-      f"| {len(px_e)} | A {ex['A']['start'].date()} / B {ex['B']['start'].date()} / "
-      f"C {ex['C']['start'].date()} |")
+    A("| 口径 | 价格序列 | 交易成本 | 区间 | 交易日 | 起算点（预热后） |")
+    A("|---|---|---|---|---:|---|")
+    A(f"| 场内 `518880`（A/B/C 共用） | `{G.SIGNAL_CODE}` | 买 {G.FEE[0]:.3%} / 卖 {G.FEE[1]:.3%}"
+      f" + 滑点 {G.SLIP:.2%} | {px.index[0].date()} ~ {px.index[-1].date()} | {len(px)} "
+      f"| A {blk['A']['start'].date()} / B {blk['B']['start'].date()} / C {blk['C']['start'].date()} |")
     A("")
-    A("- **场外净值**是实际执行口径（含分红再投、跟踪误差、申赎时滞），A/B 的主表用它；")
-    A("- **场内收盘**用于 C 的对照 —— C 的换手高，场外 A 类的赎回费会吃掉大半超额；")
+    A(f"- **价格序列只有一条**（`{G.SIGNAL_CODE}` 场内实物 ETF），三条口径共用；")
+    A("- 场内佣金万 0.3 + 单边滑点 0.05%，C 的换手高，成本差异主要来自换手次数；")
     A(f"- 三条口径统一等 MA250 预热（C 另外按 {G.C_WARMUP} 个交易日截断 —— "
       "EMA200 的初始值残留 (1-2/201)^N 在 N=250 时还有 8%，故取 2×slow），"
       "所以**主表起算点基本重合**；§3 仍给同一窗口的对照，避免首日建仓差异影响结论。")
     A("")
 
     # ---- 2. 主表
-    A("## 2. 主表（各自预热完成后起算 · 场外净值口径）")
+    A("## 2. 主表（各自预热完成后起算 · 场内费率）")
     A("")
     A(HEAD)
     for k in KEYS:
-        A(row(LABEL[k], otc[k], years_of(otc[k]["nav"])))
-    A(row("恒持满带（= 买入持有）", otc["BH"], years_of(otc["BH"]["nav"])))
-    A(row("纯现金（货基）", otc["CASH"], years_of(otc["CASH"]["nav"])))
+        A(row(LABEL[k], blk[k], years_of(blk[k]["nav"])))
+    A(row("恒持满带（= 买入持有）", blk["BH"], years_of(blk["BH"]["nav"])))
+    A(row("纯现金（货基）", blk["CASH"], years_of(blk["CASH"]["nav"])))
     A("")
     A("> 「恒持满带」= 同区间不做任何规则、仓位一直 100% 带（等价于买入持有 + 一次申购费）；"
       "「累计成本」按 |Δ仓位| × 费率累加，单位 pp 占净值。")
-    A(f"> 三条口径的预热都等 MA250，起算点分别 A {otc['A']['start'].date()} / "
-      f"B {otc['B']['start'].date()} / C {otc['C']['start'].date()}；"
+    A(f"> 三条口径的预热都等 MA250，起算点分别 A {blk['A']['start'].date()} / "
+      f"B {blk['B']['start'].date()} / C {blk['C']['start'].date()}；"
       "若仍有 1~2 个交易日错位（C 按固定预热日数），跨口径比较以 §3 的共同窗口为准。")
     A("")
 
@@ -406,29 +392,31 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
       f"C 年化 {pct(dC)}、回撤改善 {num((cC['m']['mdd'] - bh['mdd']) * 100)}pp。")
     A("")
 
-    # ---- 4. 场内对照
-    A("## 4. 场内对照（`518880` 收盘 · 万 0.3 佣金 + 0.05% 滑点）")
+    # ---- 4. 换手与成本
+    A("## 4. 换手与成本（场内 `518880` · 万 0.3 佣金 + 0.05% 滑点）")
     A("")
-    A(HEAD)
+    A("| 口径 | 调仓次数 | 次/年 | 累计成本 | 成本/年 |")
+    A("|---|---:|---:|---:|---:|")
     for k in KEYS:
-        A(row(LABEL[k], ex[k], years_of(ex[k]["nav"])))
-    A(row("恒持满带（= 买入持有）", ex["BH"], years_of(ex["BH"]["nav"])))
+        r = blk[k]
+        yrs_k = years_of(r["nav"])
+        A(f"| {LABEL[k]} | {r['acts']} | {r['acts'] / yrs_k:.1f} | "
+          f"{r['cost'] * 100:.1f}pp | {r['cost'] * 100 / yrs_k:.2f}pp |")
     A("")
-    A("> A/B 在场内外的差别很小（每年只动 0.5~0.8 次，费率占比可忽略）；"
-      f"差别全部集中在 C —— 它每年约 {ex['C']['acts'] / years_of(ex['C']['nav']):.0f} 次调仓"
-      f"（{ex['C']['acts'] / years_of(ex['C']['nav']) / 2:.0f} 个往返），"
-      f"场外 0.50% 赎回费让它累计付出 {rC['cost'] * 100:.0f}pp，场内只要 "
-      f"{ex['C']['cost'] * 100:.0f}pp。")
+    A("> A/B 每年只动 0.5~0.8 次，费率占比可忽略；差别全部集中在 C —— "
+      f"它每年约 {rC['acts'] / years_of(rC['nav']):.0f} 次调仓"
+      f"（{rC['acts'] / years_of(rC['nav']) / 2:.0f} 个往返），"
+      f"累计成本 {rC['cost'] * 100:.1f}pp。")
     A("")
 
     # ---- 5. A 的分解
-    stA_df = G.state_a(px_o)
+    stA_df = G.state_a(px)
     stA = stA_df["state"]
     acts = G.actions(stA)
     sells = [a for a in acts if a["kind"] == "sell"]
     buys = [a for a in acts if a["kind"] == "buy"]
-    tA, pkA, ddA = mdd_of(otc["A"]["nav"])
-    tBH, pkBH, ddBH = mdd_of(otc["BH"]["nav"])
+    tA, pkA, ddA = mdd_of(blk["A"]["nav"])
+    tBH, pkBH, ddBH = mdd_of(blk["BH"]["nav"])
     deg_days = int(stA_df["degraded"].sum())
     A("## 5. A 长期配置：它到底做了什么")
     A("")
@@ -465,7 +453,7 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
     A("|---|---:|---:|---:|---:|---:|")
     for nm, r in (("闸门 + 波动层（v5 口径）", b_gate[G.VOL_TARGET]),
                   ("**纯波动层（默认 B）**", b_pure[G.VOL_TARGET]),
-                  ("恒持满带（无风控）", otc["BH"])):
+                  ("恒持满带（无风控）", blk["BH"])):
         m = r["m"]
         A(f"| {nm} | {pct(m['ann'])} | {pct(m['mdd'])} | {num(m['sharpe'])} | "
           f"{num(r['calmar'])} | {r['exp']:.0%} |")
@@ -479,14 +467,14 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
       "（2016、2024、2025 都是），闸门减在坑里。**所以 B 默认关掉闸门**（`GATE_ON=False`）；"
       "若你要的是「连 -22% 也不想看到」，再把它打开，用 2.4pp 年化买 1.2pp 回撤。")
     A("")
-    quad = G.state_b(px_o, GATE_ON=True)["quad"]
+    quad = G.state_b(px, GATE_ON=True)["quad"]
     q = quad[quad != ""].value_counts()
     tot = int(q.sum()) or 1
     A("参考：闸门口径下的四象限日数占比 —— " + " · ".join(
         f"{name} {int(q.get(name, 0)) / tot:.0%}" for name in G.QUADS) + "。")
     A(f"> 波动层的作用机制是「已实现波动冲高 → 压仓位」，所以它天然在暴跌里生效："
       f"{G.VOL_TARGET:.0%} 目标下平均只压掉 {1 - b_pure[G.VOL_TARGET]['exp']:.0%} 的仓位，却把回撤从 "
-      f"{pct(otc['BH']['m']['mdd'])} 压到 {pct(b_pure[G.VOL_TARGET]['m']['mdd'])}。")
+      f"{pct(blk['BH']['m']['mdd'])} 压到 {pct(b_pure[G.VOL_TARGET]['m']['mdd'])}。")
     A("")
 
     # ---- 7. 分段与逐年
@@ -577,12 +565,12 @@ def render(d, d_ex, blocks, common_block, segs, seg_data, yrs, year_data,
     A(f"3. **B 的改善集中在波动冲高的年份**：本样本里贡献最大的是 {best} —— "
       "`v5_trend_gate/research/_vol_overlay.md` 已量化「黄金的改善全部来自 2023-2026」，"
       "等于用最近这一段给策略打分，别外推。")
-    A("4. **C 的换手对费率极敏感**：场外 A 类（赎 0.5%）基本不可用，场内要注意溢价 —— "
+    A("4. **C 的换手对成本极敏感**：调仓次数直接决定成本，注意场内溢价 —— "
       "`|溢价| > 2% 不买`（主策略 §8 硬过滤）。")
     A("5. **FOMC 窗口与央行购金保险丝在回测里不生效**：`data/_val_inputs.json` 的 "
       "`fomc_days` 为空、`wgrc_fuse` 为 null（人工输入，留空即不执行）。规则代码保留，"
       "填上后每日脚本会照做，但历史段无数据可回测。")
-    A("6. **样本 12 年（场外）/ 11.8 年（场内）**，两轮大牛市夹一轮长熊，结论对起点敏感；"
+    A("6. **样本 12 年**，两轮大牛市夹一轮长熊，结论对起点敏感；"
       "三套参数来自主策略与 v5 的既有研究，不是在本样本上搜出来的（唯一的例外是 §8.3 的 50/200）。")
     A("")
     A("> **模拟结果，非投资建议。**")

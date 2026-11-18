@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V9 变种（美股两腿波动率目标仓位）· 每日操作。
+"""波动资产 · V9 变种（全七腿 · 按腿开关：标普010 / 其余111）· 每日操作。
 
 流程：
-1. **先刷新数据**：场外 QDII 净值（`data.refresh_otc`，仅这两条腿）+ 美股指数
-   （`data.refresh_us`，`.NDX` / `.INX`）；加 `--no-refresh` 用本地缓存，报告会标「未刷新」；
-2. 对两条腿各算五个数：**vol20**（近 20 日年化已实现波动）、**按公式该持多少**
+1. **先刷新数据**：真实指数长库（A股/港股走 `_cn_index_klines.json`，美股 `.NDX`/`.INX`
+   走 `_global_index_klines.json`，2005 起；黄金用 `518880`）；信号与回测价格都读它；
+   加 `--no-refresh` 用本地缓存，报告会标「未刷新」；
+2. 对七条腿各算五个数：**vol20**（近 20 日年化已实现波动）、**按公式该持多少**
    （`min(1, 15%/vol20)`）、**当前仓位**（上一次月末决策的执行结果）、
    **两者差额**（是否达到 5pp 的死区门槛）、下一次决策日；
 3. 输出：今日是否有动作（**只有月末最后一个交易日会有**）、月末预览、逐腿读数、最近 8 次操作流水。
@@ -52,28 +53,37 @@ def next_rebal(last):
     return last_td, gap
 
 
-def _fresh(leg, refreshed, fails_otc, fails_us):
-    code = vt.rule.LEGS[leg]["otc"]
-    sig = vt.rule.LEGS[leg]["signal"]
-    if code in fails_otc:
-        return f"❌净值刷新失败({code})"
-    if sig in fails_us:
+def _fresh(leg, refreshed, fails):
+    sig = vt.rule.LEGS[leg]["idx"]
+    if leg in fails or sig in fails:
         return f"⚠️指数刷新失败({sig})，用缓存"
     if not refreshed:
         return "·未刷新(本地缓存)"
     return "✅已刷新"
 
 
-def leg_view(leg, refreshed, fails_otc, fails_us):
+def leg_view(leg, refreshed, fails):
     cfg = vt.rule.LEGS[leg]
     # MONTH_END_LAST=False: 每日视图里「今天」不算月末, 否则非月末日也会报一次定仓决策
+    p = vt.leg_params(leg, vt.params(MONTH_END_LAST=False))
     nav, st, dec = vt.build(leg, MONTH_END_LAST=False)
     sig = vt.load_signal(leg)
     vol = vt.vol_series(sig)
     d_sig = sig.index[-1]
     close = float(sig.iloc[-1])
     v = float(vol.iloc[-1])
-    raw = vt.raw_weight(v) or 0.0
+    # 「按公式该持」必须和当前仓位同口径：自适应 TV -> 年线闸门 -> 金叉掩码，缺一不可
+    raw = vt.raw_weight(v, p) or 0.0
+    if p["ADAPTIVE"]:
+        tv_now = float(vt.adaptive_tv(sig, p).iloc[-1])
+        if pd.notna(tv_now) and pd.notna(v) and v > 0:
+            raw = float(max(0.0, min(float(p["CAP"]), tv_now / v)))
+    if p["GATE"]:
+        raw *= float(vt.annual_gate(sig, p, leg=leg).iloc[-1])
+    mask = vt.cross_mask(sig, p)
+    if mask is not None and not bool(mask.iloc[-1]):
+        raw = 0.0
+    switch = "".join("1" if p[k] else "0" for k in vt.SW_KEYS)
     state_now = float(st.iloc[-1])
 
     last_dec = dec[-1] if dec else None
@@ -104,15 +114,15 @@ def leg_view(leg, refreshed, fails_otc, fails_us):
     ops = vt.actions(st)[-RECENT:]
     band = float(cfg["band"])
     return dict(
-        leg=leg, name=cfg["name"], band=band,
-        exec=cfg["exec"], exec_name=cfg["exec_name"], signal=cfg["signal"],
+        leg=leg, name=cfg["name"], band=band, switch=switch,
+        exec=cfg["exec"], exec_name=cfg["exec_name"], signal=cfg["idx"],
         nav_date=nav.index[-1].date().isoformat(), sig_date=d_sig.date().isoformat(),
         nav=float(nav.iloc[-1]), close=close, vol=v,
         tv=vt.TV, raw=raw, preview=preview, diff=diff, zone=zone,
         state=state_now, level=vt.level_name(state_now),
         pending=pending, trig=trig, ret5=ret5, peek=float(v / peak) if peak else float("nan"),
         action=(f"→ {vt.level_name(pending)}（{pending_why}）" if pending is not None else "维持"),
-        fresh=_fresh(leg, refreshed, fails_otc, fails_us),
+        fresh=_fresh(leg, refreshed, fails),
         ops=[dict(date=o["date"].date().isoformat(), kind=o["kind"], frm=o["frm"], to=o["to"])
              for o in ops],
     )
@@ -120,50 +130,47 @@ def leg_view(leg, refreshed, fails_otc, fails_us):
 
 def main():
     refreshed = "--no-refresh" not in sys.argv
-    fails_otc, fails_us = {}, {}
+    fails = {}
     if refreshed:
-        codes = [vt.rule.LEGS[k]["otc"] for k in vt.POOL]
-        sigs = [vt.rule.LEGS[k]["signal"] for k in vt.POOL]
+        # 信号与回测价格都读 `_global_index_klines.json`（2005 起），刷新也必须刷这个库；
+        # `_us_index_klines.json` 只有 2010 起，刷它不会让 v9 的信号变新。
         try:
-            _l, fails_otc = vt.vdata.refresh_otc(codes=codes)
+            _l, fails = vt.vdata.refresh_global_index(legs=list(vt.POOL))
         except Exception as exc:                                  # noqa: BLE001
-            fails_otc = {c: f"{type(exc).__name__}: {exc}" for c in codes}
-        try:
-            _l, fails_us = vt.vdata.refresh_us(codes=sigs)
-        except Exception as exc:                                  # noqa: BLE001
-            fails_us = {c: f"{type(exc).__name__}: {exc}" for c in sigs}
+            fails = {k: f"{type(exc).__name__}: {exc}" for k in vt.POOL}
 
-    rows = [leg_view(k, refreshed, fails_otc, fails_us) for k in vt.POOL]
+    rows = [leg_view(k, refreshed, fails) for k in vt.POOL]
     act = [r for r in rows if r["pending"] is not None]
     last_date = max(r["sig_date"] for r in rows)
     nxt, gap = next_rebal(last_date)
 
     L = [
-        f"# 波动资产 · V9（美股两腿波动率目标仓位）· 每日操作（{last_date}）",
-        f"> 池 = **只有纳指100（{vt.rule.LEGS['ndx']['otc']}）与标普500"
-        f"（{vt.rule.LEGS['spx']['otc']}）**；信号 = **美元指数**收盘（`.NDX` / `.INX`）算 vol20，"
-        "执行 = 场外 QDII **人民币复权净值**。",
+        f"# 波动资产 · V9（波动率目标仓位）· 每日操作（{last_date}）",
+        f"> 池 = **全七腿**（{', '.join(vt.rule.LEGS[k]['name'] for k in vt.POOL)}）；"
+        f"各腿用自身真实指数收盘算 vol20，{vt.vdata.us_signal_exec_desc()}。",
         f"> 规则：月末收盘算近 {vt.VOL_WIN} 日年化波动 → `w = min(1, {vt.TV:.0%} / vol20)`，"
         f"与当前仓位差不足 ±{vt.DRIFT:.0%} 不交易；次一交易日收盘成交、新权重自 t+2 起生效。",
         f"> **月中也会动**：快减（5 日 ≤ {vt.CUT_RET:.0%} 且 vol20 ≥ {vt.CUT_VOLX:.1f}×TV）、"
         f"快补（vol20 ≤ {vt.DECAY:.0%}×近 {vt.PEAK_WIN} 日峰值 且 站上 MA{vt.ADD_MA}）。",
-        f"> 未投部分按 {vt.CASH_ANNUAL:.2%} 计息；单边成本 {vt.COST:.2%}。"
+        f"> 未投部分按 {vt.CASH_ANNUAL:.2%} 计息；单边成本 {vt.COST:.2%}。",
+        "> **按腿开关（2026-11-18 定稿）**：标普 `010`（仅 v7 年线闸门），其余六腿 `111`"
+        "（v10 自适应波动层 + v7 年线闸门 + v8 金叉）。「按公式该持」已含对应闸门/掩码，与当前仓位同口径。",
         "机械规则输出，**非投资建议**。",
         "",
         "## 今日结论（次日成交）",
         "",
-        "| 腿 | 当前仓位 | 今日动作 | 信号收盘 | vol20 | 按公式该持 | 差额 | 触发自查 | 数据 |",
-        "|---|---|---|---:|---:|---:|---:|---|---|",
+        "| 腿 | 开关 | 当前仓位 | 今日动作 | 信号收盘 | vol20 | 按公式该持 | 差额 | 触发自查 | 数据 |",
+        "|---|---|---|---|---|---:|---:|---:|---:|---|---|",
     ]
     for r in rows:
-        L.append(f"| {r['name']} | **{r['level']}** | {r['action']} | "
+        L.append(f"| {r['name']} | `{r['switch']}` | **{r['level']}** | {r['action']} | "
                  f"{r['close']:.0f} | {r['vol']:.1%} | {r['raw']:.0%} | "
                  f"{r['diff'] * 100:+.1f}pp | {r['trig']} | {r['fresh']} |")
     L += [
         "",
         (f"**有动作：{'、'.join(r['name'] for r in act)} 明日（次一交易日）收盘净值成交。**"
          if act else
-         f"**今日无动作 —— 两条腿都维持现仓。下一次月末定仓 ≈ {nxt.date()}（约 {gap} 个交易日）。**"),
+         f"**今日无动作 —— {len(rows)} 条腿都维持现仓。下一次月末定仓 ≈ {nxt.date()}（约 {gap} 个交易日）。**"),
         "",
         "> 提醒：月末定仓之外，**月中只有两种情形会动** —— 急跌（快减）与恐慌消退（快补）。"
         "「触发自查」列就是今天的实时判定，不满足时给出离门槛还有多远。",
@@ -181,7 +188,7 @@ def main():
         "",
         "## 逐腿读数",
         "",
-        "| 腿 | 执行代码 | 净值日 | 复权净值 | 信号代码 | 信号日 | 目标带 | 带内仓位 | 折合 pp | 现金腿 |",
+        "| 腿 | 执行代码 | 数据日 | 价格 | 信号代码 | 信号日 | 目标带 | 带内仓位 | 折合 pp | 现金腿 |",
         "|---|---|---|---:|---|---|---:|---:|---:|---:|",
     ]
     for r in rows:
@@ -216,8 +223,9 @@ def main():
         "但仍落后静态 6.9pp（VT 要先看见波动才减仓）。2022 型慢熊才是它的主场（全年 +7.6pp vs 静态）。",
         "- **快减在 2018 型「急跌后快速 V 反」里是负贡献**（比月度档少 4.8pp）—— "
         "浅摔时降仓空间小，来回一折腾就亏。这是已知保费，不是 bug。",
-        "- **与 v7 的关系**：v7（年线闸门）问「在不在年线上」，V9 问「这段波动值多少仓位」。"
-        "两者共用同两条腿的同一份额度，**只能选一个当主口径**，不要叠加。",
+        "- **与 v7 的关系已变**：2026-11-18 起 v7 年线闸门按腿并入 V9（标普只用闸门，"
+        "其余腿再叠自适应波动层与金叉）；这是用户指定的新口径，不再是「二选一」。"
+        "对照口径见 `../backtest/_v9_vol_target_bt.md`。",
         "- **QDII 通道**：月末要减仓时若遇暂停申购/限购，赎回照常但申购受限；"
         "本规则只减不加的情形更多，通道风险主要在执行时滞（T+2）而非无法下单。",
         "- 带位仍由主策略 `rule.py` 决定（纳指 10pp / 标普 10pp），本变种只调**带内露多少**。",
@@ -238,11 +246,14 @@ def main():
                      "cash_annual": vt.CASH_ANNUAL, "trigger": vt.TRIGGER,
                      "fast_cut": {"ret5": vt.CUT_RET, "volx": vt.CUT_VOLX, "on": bool(vt.CUT)},
                      "fast_add": {"decay": vt.DECAY, "peak_win": vt.PEAK_WIN,
-                                  "ma": vt.ADD_MA, "on": bool(vt.ADD)}},
+                                  "ma": vt.ADD_MA, "on": bool(vt.ADD)},
+                     "switches": {vt.SW_KEYS[i]: sorted(
+                         {leg for leg in vt.POOL if vt.leg_params(leg)[vt.SW_KEYS[i]]})
+                         for i in range(len(vt.SW_KEYS))}},
             "summary": {"action": bool(act), "buy": [r["leg"] for r in act if r["diff"] > 0],
                         "sell": [r["leg"] for r in act if r["diff"] < 0],
                         "refreshed": refreshed,
-                        "fail_otc": list(fails_otc), "fail_us": list(fails_us)},
+                        "fail_index": list(fails)},
             "legs": [{k: v for k, v in r.items() if k != "ops"} for r in rows],
             "recent": [dict(date=d, leg=nm, kind=k, frm=a, to=b)
                        for d, nm, k, a, b in sorted(allops, reverse=True)],
@@ -254,8 +265,8 @@ def main():
     for r in rows:
         print(f"  {r['name']:8s} {r['level']:4s}({r['state']:.0%}) · 信号 {r['close']:.0f} · "
               f"vol20 {r['vol']:.1%} → 公式 {r['raw']:.0%}（差额 {r['diff'] * 100:+.1f}pp, {r['zone']}）")
-    if fails_otc or fails_us:
-        print("刷新失败:", {**fails_otc, **fails_us})
+    if fails:
+        print("刷新失败:", fails)
 
 
 if __name__ == "__main__":

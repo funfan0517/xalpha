@@ -2,7 +2,7 @@
 """V9（美股两腿波动率目标仓位）· 单腿操作点图：纳指100 / 标普500。
 
 图的读法：
-- **上格深色线** = 场外 QDII 复权净值（含分红再投 / 汇率 / 跟踪误差），这是你真能拿到的收益；
+- **上格深色线** = 该腿价格（美元指数真实收盘）；
 - **底色** = 当天 vol20 高于（浅红）还是低于（浅绿）目标波动 15% —— 决策依据；
   浅红 = 该降仓的区间，浅绿 = 允许满仓的区间；
 - **▲/▼** = 该笔调仓的**成交日**（月末盘后决策 → 次一交易日收盘成交）；只对
@@ -87,9 +87,9 @@ def plot(leg, out_dir=_HERE):
                              2, 2.5, 3, 4, 5, 6, 8, 10, 12, 15, 20) if lo <= t <= hi]
         ax.set_yticks(ticks)
         ax.set_yticklabels([f"{t:g}" for t in ticks])
-        ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+        ax.set_ylabel(f"{vt.vdata.price_short()}（对数轴）", fontsize=10)
     else:
-        ax.set_ylabel("场外复权净值", fontsize=10)
+        ax.set_ylabel(f"{vt.vdata.price_short()}", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.28, zorder=1)
     ax.tick_params(labelbottom=False)
 
@@ -109,18 +109,6 @@ def plot(leg, out_dir=_HERE):
                         textcoords="offset points", xytext=(0, 9 if up_o else -15),
                         ha="center", fontsize=6.8,
                         color=C_BUY if up_o else C_SELL, zorder=7)
-
-    cut = None
-    if cfg.get("otc_proxy"):
-        _cut = pd.Timestamp(cfg.get("otc_start"))
-        if idx[0] < _cut < idx[-1]:
-            cut = idx[idx.searchsorted(_cut)]
-            ax.axvspan(idx[0], cut, color="#9aa5b1", alpha=0.10, lw=0, zorder=1)
-            ax.axvline(cut, color="#7b8794", lw=0.9, ls="--", zorder=2)
-            ax.text(cut, 0.975, f"{cut.date()} 起为 {cfg['otc']} 真实净值"
-                                f"（此前 {cfg.get('otc_proxy')} 桥接） ",
-                    transform=ax.get_xaxis_transform(), va="top", ha="right",
-                    fontsize=8.3, color="#5b6b7a")
 
     # ---- 下格：仓位（左轴）+ vol20（右轴）
     axp.plot(idx, st.to_numpy() * 100.0, color=C_POS, lw=1.3, zorder=4)
@@ -151,7 +139,7 @@ def plot(leg, out_dir=_HERE):
                    fontsize=9, color="#5b6b7a")
 
     handles = [
-        Line2D([], [], color=C_PRICE, lw=1.3, label=f"{cfg['name']} 复权净值"),
+        Line2D([], [], color=C_PRICE, lw=1.3, label=f"{cfg['name']} 价格"),
         Line2D([], [], color=C_POS, lw=1.3, label="带内仓位（下格左轴）"),
         Line2D([], [], color=C_VOL, lw=1.0, label=f"vol{vt.VOL_WIN} 年化波动（下格右轴）"),
         Line2D([], [], color=C_VOL, lw=1.0, ls="--", label=f"目标波动 {vt.TV:.0%}"),
@@ -167,7 +155,7 @@ def plot(leg, out_dir=_HERE):
               columnspacing=1.0, handletextpad=0.5, borderaxespad=0.2)
 
     fig.text(0.045, 0.972,
-             f"{cfg['name']}（{cfg['otc']}）波动率目标仓位 · vol{vt.VOL_WIN} × TV {vt.TV:.0%}"
+             f"{cfg['name']}（{cfg['idx']}）波动率目标仓位 · vol{vt.VOL_WIN} × TV {vt.TV:.0%}"
              f" · 月末定仓 + 月中快减/快补（真实操作点）",
              ha="left", fontsize=13.2, color="#1b2b3a", weight="bold")
     fig.text(0.045, 0.941,
@@ -183,7 +171,7 @@ def plot(leg, out_dir=_HERE):
 
     note = [
         f"规则：月末收盘算 vol{vt.VOL_WIN}（近 {vt.VOL_WIN} 日收益的年化已实现波动，用美元指数 "
-        f"{cfg['signal']}）→ 目标仓位 `w = min(1, {vt.TV:.0%}/vol{vt.VOL_WIN})`；次一交易日收盘成交，"
+        f"{cfg['idx']}）→ 目标仓位 `w = min(1, {vt.TV:.0%}/vol{vt.VOL_WIN})`；次一交易日收盘成交，"
         "新权重自 t+2 起承担收益。",
         f"月中补丁：**快减** = 5 日跌幅 ≤ {vt.CUT_RET:.0%} 且 vol{vt.VOL_WIN} ≥ {vt.CUT_VOLX:.1f}×TV；"
         f"**快补** = vol{vt.VOL_WIN} ≤ {vt.DECAY:.0%}×近 {vt.PEAK_WIN} 日峰值 且 站上 MA{vt.ADD_MA}。"

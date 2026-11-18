@@ -66,7 +66,7 @@ def _plot_one(leg, name, nav, bh, path):
                                    gridspec_kw={"height_ratios": [3, 1]})
     ax1.plot(x, bh.to_numpy(), label="买入持有", color="#888", linewidth=1.2)
     ax1.plot(x, nav.to_numpy(), label=ma20.LABEL, color="#c2185b", linewidth=1.5)
-    ax1.set_title(f"{name} · {ma20.LABEL} vs 买入持有（场外复权净值, 起=1）")
+    ax1.set_title(f"{name} · {ma20.LABEL} vs 买入持有（真实指数收盘, 起=1）")
     ax1.set_ylabel("净值")
     ax1.grid(alpha=0.3)
     ax1.legend()
@@ -132,7 +132,7 @@ def main():
                    edge_fee_pp=round((mf["ann"] - b["ann"]) * 100, 2),
                    pos_now=int(sig.iloc[-1]), nav_now=float(px.iloc[-1]),
                    ma20_now=float(ma_full.iloc[-1]),
-                   bridge=bool(cfg.get("otc_proxy")), source=ma20.vdata.SOURCE_NOTE.get(leg, ""))
+                   source=ma20.vdata.SOURCE_NOTE.get(leg, ""))
         out.append(rec)
 
         # ---- 逐腿章节 ----
@@ -141,8 +141,8 @@ def main():
             "",
             f"### {cfg['name']}（{cfg['role']} · 带 {cfg['band']:g}pp · `{cfg['exec']}`）",
             "",
-            f"样本：**{px.index[0].date()} ~ {px.index[-1].date()}** · {len(px)} 个净值日 · "
-            f"约 {years:.2f} 年（MA20 成形日起）。" + ("　⚠️ 前段含**桥接**（同类老基金）。" if rec["bridge"] else ""),
+            f"样本：**{px.index[0].date()} ~ {px.index[-1].date()}** · {len(px)} 个交易日 · "
+            f"约 {years:.2f} 年（MA20 成形日起）；真实指数全历史，无桥接段。",
             "",
         ]
         sections += _m_table(m, mf, b)
@@ -180,10 +180,10 @@ def main():
 
     L = [
         "# 波动资产 · V1 量价家族 · 子策略 V1-1（MA20 穿越）· 七腿逐只详报",
-        f"> 池 = `rule.LEG_ORDER` 七腿（与主策略一致）· 场外复权净值 · T+1 净值成交 · "
-        f"空仓计货基 {ma20.CASH_ANNUAL:.2%} · 年化按 252 日",
-        "> ⚠️ 各腿上市时间不同（科创50 / 恒生科技 2021 起，A500 / 标普含桥接前段）："
-        "只比「各自区间内 V1 vs 买入持有」，不是同窗口排名。",
+        f"> 池 = `rule.LEG_ORDER` 七腿（与主策略一致）· {ma20.vdata.price_desc()} · "
+        f"T+1 {ma20.vdata.fill_desc()} · 空仓计货基 {ma20.CASH_ANNUAL:.2%} · 年化按 252 日",
+        "> ⚠️ 各腿样本起点不同（科创50 / 恒生科技 2020~2021 起；所有腿都是真实指数、无桥接段）"
+        "：只比「各自区间内 V1 vs 买入持有」，不是同窗口排名。",
         "",
         "## 汇总（按年化差降序）",
         "",

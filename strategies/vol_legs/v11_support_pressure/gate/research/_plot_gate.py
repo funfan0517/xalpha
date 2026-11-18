@@ -2,7 +2,7 @@
 """v11-gate（支撑位闸门）· 单腿操作图：趋势线 + 前低支撑 + 四态背景 + 真实操作点。
 
 图的读法（与 v5 的 `_v5_trend_{leg}.png` 同一套版式，换成 v11-gate 的三个量）：
-- **上格深色线** = 场外复权净值；**橙线** = MA200（月频趋势的读数主线）；
+- **上格深色线** = 该腿价格（真实指数）；**橙线** = MA200（月频趋势的读数主线）；
 - **上格绿色阶梯虚线** = 最近一个**已确认**的摆动低点（支撑位，滞后 10 日确认）；
 - **上格背景色带** = 当日档位：绿=满带 1.0 / 黄=半仓 0.5（贴线 ≤3%）/ 橙=观察仓 0.2（趋势不成立）/
   红=空仓 0（跌破支撑 + 冷却 20 日）；
@@ -105,7 +105,7 @@ def plot(key, out_dir=_HERE, years=None, trend_only=False):
     ax.step(idx, sup.to_numpy(dtype=float), where="post", color=C_SUP, lw=1.0, ls=":",
             zorder=2, label="前低支撑（已确认枢轴低点）")
     ax.plot(idx, px.to_numpy(dtype=float), color=C_PRICE, lw=1.3, zorder=3,
-            label=f"{cfg['name']} 复权净值")
+            label=f"{cfg['name']} 价格")
     ax.set_ylim(lo, hi)
     if log:
         ax.set_yscale("log")
@@ -113,9 +113,9 @@ def plot(key, out_dir=_HERE, years=None, trend_only=False):
         ticks = [t for t in (0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20) if lo <= t <= hi]
         ax.set_yticks(ticks)
         ax.set_yticklabels([f"{t:g}" for t in ticks])
-        ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+        ax.set_ylabel(f"{sg.v11.vdata.price_short()}（对数轴）", fontsize=10)
     else:
-        ax.set_ylabel("场外复权净值", fontsize=10)
+        ax.set_ylabel(f"{sg.v11.vdata.price_short()}", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.30, zorder=1)
     ax.tick_params(labelbottom=False)
 
@@ -181,7 +181,7 @@ def plot(key, out_dir=_HERE, years=None, trend_only=False):
 
     # ---- 图例（标题与坐标区之间，两行）
     handles = [
-        Line2D([], [], color=C_PRICE, lw=1.3, label=f"{cfg['name']} 复权净值"),
+        Line2D([], [], color=C_PRICE, lw=1.3, label=f"{cfg['name']} 价格"),
         Line2D([], [], color=C_MA, lw=1.25, label=f"MA{sg.MA_WIN} 趋势线（月频判定）"),
         Line2D([], [], color=C_SUP, lw=1.0, ls=":", label="前低支撑（阶梯 = 每次更新）"),
         Line2D([], [], ls="none", marker="^", ms=8, mfc="none", mec=C_BUY,
@@ -197,7 +197,7 @@ def plot(key, out_dir=_HERE, years=None, trend_only=False):
     variant = "纯趋势（去支撑层·消融档）" if trend_only else "完整规则（趋势 + 支撑层）"
     win_txt = f"近 {years:g} 年 · " if years else ""
     fig.text(0.045, 0.972,
-             f"{cfg['name']}（{cfg['otc']}）{win_txt}MA{sg.MA_WIN} 月频趋势 × 前低支撑 → 带内档位 · "
+             f"{cfg['name']}（{cfg['idx']}）{win_txt}MA{sg.MA_WIN} 月频趋势 × 前低支撑 → 带内档位 · "
              f"{variant} · 真实操作点",
              ha="left", fontsize=13.0, color="#1b2b3a", weight="bold")
     fig.text(0.045, 0.938,

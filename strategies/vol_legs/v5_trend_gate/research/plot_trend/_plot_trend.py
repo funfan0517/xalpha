@@ -2,7 +2,7 @@
 """V5（趋势四象限闸门）· 趋势线 + 操作点单腿图：中证A500 / 科创50 / 双均线口径。
 
 图的读法：
-- **上格深色线** = 场外复权净值（含分红再投 / 汇率 / 跟踪误差）；
+- **上格深色线** = 真实指数收盘（含分红再投 / 汇率 / 跟踪误差）；
 - **橙线** = 趋势读数主线（默认 MA250 年线；`--dual 50 150` 时为 MA50 快线，另一条蓝线是 MA150 慢线）；
 - **上格背景色带** = 当日所处象限（绿 = 上涨趋势、黄 = 反弹、橙 = 高位回调、红 = 下跌趋势）——
   四格 = 「读数在上方态与否」×「读数斜率朝上/朝下」，色带的分界 = 象限切换；
@@ -82,7 +82,7 @@ SPEC = {
     "spx": dict(name="标普500", code="017641", gate=False),
     "kc50": dict(name="科创50", code="011609", gate=True),
     "hkt": dict(name="恒生科技", code="012805", gate=True),
-    "gold": dict(name="黄金", code="000216", gate=True),
+    "gold": dict(name="黄金", code="518880", gate=True),
 }
 
 
@@ -142,13 +142,6 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
     slow = (px_full.rolling(s_win, min_periods=s_win).mean().loc[start:] if dual else None)
     fast_dn = (px_full.rolling(dw, min_periods=dw).mean().loc[start:] if asym else None)
 
-    # 桥接段（A500：000051 沪深300 联接 -> 023299）
-    cut = None
-    if tg.rule.LEGS[key].get("otc_proxy"):
-        _cut = pd.Timestamp(tg.rule.LEGS[key]["otc_start"])
-        if px.index[0] < _cut < px.index[-1]:
-            cut = px.index[px.index.searchsorted(_cut)]
-
     fee = tg.fee_of(key)
     if years:
         # 区间图：档位接续历史（不在窗口首日重置成满带），净值切片后归 1
@@ -191,9 +184,9 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
         ticks = [t for t in (1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15) if lo <= t <= hi]
         ax.set_yticks(ticks)
         ax.set_yticklabels([f"{t:g}" for t in ticks])
-        ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+        ax.set_ylabel("价格（对数轴）", fontsize=10)
     else:
-        ax.set_ylabel("场外复权净值", fontsize=10)
+        ax.set_ylabel("价格", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.30, zorder=1)
     ax.tick_params(labelbottom=False)
 
@@ -211,13 +204,6 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
                         (o["date"], float(px.loc[o["date"]])), textcoords="offset points",
                         xytext=(0, 9 if up else -15), ha="center", fontsize=7.2,
                         color=C_BUY if up else C_SELL, zorder=7)
-
-    if cut is not None:
-        ax.axvspan(idx[0], cut, color="#9aa5b1", alpha=0.10, lw=0, zorder=1)
-        ax.axvline(cut, color="#7b8794", lw=0.9, ls="--", zorder=2)
-        ax.text(cut, 0.975, f"{cut.date()} 起为 {meta['code']} 真实净值（此前 000051 桥接） ",
-                transform=ax.get_xaxis_transform(), va="top", ha="right",
-                fontsize=8.3, color="#5b6b7a")
 
     # ---- 下格：带内档位阶梯（虚线灰 = 趋势档位，实线 = 趋势 × 波动层后的实际仓位）
     axp.step(idx, st_tr.to_numpy(), where="post", color="#b6c0cb", lw=0.9, ls="--",
@@ -246,19 +232,19 @@ def plot(key, out_dir=_HERE, kw=None, tag="", years=None):
     # ---- 图例（放在标题与坐标区之间，两行）
     if dual:
         line_hd = [
-            Line2D([], [], color=C_PRICE, lw=1.3, label=f"{meta['name']} 复权净值"),
+            Line2D([], [], color=C_PRICE, lw=1.3, label=f"{meta['name']} 价格"),
             Line2D([], [], color=C_FAST, lw=1.3, label=f"MA{f_win} 快线（读数主线）"),
             Line2D([], [], color=C_SLOW, lw=1.1, label=f"MA{s_win} 慢线"),
         ]
     elif asym:
         line_hd = [
-            Line2D([], [], color=C_PRICE, lw=1.3, label=f"{meta['name']} 复权净值"),
+            Line2D([], [], color=C_PRICE, lw=1.3, label=f"{meta['name']} 价格"),
             Line2D([], [], color=C_FAST, lw=1.3, label=f"MA{tg.MA_WIN} 慢线（加仓把门）"),
             Line2D([], [], color=C_SLOW, lw=1.05, ls="--", label=f"MA{dw} 快线（只压不抬）"),
         ]
     else:
         line_hd = [
-            Line2D([], [], color=C_PRICE, lw=1.3, label=f"{meta['name']} 复权净值"),
+            Line2D([], [], color=C_PRICE, lw=1.3, label=f"{meta['name']} 价格"),
             Line2D([], [], color=C_MA, lw=1.25, label=f"MA{tg.MA_WIN} 年线"),
         ]
     handles = line_hd + [

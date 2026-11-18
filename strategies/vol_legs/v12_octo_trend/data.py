@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
-"""V12 · 数据层（场内 ETF OHLCV + A股指数量能）。
+"""V12 · 数据层（真实指数收盘 + 同源指数量能；黄金用场内 `518880`）。
+
+价格口径只有一套（2026-11-13 起）：
+
+| 值 | 价格 | 量能 | 用途 |
+|---|---|---|---|
+| `"index"` | 该市场**真实指数**收盘（`_cn_index_klines.json` / `_global_index_klines.json`） | 同源指数成交量 | 回测 + 每日信号 |
+| `"etf"` | 场内 ETF 前复权 OHLCV（`data/_ohlcv.json`） | ETF 自身量 / 市场量（`VOL_MODE`） | 历史对照 |
+
+`index` 口径的 OHLCV 由 `strategies/vol_legs/_idxcache.py` **统一提供**（唯一数据层）：
+真实日内高低从 2026-11-13 起落库（`xa.get_daily` 一直返回，早先被落库丢了）；八态只用
+close 与 volume，所以这次补字段不改变任何回测数字。
 
 两套缓存，都是**只读 + 少量增量刷新**：
 
@@ -38,6 +49,30 @@ except Exception:  # noqa: BLE001
     pass
 
 import rule
+
+# 七腿信号价格的唯一数据层（指数 OHLCV / 黄金用 518880 实物 ETF）。
+# 本模块不再自己维护 `_cn_index_klines.json`、也不再自己拼 open/high/low。
+def _load_idxcache():
+    """按**路径**加载唯一数据层，不往 `sys.path` 插 vol_legs 目录。
+
+    ⚠ 不能写成 `import _idxcache`：那需要把 `strategies/vol_legs` 插到 `sys.path` 最前，
+    而那里有同名的 `engine.py` / `data.py` / `rule.py`，会把本变种的同名模块顶掉
+    （症状是 `module 'engine' has no attribute 'backtest_leg'`）。
+    """
+    import importlib.util
+    mod = sys.modules.get("_vl_idxcache")
+    if mod is not None:
+        return mod
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "_idxcache.py")
+    spec = importlib.util.spec_from_file_location("_vl_idxcache", path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["_vl_idxcache"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_idxcache = _load_idxcache()
 
 ETF_LIB = os.path.join(rule._ROOT, "data", "_ohlcv.json")
 CN_IDX_LIB = os.path.join(rule._ROOT, "data", "_cn_index_klines.json")
@@ -148,50 +183,20 @@ def refresh_etf(codes=None):
     return latest, fails
 
 
-def _fetch_index(code):
-    import xalpha as xa
-    df = xa.get_daily(code, start=START_IDX)
-    if df is None or not len(df):
-        raise RuntimeError(f"{code} 返回空")
-    return pd.DataFrame({
-        "date": pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d"),
-        "close": pd.to_numeric(df["close"], errors="coerce"),
-        "volume": pd.to_numeric(df["volume"], errors="coerce"),
-    }).dropna(subset=["close"]).sort_values("date").reset_index(drop=True)
-
-
 def refresh_cn_index(codes=None):
-    """刷新 A股指数收盘 + 成交量（`SH000300` / `SH000001`）。-> (latest, fails)。
+    """刷新 A股指数 OHLCV（`SH000300` / `SH000001` / `SH000688`）。-> (latest, fails)。
 
-    指数量能是**本变种的核心输入**（rvol 的分母），所以它不能像 ETF 库那样「等别人刷」。
-    全量重取（一个指数十年数据只有几百 KB，一次 HTTP 就够，不需要增量逻辑）。
+    实现在 `_idxcache.refresh`：本变种不再自己维护 `_cn_index_klines.json`
+    （否则「三处各写一份、字段还各不相同」必然漂）。指数量能是 rvol 的分母，
+    所以仍是本变种主动刷，不等 ETF 库。
     """
-    lib = _trim_partial(_read(CN_IDX_LIB))
-    latest, fails = {}, {}
-    for code in (codes or CN_IDX_CODES):
-        try:
-            df = _fetch_index(code)
-            lib[code] = dict(dates=[str(x) for x in df["date"]],
-                             close=[float(x) for x in df["close"]],
-                             volume=[None if pd.isna(v) else float(v) for v in df["volume"]])
-            latest[code] = lib[code]["dates"][-1]
-        except Exception as exc:  # noqa: BLE001
-            fails[code] = f"{type(exc).__name__}: {exc}"
-            latest[code] = (lib.get(code) or {}).get("dates", [""])[-1]
-    # 盘中（<15:05）取到的当日 bar 是半成品：成交量只有半天，会把 rvol 压到 0.5 以下 -> 直接丢
-    _write(CN_IDX_LIB, _trim_partial(lib))
-    return latest, fails
+    return _idxcache.refresh(["hs300", "kc50"], codes=codes or CN_IDX_CODES)
 
 
 # ---------------------------------------------------------------- 读取
 def index_volume(code):
     """指数成交量序列（空库时抛，由 `frame` 决定是否退化为 ETF 自身量）。"""
-    node = _read(CN_IDX_LIB).get(code)
-    if not node or not node.get("dates"):
-        raise KeyError(f"{code} 不在 {os.path.relpath(CN_IDX_LIB, rule._ROOT)}"
-                       f"（先跑 python {os.path.relpath(__file__, rule._ROOT)} --refresh）")
-    return pd.Series(node["volume"], index=pd.to_datetime(node["dates"]),
-                     dtype="float64").sort_index()
+    return _idxcache.volume(code)
 
 
 def market_volume(leg):
@@ -211,10 +216,42 @@ def market_volume(leg):
         return None, f"ETF 自身量（指数量能缺失: {exc.args[0][:24]}… -> **代理量能**）"
 
 
-def frame(leg, vol_mode=None):
+GIDX_LIB = os.path.join(rule._ROOT, "data", "_global_index_klines.json")
+
+# 腿 -> (库, 指数代码)。**权威表在 `_idxcache.LEGS`**，这里派生，别手写第二份。
+# 黄金没有「指数」：现货是 OTC 且没有成交量，退回 518880（实物黄金 ETF，无分红）。
+IDX_MAP = {leg: (kind, code)
+           for leg, (kind, code, _name) in _idxcache.LEGS.items() if kind != "etf"}
+
+
+def index_frame(leg):
+    """该腿的**真实指数** OHLCV -> DataFrame(open/high/low/close/volume)。
+
+    实现统一在 `_idxcache.frame`：真实日内高低（`xa.get_daily` 一直返回，早先被落库丢了），
+    库缺 `open/high/low` 时才用 close 回填。指数没有溢价/跟踪误差/汇率污染，历史比 ETF 长 3~10 年；
+    量能用同源指数量能，`rvol` 不用再拿 ETF 自身量代理（后者在沪深300 上会把
+    「弱回调 − 强回调」做成 −0.77pp，见 `research/probe_volume`）。
+    """
+    return _idxcache.frame(leg)
+
+
+def frame(leg):
     """该腿信号用 OHLCV -> DataFrame(index=date, columns=open/high/low/close/volume)。
 
-    `volume` 按 `rule.VOL_MODE` 换成市场量能（缺失时退回 ETF 自身量）。
+    价格恒为该市场**真实指数**、量能用同源指数量能；黄金没有指数，
+    退回场内 `518880` 实物 ETF（与全族黄金腿同一条序列）。
+    """
+    if leg in IDX_MAP:
+        return index_frame(leg)
+    if leg == "gold":
+        return _idxcache.frame("gold")
+    raise KeyError(f"{leg} 没有真实指数序列（黄金用 518880）")
+
+
+def etf_frame(leg):
+    """**仅供研究对照**：场内 ETF 前复权 OHLCV（`research/probe_volume` 用）。
+
+    不是信号口径 —— 规则 / 回测 / 每日操作 / 图形一律走 `frame()` 的真实指数。
     """
     code = rule.LEGS[leg][0]
     node = _read(ETF_LIB).get(code)
@@ -222,34 +259,17 @@ def frame(leg, vol_mode=None):
         raise KeyError(f"{code} 不在 {os.path.relpath(ETF_LIB, rule._ROOT)}"
                        f"（先跑 python strategies/tech_indicators/v18_volume_notes/ohlcv.py --bootstrap）")
     idx = pd.to_datetime(node["dates"])
-    df = pd.DataFrame({
+    return pd.DataFrame({
         "open": node["open"], "high": node["high"], "low": node["low"],
         "close": node["close"], "volume": node["volume"],
     }, index=idx).sort_index().astype(float)
 
-    old = rule.VOL_MODE
-    if vol_mode is not None:
-        rule.VOL_MODE = vol_mode
-    try:
-        vol, _note = market_volume(leg)
-    finally:
-        rule.VOL_MODE = old
-    if vol is not None:
-        mapped = vol.reindex(df.index).ffill()
-        if mapped.notna().sum() > 0.5 * len(df):
-            df["volume"] = mapped
-    return df
 
-
-def vol_note(leg, vol_mode=None):
+def vol_note(leg):
     """该腿量能口径的一句话说明（每日报告/回测脚注用）。"""
-    old = rule.VOL_MODE
-    if vol_mode is not None:
-        rule.VOL_MODE = vol_mode
-    try:
-        return market_volume(leg)[1]
-    finally:
-        rule.VOL_MODE = old
+    if leg in IDX_MAP:
+        return f"`{IDX_MAP[leg][1]}` 指数成交量（与价格同源）"
+    return "ETF 自身量（现货黄金无成交量，唯一可得）"
 
 
 def available():
@@ -277,7 +297,8 @@ def main():
     print(f"量能口径 VOL_MODE = {rule.VOL_MODE}")
     for leg in available():
         df = frame(leg)
-        print(f"  {rule.NAMES[leg]:8s} {rule.LEGS[leg][0]}  {df.index[0].date()} ~ "
+        code = IDX_MAP[leg][1] if leg in IDX_MAP else rule.LEGS[leg][0]
+        print(f"  {rule.NAMES[leg]:8s} {code:9s} {df.index[0].date()} ~ "
               f"{df.index[-1].date()}  {len(df):5d} 根 · {vol_note(leg)}")
     print(f"今日 {date.today()}")
 

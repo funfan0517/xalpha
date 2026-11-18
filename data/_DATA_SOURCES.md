@@ -43,9 +43,10 @@ _lk = json.load(open("data/_long_klines.json", encoding="utf-8"))        # 收�
 | 文件 | 键 | 字段 | 覆盖 |
 |---|---|---|---|
 | `_us_index_long.json` | `.NDX` `.INX` | `dates` + `close` | 1985 起（超长历史，用于极端分位） |
-| `_us_index_klines.json` | `.NDX` `.INX` | `dates` + `close` | 2010 起（近 15 年，vol_legs 的 exchange 口径信号源） |
+| `_us_index_klines.json` | `.NDX` `.INX` | `dates` + `close` | 2010 起（历史遗留缓存；2026-11-16 起 v7/v8/v9/v10 的信号一律读 `_global_index_klines.json`，本库**不再是任何策略的信号源**） |
 
-维护者：`strategies/vol_legs/data.py`。两者内容重叠但用途不同，**不要混用**。
+维护者：`strategies/vol_legs/data.py`。两者内容重叠但用途不同，**不要混用**；
+`refresh_us()` 现在只保留冗余刷新，供历史对照研究取用。
 
 ## 2. 场外净值（vol_legs 家族）· 8 只基金
 

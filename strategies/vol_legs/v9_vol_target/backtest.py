@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V9 变种（美股两腿波动率目标仓位）· 回测（逐腿 + 组合 + 敏感性 + 分半 + 硬断言）。
+"""波动资产 · V9 变种（全七腿波动率目标仓位）· 回测（逐腿 + 组合 + 敏感性 + 分半 + 硬断言）。
 
-池：**只有纳指100 与标普500**（`vol_target.POOL`）。规则逐条落地自
+池：**全七腿**（`vol_target.POOL` = rule.LEG_ORDER，2026-11-17 扩池）。规则逐条落地自
 `G:\\tradingagents\\us_index_strategy\\策略规格_v1.0.md` 的 **S-A**（文档排名第 1 的策略）：
 每月末算 `vol20 = std(r,20)×sqrt(252)` → `w = min(1, 15% / vol20)` → 次一交易日收盘成交
-→ 新权重自 t+2 起承担收益；权重变化 < 5pp 不交易；未投部分按 2.0% 计息；单边 0.03%。
+→ 新权重自 t+2 起承担收益；权重变化 < 5pp 不交易；未投部分按 1.40% 计息；单边 0.10%
+（2026-11-17 起口径对齐仓库惯例；文档原口径 0.03% / 2.0% 保留为敏感性档）。
 
 口径：
-- 信号 = **美元指数**（`.NDX` / `.INX`）收盘；执行 = 场外 QDII **人民币复权净值**；
-- 另给 `SIGNAL="nav"`（净值信号）、`COST=0.6%`（场外现实费率）两档对照；
+- 信号与回测 = **美元指数**（`.NDX` / `.INX`）真实收盘，同源同起点（2005-01-03 起）；
+  执行走场外 QDII A 类；
+- 另给 `COST=0.6%`（场外现实费率）等成本档对照；
 - 起点口径：首日即满仓，与买入持有同口径（不另计建仓费）。
 
 产物（策略类，落 `backtest/`）：
@@ -37,30 +39,41 @@ OUTDIR = os.path.join(_HERE, "backtest")
 OUT_MD = os.path.join(OUTDIR, "_v9_vol_target_bt.md")
 OUT_JSONL = os.path.join(OUTDIR, "_v9_vol_target_bt.jsonl")
 
+# 旧口径（三开关全关）：用于校验引擎本身的不变量，避免被按腿开关配置干扰
+LEGACY = dict(ADAPTIVE=False, GATE=False, XCROSS=False)
+
 # 逐腿档位
 VARIANTS = [
     ("买入持有", "hold", {}),
-    ("**本变种默认（月末 + 快减 + 快补）**", "vt", {}),
+    ("**本变种默认（标普010 · 其余111）**", "vt", {}),
+    ("旧口径（三开关全关）", "vt", dict(LEGACY)),
+    ("全池 111（标普也开自适应+金叉）", "vt", dict(ADAPTIVE=True, GATE=True, XCROSS=True)),
+    ("全池 010（其余腿关自适应+金叉）", "vt", dict(ADAPTIVE=False, GATE=True, XCROSS=False)),
     ("文档月度档（无月中补丁）", "vt_month", {}),
     ("只加快减", "vt", dict(ADD=None)),
     ("只加快补", "vt", dict(CUT=False)),
-    ("VT · 净值信号（不用美元指数）", "vt", dict(SIGNAL="nav")),
     ("MA200 月频（文档 S-B 对照）", "ma200", {}),
 ]
 
 # 组合层规格：(名称, kind, 权重, 覆盖参数)
 PORT_SPECS = [
     ("静态 50/50（买入持有）", "hold", "eq", {}),
-    ("**本变种默认（快减+快补 · 50/50）**", "vt", "eq", {}),
+    ("**本变种默认（标普010/其余111 · 七腿等权）**", "vt", "eq", {}),
+    ("旧口径（三开关全关 · 七腿等权）", "vt", "eq", dict(LEGACY)),
+    ("全池 111 · 七腿等权", "vt", "eq", dict(ADAPTIVE=True, GATE=True, XCROSS=True)),
     ("文档月度档 · 50/50", "vt_month", "eq", {}),
     ("静态 标普:纳指 = 2:1（文档 §7）", "hold", "doc", {}),
     ("VT · 标普:纳指 = 2:1（默认档）", "vt", "doc", {}),
+    ("旧口径 · 标普:纳指 = 2:1", "vt", "doc", dict(LEGACY)),
     ("MA200 月频 50/50（文档 S-B 对照）", "ma200", "eq", {}),
 ]
 
 # 敏感性（组合层 · 默认权重 · 只改一格）
 SENS = [
-    ("基准（TV15 · vol20 · 月末+快减+快补 · 单边0.03% · 空仓2.0%）", {}),
+    ("基准（标普010/其余111 · TV15 · vol20 · 单边0.10% · 空仓1.4%）", {}),
+    ("旧口径（三开关全关）", dict(LEGACY)),
+    ("全池 111（标普也开自适应+金叉）", dict(ADAPTIVE=True, GATE=True, XCROSS=True)),
+    ("全池 010（其余腿关自适应+金叉）", dict(ADAPTIVE=False, GATE=True, XCROSS=False)),
     ("关掉月中补丁（= 文档月度档）", dict(TRIGGER="month")),
     ("只加快减", dict(ADD=None)),
     ("只加快补", dict(CUT=False)),
@@ -77,11 +90,10 @@ SENS = [
     ("波动窗口 60 日", dict(VOL_WIN=60)),
     ("漂移 10pp（更少交易）", dict(DRIFT=0.10)),
     ("最多半仓（cap 0.5）", dict(CAP=0.5)),
-    ("成本 0.10%（v7 口径）", dict(COST=0.001)),
+    ("成本 0.03%（文档原口径）", dict(COST=0.0003)),
     ("成本 0.60%（场外 A 类现实）", dict(COST=0.006)),
-    ("空仓 1.40%（仓库惯例）", dict(CASH_ANNUAL=0.014)),
+    ("空仓 2.0%（文档原口径）", dict(CASH_ANNUAL=0.02)),
     ("空仓 0%（文档禁止的口径，仅量化影响）", dict(CASH_ANNUAL=0.0)),
-    ("净值信号（人民币净值算 vol20）", dict(SIGNAL="nav")),
 ]
 
 WINDOWS = [
@@ -204,7 +216,7 @@ def check_all():
     # 1) 恒满（TV 极大 -> 目标恒 1）净值 == 买入持有
     ok, note = True, ""
     for leg in vt.POOL:
-        nav, st, _ = vt.build(leg, TV=99.0)
+        nav, st, _ = vt.build(leg, TV=99.0, **LEGACY)
         nv = vt.run_leg(st, nav, cost=0.0)
         bh = nav / nav.iloc[0]
         rel = abs(float(nv.iloc[-1] / bh.iloc[-1]) - 1.0)
@@ -216,7 +228,7 @@ def check_all():
     # 2) 仓位只落在 [0, cap]，且每次调仓的落点 = 当日公式值 min(cap, TV/vol)
     ok, note = True, ""
     for leg in vt.POOL:
-        _nav, st, dec = vt.build(leg)
+        _nav, st, dec = vt.build(leg, **LEGACY)
         lo, hi = float(st.min()), float(st.max())
         if lo < -1e-12 or hi > vt.CAP + 1e-12:
             ok, note = False, f"{leg} 仓位越界 [{lo:.3f}, {hi:.3f}]"
@@ -232,7 +244,7 @@ def check_all():
     # 3) 漂移死区：每次实际变动要么 = 0、要么 ≥ DRIFT
     ok, note = True, ""
     for leg in vt.POOL:
-        _nav, st, _dec = vt.build(leg)
+        _nav, st, _dec = vt.build(leg, **LEGACY)
         d = st.astype(float).diff().dropna().abs()
         bad = d[(d > 1e-12) & (d < vt.DRIFT - 1e-9)]
         if len(bad):
@@ -244,7 +256,7 @@ def check_all():
     ok, note = True, ""
     for leg in vt.POOL:
         sig = vt.load_signal(leg)
-        sm, dec = vt.machine(sig, vt.params())
+        sm, dec = vt.machine(sig, vt.params(**LEGACY))
         for x in dec:
             i = sm.index.get_loc(x["date"])
             if abs(float(sm.iloc[i]) - x["target"]) < 1e-12:      # 决策当日就已经是这个仓位 = 前视
@@ -260,10 +272,10 @@ def check_all():
     # 5) 截断最后 6 天信号重跑 -> 截止日之前的历史仓位不变（因果性）
     ok, note = True, ""
     for leg in vt.POOL:
-        nav, st, _ = vt.build(leg)
+        nav, st, _ = vt.build(leg, **LEGACY)
         sig = vt.load_signal(leg)
         cut_off = sig.index[-7]
-        sm_cut, _ev = vt.machine(sig.iloc[:-6], vt.params())
+        sm_cut, _ev = vt.machine(sig.iloc[:-6], vt.params(**LEGACY))
         st_cut = sm_cut.reindex(nav.index).ffill().fillna(1.0)
         common = nav.index[nav.index <= cut_off]
         diff = float((st.reindex(common) - st_cut.reindex(common)).abs().max())
@@ -275,7 +287,7 @@ def check_all():
     # 6) TV -> 0（纯现金）年化 == 空仓利率（从首个「清仓」成交日起算，避开起点满仓段）
     ok, note = True, ""
     for leg in vt.POOL:
-        nav, st, _ = vt.build(leg, TV=0.0)
+        nav, st, _ = vt.build(leg, TV=0.0, **LEGACY)
         zeros = st[st <= 1e-12]
         if not len(zeros):
             ok, note = False, f"{leg} TV=0 从未清仓"
@@ -293,7 +305,7 @@ def check_all():
     out.append((f"TV=0（纯现金）年化 == 空仓 {vt.CASH_ANNUAL:.2%}（禁止把空仓记 0）", ok,
                 note or "两腿一致（起点满仓段不计入）"))
 
-    # 7) 两腿恒满时组合 == 50/50 手工复利（零费）
+    # 7) 全池恒满时组合 == 等权手工复利（零费）
     navs, idx = {}, None
     for leg in vt.POOL:
         nav, _, _ = vt.build(leg, kind="hold")
@@ -305,10 +317,42 @@ def check_all():
     nv, _ = vt.portfolio(navs, stx, cost=0.0)
     manual = 1.0
     rets = {k: navs[k].pct_change().fillna(0.0) for k in vt.POOL}
+    w = 1.0 / len(vt.POOL)
     for i in range(len(idx)):
-        manual *= (1.0 + sum(0.5 * float(rets[k].iloc[i]) for k in vt.POOL))
+        manual *= (1.0 + sum(w * float(rets[k].iloc[i]) for k in vt.POOL))
     rel = abs(manual / float(nv.iloc[-1]) - 1.0)
-    out.append(("两腿恒满时组合 == 50/50 手工复利（零费）", bool(rel < 1e-10), f"差 {rel:.1e}"))
+    out.append((f"全池恒满时组合 == {len(vt.POOL)} 腿等权手工复利（零费）", bool(rel < 1e-10), f"差 {rel:.1e}"))
+
+    # 8) 按腿开关配置：标普 010，其余六腿 111
+    ok, note = True, ""
+    for leg in vt.POOL:
+        q = vt.leg_params(leg)
+        got = "".join("1" if q[k] else "0" for k in vt.SW_KEYS)
+        want = "".join("1" if vt.SWITCH_BY_LEG.get(leg, vt.SWITCH_DEFAULT).get(k, False) else "0"
+                       for k in vt.SW_KEYS)
+        if got != want:
+            ok, note = False, f"{leg} 配成 {got}，应为 {want}"
+            break
+    out.append(("按腿开关配置：标普 010 / 其余 111", ok,
+                note or "七腿逐条一致；显式传参仍可覆盖"))
+
+    # 9) 新默认口径：仓位不越界，且截掉末 6 根信号不改历史（开关也不引入前视）
+    ok, note = True, ""
+    for leg in vt.POOL:
+        nav, st, _ = vt.build(leg)
+        if float(st.min()) < -1e-12 or float(st.max()) > vt.CAP + 1e-12:
+            ok, note = False, f"{leg} 仓位越界 [{st.min():.3f}, {st.max():.3f}]"
+            break
+        sig, p = vt.load_signal(leg), vt.leg_params(leg)
+        sm_cut, _ev = vt.machine(sig.iloc[:-6], p, leg=leg)
+        st_cut = sm_cut.reindex(nav.index).ffill().fillna(1.0)
+        common = nav.index[nav.index <= sig.index[-7]]
+        diff = float((st.reindex(common) - st_cut.reindex(common)).abs().max())
+        if diff > 1e-12:
+            ok, note = False, f"{leg} 截断最大差 {diff:.2e}"
+            break
+    out.append(("新默认口径仓位 ∈ [0,1] 且截断末 6 根不改历史（无前视）", ok,
+                note or "七腿逐条一致"))
     return out
 
 
@@ -373,14 +417,18 @@ def main():
     win = f"{idx[0].date()} ~ {idx[-1].date()}"
 
     L = [
-        "# 波动资产 · V9 变种：美股两腿波动率目标仓位（vol20 · TV 15% · 月末 + 月中快减/快补）",
-        "> 池 = **只有纳指100 与标普500**（`vol_target.POOL`）。基础规则取自 "
-        "`G:\\tradingagents\\us_index_strategy\\策略规格_v1.0.md` 的 **S-A**（文档排名第 1）；"
+        "# 波动资产 · V9 变种：按腿开关版（标普 010 / 其余 111）· 波动率目标仓位",
+        f"> **2026-11-18 用户定稿**：三开关按腿配置 —— 标普 `010`（仅 v7 年线闸门），"
+        "其余六腿 `111`（v10 自适应波动层 + v7 年线闸门 + v8 金叉）。本报告的「本变种默认」即此口径；"
+        "旧口径（三开关全关）、全池 111 / 010 均保留为对照档。机制对照见 `research/_probe_switches.md`。",
+        f"> 池 = **全七腿**（`vol_target.POOL` = {', '.join(vt.rule.LEGS[k]['name'] for k in vt.POOL)}）。"
+        "基础规则取自 `G:\\tradingagents\\us_index_strategy\\策略规格_v1.0.md` 的 **S-A**（文档排名第 1，两腿文档 2026-11-17 扩池）；"
         "**月中快减/快补是 2026-11-04 追加的**（用户明确「文档只是参考」），"
         "由 `research/_probe_opt.py` 的四道闸门筛出、13 档邻域内稳定。",
-        "> 信号 = **美元指数**（`.NDX` / `.INX`）收盘算 vol20；执行 = 场外 QDII **人民币复权净值**；"
+        f"> {vt.vdata.us_signal_exec_desc()}（vol20 也在同一序列上算）；"
         f"空仓按 {vt.CASH_ANNUAL:.2%} 计息 · 单边成本 {p0['COST']:.2%}。",
-        "> 规则权威源 `v9_vol_target/vol_target.py` 顶部常量（`TRIGGER` 一档切换）。",
+        "> 规则权威源 `v9_vol_target/vol_target.py`：`SWITCH_DEFAULT` / `SWITCH_BY_LEG`（按腿开关）"
+        "+ 顶部常量（其余参数）。",
         "",
         "## 1. 规则（可执行版）",
         "",
@@ -400,7 +448,7 @@ def main():
         "",
         "> `TRIGGER=\"month\"` 关掉「快减/快补」两行 = **文档 S-A 原样**，本报告里作为对照档保留。",
         "",
-        "## 2. 逐腿（各档位均为「含单边 0.03%」）",
+        f"## 2. 逐腿（各档位均为「含单边 {p0['COST']:.2%} · 空仓 {vt.CASH_ANNUAL:.2%}」）",
         "",
         "| 腿 | 档位 | 年化 | 回撤·日频 | 回撤·月末 | Calmar(月末) | 夏普 | 平均仓位 | 换手 | 调仓/年 | vs 买入持有 |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -442,14 +490,14 @@ def main():
         f"Calmar(月末) {spx_bh['calmar_me']:.2f} → {spx_base['calmar_me']:.2f}、"
         f"平均仓位 {spx_base['expo']:.0%}。标普自身波动只有纳指一半，`15%/11%` 常年顶在满仓"
         f"（{spx_base['trades_py']:.1f} 次调仓/年），所以只在少数高波动时点动手。",
-        f"> **月中补丁在两条腿上都有效**：纳指 年化 "
+        f"> **月中补丁在两条腿上都改善年化与夏普（回撤基本持平）**：纳指 年化 "
         f"{vt.fmt_pct(ndx_base['ann'])} vs 文档档 {vt.fmt_pct(ndx_mon['ann'])}、回撤 "
         f"{vt.fmt_pct(ndx_mon['mdd'])} → {vt.fmt_pct(ndx_base['mdd'])}、夏普 "
         f"{ndx_mon['sharpe']:.2f} → {ndx_base['sharpe']:.2f}；标普 "
         f"{vt.fmt_pct(spx_base['ann'])} vs {vt.fmt_pct(spx_mon['ann'])}、回撤 "
         f"{vt.fmt_pct(spx_mon['mdd'])} → {vt.fmt_pct(spx_base['mdd'])}、夏普 "
         f"{spx_mon['sharpe']:.2f} → {spx_base['sharpe']:.2f}。**不是只靠纳指那条腿**。",
-        f"> **与 S-B（MA200 月频）比，VT 在两条腿上都同时赢收益与回撤**：纳指 VT "
+        f"> **与 S-B（MA200 月频）比，VT 两条腿都赢收益与夏普，但回撤不一定更小**：纳指 VT "
         f"{vt.fmt_pct(ndx_base['ann'])} / {vt.fmt_pct(ndx_base['mdd'])} / 夏普 "
         f"{ndx_base['sharpe']:.2f} vs MA200 {vt.fmt_pct(ndx_ma['ann'])} / "
         f"{vt.fmt_pct(ndx_ma['mdd'])} / {ndx_ma['sharpe']:.2f}；标普 VT "
@@ -500,9 +548,9 @@ def main():
     ans = [r["ann"] for _t, r in tv_neigh]
     cals = [r["calmar_me"] for _t, r in tv_neigh]
     costs = {r["name"]: r for r in sens}
-    c03 = costs["基准（TV15 · vol20 · 月末+快减+快补 · 单边0.03% · 空仓2.0%）"]
-    c10 = costs["成本 0.10%（v7 口径）"]
-    c60 = costs["成本 0.60%（场外 A 类现实）"]
+    cb = costs[SENS[0][0]]
+    c003 = costs["成本 0.03%（文档原口径）"]
+    c060 = costs["成本 0.60%（场外 A 类现实）"]
     cmon = costs["关掉月中补丁（= 文档月度档）"]
     ccut = costs["只加快减"]
     cadd = costs["只加快补"]
@@ -521,33 +569,38 @@ def main():
         f"Calmar(月末) {' / '.join(f'{c:.2f}' for c in cals)}。",
         "> 夏普几乎不随参数变化 —— 波动率目标是**稳健结构**，不是拟合出来的。"
         "选 TV 只取决于你要多低的回撤，不取决于收益最大化：TV 从 15% 降到 10%，年化少 "
-        f"{(c03['ann'] - tv_neigh[0][1]['ann']) * 100:.2f}pp，换来回撤 "
-        f"{(tv_neigh[0][1]['mdd'] - c03['mdd']) * 100:+.2f}pp。",
+        f"{(cb['ann'] - tv_neigh[0][1]['ann']) * 100:.2f}pp，换来回撤 "
+        f"{(tv_neigh[0][1]['mdd'] - cb['mdd']) * 100:+.2f}pp。",
         "",
         f"> **月中补丁的贡献（这一版的核心）**：关掉补丁（文档月度档）年化 "
         f"{vt.fmt_pct(cmon['ann'])} / 回撤 {vt.fmt_pct(cmon['mdd'])} / 夏普 {cmon['sharpe']:.2f}；"
-        f"加上快减+快补后 {vt.fmt_pct(c03['ann'])} / {vt.fmt_pct(c03['mdd'])} / "
-        f"{c03['sharpe']:.2f}（**{(c03['ann'] - cmon['ann']) * 100:+.2f}pp / "
-        f"{(c03['mdd'] - cmon['mdd']) * 100:+.2f}pp / {c03['sharpe'] - cmon['sharpe']:+.2f}**）。",
+        f"加上快减+快补后 {vt.fmt_pct(cb['ann'])} / {vt.fmt_pct(cb['mdd'])} / "
+        f"{cb['sharpe']:.2f}（**{(cb['ann'] - cmon['ann']) * 100:+.2f}pp / "
+        f"{(cb['mdd'] - cmon['mdd']) * 100:+.2f}pp / {cb['sharpe'] - cmon['sharpe']:+.2f}**）。",
         f"> **只加一半也行，但效果打对折**：只加快减 {vt.fmt_pct(ccut['ann'])} / "
         f"{vt.fmt_pct(ccut['mdd'])} / 夏普 {ccut['sharpe']:.2f}；只加快补 {vt.fmt_pct(cadd['ann'])} / "
-        f"{vt.fmt_pct(cadd['mdd'])} / {cadd['sharpe']:.2f} —— 两个方向各修一半，"
-        "合起来才有 4pp 级别的回撤改善。",
+        f"{vt.fmt_pct(cadd['mdd'])} / {cadd['sharpe']:.2f} —— 两个方向各修一半；"
+        f"合起来的回撤改善只有 {(cb['mdd'] - cmon['mdd']) * 100:+.2f}pp，"
+        "主要买的是年化与夏普，不是回撤。",
         f"> **补丁自身的参数邻域**（{len(patch)} 档：跌幅 −3~−8%、vol 门槛 1.1~1.7×、回落 55~85%）："
         f"年化 {vt.fmt_pct(min(p_ann))} ~ {vt.fmt_pct(max(p_ann))}、回撤 "
         f"{vt.fmt_pct(min(p_mdd))} ~ {vt.fmt_pct(max(p_mdd))}、夏普 {min(p_sh):.2f} ~ {max(p_sh):.2f}、"
         f"调仓 {min(r['trades'] for r in patch) / yrs:.1f}~{max(r['trades'] for r in patch) / yrs:.1f} 次/年。"
-        "**全档都优于文档月度档**，说明这不是「挑出来的那一个数」。",
+        "**年化与夏普全档都优于文档月度档**（回撤个别档略差），说明这不是「挑出来的那一个数」。",
         "",
-        f"> **成本**：单边 0.03% → 0.10% → 0.60%（场外 A 类申购 0.1% + 赎回 0.5%）三档年化 "
-        f"{vt.fmt_pct(c03['ann'])} / {vt.fmt_pct(c10['ann'])} / {vt.fmt_pct(c60['ann'])} —— "
-        f"场外现实口径掉 {(c03['ann'] - c60['ann']) * 100:.2f}pp。"
-        f"补丁把调仓抬到 {c03['trades'] / yrs:.1f} 次/年（月度档 {cmon['trades'] / yrs:.1f}），"
-        "所以 0.6% 那一档要盯得更紧：**场外 A 类仍可用（只掉 0.94pp），但换手再高十倍的做法就不行了**。",
-        "> **空仓利率 2.0% vs 1.4% vs 0%**：空仓只占少数时间（平均仓位 8 成以上），影响在 0.3pp 内，"
+        f"> **成本**：单边 0.03%（文档原口径） → **0.10%（本变种默认）** → 0.60%（场外 A 类申购 0.1% + 赎回 0.5%）三档年化 "
+        f"{vt.fmt_pct(c003['ann'])} / {vt.fmt_pct(cb['ann'])} / {vt.fmt_pct(c060['ann'])} —— "
+        f"场外现实口径比默认再掉 {(cb['ann'] - c060['ann']) * 100:.2f}pp。"
+        f"补丁把调仓抬到 {cb['trades'] / yrs:.1f} 次/年（月度档 {cmon['trades'] / yrs:.1f}），"
+        f"所以 0.6% 那一档要盯得更紧：**场外 A 类仍可用（只掉 "
+        f"{(cb['ann'] - c060['ann']) * 100:.2f}pp），但换手再高十倍的做法就不行了**。",
+        "> **空仓利率 1.4%（本变种默认） vs 2.0%（文档原口径） vs 0%**："
+        "空仓只占少数时间（平均仓位 8 成以上），影响在 0.3pp 内，"
         "但 0% 那一档是用来量化「把空仓记 0」这个错误的代价的 —— 文档 R-03 明令禁止。",
-        f"> **波动窗口别调长**：60 日夏普掉到 {costs['波动窗口 60 日']['sharpe']:.2f}、回撤 "
-        f"{vt.fmt_pct(costs['波动窗口 60 日']['mdd'])} —— 长窗口让波动估计变钝，"
+        f"> **波动窗口别调长**：60 日夏普掉到 {costs['波动窗口 60 日']['sharpe']:.2f}"
+        f"（基准 {cb['sharpe']:.2f}），"
+        f"回撤 {vt.fmt_pct(costs['波动窗口 60 日']['mdd'])} 虽略小，但年化也掉到 "
+        f"{vt.fmt_pct(costs['波动窗口 60 日']['ann'])} —— 长窗口让波动估计变钝，"
         "高波动刚起来时仍按低波动满仓，与「快减」的初衷相反。",
         "",
         "## 5. 分半样本（文档 R-S03 的读法）",
@@ -558,17 +611,20 @@ def main():
     for r in halves:
         L.append(f"| {r['seg']} | {r['start']} ~ {r['end']} | {r['name']} | "
                  f"{vt.fmt_pct(r['ann'])} | {vt.fmt_pct(r['mdd'])} | {r['sharpe']:.2f} |")
+    h1 = {r["name"]: r for r in halves if r["seg"] == "前半段"}
+    h2 = {r["name"]: r for r in halves if r["seg"] == "后半段"}
+    d1 = h1["VT 默认"]["sharpe"] - h1["买入持有"]["sharpe"]
+    d2 = h2["VT 默认"]["sharpe"] - h2["买入持有"]["sharpe"]
     L += [
         "",
-        "> **这是全部数据里最有信息量的一张表**：择时的价值只在熊市兑现，代价是牛市少赚 —— "
+        "> **这是全部数据里最有信息量的一张表**：择时的价值在含大熊市的段兑现，代价是单边牛市少赚 —— "
         "它不是「提高收益」的工具，是「改变收益分布形状」的工具（文档 §4 原话）。",
-        f"> 读法：前半段（无大熊市）VT 夏普 "
-        f"{[r for r in halves if r['seg'] == '前半段' and r['name'] == 'VT 默认'][0]['sharpe']:.2f} "
-        f"vs 买入持有 {[r for r in halves if r['seg'] == '前半段' and r['name'] == '买入持有'][0]['sharpe']:.2f}"
-        "（**略降**，这是保险的保费）；后半段（含 2020 + 2022）VT 夏普 "
-        f"{[r for r in halves if r['seg'] == '后半段' and r['name'] == 'VT 默认'][0]['sharpe']:.2f} "
-        f"vs {[r for r in halves if r['seg'] == '后半段' and r['name'] == '买入持有'][0]['sharpe']:.2f}"
-        "（**大幅改善**）。**两段合计才是完整的定价**：前半段付保费，后半段理赔。",
+        f"> 读法：前半段（含 2008 危机）VT 夏普 {h1['VT 默认']['sharpe']:.2f} vs 买入持有 "
+        f"{h1['买入持有']['sharpe']:.2f}（**{d1:+.2f}**，{'改善' if d1 > 0 else '付保费'}）；"
+        f"后半段（含 2020 + 2022）{h2['VT 默认']['sharpe']:.2f} vs "
+        f"{h2['买入持有']['sharpe']:.2f}（**{d2:+.2f}**）。前半段回撤 "
+        f"{vt.fmt_pct(h1['买入持有']['mdd'])} → {vt.fmt_pct(h1['VT 默认']['mdd'])}"
+        "，才是波动率目标真正兑现的地方。",
         "",
         "## 6. 压力窗口（默认档 vs 静态 50/50）",
         "",
@@ -589,7 +645,7 @@ def main():
         f"> **快减/快补修好了一半**：文档月度档在 2020 窗口吃 {vt.fmt_pct(mon20)}，本变种 **"
         f"{vt.fmt_pct(wins[0]['ret'])}**（同期静态 {vt.fmt_pct(wins[0]['ret_s'])}）"
         "—— 修的是「底部减仓后干等一个月」那一刀。",
-        "> 但**没修完**：2020 年仍然落后静态 8~9pp。原因不是规则，而是这类事件只有 5 周、"
+        f"> 但**没修完**：2020 年仍落后静态 {(y20s - y20) * 100:.1f}pp。原因不是规则，而是这类事件只有 5 周、"
         "波动率目标本身就要「等波动先起来」才减仓，天生慢半拍；想再快只能引入方向判断（那就不叫 VT 了）。",
         "> 2022 那种**持续 11 个月的慢熊**它反而越跌越减、从容应对 —— **它治慢熊，急跌只能减轻、不能免疫。**",
         "",
@@ -629,8 +685,9 @@ def main():
         f"| 调仓 | 约 {vt.DOC_REF['trades_per_year']} 次/年 | {ndx_mon['trades_py']:.1f} 次/年 | "
         f"{ndx_base['trades_py']:.1f} 次/年 |",
         "",
-        "> **不是同一段样本，不可逐格对账**：文档从 2002 起（含 2008，纳指 −53%），我们只有 2012 起；"
-        "文档用 QQQ 美元净值、我们用 270042 人民币净值（含汇率）。",
+        "> **不是同一段样本，不可逐格对账**：文档从 2002 起（含 2008，纳指 −53%）；本仓库样本随 "
+        f"口径固定（2005 起真实指数长库），"
+        "信号、回测价格与执行序列同源，都是 `.NDX` 美元指数（不含汇率与跟踪误差）。",
         "> **可比的是月度档**（它是文档 S-A 的原样实现）：结构一致 —— 平均仓位都在 8 成附近、"
         f"年调仓都是个位数（约 {vt.DOC_REF['trades_per_year']} vs {ndx_mon['trades_py']:.1f}）、"
         "回撤明显浅于买入持有。差异在幅度：文档「收益不输」，我们让渡 "
@@ -640,18 +697,21 @@ def main():
         "",
         "## 10. 口径与已知边界",
         "",
-        "1. **样本只到 2012**（QDII 场外净值起点）：不含 2000-2002（纳指 −83%）与 2008 —— "
-        "而波动率目标化最被称赞的正是「泡沫破裂 + 高波动聚类时降仓」，本报告对该场景是**外推**。",
-        "2. **信号是美元指数、执行是人民币净值**：两者的差异来自汇率与跟踪误差；"
-        "`SIGNAL=\"nav\"` 一档把信号也换成净值，可看这处差异的代价。",
+        "1. **样本起点口径固定**：信号与回测价格同源，都是 `.NDX` / `.INX` 真实指数 "
+        "2005-01-03 起（vol20 首个有效日 2005-02）；2000-2002（纳指 −83%）不在样本内，"
+        "2008 危机完整在样本内且策略已生效。",
+        "2. **执行口径另算**：信号与回测用美元指数（不含汇率 / 跟踪误差 / 分红再投），"
+        "实盘下单场外 QDII A 类人民币净值，对账时按美股约 −1.3pp/年 折算分红缺口。",
         "3. **它不预测方向**：只调风险预算，所以「低波动阴跌」（如 2015 年 A 股式流动性危机）"
         "会让它因波动率低而满仓挨打 —— 这是文档 §9 第 3 条点名的失效模式。",
         "4. **`cap=1` 是唯一可执行档**：文档 R-04 禁止杠杆；`cap>1` 需两融，成本与额度不在回测里。",
-        "5. **快减/快补只减不能免**：2020 窗口从 −3.06% 修到 +2.98%，但仍落后静态 6.9pp —— "
+        f"5. **快减/快补只减不能免**：2020 窗口从文档月度档 {vt.fmt_pct(mon20)} 修到本变种 "
+        f"{vt.fmt_pct(wins[0]['ret'])}（同期静态 {vt.fmt_pct(wins[0]['ret_s'])}，仍落后 "
+        f"{(wins[0]['ret_s'] - wins[0]['ret']) * 100:.1f}pp）—— "
         "VT 要先看见波动才减仓，天生慢半拍。再快就只能引入方向判断（就不是 VT 了），"
         "§10 的「假摔」风险也随之回来。",
         "6. **快减的反向代价是 2018 型行情**：波动率只冲到 25%（降仓空间小），"
-        "砍在低位、补在高位，2018 年比月度档少 4.8pp。**深跌救命，浅摔亏钱。**",
+        "砍在低位、补在高位，2018 年比月度档更差（逐年表见 §7）。**深跌救命，浅摔亏钱。**",
         "7. **QDII 通道风险未计**：额度关闭、限购、赎回 T+2~T+7、场内溢价 —— "
         "决策日 → 次日成交，实盘可能滑到第二三天；若当天无法申购则该档顺延。",
         "8. **补丁的阈值不是选出来的**：TV15 / vol20 / 漂移 5% 沿用文档；"

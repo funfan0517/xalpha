@@ -2,11 +2,11 @@
 """波动资产 · V2 变种：BOLL 上轨突破 · 七腿回测（逐腿 + 组合层）。
 
 原 `strategies/tech_indicators/v16_boll_breakout/backtest.py`（2026-10-30 迁入 vol_legs，
-标的池从「`data/_universe.md` 前四类 54 只场内 ETF」改为主策略的**七腿场外复权净值**）。
+标的池从「`data/_universe.md` 前四类 54 只场内 ETF」改为主策略的**七腿真实指数收盘**）。
 
 池与口径完全跟随 `strategies/vol_legs`：
 - 七腿 = `rule.LEG_ORDER`（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）；
-- 价格 = `data.series_for_leg()` 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）；
+- 价格 = `data.series_for_leg()` —— **恒为真实指数**，报告头打印当前口径；
 - 成交 = T 日盘后算信号、**T+1 净值成交**（`pos = sig.shift(1)`），与主策略 §2.4 同一纪律；
 - 空仓按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益。
 
@@ -36,6 +36,45 @@ sys.path.insert(0, _HERE)
 import boll  # noqa: E402
 
 OUTDIR = os.path.join(_HERE, "backtest")
+
+# 「与 v1_1_ma20 对照」表的数字直接读 v1 的回测报告，别在这里写死 ——
+# 2026-11-13 切 index 口径后两份报告的数字各自漂，写死必然对不上。
+_V1_MD = os.path.join(_HERE, "..", "v1_price_volume", "v1_1_ma20", "backtest",
+                      "_v1_1_ma20_bt.md")
+
+
+def _num(txt):
+    """`'+7.33%'` / `'0.72'` / `'58%'` -> float；拿不到返回 None。"""
+    if not txt:
+        return None
+    t = txt.replace("%", "").replace("+", "").replace("−", "-").replace(",", "").strip()
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
+
+def v1_ref():
+    """读 `v1_1_ma20` 组合层的四个对照行（择时 / 扣费 / 静态带 / 等权）。"""
+    import re as _re
+    try:
+        with open(_V1_MD, encoding="utf-8") as f:
+            txt = f.read()
+    except OSError:
+        return {}
+    out = {}
+    for key, tag in (("timing", "V1 MA20 择时（按带权）"),
+                     ("fee", "V1 MA20 择时（扣申赎费）"),
+                     ("band", "静态带（按带权恒定持有）"),
+                     ("eq", "七腿等权（恒定持有）")):
+        m = _re.search(r"\|\s*" + _re.escape(tag) + r"\s*\|([^\n]*)", txt)
+        if not m:
+            continue
+        c = [x.strip() for x in m.group(1).split("|")]
+        if len(c) >= 6:
+            out[key] = dict(cum=_num(c[0]), ann=_num(c[1]), vol=_num(c[2]),
+                            mdd=_num(c[3]), sharpe=_num(c[4]), inv=_num(c[5]))
+    return out
 
 STOPS = [None, 0.05, 0.08, 0.10, 0.15]
 TVS = [0.0, 0.15, 0.20, 0.25]      # 波动上限（0 = 关闭，回到纯 0/1）
@@ -111,7 +150,6 @@ def leg_rows():
             edge_pp=(m["ann"] - b["ann"]) * 100,
             edge_fee_pp=(mf["ann"] - b["ann"]) * 100,
             source=boll.vdata.SOURCE_NOTE.get(k, ""),
-            note="含桥接前段" if cfg.get("otc_proxy") else "",
         ))
     return rows
 
@@ -326,7 +364,7 @@ def _plot_legs(rows, path):
         held = pos.to_numpy() > 0
         ax.fill_between(x, float(px.min()), float(px.max()), where=held,
                         color="#93c", alpha=0.12, linewidth=0)
-        ax.plot(x, px.to_numpy(), color="#333", linewidth=1.1, label="复权净值")
+        ax.plot(x, px.to_numpy(), color="#333", linewidth=1.1, label=boll.vdata.price_short())
         ax.plot(x, mid.to_numpy(), color="#27c", linewidth=0.9, alpha=0.85,
                 label=f"中轨 MA{boll.PARAMS['N']}")
         ax.plot(x, up.to_numpy(), color="#d33", linewidth=0.9, alpha=0.85,
@@ -384,9 +422,10 @@ def main():
     L = [
         "# 波动资产 · V2 变种：BOLL 上轨突破（七腿逐腿择时）",
         "> 池与主策略**完全一致**：`rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 / 恒生科技 / 黄金）"
-        " · 价格 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）",
-        "> T 日盘后算信号、**T+1 净值成交** · 空仓按货基 "
+        f" · 价格 = {boll.vdata.price_desc()}",
+        f"> T 日盘后算信号、{boll.vdata.fill_desc()} · 空仓按货基 "
         f"{boll.CASH_ANNUAL:.2%} 计息 · 主表零费用，成本另算（见「成交时滞 × 费率」）",
+        f"> 口径边界：{boll.vdata.price_caveat()}",
         "> 原 `strategies/tech_indicators/v16_boll_breakout/`（54 只场内 ETF 全池），2026-10-30 迁入 vol_legs 并改为七腿口径。",
         "",
         "## 规则",
@@ -454,25 +493,34 @@ def main():
         L.append(f"| {y} | {boll.fmt_pct(yr[y])} | {boll.fmt_pct(yr_band.get(y))} | "
                  f"**{(yr[y] - yr_band.get(y, 0.0)) * 100:+.2f}pp** |")
 
+    _v1 = v1_ref()
+    _v1_pp = ((_v1["fee"]["ann"] - _v1["timing"]["ann"]) if _v1 else None)
     L += [
         "",
         "## 与 v1_1_ma20 的对照（同池 · 同口径 · 都是逐腿择时）",
         "",
         "> 两列不是同一窗口：`v1_1_ma20` 预热 20 日、本变种预热 35 日，静态带年化 "
-        f"{boll.fmt_pct(base_row['ann'])} vs 11.08% 的差就是这个窗口差。数字取自 "
-        "`../v1_price_volume/v1_1_ma20/README.md` §5 与本报告上表，**只作方向性对照**。",
+        f"{boll.fmt_pct(base_row['ann'])} vs "
+        + (f"{_v1['band']['ann']:+.2f}%" if _v1 else "—")
+        + " 的差就是这个窗口差。v1 那几列**运行时读它自己的回测报告**"
+        "（`../v1_price_volume/v1_1_ma20/backtest/_v1_1_ma20_bt.md`），不在这里写死，"
+        "**只作方向性对照**。",
         "",
         "| 变种 | 组合年化 | 组合回撤 | 夏普 | 平均投入 | 逐腿年笔数 | 扣费后年化 | 年化拖累 |",
         "|---|---|---|---|---|---|---|---|",
-        f"| V1 MA20 穿越 | +8.10% | -9.20% | 0.86 | 57% | 13~16 | +1.42% | **-6.68pp** |",
+        (f"| V1 MA20 穿越 | {_v1['timing']['ann']:+.2f}% | {_v1['timing']['mdd']:.2f}% | "
+         f"{_v1['timing']['sharpe']:.2f} | {_v1['timing']['inv']:.0f}% | 13~16 | "
+         f"{_v1['fee']['ann']:+.2f}% | **{_v1_pp:+.2f}pp** |"
+         if _v1 else "| V1 MA20 穿越 | — | — | — | — | 13~16 | — | — |"),
         f"| **V2 BOLL 上轨突破** | {boll.fmt_pct(prows[0]['ann'])} | {boll.fmt_pct(prows[0]['mdd'])} | "
         f"{prows[0]['sharpe']:.2f} | {prows[0]['invested']:.0%} | 2.2~3.1 | "
         f"{boll.fmt_pct(prows[1]['ann'])} | **{(prows[1]['ann'] - prows[0]['ann']) * 100:+.2f}pp** |",
         "",
         "> 同一池、同一费用假设下，**BOLL 上轨突破的换手只有 MA20 的 1/6 左右**"
         "（每年 2~3 笔 vs 13~16 笔），所以扣费后几乎不掉（"
-        f"{(prows[1]['ann'] - prows[0]['ann']) * 100:+.2f}pp vs MA20 的 -6.68pp），"
-        "回撤也更小（中轨出场 = 硬止损）。这才是它在**场外基金**口径下相对 MA20 的真正优势 —— "
+        f"{(prows[1]['ann'] - prows[0]['ann']) * 100:+.2f}pp vs MA20 的 "
+        + (f"{_v1_pp:+.2f}pp" if _v1_pp is not None else "—")
+        + "），回撤也更小（中轨出场 = 硬止损）。这才是它在**场外基金**口径下相对 MA20 的真正优势 —— "
         "不是收益更高，而是「同样的降回撤，成本只有 1/6」。",
     ]
 
@@ -499,7 +547,7 @@ def main():
         "> 本节**不含波动上限**（`TV`）—— 它扫的是成交纪律与费用，混进仓位层就看不清了。"
         "主口径已是「T 日盘后算信号 → T+1 净值成交」（场外 15:00 前提交才拿当日净值）。"
         "T+2 模拟 QDII 腿「净值再滞后一天」的最坏情况；费率按每条腿的**实际执行代码**取"
-        "（A 类 270042/017641/000216 申购 0.10% + 赎回 0.50%；C 类 023299/011609/012805 申赎免费，"
+        "（A 类 270042/017641 申购 0.10% + 赎回 0.50%；黄金 518880 场内佣金 0.03%；C 类 023299/011609/012805 申赎免费，"
         "但约 0.2%/年销售服务费**未计入**）。",
         "",
         "| 口径 | 中位年化 | 中位最大回撤 | 中位夏普 | 组合年化 | 组合回撤 | 组合夏普 |",
@@ -609,8 +657,8 @@ def main():
         "- **成交口径**：场外基金 15:00 前提交才拿当日净值，盘后算出的信号只能按 T+1 净值成交，"
         "故回测 `pos = sig.shift(1)`；QDII 腿（纳指/标普/恒生科技）净值本身滞后 T+1~T+2，"
         "实盘还会再慢一步（敏感性表里 T+2 一档）。",
-        "- **A500 / 标普的样本前段是桥接**（A500 `000051`、标普 `050025`），只用于把 BOLL 窗口撑起来，"
-        "那段不是本基金业绩；看绝对收益请只认基金成立日之后。",
+        "- **无桥接段**：A500 `SH000510`（2005 起）、标普 `.INX`（2005 起）历史足够长，"
+        "BOLL 窗口直接由真实指数历史撑起来。",
         "- **组合层只有共同窗口**：受恒生科技联接（`012805`，2021-08 成立）限制。",
         "- **未计**：大额限购、QDII 额度关闭时的顺延、赎回确认时滞、C 类销售服务费。",
         "- **只看收盘**：回测只有日频净值，涨跌停/停牌与盘中触碰无法体现。",

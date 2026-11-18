@@ -1,0 +1,9 @@
+﻿python : Traceback (most recent call last):
+所在位置 C:\Users\hp\AppData\Local\Temp\genie-ps-1794549376695-013tsd.ps1:954 字符: 96
++ ... -ChildItem daily\*.md | Select-Object Name,LastWriteTime; python -c "
++                                                               ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<string>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: 'daily/_vol_legs_daily.md'

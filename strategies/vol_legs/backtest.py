@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""波动资产操作规则 v1.4 · 组合层回测(**场外净值口径**)。
+"""波动资产操作规则 v1.4 · 组合层回测。
 
 同一份数据、同一个执行框架(engine.py, 与每日操作共用), 只换「是否执行规则」, 隔离规则本身的贡献:
 
@@ -11,20 +11,16 @@
   hold     : 首日按带建仓后完全不动
   equal    : 七腿等权(各 5.71pp), 每季回锚
 
-价格序列有两种口径, 本文件**两套都跑并逐档对比**:
-  otc(主口径, rule.SIGNAL_MODE="otc") : 场外基金复权净值(累计净值, 含分红再投)。
-      回测收益 = 你真能拿到的收益(含汇率、跟踪误差、申赎时滞)。A500/标普 的场外基金
-      成立晚(2025-03 / 2023-04), 前段用同类场外老基金桥接补齐 250 日窗口(见 data.py)。
-  exchange : A500/科创50/恒生科技/黄金 用场内 ETF 收盘, 美股用美元指数(NDX/SPX) —— 文档原口径,
-      信号更纯净, 但与你实际持有的净值有偏离(汇率 + 溢价 + 跟踪误差)。
+价格序列只有一套: **该市场的真实指数** —— 沪深300 `SH000300` / A500 `SH000510` /
+科创50 `SH000688` / 纳指 `.NDX` / 标普 `.INX` / 恒生科技 `HKHSTECH` / 黄金 `518880`(实物 ETF)。
+没有溢价、跟踪误差与汇率污染, 历史比 ETF/场外基金长 3~10 年; 除黄金外都是**价格指数**
+(不含分红再投), 绝对收益要按 A股 -2.0~2.5pp/年、美股 -1.3pp/年 折算(执行仍是场外 A 类)。
 
-单腿专项: 中证A500 / 沪深300 / 纳指100 / 标普500 的「阶梯 vs 首日一次性满仓」,
-用各自场外净值全历史。
+单腿专项: 中证A500 / 沪深300 / 纳指100 / 标普500 的「阶梯 vs 首日一次性满仓」。
 
 用法:
-  python strategies/vol_legs/backtest.py            # 两种口径都跑
+  python strategies/vol_legs/backtest.py            # 全量
   python strategies/vol_legs/backtest.py --quick    # 跳过闸门敏感性扫描
-  python strategies/vol_legs/backtest.py --mode otc # 只跑场外口径
 输出:
   strategies/vol_legs/backtest/_vol_legs_bt.md / .json
 """
@@ -61,7 +57,6 @@ MODES = [
 ]
 SEED = {leg: rule.LEGS[leg]["band"] for leg in rule.LEG_ORDER}
 SINGLE = ["a500", "hs300", "ndx", "spx"]
-MODE_LABEL = {"otc": "场外净值(主口径)", "exchange": "场内ETF/美元指数"}
 
 
 # ---------------------------------------------------------------- 工具
@@ -161,24 +156,13 @@ def single_leg(key, ind, gates, fomc):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="跳过闸门敏感性扫描")
-    ap.add_argument("--mode", default="both", choices=["both", "otc", "exchange"])
     args = ap.parse_args()
 
-    mode_list = ["otc", "exchange"] if args.mode == "both" else [args.mode]
-    blocks = {}
-    for m in mode_list:
-        ind = data.indicators_all(mode=m)
-        gates, fomc = data.gates(ind["gold"].index)
-        since = ready_start(ind, rule.LEG_ORDER)
-        runs, perfs = run_block(ind, gates, fomc, since)
-        blocks[m] = dict(ind=ind, gates=gates, fomc=fomc, since=since,
-                         runs=runs, perfs=perfs,
-                         px={leg: ind[leg]["close"] for leg in rule.LEG_ORDER})
-
-    main_m = "otc" if "otc" in blocks else mode_list[0]
-    B = blocks[main_m]
-    ind, gates, fomc, since = B["ind"], B["gates"], B["fomc"], B["since"]
-    runs, perfs, px = B["runs"], B["perfs"], B["px"]
+    ind = data.indicators_all()
+    gates, fomc = data.gates(ind["gold"].index)
+    since = ready_start(ind, rule.LEG_ORDER)
+    runs, perfs = run_block(ind, gates, fomc, since)
+    px = {leg: ind[leg]["close"] for leg in rule.LEG_ORDER}
 
     singles = {k: single_leg(k, ind, gates, fomc) for k in SINGLE}
 
@@ -200,13 +184,13 @@ def main():
     erp3 = gates["_hs300_erp"]
     us = gates["_us_erp"]
     vi = gates["_inputs"]
-    nav_tab = data.otc_nav_table()
+    label = data.mode_label()
 
     L = []
     A = L.append
-    A("# 波动资产操作规则 v1.4 · 组合层回测(场外净值口径)")
+    A(f"# 波动资产操作规则 v1.4 · 组合层回测({label})")
     A("")
-    A(f"> 生成 {datetime.now():%Y-%m-%d %H:%M} · 主口径 = **{MODE_LABEL[main_m]}** · 样本 "
+    A(f"> 生成 {datetime.now():%Y-%m-%d %H:%M} · 价格口径 = **{label}** · 样本 "
       f"**{res['nav'].index[0]:%Y-%m-%d} ~ {res['nav'].index[-1]:%Y-%m-%d}**"
       f"({years:.1f} 年, {n_days} 个交易日)")
     band_txt = " / ".join(f"{rule.LEGS[k]['name']} {rule.LEGS[k]['band']:g}" for k in rule.LEG_ORDER)
@@ -214,27 +198,27 @@ def main():
       f"{rule.CASH_ANNUAL:.2%} 计息; 成本 申购 {rule.FEE_BUY:.2%} / 赎回 {rule.FEE_SELL:.1%}"
       f"(持有 7 天内 {rule.FEE_SELL_7D:.1%})。机械规则输出, 非投资建议。")
     A("")
-    A("## 〇、口径：全部用场外基金净值")
+    A(f"## 〇、口径：{label}")
     A("")
-    A("| 腿 | 场外执行/信号 | 复权净值(最新) | 序列起止 | 桥接前段 |")
+    A("| 腿 | 指数 | 最新收盘 | 序列起止 | 分红处理 |")
     A("|---|---|---:|---|---|")
     for leg in rule.LEG_ORDER:
         cfg = rule.LEGS[leg]
         s = px[leg]
-        bridge = (f"`{cfg['otc_proxy']}` {cfg.get('otc_proxy_name', '')}(本基金 "
-                  f"{cfg.get('otc_start', '—')} 起)") if cfg.get("otc_proxy") else "—"
-        A(f"| {cfg['name']} | `{cfg['otc']}` {cfg['exec_name']} | "
-          f"{nav_tab.get(cfg['otc']) or 0:.4f} | {s.index[0]:%Y-%m-%d} ~ {s.index[-1]:%Y-%m-%d} | "
-          f"{bridge} |")
+        _src, code, name = data.IDX[leg]
+        div = ("无分红" if leg == "gold" else "**价格指数(不含分红)**")
+        A(f"| {cfg['name']} | `{code}` {name} | {float(s.iloc[-1]):.3f} | "
+          f"{s.index[0]:%Y-%m-%d} ~ {s.index[-1]:%Y-%m-%d} | {div} |")
     A("")
-    A("> 净值序列 = **累计净值(复权, 含分红再投)**, 与每日报告里的「收盘」同一列。回测收益因此"
-      "= 你实际能拿到的收益(含汇率、跟踪误差、申赎时滞), 不再是场内 ETF 价。"
-      "A500(023299, 2025-03)与标普(017641, 2023-04)成立晚, 前段用同类场外老基金桥接补齐 "
-      "250 日窗口 —— 只影响窗口早期段, 拼接日之后是真实执行标的。"
-      "QDII 净值 T+1~T+2 公布, 回测里该腿在无净值的日子不决策、不成交。")
+    exec_txt = " / ".join("`" + rule.LEGS[k]["exec"] + "`" for k in rule.LEG_ORDER if k != "gold")
+    A("> **信号与回测都用该市场的真实指数**：没有溢价、没有跟踪误差、没有汇率污染"
+      "（美股腿是美元口径），历史比 ETF/场外基金长 3~10 年。执行: 六条指数腿走场外 A 类基金"
+      f"（{exec_txt}），黄金走场内 `518880`；指数只用于「信号 + 回测」。")
+    A("> ⚠ 除黄金外都是**价格指数**：A股腿低估约 2.0~2.5pp/年（分红再投）、美股约 1.3pp/年。"
+      "同腿内一致，所以**规则优劣与跨腿排序不受影响**，但绝对收益要按这条折算。")
     A("")
 
-    A("## 一、六档对比(场外净值口径)")
+    A(f"## 一、六档对比({label})")
     A("")
     A("| 组合 | 累计 | 年化 | 年化波动 | 最大回撤 | 夏普 | 平均投入 | 单位投入年化 |")
     A("|---|---:|---:|---:|---:|---:|---:|---:|")
@@ -267,32 +251,7 @@ def main():
       f"锁在「只减不加」, 这个差额就是该读数的机会成本(反过来是它省下的风险)。")
     A("")
 
-    if len(blocks) > 1:
-        other = [m for m in blocks if m != main_m][0]
-        O = blocks[other]
-        A(f"## 二、口径对比：{MODE_LABEL[main_m]} vs {MODE_LABEL[other]}")
-        A("")
-        so, soo = O["since"], since
-        A(f"> 场外样本 {soo:%Y-%m-%d} 起, 场内样本 {so:%Y-%m-%d} 起(各自「七腿就绪」的最早一天)"
-          f" —— 起点不同, 差异既含「净值 vs 价格」的口径差, 也含起点差, 只做量级参考。")
-        A("")
-        A("| 组合 | 场外 年化 | 场外 回撤 | 场外 夏普 | 场内 年化 | 场内 回撤 | 场内 夏普 | Δ年化 |")
-        A("|---|---:|---:|---:|---:|---:|---:|---:|")
-        for spec in MODES:
-            k = spec["key"]
-            a, b = perfs[k], O["perfs"][k]
-            A(f"| {spec['name'].replace('**', '')} | {_pct(a['ann'], 2)} | {_pct(a['mdd'], 1)} | "
-              f"{a['sharpe']:.2f} | {_pct(b['ann'], 2)} | {_pct(b['mdd'], 1)} | {b['sharpe']:.2f} | "
-              f"**{a['ann'] - b['ann']:+.2%}** |")
-        A("")
-        A("> 差异来源: ①**汇率** —— 场外 QDII 净值是人民币口径(含美元兑人民币波动), 场内口径用"
-          "美元指数, 两者在人民币贬值/升值段会系统性分叉; ②**溢价与跟踪误差** —— ETF 价格含"
-          "申赎溢价, 场外净值是真实净值; ③**分红** —— 场外用累计净值(含再投), ETF 用价格指数(除息); "
-          "④**起点**。结论: 场外口径更适合回答「我能拿到多少」, 场内口径更适合看「信号有多纯」。")
-        A("")
-
-    sec = "三" if len(blocks) > 1 else "二"
-    A(f"## {sec}、分腿贡献(策略口径 · 场外净值)")
+    A(f"## 二、分腿贡献(策略口径 · {label})")
     A("")
     A("| 腿 | 仓位带 | 当前仓位 | 买入/卖出 | 贡献(pp) | 贡献占比 | 平均仓位 |")
     A("|---|---:|---:|---:|---:|---:|---:|")
@@ -318,17 +277,17 @@ def main():
           "不是回测缺陷; 想看阶梯潜力请看第一节的「美股闸门不设限」行。")
     A("")
 
-    sec = "四" if len(blocks) > 1 else "三"
-    A(f"## {sec}、单腿全周期(阶梯 vs 一次性建仓 · 场外净值)")
+    A(f"## 三、单腿全周期(阶梯 vs 一次性建仓 · {label})")
     A("")
-    A("> 每条腿用**自己那只场外基金**的复权净值全历史; 该腿的 ERP 闸门置 null(隔离阶梯机制)。"
-      "A500(023299 2025-03 成立)、标普(017641 2023-04 成立)的前段是同类老基金桥接, "
-      "**该段的绝对收益不代表本基金业绩**, 只用来读「阶梯 vs 满仓」的相对关系。")
+    A("> 每条腿用**该市场的真实指数**全历史(黄金腿用 `518880` 实物 ETF); "
+      "该腿的 ERP 闸门置 null(隔离阶梯机制)。执行仍走标题里那只场外基金, "
+      "指数不含分红再投 —— 阶梯 vs 满仓的**相对关系**可直接读, 绝对收益按 §〇 折算。")
     A("")
     for key in SINGLE:
         s = singles[key]
         lad = s["ladder"]
-        A(f"### {rule.LEGS[key]['name']}（`{rule.LEGS[key]['otc']}`）")
+        src_txt = f"`{data.IDX[key][1]}` 指数 → 执行 `{rule.LEGS[key]['exec']}`"
+        A(f"### {rule.LEGS[key]['name']}（{src_txt}）")
         A("")
         A(f"样本 {lad['nav'].index[0]:%Y-%m-%d} ~ {lad['nav'].index[-1]:%Y-%m-%d}"
           f"({len(lad['nav']) / 252.0:.1f} 年)。对比口径: 同样 {rule.LEGS[key]['band']:g}pp 额度, "
@@ -353,8 +312,7 @@ def main():
         A("")
 
     if sweep:
-        sec = "五" if len(blocks) > 1 else "四"
-        A(f"## {sec}、ERP 启动闸门敏感性(场外净值)")
+        A(f"## 四、ERP 启动闸门敏感性({label})")
         A("")
         A("### 中证A500（分位恒 null）")
         A("")
@@ -392,8 +350,8 @@ def main():
               "**数据说中间**。前者修数据源就能改变行为, 后者只能等分位跑到两端。")
             A("")
 
-    sec = ("六" if sweep else "五") if len(blocks) > 1 else ("五" if sweep else "四")
-    A(f"## {sec}、策略全部成交(场外口径)")
+    sec = "五" if sweep else "四"
+    A(f"## {sec}、策略全部成交({label} · 执行: 六腿场外 A 类 / 黄金场内 518880)")
     A("")
     A("| 日期 | 资产 | 动作 | 金额(pp) | 规则 | 说明 |")
     A("|---|---|---|---:|---|---|")
@@ -403,7 +361,7 @@ def main():
           f"{t['rule']} | {t['detail']} |")
     A("")
 
-    sec = ("七" if sweep else "六") if len(blocks) > 1 else ("六" if sweep else "五")
+    sec = "六" if sweep else "五"
     A(f"## {sec}、结论与局限")
     A("")
     A("- **主要结论**: 规则把「什么时候买」交给了回撤/趋势, 代价是长期拿着大量现金 —— "
@@ -412,8 +370,8 @@ def main():
     A("- **成本不可忽略**: 恒生科技的年线闸门是「跌破 5 日减半、收复即加满」的非对称设计, "
       "样本内围绕 MA250 反复穿越产生多次往返(见成交流水), 单边 "
       f"{rule.FEE_BUY:.1%}+{rule.FEE_SELL:.1%} 的成本在窄幅震荡里会持续磨损。")
-    A(f"- **样本**: 场外口径组合层 {years:.1f} 年(受恒生科技联接 012805 于 2021-08 成立 + 250 日"
-      "窗口限制); 单腿专项样本更长。")
+    A(f"- **样本**: {label}组合层 {years:.1f} 年(受**最晚就绪的那条腿** + 250 日窗口限制: "
+      "恒生科技 `HKHSTECH` 2020-07 起); 单腿专项样本更长。")
     A("- **估值闸门大部分空转**: A500 ERP(样本不足)、科创50 PB、恒生科技 ERP、TIPS、WGRC 当前均为 "
       "null; 美股两条腿的 ERP 分位是人工月度复核值(当前 0.05 → 暂停新增)。")
     A("- **闸门口径是「当下快照」，严格说是前视**: 估值分位取最新读数并套用到全程，"
@@ -438,16 +396,11 @@ def main():
     with open(_OUT_JSON, "w", encoding="utf-8") as f:
         json.dump(dict(
             generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
-            signal_mode=main_m,
-            windows={m: [f"{blocks[m]['runs']['strategy']['nav'].index[0]:%Y-%m-%d}",
-                         f"{blocks[m]['runs']['strategy']['nav'].index[-1]:%Y-%m-%d}"]
-                     for m in blocks},
+            signal_mode="index",
+            window=[f"{res['nav'].index[0]:%Y-%m-%d}", f"{res['nav'].index[-1]:%Y-%m-%d}"],
             days=n_days, years=round(years, 2), sleeve_pp=rule.SLEEVE_PP,
             perf={spec["key"]: {kk: round(vv, 6) for kk, vv in perfs[spec["key"]].items()}
                   for spec in MODES},
-            perf_by_mode={m: {spec["key"]: {kk: round(vv, 6)
-                                            for kk, vv in blocks[m]["perfs"][spec["key"]].items()}
-                              for spec in MODES} for m in blocks},
             avg_invested={spec["key"]: round(_hold_avg(runs[spec["key"]]), 2) for spec in MODES},
             singles={k: dict(window=[f"{singles[k]['ladder']['nav'].index[0]:%Y-%m-%d}",
                                      f"{singles[k]['ladder']['nav'].index[-1]:%Y-%m-%d}"],

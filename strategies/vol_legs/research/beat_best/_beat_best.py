@@ -13,6 +13,10 @@
 | 恒生科技 | V3 MACD+BOLL 开口突破 | 7.25% | -20.00% | 0.39 |
 | 黄金 | V6-B B 控回撤 | 9.79% | -15.25% | 0.80 |
 
+
+> ⚠ 本脚本是**口径切换前的历史对照研究**，价格用旧场外净值库（`data/_otc_nav.json`）复刻，
+> 结论仅作沿革参考；当前策略口径唯一：六腿真实指数 + 黄金场内 `518880`。
+
 本课题只问一件事：**单标的、单腿，能不能做出比上表更好的策略**。不看组合、不做跨腿配权。
 
 方法上有三条硬约束，缺一条结论就不成立：
@@ -93,7 +97,7 @@ def load_leg(leg):
         return pd.Series(node.get("tot") or node["nav"],
                          index=pd.to_datetime(node["dates"]), dtype="float64").sort_index()
 
-    px = ser(cfg["otc"])
+    px = ser(cfg["idx"])
     if cfg["proxy"]:
         old = ser(cfg["proxy"])
         cut = px.index[0]
@@ -559,6 +563,9 @@ def main():
         f"申 {FEE_BUY:.2%} / 赎 {FEE_SELL:.2%} · 空仓 {CASH:.2%}/年 · T 日收盘信号、次日收盘成交 · "
         f"每条腿各自预热 {WARMUP} 根后起算。**四条基线全部照规则重写并重算**，"
         "所以「同尺复刻」与原报告数字若有差距，来自成本/执行/桥接口径，不是规则改写。",
+        "> ⚠ **本报告有意固定在 `otc` 口径**（回答「我账户上能拿到多少」），"
+        "与每日信号口径无关；所以它与各变种 `backtest/_*_bt.md` 的"
+        "主口径数字**不可直接对账**，只能同口径互比。",
         "",
         "## 0. 方法（先看这里，否则下面的 ★ 没有意义）",
         "",
@@ -584,7 +591,7 @@ def main():
         b = perf(base_nav, base_hold)
         b_post = perf(base_nav.loc[cut:], base_hold.loc[cut:])
 
-        L += [f"## {cfg['name']}（`{cfg['otc']}`"
+        L += [f"## {cfg['name']}（`{cfg['idx']}`"
               + (f"，`{cfg['proxy_from']}` 前用 `{cfg['proxy']}` 桥接" if cfg["proxy"] else "")
               + f" · {px.index[0].date()} ~ {px.index[-1].date()} · {len(px)} 根 · "
                 f"后段自 {cut.date()}）", "",

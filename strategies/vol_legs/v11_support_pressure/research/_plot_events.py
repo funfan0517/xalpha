@@ -3,7 +3,7 @@
 
 图的读法（上面两格 = 价格，下面两格 = 分布）：
 
-- **上格**：场外复权净值（对数轴）+ 趋势期底纹（月频 MA200 上行）。**▲** = 触线事件日
+- **上格**：该腿价格（真实指数，对数轴）+ 趋势期底纹（月频 MA200 上行）。**▲** = 触线事件日
   （信号日收盘，实际下单是 t+1）；**竖虚线** = 支撑位（当时最近一个已确认前低）；
   **灰色横线** = 止损位（支撑下方 0.5×ATR）。只为读数清楚，最多画 `MAX_MARK` 个事件。
 - **中格**：`close/support − 1`（距支撑的距离，%），0 线就是支撑本身；
@@ -71,7 +71,7 @@ def plot(leg, out_dir=_HERE, kw=None):
 
     # ---- 上格：净值 + 趋势底纹 + 事件
     idx = px.index
-    ax.plot(idx, px.to_numpy(dtype=float), color=C_PRICE, lw=1.2, label="场外复权净值")
+    ax.plot(idx, px.to_numpy(dtype=float), color=C_PRICE, lw=1.2, label=sp.vdata.price_short())
     ax.set_yscale("log")
     trend = F["trend"].reindex(idx).fillna(False).to_numpy(dtype=bool)
     ax.fill_between(idx, px.min() * 0.9, px.max() * 1.1, where=trend, color="#2e7d32",
@@ -85,7 +85,7 @@ def plot(leg, out_dir=_HERE, kw=None):
                   color=C_SUP, ls=":", lw=0.8, alpha=0.55, zorder=3)
         ax.hlines(r["stop"], r["date"], r["date"] + pd.Timedelta(days=140),
                   color=C_STOP, ls="--", lw=0.7, alpha=0.45, zorder=3)
-    ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+    ax.set_ylabel(f"{sp.vdata.price_short()}（对数轴）", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.28)
     ax.tick_params(labelbottom=False)
 
@@ -128,7 +128,7 @@ def plot(leg, out_dir=_HERE, kw=None):
               ncol=5, mode="expand", fontsize=8.2, frameon=False)
 
     fig.text(0.045, 0.972,
-             f"{name}（{sp.rule.LEGS[leg]['otc']}）· V11 支撑/压力位事件研究 · "
+             f"{name}（{sp.rule.LEGS[leg]['idx']}）· V11 支撑/压力位事件研究 · "
              f"趋势 MA{sp.MA_WIN} 月频 · 目标 {sp.RR:g}R",
              ha="left", fontsize=13.2, color="#1b2b3a", weight="bold")
     sub = (f"{px.index[0].date()} ~ {px.index[-1].date()} · 事件 {len(ev)} 笔"
@@ -137,7 +137,8 @@ def plot(leg, out_dir=_HERE, kw=None):
     fig.text(0.045, 0.938, sub, ha="left", fontsize=10, color="#3d4f5f")
 
     note = [
-        "▲ 是「信号日收盘」，实际下单在 t+1（场外净值）；上格只画前 40 个事件，避免线太密。",
+        f"▲ 是「信号日收盘」，实际下单在 t+1（{sp.vdata.price_short()}）；"
+        "上格只画前 40 个事件，避免线太密。",
         "中格能看出「贴线买入」总发生在下探段 —— 这就是 f60 反而不如基准的机制（报告 §8.1）。",
         "下两格同横轴、同分箱：左 = 事件笔，右 = 同腿同区间全部交易日。两边的中位数差就是「超额」，"
         "但**独立样本只有左边那几十笔**，右边几千个交易日高度自相关，不能当显著性检验。",

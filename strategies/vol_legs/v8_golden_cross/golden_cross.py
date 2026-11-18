@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V8 变种：**美股两腿的 50/200 金叉 × 波动层 TV20**（日频 · 连续仓位）。
+"""波动资产 · V8 变种：**全七腿的 50/200 金叉 × 波动层 TV20**（日频 · 连续仓位）。
+（2026-11-17 由 ndx/spx 两腿扩到全部七腿；规则源自两腿，新增腿按同一规则外推。）
 
-本变种**只服务纳指100 与标普500 两条腿**（池 = `("ndx", "spx")`），与 `v7_us_gate` /
-`v9_vol_target` / `v10_vol_layer` 同一个池 —— 四个变种合起来构成「美股择时矩阵」：
+**规则对全七腿通用**（`POOL = rule.LEG_ORDER`），与 `v7_us_gate` / `v9_vol_target` / `v10_vol_layer`
+同一个池 —— 四个变种合起来构成「全池择时矩阵」；**现阶段重点跑纳指100 与标普500 两条腿**
+（实盘走场外 QDII A 类 `270042` / `017641`，看板 ★ 亦然），其余五腿为同规则外推的参考读数：
 
 | | v7 年线闸门 | **v8 金叉 × 波动层（本变种）** | v9 波动率目标 | v10 纯波动层 |
 |---|---|---|---|---|
@@ -38,13 +40,17 @@
 它买的是**反应速度**：2020 那次方向信号要 5 周才到（MA50 到 04-30 才穿 MA200），
 波动信号 5 天就到 —— 慢线治不了急跌，波动率能。
 
+> ⚠ 上面这组数字是 2026-11-05 在 14.2 年 QDII 净值短样本上的标定记录（沿革）；
+> 2026-11-16 修掉短信号库 bug 后样本变成 2005 起的真实指数长库，**当前读数见回测报告 §3**。
+
 而「自适应」的四种变体（估计子 / 目标 / 档位）**都没有赢过常数 TV20**，
 所以这里就写死 `TV=20 / vol20 / 死区 10pp`，不引入任何会漂移的锚。
 
 ## 3. 已知边界（先读，再看数字）
-- **样本只到 2012**（QDII 场外净值起点）：不含 2000-2002（纳指 −83%）与 2008 ——
-  而金叉在这两段里的表现（2000-2002 回撤 −35.74%）正是它最该被检验的地方，本报告是**外推**。
-  波动层在那两段的作用**同样未验证**（理论上会在泡沫破裂期持续低仓，但无数据可验）。
+- **样本自 2005-01-03 起**（`_global_index_klines.json` 真实指数长库）：
+  不含 2000-2002（纳指 −83%，金叉在那里回撤 −35.74%，是它最该被检验的一段），
+  但**完整包含 2008**。信号与回测价格同源、同起点；2026-11-16 之前信号读 2010 起短库，
+  2005~2010 默认满仓，所有档位回撤都被错误地钉在买入持有上。
 - **方向门仍然钝**：波动层补的了急跌，补不了「阴跌 + 低波动」——
   那种行情里 `vol` 不高，仓位照旧接近满仓。
 - **慢线是硬约束**：200 日慢线让「趋势反转」的确认必然滞后 2~4 个月，
@@ -70,19 +76,18 @@ import data as vdata      # noqa: E402
 import engine             # noqa: E402
 import rule               # noqa: E402
 
-vdata._otc_stale = lambda: False   # 离线优先：只读本地缓存  # type: ignore[assignment]
 
 LABEL = "V8 美股金叉 50/200 × 波动层 TV20"
 
 # ---------------------------------------------------------------- 1. 参数（唯一权威源）
-POOL = ("ndx", "spx")           # 策略标的池：只有这两条（与 v7 / v9 / v10 同池）
+POOL = tuple(rule.LEG_ORDER)    # 策略标的池：全部七腿（2026-11-17 由用户要求从 ndx/spx 两腿扩展，与 v7/v9/v10 同池）
 FAST = 50                       # 快线
 SLOW = 200                      # 慢线
 HYST = 0.0                      # 迟滞带（0.02 = 快线要高出慢线 2% 才算金叉；默认关闭）
 PRICE_FILTER = False            # True = 额外要求「价格也在慢线上方」才算持仓
 FLOOR = 0.0                     # 死叉后留多少仓位（0 = 清仓；0.5 = 减半）
 TRIGGER = "daily"               # "daily" = 教科书口径（默认）; "month" = 月末定仓（对照）
-SIGNAL = "index"                # "index" = 美元指数（正解）; "nav" = 人民币净值（反例）
+SIGNAL = "index"                # 唯一口径：真实指数（保留字段名以兼容 params()）
 
 # ---- 波动层（2026-11-05 起为**默认档**；来源：research/_probe_vol_layer.md）----
 VOL_ON = True                   # 总开关。False = 回到纯二元金叉（旧默认，保留作对照）
@@ -93,7 +98,7 @@ VOL_DEAD = 0.10                 # 死区：金叉状态未变时，|Δ仓位| < 
 COST = 0.001                    # 单边成本（文档主口径 0.1%）
 CASH_ANNUAL = rule.CASH_ANNUAL  # 空仓计息（1.40%，与 v7 同口径）
 
-W = {k: 1.0 / len(POOL) for k in POOL}     # 组合层：两腿等权（两条腿都是 10pp 带）
+W = {k: 1.0 / len(POOL) for k in POOL}     # 组合层：全池等权（各腿各 10pp 带）
 
 # `vol_legs/research/probe_published_us/_probe_published_us.md` 的同规则实测（纳指 · 1995-01~2026-11 · 指数收盘**不含分红** ·
 # 单边 0.10% · 空仓 1.40%）。口径与本节不同（30 年 vs 14 年、指数 vs QDII 净值），只比量级。
@@ -113,28 +118,28 @@ def params(**kw):
 
 # ---------------------------------------------------------------- 2. 数据
 def load_nav(leg, mode=None):
-    """执行口径：场外 QDII 人民币复权净值（含分红再投 / 汇率）。"""
-    return vdata.series_for_leg(leg, mode=mode).dropna()
+    """该腿价格序列：恒为**美元指数真实收盘**（不含汇率 / 跟踪误差 / 分红再投）。"""
+    return vdata.series_for_leg(leg).dropna()
 
 
 def load_signal(leg, as_of=None):
-    """信号口径：**美元指数**收盘（`.NDX` / `.INX`），缺数据就报错（不静默降级）。
+    """信号口径：**真实指数**收盘（`.NDX` / `.INX`），与 `load_nav()` 同源、同起点。
+
+    ⚠ 必须走 `series_for_leg()`（`_global_index_klines.json`, 2005 起）。早期这里读
+    `_us_index_klines.json`（只有 2010 起），导致 2005~2010 无 vol20、仓位默认满仓，
+    2008 危机整段被计入净值 —— 所有参数档的最大回撤因此都等于买入持有。
 
     `as_of` 只保留 `<= as_of` 的观测 —— 前视检验（`backtest.py` 断言 4）靠它把「当时能看到的数据」
     真的截断掉，而不是嘴上说没有前视。
     """
-    s = vdata.us_series(rule.LEGS[leg]["signal"], refresh=False).dropna()
+    s = vdata.series_for_leg(leg).dropna()
     if as_of is not None:
         s = s.loc[s.index <= pd.Timestamp(as_of)]
     return s
 
 
 def signal_of(leg, p=None, as_of=None):
-    """按 `SIGNAL` 取信号价：指数（正解）或人民币净值（反例）。"""
-    p = p or params()
-    if p["SIGNAL"] == "nav":
-        s = load_nav(leg)
-        return s.loc[s.index <= pd.Timestamp(as_of)] if as_of is not None else s
+    """信号价恒为该市场真实指数收盘（与回测价格同源），缺数据就报错。"""
     return load_signal(leg, as_of=as_of)
 
 
@@ -361,7 +366,8 @@ def run_leg(state, nav, cost=None, cash=None):
 
 
 def portfolio(navs, states, weight=None, cost=None, cash=None):
-    """两腿组合净值（默认等权）。逐日线性加权 + 各腿成本。"""
+    """组合净值（默认全池等权）。逐日线性加权 + 各腿成本。
+    权重表可以是子集（如 {"ndx":1,"spx":0}）：未列出的腿权重按 0 处理。"""
     weight = weight or W
     cols = list(navs)
     idx = navs[cols[0]].index
@@ -379,10 +385,11 @@ def portfolio(navs, states, weight=None, cost=None, cash=None):
         r, e_sum = 0.0, 0.0
         for k in cols:
             e = float(eff[k].iloc[i])                     # 昨日收盘的仓位赚今日收益
-            r += weight[k] * (e * float(rets[k].iloc[i]) + (1.0 - e) * cash_d)
-            e_sum += weight[k] * e
+            w = float(weight.get(k, 0.0))                 # 权重表可为子集，未列腿按 0
+            r += w * (e * float(rets[k].iloc[i]) + (1.0 - e) * cash_d)
+            e_sum += w * e
             if i > 0:                                     # 今日收盘成交的仓位变化才付成本
-                r -= weight[k] * abs(float(sts[k].iloc[i]) - float(sts[k].iloc[i - 1])) * c
+                r -= w * abs(float(sts[k].iloc[i]) - float(sts[k].iloc[i - 1])) * c
         nav *= (1.0 + r)
         out.append(nav)
         inv.append(e_sum)

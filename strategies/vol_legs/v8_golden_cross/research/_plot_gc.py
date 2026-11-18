@@ -2,7 +2,7 @@
 """V8（美股两腿金叉 50/200）· 操作点单腿图：纳指100 / 标普500。
 
 图的读法（与 `v7_us_gate/research/_plot_gate.py` 同一版式，便于并排比较）：
-- **上格深色线** = 场外 QDII 复权净值（含分红再投 / 汇率 / 跟踪误差），这是你真能拿到的收益；
+- **上格深色线** = 该腿价格（美元指数真实收盘）；
 - **两条橙线** = 净值口径的 MA50（细）/ MA200（粗）—— 只作视觉参照；
   **决策用的是美元指数**上的同一对均线（两者驱动同一段行情，形状一致、数值以报告为准）；
 - **底色** = 当天**美元指数**的 MA50 在 MA200 上（浅绿 = 金叉状态、该满仓）/ 下（浅红 = 死叉、该清仓）；
@@ -92,9 +92,9 @@ def plot(leg, out_dir=_HERE):
         ax.set_yticks(ticks)
         ax.set_yticklabels([f"{t:g}" for t in ticks])
         ax.yaxis.set_minor_formatter(NullFormatter())
-        ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+        ax.set_ylabel(f"{gc.vdata.price_short()}（对数轴）", fontsize=10)
     else:
-        ax.set_ylabel("场外复权净值", fontsize=10)
+        ax.set_ylabel(f"{gc.vdata.price_short()}", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.30, zorder=1)
     ax.tick_params(labelbottom=False)
 
@@ -107,18 +107,6 @@ def plot(leg, out_dir=_HERE):
                 mfc="none", mec=C_BUY, mew=1.4, zorder=6)
         ax.plot(sd, [float(nav.loc[d]) for d in sd], ls="none", marker="v", ms=8,
                 mfc="none", mec=C_SELL, mew=1.4, zorder=6)
-
-    cut = None
-    if cfg.get("otc_proxy"):
-        _cut = pd.Timestamp(cfg.get("otc_start"))
-        if idx[0] < _cut < idx[-1]:
-            cut = idx[idx.searchsorted(_cut)]
-            ax.axvspan(idx[0], cut, color="#9aa5b1", alpha=0.10, lw=0, zorder=1)
-            ax.axvline(cut, color="#7b8794", lw=0.9, ls="--", zorder=2)
-            ax.text(cut, 0.975, f"{cut.date()} 起为 {cfg['otc']} 真实净值"
-                                f"（此前 {cfg.get('otc_proxy')} 桥接） ",
-                    transform=ax.get_xaxis_transform(), va="top", ha="right",
-                    fontsize=8.3, color="#5b6b7a")
 
     axp.step(idx, st.to_numpy(), where="post", color=C_STEP, lw=1.15, zorder=3)
     axp.fill_between(idx, 0, st.to_numpy(), step="post", color=C_STEP, alpha=0.14, lw=0, zorder=2)
@@ -146,7 +134,7 @@ def plot(leg, out_dir=_HERE):
     axp.set_xlabel("成交日 = 信号日的次一交易日（T+1 净值）", fontsize=9, color="#5b6b7a")
 
     handles = [
-        Line2D([], [], color=C_PRICE, lw=1.35, label=f"{cfg['name']} 复权净值"),
+        Line2D([], [], color=C_PRICE, lw=1.35, label=f"{cfg['name']} 价格"),
         Line2D([], [], color=C_FAST, lw=1.0, label=f"MA{int(p['FAST'])}（净值口径）"),
         Line2D([], [], color=C_SLOW, lw=1.3, label=f"MA{int(p['SLOW'])}（净值口径）"),
         Line2D([], [], ls="none", marker="^", ms=8, mfc="none", mec=C_BUY,
@@ -163,7 +151,7 @@ def plot(leg, out_dir=_HERE):
               columnspacing=1.0, handletextpad=0.5, borderaxespad=0.2)
 
     fig.text(0.045, 0.968,
-             f"{cfg['name']}（{cfg['otc']}）金叉 {int(p['FAST'])}/{int(p['SLOW'])} × 波动层 "
+             f"{cfg['name']}（{cfg['idx']}）金叉 {int(p['FAST'])}/{int(p['SLOW'])} × 波动层 "
              f"TV{float(p['TV']):.0%}｜日频",
              ha="left", fontsize=13.6, color="#1b2b3a", weight="bold")
     fig.text(0.045, 0.937,
@@ -180,7 +168,7 @@ def plot(leg, out_dir=_HERE):
     note = [
         f"规则：仓位 = (MA{int(p['FAST'])} > MA{int(p['SLOW'])} ? 1 : 0) × min(1, TV/vol"
         f"{int(p['VOL_WIN'])})，TV = {float(p['TV']):.0%}，死区 {float(p['VOL_DEAD']):.0%}；"
-        f"信号 = 美元指数（{cfg['signal']}）日频，成交 = 信号日的次一交易日收盘净值。",
+        f"信号 = 美元指数（{cfg['idx']}）日频，成交 = 信号日的次一交易日收盘净值。",
         f"扣费按单边 {gc.COST:.1%}；空仓按货基 {gc.CASH_ANNUAL:.2%} 计息。"
         "下格两条线是联动的：底色（门）决定仓位能不能存在，vol（右轴）决定它有多高。",
         "底色 = 美元指数的均线关系（决策依据），橙线 = 净值口径的同名均线（只作视觉参照）。"

@@ -1,6 +1,13 @@
 # v11-gate · 支撑位闸门（父目录事件研究的**仓位化复算** · 回测后判定不上线）
 
-**位置与身份**：本目录是 `v11_support_pressure/` 的**仓位层**（代号 `v11-gate`），不是独立变种 ——
+> ⚠ 本文的**历史结论数字**来自 2026-11-13 口径切换前（场外净值 / 场内 ETF）的回测，仅作沿革参考；
+> 当前口径唯一：**六腿真实指数收盘 + 黄金场内 `518880`**，当前读数以本目录 `backtest/*.md` 与每日产物为准。
+>
+> ⚠ **2026-11-16 显式重跑回测**：`backtest/_v11_gate_bt.md` 已按真实指数长库重算
+> （旧报告还停在口径切换前的场外净值窗口，样本 A500 自 2010-08 起；新样本自 2006-01 起）。
+> 下文 §2/§3 的 `+8.99% → +12.37%` 等是沿革数字；新读数（七腿组合窗口）：
+> 纯趋势 +10.54% / -12.39% → 完整版 +4.83% / -10.50%（**-5.71pp**）、动作 8.9 → 66.8 次/年 ——
+> 「支撑层是纯负贡献」的结论在新口径下**更强**，不上线的判定不变。
 2026-11-10 由原独立目录 `v12_support_gate/` 并入，v12 这个编号取消，产物统一为 `_v11_gate_*`。
 父目录的 `support_pressure.py` 回答「这笔交易值不值」（单笔 R 口径，**刻意不报年化/回撤**），
 本目录回答「这条腿今天该露出多少带」（逐日仓位 + NAV 口径，报年化/回撤/夏普）。
@@ -114,7 +121,7 @@ v11-gate **不上线**（`pipeline/strategies.json` 不注册、`run_daily_all` 
 所以「今日操作」是一份**手跑**产物：用途是核对规则、看支撑层在扣多少仓，**不是操作指令**。
 
 ```powershell
-python strategies/vol_legs/v11_support_pressure/gate/daily/_daily_scan.py               # 先刷新场外净值再算
+python strategies/vol_legs/v11_support_pressure/gate/daily/_daily_scan.py               # 先刷新真实指数收盘再算
 python strategies/vol_legs/v11_support_pressure/gate/daily/_daily_scan.py --no-refresh  # 只用本地缓存
 ```
 

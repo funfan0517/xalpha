@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V7 变种（美股两腿年线闸门）· 回测（逐腿 + 组合 + 敏感性 + 文档对照 + 硬断言）。
+"""波动资产 · V7 变种（全七腿年线闸门）· 回测（逐腿 + 组合 + 敏感性 + 文档对照 + 硬断言）。
 
-池：**只有纳指100 与标普500**（`us_gate.POOL`）。规则逐条落地自用户指定文档
+池：**全七腿**（`us_gate.POOL` = rule.LEG_ORDER，2026-11-17 扩池）。规则逐条落地自用户指定文档
 `E:\\qianwen\\jijin\\纳指100与标普500_策略回测与规则.md`：
 MA200（美元指数收盘）· 月末看盘 · 连续 2 个月在年线下才减 · 纳指清仓 / 标普减半 · 站上次月回补。
 
-口径：
-- 信号 = **美元指数**（`.NDX` / `.INX`），执行 = 场外 QDII 人民币复权净值（`data.series_for_leg`）；
+口径（2026-11-17 起，与 `us_gate.py` 默认档同步）：
+- 池 = **全七腿**（`us_gate.POOL`），逐腿独立回测 + 等权组合；
+- 信号与回测 = **各腿真实指数收盘**（美股 `.NDX` / `.INX`、A股/港股指数、黄金 518880）；
+  美股腿实盘执行走场外 QDII A 类，收益不含汇率与跟踪误差；
+- 默认档 = 月末 MA200 闸门（2 月确认 + 深破 3% 豁免）× 波动层 TV20 / 死区 10pp
+  **+ 日频离场 MA50/200（`EXIT="ma50200"`，2026-11-17 起默认开）**；月中补丁 `PATCH` 默认关；
 - 成本 = 单边 0.1%（文档主口径），另给 0.6% 的场外现实口径；
 - 空仓按货基 `rule.CASH_ANNUAL` 计息；
 - 起点口径：首日即满仓，与买入持有同口径（不另计建仓费）。
@@ -37,23 +41,29 @@ OUTDIR = os.path.join(_HERE, "backtest")
 OUT_MD = os.path.join(OUTDIR, "_v7_us_gate_bt.md")
 OUT_JSONL = os.path.join(OUTDIR, "_v7_us_gate_bt.jsonl")
 
-# 逐腿档位（与文档表1 一一对应）
+# 逐腿档位（与文档表1 一一对应；前五档是文档口径复现，一律 EXIT="none"）
 VARIANTS = [
-    ("买入持有", dict(FLOOR=1.0, TV=0)),
-    ("年线闸门（清仓 · 无确认）", dict(CONFIRM=1, FLOOR=0.0, TV=0)),
-    ("年线+2月确认（清仓 · 文档原口径）", dict(CONFIRM=2, DEEP=0, FLOOR=0.0, TV=0)),
-    ("年线+2%迟滞（清仓）", dict(CONFIRM=2, HYST=0.02, DEEP=0, FLOOR=0.0, TV=0)),
-    ("半仓闸门（无确认 · 减半）", dict(CONFIRM=1, FLOOR=0.5, TV=0)),
-    ("**本变种默认（2月确认+深破3%+TV20+纳指0/标普50%）**", dict()),
-    ("深破3%（TV 关闭 · 上一版默认）", dict(TV=0)),
+    ("买入持有", dict(FLOOR=1.0, TV=0, EXIT="none")),
+    ("年线闸门（清仓 · 无确认）", dict(CONFIRM=1, FLOOR=0.0, TV=0, EXIT="none")),
+    ("年线+2月确认（清仓 · 文档原口径）", dict(CONFIRM=2, DEEP=0, FLOOR=0.0, TV=0, EXIT="none")),
+    ("年线+2%迟滞（清仓）", dict(CONFIRM=2, HYST=0.02, DEEP=0, FLOOR=0.0, TV=0, EXIT="none")),
+    ("半仓闸门（无确认 · 减半）", dict(CONFIRM=1, FLOOR=0.5, TV=0, EXIT="none")),
+    ("**本变种默认（2月确认+深破3%+TV20+日频离场）**", dict()),
+    ("关掉日频离场（2026-11-17 前口径）", dict(EXIT="none")),
+    ("日频离场 + 月中补丁（F6）", dict(PATCH="fast")),
+    ("深破3%（TV 关闭）", dict(TV=0)),
     ("波动层 TV15（无深破）", dict(DEEP=0, TV=0.15)),
     ("**深破3% + 波动层 TV15**", dict(TV=0.15)),
-    ("人民币净值信号（文档反例）", dict(CONFIRM=2, DEEP=0, FLOOR=0.0, TV=0, SIGNAL="nav")),
 ]
 
 SENS = [
-    ("基准（MA200 · 确认2月 · 深破3% · TV20 · 纳指0/标普50% · 单边0.1%）", {}),
-    ("关闭波动层（纯闸门 · 上一版默认）", dict(TV=0)),
+    ("基准（MA200 · 确认2月 · 深破3% · TV20 · 日频离场 · 单边0.1%）", {}),
+    ("关掉日频离场（2026-11-17 前口径）", dict(EXIT="none")),
+    ("离场线 MA40/200", dict(EXIT_FAST=40)),
+    ("离场线 MA60/200", dict(EXIT_FAST=60)),
+    ("离场线 MA50/150", dict(EXIT_SLOW=150)),
+    ("月中补丁 fast（v9 快减/快补）", dict(PATCH="fast")),
+    ("关闭波动层（纯闸门 + 日频离场）", dict(TV=0)),
     ("关闭深破位（保留 TV20）", dict(DEEP=0)),
     ("关闭深破 + 关闭波动层（文档原口径）", dict(DEEP=0, TV=0)),
     ("深破位阈值 1%", dict(DEEP=0.01)),
@@ -77,12 +87,11 @@ SENS = [
     ("迟滞带 5%", dict(HYST=0.05)),
     ("均线 150 日", dict(MA_WIN=150)),
     ("均线 250 日", dict(MA_WIN=250)),
-    ("两腿都清仓", dict(FLOOR=0.0)),
-    ("两腿都减半", dict(FLOOR=0.5)),
+    ("全部腿都清仓（FLOOR=0）", dict(FLOOR=0.0)),
+    ("全部腿都减半（FLOOR=0.5）", dict(FLOOR=0.5)),
     ("成本 0.6%（场外现实口径）", dict(COST=0.006)),
     ("现金 0%（不付利息）", dict(CASH_ANNUAL=0.0)),
     ("日频触发（跌破即走，不走月度确认）", dict(TRIGGER="daily")),
-    ("人民币净值信号（反例）", dict(SIGNAL="nav")),
 ]
 
 WINDOWS = [
@@ -121,7 +130,7 @@ def leg_rows(**kw):
 
 
 def portfolio_all(**kw):
-    """两条腿的组合（等权 50/50），三种 floor 口径。"""
+    """全池组合（各腿等权 1/N），三种 floor 口径。"""
     navs, states = {}, {}
     idx = None
     for leg in ug.POOL:
@@ -133,13 +142,16 @@ def portfolio_all(**kw):
     states = {k: v.reindex(idx).ffill() for k, v in states.items()}
 
     specs = [
-        ("静态 50/50（买入持有）", None, dict(FLOOR=1.0)),
-        ("**本变种默认（2月确认 + 深破3% + TV20 · 纳指 0 / 标普 50%）**", None, dict()),
-        ("关闭波动层（纯闸门 · 上一版默认）", None, dict(TV=0)),
-        ("关闭深破 + 关闭波动层（文档原口径）", None, dict(DEEP=0, TV=0)),
+        ("静态等权（买入持有）", None, dict(FLOOR=1.0, EXIT="none")),
+        ("**本变种默认（2月确认 + 深破3% + TV20 + 日频离场）**", None, dict()),
+        ("关掉日频离场（2026-11-17 前口径）", None, dict(EXIT="none")),
+        ("日频离场 + 月中补丁（F6）", None, dict(PATCH="fast")),
+        ("关闭波动层（纯闸门 + 日频离场）", None, dict(TV=0)),
+        ("关闭波动层且关离场（纯闸门 · 上一版默认）", None, dict(TV=0, EXIT="none")),
+        ("关闭深破 + 关闭波动层（文档原口径）", None, dict(DEEP=0, TV=0, EXIT="none")),
         ("深破 3% + 波动层 TV15", None, dict(TV=0.15)),
-        ("两条腿都清仓", None, dict(TV=0, FLOOR=0.0)),
-        ("两条腿都减半", None, dict(TV=0, FLOOR=0.5)),
+        ("全部腿都清仓（FLOOR=0）", None, dict(TV=0, FLOOR=0.0, EXIT="none")),
+        ("全部腿都减半（FLOOR=0.5）", None, dict(TV=0, FLOOR=0.5)),
     ]
     rows = []
     static_nv = None
@@ -206,19 +218,19 @@ def check_all():
     # 1) 恒满（确认数极大 + 关掉波动层 -> 永不减仓）净值 == 买入持有
     ok, note = True, ""
     for leg in ug.POOL:
-        nav, st, _ = ug.build(leg, CONFIRM=999, DEEP=0, TV=0)
+        nav, st, _ = ug.build(leg, CONFIRM=999, DEEP=0, TV=0, EXIT="none")
         nv = ug.run_leg(st, nav, cost=0.0)
         bh = nav / nav.iloc[0]
         rel = abs(float(nv.iloc[-1] / bh.iloc[-1]) - 1.0)
         if rel > 1e-12:
             ok, note = False, f"{leg} 差 {rel:.2e}"
             break
-    out.append(("恒满（不触发减仓）净值 == 买入持有（零费）", ok, note or "两腿逐日一致"))
+    out.append(("恒满（不触发减仓）净值 == 买入持有（零费）", ok, note or "全池逐日一致"))
 
     # 2) 闸门层（关掉波动层）仓位只落在 {1.0, floor}；开了波动层就是连续值，改为查上界
     ok, note = True, ""
     for leg in ug.POOL:
-        _, st, _ = ug.build(leg, TV=0)
+        _, st, _ = ug.build(leg, TV=0, EXIT="none")
         allowed = {1.0, ug.floor_for(leg)}
         got = set(np.round(st.unique(), 9))
         if not got <= allowed:
@@ -229,13 +241,13 @@ def check_all():
             ok, note = False, f"{leg} 叠加波动层后仓位越界 [{st_v.min():.3f}, {st_v.max():.3f}]"
             break
     out.append(("闸门层仓位 ∈ {100%, 减仓后比例}；叠加波动层后仍 ∈ [0, 100%]", ok,
-                note or "两腿均通过（不加杠杆）"))
+                note or "全池均通过（不加杠杆）"))
 
     # 3) 决策日在信号月末 + 仓位 = 「严格早于该净值日的最后一个决策」
     ok, note = True, ""
     for leg in ug.POOL:
         sig = ug.load_signal(leg)
-        nav, st, dec = ug.build(leg)
+        nav, st, dec = ug.build(leg, EXIT="none")
         sig_idx = pd.DatetimeIndex(sig.index)
         for x in dec:
             pos_s = int(sig_idx.searchsorted(x["date"], side="right"))
@@ -255,12 +267,12 @@ def check_all():
             ok, note = False, f"{leg} 仓位序列与「最近一次决策」不符"
             break
     out.append(("决策在信号月末、仓位只在决策日之后生效（T+1，无前视）", ok,
-                note or "两腿逐日一致"))
+                note or "全池逐日一致"))
 
     # 4) 截断最后 6 天重跑 -> 历史仓位不变
     ok, note = True, ""
     for leg in ug.POOL:
-        nav, st, _ = ug.build(leg)
+        nav, st, _ = ug.build(leg, EXIT="none")
         cut = nav.iloc[:-6]
         dec_cut = ug.decisions(leg)
         st_cut = ug.state_series(cut.index, dec_cut)
@@ -269,9 +281,18 @@ def check_all():
         if diff > 1e-12:
             ok, note = False, f"{leg} 最大差 {diff:.2e}"
             break
-    out.append(("截掉最后 6 天重跑，历史仓位不变（无前视）", ok, note or "最大差 0"))
+        # 离场掩码也必须因果：截断信号后重算，历史部分应逐日一致
+        sig = ug.load_signal(leg)
+        m_full = ug.exit_mask(nav.index, sig)
+        m_cut = ug.exit_mask(cut.index, sig.loc[:cut.index[-1]])
+        d2 = float((m_full.reindex(common).astype(float)
+                    - m_cut.reindex(common).astype(float)).abs().max())
+        if d2 > 1e-12:
+            ok, note = False, f"{leg} 离场掩码差 {d2:.2e}"
+            break
+    out.append(("截掉最后 6 天重跑，历史仓位与离场掩码不变（无前视）", ok, note or "最大差 0"))
 
-    # 5) 两腿恒满时组合 == 50/50 静态（零费）
+    # 5) 全池恒满时组合 == 等权手工复利（零费）
     navs, idx = {}, None
     for leg in ug.POOL:
         nav, _, _ = ug.build(leg, CONFIRM=999, DEEP=0, TV=0)
@@ -283,10 +304,11 @@ def check_all():
     nv, _ = ug.portfolio(navs, stx, cost=0.0)
     manual = 1.0
     rets = {k: navs[k].pct_change().fillna(0.0) for k in ug.POOL}
+    w = 1.0 / len(ug.POOL)
     for i in range(len(idx)):
-        manual *= (1.0 + sum(0.5 * float(rets[k].iloc[i]) for k in ug.POOL))
+        manual *= (1.0 + sum(w * float(rets[k].iloc[i]) for k in ug.POOL))
     rel = abs(manual / float(nv.iloc[-1]) - 1.0)
-    out.append(("两腿恒满时组合 == 50/50 手工复利（零费）", bool(rel < 1e-10),
+    out.append((f"全池恒满时组合 == {len(ug.POOL)} 腿等权手工复利（零费）", bool(rel < 1e-10),
                 f"差 {rel:.1e}"))
 
     # 6) 深破位免确认：只在「确认月数未满 且 gap <= -DEEP」时生效；DEEP=0 时一条都不该有
@@ -306,7 +328,7 @@ def check_all():
     if ok and any(x["deep"] for leg in ug.POOL for x in ug.decisions(leg, DEEP=0)):
         ok, note = False, "DEEP=0 仍触发"
     out.append((f"深破位免确认只在首月破位 {ug.DEEP:.0%} 以上时提前动手（共 {n_deep} 次）", ok,
-                note or f"两腿共 {n_deep} 次，DEEP=0 时 0 次"))
+                note or f"全池共 {n_deep} 次，DEEP=0 时 0 次"))
 
     # 7) 波动层（TV=15%）：scale == min(1, TV/vol)、0 ≤ scale ≤ 1、target ≤ gate（不加杠杆）
     ok, note, n_vol = True, "", 0
@@ -324,7 +346,7 @@ def check_all():
         if not ok:
             break
     out.append((f"波动层 scale == min(1, TV/vol)、target = gate×scale ≤ gate（{n_vol} 条决策）", ok,
-                note or "两腿逐条一致，不加杠杆"))
+                note or "全池逐条一致，不加杠杆"))
 
     # 8) 死区：闸门未变的相邻决策之间，目标仓位要么不动，要么变化 ≥ VOL_DEAD
     ok, note = True, ""
@@ -345,7 +367,18 @@ def check_all():
         if not ok:
             break
     out.append((f"死区生效：闸门未变时目标仓位要么不动、要么变化 ≥ {dead:.0%}"
-                f"（未变的月末对 {n_zero} 个）", ok, note or "两腿逐条一致"))
+                f"（未变的月末对 {n_zero} 个）", ok, note or "全池逐条一致"))
+
+    # 9) 日频离场只减不加：开离场后的仓位逐日 ≤ 关离场的仓位
+    ok, note = True, ""
+    for leg in ug.POOL:
+        _, st_on, _ = ug.build(leg)
+        _, st_off, _ = ug.build(leg, EXIT="none")
+        d = float((st_on.reindex(st_off.index) - st_off).max())
+        if d > 1e-12:
+            ok, note = False, f"{leg} 离场后仓位高出 {d:.3f}"
+            break
+    out.append(("日频离场只减不加：开离场后仓位逐日 ≤ 关离场", ok, note or "全池逐日成立"))
     return out
 
 
@@ -399,6 +432,7 @@ def main():
         return next(r for r in legs if r["leg"] == leg and r["variant"].startswith(prefix))
 
     base, static = prow("**本变种默认"), prow("静态")
+    exit_off = prow("关掉日频离场")
     gate_only = prow("关闭波动层（纯闸门")
     doc_pure = prow("关闭深破 + 关闭波动层")
     pvt15 = prow("深破 3% + 波动层 TV15")
@@ -408,10 +442,10 @@ def main():
     yr = ug.yearly(base_nv)
 
     L = [
-        "# 波动资产 · V7 变种：美股两腿年线闸门（200 日 · 2 月确认 + 深破位免确认 × 波动层 TV20）",
-        "> 池 = **只有纳指100 与标普500**（`us_gate.POOL`）；规则落地自 "
-        "`E:\\qianwen\\jijin\\纳指100与标普500_策略回测与规则.md`。",
-        "> 信号 = **美元指数**（`.NDX` / `.INX`）收盘；执行 = 场外 QDII **人民币复权净值**；"
+        "# 波动资产 · V7 变种：年线闸门（200 日 · 2 月确认 + 深破位免确认 × 波动层 TV20 + 日频离场）",
+        f"> 池 = **全七腿**（`us_gate.POOL` = {', '.join(ug.rule.LEGS[k]['name'] for k in ug.POOL)}）；"
+        "规则落地自 `E:\\qianwen\\jijin\\纳指100与标普500_策略回测与规则.md`（两腿文档，2026-11-17 扩池）。",
+        f"> {ug.vdata.us_signal_exec_desc()}；"
         f"空仓按货基 {ug.CASH_ANNUAL:.2%} 计息 · 单边成本 {p0['COST']:.1%}。",
         "> 规则权威源 `v7_us_gate/us_gate.py` 顶部常量。",
         "",
@@ -419,7 +453,7 @@ def main():
         "",
         "| 环节 | 规则 |",
         "|---|---|",
-        f"| 信号价 | 美元指数收盘（**不是**人民币净值 —— 实测这一条值 3.4pp 年化） |",
+        f"| 信号价 | 真实指数收盘（`.NDX` / `.INX`，与回测价格同源、2005 起） |",
         f"| 均线 | {p0['MA_WIN']} 日简单均线（日频算、月末看） |",
         "| 看盘频率 | 每月最后一个交易日收盘 → 次一交易日（次月首个交易日）成交 |",
         f"| 减仓条件 | **连续 {p0['CONFIRM']} 个月**收盘在年线之下（单月破位不动） |",
@@ -464,7 +498,7 @@ def main():
         f"{ug.fmt_pct(_leg('ndx', '年线+2月确认')['ann'])}。**组合层净赚**，是因为标普腿救回来的"
         f"回撤大于纳指腿让渡的收益 —— 这不是「规则更聪明」，是两条腿的月度相位差。",
         "",
-        f"## 3. 组合层（两腿等权 50/50 · {win} · {yrs:.1f} 年）",
+        f"## 3. 组合层（全 {len(ug.POOL)} 腿等权 1/{len(ug.POOL)} · {win} · {yrs:.1f} 年）",
         "",
         "| 组合 | 累计 | 年化 | 波动 | 回撤·日频 | 回撤·月末 | Calmar(月末) | 夏普 | 平均仓位 | 调仓 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -475,22 +509,25 @@ def main():
                  f"{r['calmar_me']:.2f} | {r['sharpe']:.2f} | {r['expo']:.0%} | {r['trades']} |")
     L += [
         "",
-        f"> **默认 vs 静态 50/50**：年化 {ug.fmt_pct(base['ann'])} vs {ug.fmt_pct(static['ann'])}"
+        f"> **默认 vs 静态等权**：年化 {ug.fmt_pct(base['ann'])} vs {ug.fmt_pct(static['ann'])}"
         f"（**{(base['ann'] - static['ann']) * 100:+.2f}pp**）、回撤·月末 "
         f"{ug.fmt_pct(base['mdd_me'])} vs {ug.fmt_pct(static['mdd_me'])}"
         f"、Calmar {base['calmar_me']:.2f} vs {static['calmar_me']:.2f}、"
         f"夏普 {base['sharpe']:.2f} vs {static['sharpe']:.2f}。",
-        f"> **本版默认 = 闸门（2 月确认 + 深破 3%）× 波动层 TV20**（2026-11-05 用户选定）。"
-        f"对比上一版（纯闸门、无波动层）：年化 {ug.fmt_pct(base['ann'])} vs "
-        f"{ug.fmt_pct(gate_only['ann'])}（{(base['ann'] - gate_only['ann']) * 100:+.2f}pp）、"
-        f"回撤·日频 {ug.fmt_pct(base['mdd'])} vs {ug.fmt_pct(gate_only['mdd'])}"
-        f"（**{(gate_only['mdd'] - base['mdd']) * 100:+.2f}pp 更浅**）、回撤·月末 "
-        f"{ug.fmt_pct(base['mdd_me'])} vs {ug.fmt_pct(gate_only['mdd_me'])}、Calmar(月末) "
-        f"{base['calmar_me']:.2f} vs {gate_only['calmar_me']:.2f}、"
-        f"调仓 {base['trades']} vs {gate_only['trades']} 次。",
-        "> 换句话说：**用 0.5pp 年化和 59 次调仓，换来 3.7pp 的日频回撤**。对比文档原口径"
-        f"（纯 2 月确认、两层都关）：年化 {ug.fmt_pct(doc_pure['ann'])}、日频回撤 "
-        f"{ug.fmt_pct(doc_pure['mdd'])}、Calmar {doc_pure['calmar_me']:.2f}。",
+        f"> **本版默认 = 闸门（2 月确认 + 深破 3%）× 波动层 TV20 + 日频离场**"
+        f"（波动层 2026-11-05 选定；日频离场 2026-11-17 加入，见 `research/probe_fusion`）。"
+        f"对比关掉离场的老口径：年化 {ug.fmt_pct(base['ann'])} vs {ug.fmt_pct(exit_off['ann'])}"
+        f"（{(base['ann'] - exit_off['ann']) * 100:+.2f}pp）、回撤·月末 "
+        f"{ug.fmt_pct(base['mdd_me'])} vs {ug.fmt_pct(exit_off['mdd_me'])}"
+        f"（**{(exit_off['mdd_me'] - base['mdd_me']) * 100:+.2f}pp 更浅**）、Calmar(月末) "
+        f"{base['calmar_me']:.2f} vs {exit_off['calmar_me']:.2f}、"
+        f"调仓 {base['trades']} vs {exit_off['trades']} 次。",
+        f"> 再对比纯闸门（关掉波动层、保留离场）：年化 {ug.fmt_pct(gate_only['ann'])}"
+        f"（{(base['ann'] - gate_only['ann']) * 100:+.2f}pp）、回撤·日频 "
+        f"{ug.fmt_pct(gate_only['mdd'])}、Calmar(月末) {gate_only['calmar_me']:.2f}、"
+        f"调仓 {gate_only['trades']} 次；文档原口径（两层都关、无离场）年化 "
+        f"{ug.fmt_pct(doc_pure['ann'])}、日频回撤 {ug.fmt_pct(doc_pure['mdd'])}、"
+        f"Calmar {doc_pure['calmar_me']:.2f}。",
         f"> **波动层 TV15 一档只作对照**（更平但更少年化）：年化 {ug.fmt_pct(pvt15['ann'])}、"
         f"回撤·日频 {ug.fmt_pct(pvt15['mdd'])}、Calmar {pvt15['calmar_me']:.2f}、"
         f"调仓 {pvt15['trades']} 次。选 20% 而不是 15%，是因为 Calmar 只差 "
@@ -547,7 +584,7 @@ def main():
         f"年化 {ug.fmt_pct(s_c1['ann'])}、Calmar {s_c1['calmar_me']:.2f}；3 个月 → "
         f"调仓 {s_c3['trades']} 次、年化 {ug.fmt_pct(s_c3['ann'])}、Calmar {s_c3['calmar_me']:.2f}。"
         "**默认取 2 个月 + 3% 豁免，是与文档对齐又补掉新冠那次漏洞的折中**，不是网格搜索出来的最优。",
-        f"> 波动层的代价是**换手**：TV20 调仓 {s_vt20['trades']} 次（纯闸门 26 次），"
+        f"> 波动层的代价是**换手**：TV20 调仓 {s_vt20['trades']} 次（纯闸门 {gate_only['trades']} 次），"
         f"成本 0.1% → 0.6% 时年化 {ug.fmt_pct(s_on['ann'])} → {ug.fmt_pct(s_vtcost['ann'])}"
         f"（−{(s_on['ann'] - s_vtcost['ann']) * 100:.2f}pp）、Calmar {s_on['calmar_me']:.2f} → "
         f"{s_vtcost['calmar_me']:.2f}。**窗口别调长**：60 日窗 Calmar 塌到 {s_vtw['calmar_me']:.2f}、"
@@ -571,10 +608,12 @@ def main():
         "",
         "## 5. 与文档表1 的逐格对照（同一规则、不同数据源）",
         "",
-        "> 文档用 `160213`（国泰纳指100）/ `050025`（博时标普500）· 现金用中国国债 2Y；"
-        "本仓库用 `270042`（广发纳指100 联接A）/ `050025` 桥接 · 现金 1.40%。"
-        "样本：文档 " + " / ".join(f"{ug.rule.LEGS[k]['name']} {v}" for k, v in ug.DOC_SAMPLE.items()) +
-        f"；本仓库 {win}。**差异来自基金与起始日，不是规则不同。**",
+        "> 文档口径：场外 QDII A 类净值 · 现金用中国国债 2Y · 样本 "
+        + " / ".join(f"{ug.rule.LEGS[k]['name']} {v}" for k, v in ug.DOC_SAMPLE.items())
+        + f"；本仓库：真实指数收盘（`.NDX` / `.INX`）· 现金 1.40% · 样本 {win}。"
+        "**两者既不同标的也不同区间，只比排序与量级，不逐格对数字** —— "
+        "2026-11-13 起本仓库已无场外净值口径，2026-11-16 又修掉短信号库 bug，"
+        "本仓库一列现在完整含 2008 危机。",
         "",
         "| 腿 | 档位 | 文档 年化 | 文档 回撤 | 文档 Calmar | 本仓库 年化 | 本仓库 回撤(月末) | 本仓库 Calmar(月末) |",
         "|---|---|---:|---:|---:|---:|---:|---:|",
@@ -585,9 +624,10 @@ def main():
         "年线+2月确认（清仓）": "年线+2月确认",
         "年线+2%迟滞（清仓）": "年线+2%迟滞",
         "半仓闸门（无确认 · 减半）": "半仓闸门",
-        "人民币净值信号（文档反例）": "人民币净值信号",
     }
     for leg in ug.POOL:
+        if leg not in ug.DOC_REF:      # 文档对照只有 ndx/spx，新增腿无 QDII 文档值
+            continue
         for r in [x for x in legs if x["leg"] == leg]:
             key = doc_map.get(r["variant"])
             if not key:
@@ -598,21 +638,19 @@ def main():
                      f"{ug.fmt_pct(r['mdd_me'])} | {r['calmar_me']:.2f} |")
     L += [
         "",
-        "> **口径对齐后基本干净**：把本仓库的回撤也换成「**月末采样**」（文档引擎是月频、曲线只取月末点），"
-        "两个数据源就落在同一量级 —— 纳指「+2 月确认」文档 −13.96% / 本仓库 −13.9%，"
-        "标普买入持有文档 −18.66% / 本仓库 −18.5%。**差异来自基金（160213 vs 270042）与起始日，不是规则。**",
-        "> ⚠ **必须记住这一点**：换成**日频**口径，同一策略在纳指上的回撤是 **−26.5%**（2020-02-19→03-16 "
-        "那段月内坑），并没有变好多少 —— 月度确认制对 5 周内的 V 型急跌**结构性无效**。"
-        "看「闸门把回撤砍半」时，先确认它用的是月末点还是每日点。",
-        "> 排序在两个数据源上一致：确认版 > 无确认版（纳指）、标普半仓 > 标普清仓。",
-        "> ⚠ **一处复现不出文档**：文档说「人民币净值当信号」劣化 3.4pp（12.70%→9.32%），"
-        "我们这边**几乎无差**（+15.76% vs +15.72%）—— 本仓库的净值信号与执行用同一条序列，"
-        "没有溢价/申赎噪声。所以「必须用指数信号」我们只主张**口径纯净、可复核**，"
-        "不主张「净值信号会亏 3.4pp」。",
+        "> **读数不可逐格对齐**：文档是 2012 起的 QDII 净值（不含 2008），本仓库是 2005 起的真实指数"
+        "（**完整含 2008**）；表里的「本仓库回撤(月末)」也换成了月末采样口径 —— "
+        "两端差异主要来自**样本区间与标的类型**，不是规则不同。",
+        "> ⚠ **日频 vs 月末口径要分清**：文档引擎月频（曲线只取月末点），本表为对齐才用 `mdd_me`；"
+        "风控请读 §3 的「回撤·日频」—— 月度确认制对 5 周内的 V 型急跌结构性无效，"
+        "月内那段坑不会被月末点记到。",
+        "> ⚠ **文档里「人民币净值当信号劣化 3.4pp」这一档已无法复现**：2026-11-13 起信号与"
+        "回测价格同源（真实指数），没有第二套净值序列可切，该反例档已从回测中删除。"
+        "文档那条差值属于旧 QDII 口径的历史沿革；本仓库用指数信号只主张**口径纯净、可复核**。",
         "",
-        "## 6. 压力窗口（默认档 vs 静态 50/50）",
+        "## 6. 压力窗口（默认档 vs 静态等权）",
         "",
-        "| 窗口 | 区间 | 本变种 收益 | 静态 50/50 收益 | 本变种 回撤 | 静态 回撤 |",
+        "| 窗口 | 区间 | 本变种 收益 | 静态等权 收益 | 本变种 回撤 | 静态 回撤 |",
         "|---|---|---:|---:|---:|---:|",
     ]
     for w in wins:
@@ -620,9 +658,9 @@ def main():
                  f"{ug.fmt_pct(w['ret_s'])} | {ug.fmt_pct(w['mdd'])} | {ug.fmt_pct(w['mdd_s'])} |")
     L += [
         "",
-        "## 7. 逐年收益（默认档 vs 静态 50/50）",
+        "## 7. 逐年收益（默认档 vs 静态等权）",
         "",
-        "| 年份 | 本变种 | 静态 50/50 | 差 |",
+        "| 年份 | 本变种 | 静态等权 | 差 |",
         "|---|---:|---:|---:|",
     ]
     yr_s = ug.yearly(static_nv)
@@ -646,16 +684,20 @@ def main():
         "",
         "## 9. 口径与已知边界",
         "",
-        "1. **样本只到 2012**（QDII 场外净值起点）：不含 2000-2002（纳指 −83%）与 2008 —— "
-        "而那正是年线闸门唯一「救命」的窗口，所以本报告对下一次泡沫破裂是**外推**。",
-        "2. **信号是美元指数、执行是人民币净值**：两者的偏离来自汇率与溢价，"
-        "这正是文档表1 里「净值信号 vs 指数信号」差 3.4pp 的来源。",
+        "1. **样本自 2005-01-03 起**（真实指数长库）：不含 2000-2002（纳指 −83%），"
+        "但**完整包含 2008** —— 年线闸门最该被检验的那次危机已在样本内。",
+        "⚠ 2026-11-16 之前信号读 2010 起的短库，2005~2010 无 MA200 / vol20、仓位默认满仓，"
+        "所有档位的回撤都被错误地钉在买入持有的 −54.74% 上；本次修复后该问题已消除。",
+        "2. **信号与回测价格同源（真实指数）**：收益不含汇率、QDII 跟踪误差与分红再投，"
+        "实盘下单场外 A 类时对账要另按 −1.3pp/年 折算分红。",
         "3. **只降不升、不加杠杆**：年化让渡是保费，不是 alpha；本项目标是 Calmar，不是收益。",
-        "4. **标普减半而非清仓**：文档实测清仓把标普年化压到 10.07%（Calmar 0.54），"
-        "减半能保住更多上行（本仓库同样结论）。",
+        "4. **标普减半而非清仓**：文档实测清仓把标普年化压到 10.07%（Calmar 0.54），减半保住更多上行。"
+        "本仓库扩池后换成 2005 起真实指数，「年线+2月确认（清仓）」与「半仓闸门」的 Calmar(月末) 只差"
+        " 0.04（0.32 vs 0.28）—— 口径沿用文档，未按新样本重标。",
         "5. **QDII 通道风险未计**：纳指/标普 QDII 有额度关闭、限购、赎回确认时滞（T+2~T+7），"
         "实盘「月末信号 → 次月首个交易日成交」可能滑到第二、三天。",
-        "6. **不做 walk-forward 选优**：参数写死（MA200 / 2 月 / 深破 3% / TV20 / 纳指 0 / 标普 50%），"
+        "6. **不做 walk-forward 选优**：参数写死（MA200 / 2 月 / 深破 3% / TV20 / MA50·200 日频离场 / "
+        "纳指 0 / 标普 50%），"
         "§4 已给敏感性。",
         f"7. ⚠ **深破位阈值 {p0['DEEP']:.0%} 是单事件标定的**：2 个月确认的滞后只在 2020-02→03 "
         "一次上真正付了钱（月末回撤 −15.8% vs 1 个月口径 −12.3%），而 3% 恰好落在那次破位"
@@ -664,6 +706,7 @@ def main():
         "（新冠那次只有 −0.43σ，与 2019-05 假摔 −0.20σ 分不开），说明「破位深度」本身区分不了"
         "真破位与假摔。这一档的价值是**把已知的那一次漏洞补上**，不是找到了稳健规律；"
         "`DEEP=0` 即退回文档原口径。",
+        "  （以上标定数字来自 2026-11-13 口径切换前的短样本，仅作沿革；阈值本身未改。）",
         "",
         "> **模拟结果，非投资建议。**",
     ]

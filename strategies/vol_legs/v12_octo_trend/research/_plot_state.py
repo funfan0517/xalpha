@@ -151,7 +151,7 @@ def one(leg, r):
     fig.text(0.012, 0.012,
              f"V12 八态趋势 · MA{rule.MA_SHORT}/{rule.MA_MID}/{rule.MA_LONG} · z 阈值 ±{rule.Z_TH} · "
              f"量比 {rule.RVOL_HI:.2f}/{rule.RVOL_LO:.2f} · 多数决 {rule.VOTE_CONFIRM} 日 · "
-             f"升格确认 {rule.UP_CONFIRM} 日 · 场内前复权 · 机械规则输出，非投资建议",
+             f"升格确认 {rule.UP_CONFIRM} 日 · 真实指数收盘（黄金 518880）· 机械规则输出，非投资建议",
              fontsize=8.0, color=C_IDX)
     fig.subplots_adjust(left=0.055, right=0.99, top=0.93, bottom=0.135)
     out = os.path.join(_HERE, f"_v12_state_{leg}.png")
@@ -229,8 +229,14 @@ def main():
             continue
         results[leg] = r
         one(leg, r)
-    core = rule.CORE_LEGS[0] if rule.CORE_LEGS else "hs300"
-    if core in results:
+    # 八态后验图固定画**标定腿**（`rule.CALIB_LEG`），与执行范围解耦：
+    # 执行范围一改（2026-11-18 扩到七腿），不能让它悄悄变成 CORE_LEGS[0] = 中证A500。
+    core = rule.CALIB_LEG
+    if core not in results:
+        r = engine.backtest_leg(core)
+        if r["start"] is not None:
+            results[core] = r
+    if core in results and results[core]["start"] is not None:
         summary(core, results[core])
 
 

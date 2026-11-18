@@ -2,7 +2,7 @@
 """波动资产 · v11-gate（支撑位闸门）· 今日操作（逐腿档位 + 为什么 + 还缺什么）。
 
 流程：
-1. **先刷新场外复权净值**（`data.refresh_otc()`，七腿 + 桥接代理），失败沿用本地并标注；
+1. **先刷新该腿价格序列**（`data.refresh_global_index()`，七腿 + 桥接代理），失败沿用本地并标注；
    加 `--no-refresh` 跳过联网（用本地缓存，报告里标「未刷新」）；
 2. 对**七腿**（`rule.LEG_ORDER`）逐腿跑 `support_gate.state_series`：趋势（MA200 月频）×
    支撑（已确认枢轴低点）→ 目标档位 1.0 / 0.5 / 0.2 / 0.0；
@@ -47,12 +47,12 @@ def level_name(x):
 
 def freshness(leg, date, fails, refreshed):
     cfg = sg.base.LEGS[leg]
-    code = cfg.get("otc")
+    code = cfg.get("idx")
     if code in fails:
         return f"❌刷新失败({code})"
     if not refreshed:
         return "·未刷新(本地缓存)"
-    exp = tg.vdata._expected_otc_latest(cfg.get("otc_qdii", False))
+    exp = tg.vdata.expected_latest(leg)
     return "✅最新" if date >= exp else f"⚠️滞后(应至 {exp})"
 
 
@@ -96,7 +96,7 @@ def main():
     refreshed = "--no-refresh" not in sys.argv
     fails = {}
     if refreshed:
-        latest, fails = tg.vdata.refresh_otc()
+        latest, fails = tg.vdata.refresh_global_index()
         maxdate = max(latest.values()) if latest else ""
     else:
         maxdate = ""
@@ -151,7 +151,7 @@ def main():
     L = [
         f"# 波动资产 · v11-gate（支撑位闸门）· 今日操作（{as_of}）",
         f"> 池 = 主策略七腿（{' / '.join(sg.base.LEGS[k]['name'] for k in sg.LEGS)}），"
-        "口径 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）。",
+        f"口径 = {sg.v11.vdata.price_desc()}。",
         f"> 判定链（**收盘后算、次日收盘成交**）：①趋势 = `close > MA{sg.MA_WIN}` 且 "
         f"MA{sg.MA_WIN} 近 {sg.SLOPE_N} 日上行（**月频**：月末判定、次月整月沿用）→ 不成立则观察仓 0.2；"
         f"②趋势成立且距支撑 ≤{sg.NEAR:.0%}（贴线）→ 半仓 0.5，否则满带 1.0；"
@@ -190,7 +190,7 @@ def main():
         "",
         f"## 七腿档位（带内占比 = 该腿露出多少目标带）",
         "",
-        "| 腿 | 执行代码 | 净值日 | 复权净值 | "
+        "| 腿 | 执行代码 | 数据日 | 价格 | "
         f"MA{sg.MA_WIN} | 斜率 | 距MA{sg.MA_WIN} | 趋势 | 支撑 | 距支撑 | 冷却 | "
         "档位（完整） | 档位（纯趋势） | 占带 | pp | 今日动作 | 还缺什么 | 数据 |",
         "|---|---|---|---:|---:|:--:|---:|:--:|---:|---:|---:|---|---|---:|---:|---|---|---|",

@@ -4,14 +4,16 @@
 流程：
 
 1. 刷新数据（默认联网增量；`--no-refresh` 复用缓存）：
-   - 七腿场内 ETF OHLCV（`data/_ohlcv.json`，与 v13/v18 共享）；
-   - A股 3 腿要用到的**指数量能**（`data/_cn_index_klines.json`，本变种维护）。
+   - 七腿场内 ETF OHLCV（`data/_ohlcv.json`，与 v13/v18 共享；黄金信号用它）；
+   - 六条指数腿的**真实指数收盘 + 同源指数量能**（`data/_cn_index_klines.json` /
+     `data/_global_index_klines.json`，由 `_idxcache.py` 统一维护）。
 2. 逐腿跑六步判定 → 得到今日态 / regime / z20 / rvol / 许可；
 3. 与昨日许可比较 → 今日动作（**T 日收盘出信号，T+1 收盘前执行**，与 `engine.run` 的 `w.shift(1)` 一致）；
 4. 输出 `_v12_daily.md` / `_v12_daily.json`（后者被 `pipeline/daily_digest.py` 的
    「变种操作一览」卡读取，字段：`leg/name/action/pos/level_txt`）。
 
-**执行范围只有 `rule.CORE_LEGS`（沪深300）**，其余 6 腿在表里照列但标「诊断、不执行」。
+**执行范围 = 全七腿**（`rule.CORE_LEGS`，2026-11-18 由「只做沪深300」扩到七腿）；
+额度分配按回测 §1c 的 Δ夏普排，别七腿等权。
 """
 import argparse
 import io
@@ -69,7 +71,9 @@ def main():
             rows.append(dict(leg=leg, name=rule.NAMES[leg], code=rule.LEGS[leg][0],
                              state="暖机", regime="—", z20=None, rvol=None,
                              pos=0.0, pos_prev=0.0, act=0.0, action="空仓",
-                             level_txt="预热不足", scope="诊断", note="预热不足"))
+                             level_txt="预热不足",
+                             scope="执行" if leg in rule.CORE_LEGS else "诊断",
+                             note="预热不足"))
             continue
         cx, w = r["cx"], r["w"]
         last, prev = cx.iloc[-1], cx.iloc[-2]
@@ -92,24 +96,23 @@ def main():
             pos=pos, pos_prev=pos_prev, act=act, action=action,
             level_txt=f"{state} {pos:.0%}",
             cap_prev_state=str(prev["state"]),
-            scope="核心" if leg in rule.CORE_LEGS else "诊断",
-            vol=("指数量能" if rule.MKT_VOL_LEG.get(leg) and rule.VOL_MODE == "market"
-                 else "代理量能"),
+            scope=("执行" if leg in rule.CORE_LEGS else
+                   "观察" if leg in rule.WATCH_LEGS else "诊断"),
+            vol=("指数量能" if leg in vdata.IDX_MAP else "ETF 自身量"),
             asof=str(r["end"].date()),
         ))
 
     date = max(r["end"] for r in results.values() if r["end"] is not None)
-    todo = [x for x in rows if x["scope"] == "核心" and abs(x.get("act") or 0) > 1e-9]
-    pending_note = [x for x in rows if x["scope"] == "核心" and abs(x.get("act") or 0) <= 1e-9]
+    todo = [x for x in rows if x["scope"] == "执行" and abs(x.get("act") or 0) > 1e-9]
+    pending_note = [x for x in rows if x["scope"] == "执行" and abs(x.get("act") or 0) <= 1e-9]
 
     L = [
         f"# V12 · 八态趋势 · 每日操作（{date.date()}）",
         "",
         "> 规则：`G:\\tradingagents\\hs300_trend\\八态趋势参数规格.md` v1.1（八态：急涨/慢涨/弱回调/强回调 ｜ "
         "急跌/慢跌/弱反弹/强反弹）。状态机 `engine.py::classify`，参数 `rule.py`。",
-        "> 口径：**场内 ETF 前复权** + "
-        "**A股腿用沪深300 指数量能**（`SH000300`；ETF 自身量是做市噪声，会把弱回调/强回调的符号做反）。"
-        "**T 日收盘出信号，T+1 收盘前执行**。",
+        "> 口径：**真实指数收盘 + 同源指数量能**（黄金用场内 `518880`；宽基 ETF 自身量是做市噪声，"
+        "会把弱回调/强回调的符号做反）。**T 日收盘出信号，T+1 收盘前执行**。",
         f"> 许可映射：{' · '.join(f'{k} {v:.0%}' for k, v in rule.CAP.items())}"
         f" · 升格确认 {rule.UP_CONFIRM} 日（降格立即）。",
         ("**生效口径 = v12.1**（`rule.OPT=True`）："
@@ -119,7 +122,8 @@ def main():
            "括号里的许可已按腿生效，`rule.OPT=False` 可回退规格口径。")
         if rule.OPT else "生效口径 = 规格 CAP（`rule.OPT=False`）。",
         f"> 执行范围：**{' + '.join(rule.NAMES[l] for l in rule.CORE_LEGS)}**"
-        f"（规格的标定标的；其余腿只诊断，理由见 `rule.CORE_LEGS` 注释）。",
+        "（`rule.CORE_LEGS`，2026-11-18 由「只做沪深300」扩到七腿；"
+        "`z_th`/`rvol` 仍是规格在沪深300 上的标定值，额度按回测 §1c 的 Δ夏普排）。",
         "",
         "## 1. 今日动作（执行范围）",
         "",
@@ -141,7 +145,7 @@ def main():
             L.append("执行范围今日无信号。")
 
     L += ["", "## 2. 全腿八态", "",
-          "| 腿 | 范围 | 代码 | 状态 | regime | z20 | rvol | 距MA20 | 许可 | 昨日 | 今日动作 | 量能口径 |",
+          "| 腿 | 范围 | 执行标的 | 状态 | regime | z20 | rvol | 距MA20 | 许可 | 昨日 | 今日动作 | 量能口径 |",
           "|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|"]
     for x in rows:
         act_txt = (f"{x['act'] * 100:+.0f}pp" if abs(x.get("act") or 0) > 1e-9
@@ -151,10 +155,10 @@ def main():
                  f"{fmt(x.get('vs_ma20'), 1)}% | {x.get('pos', 0):.0%} | "
                  f"{x.get('pos_prev', 0):.0%} | {act_txt} | {x.get('vol', '—')} |")
 
-    # 核心腿最近的状态切换流水
-    core = rule.CORE_LEGS[0] if rule.CORE_LEGS else None
-    rc = results.get(core) if core else None
-    L += ["", "## 3. 执行范围的状态流水（最近 8 次切换）", ""]
+    # 标定腿最近的状态切换流水（固定沪深300，与执行范围解耦）
+    core = rule.CALIB_LEG
+    rc = results.get(core)
+    L += ["", f"## 3. 标定腿（{rule.NAMES[core]}）的状态流水（最近 8 次切换）", ""]
     if rc is not None and rc["start"] is not None:
         st = rc["cx"]["state"].loc[rc["start"]:]
         chg = st[st != st.shift(1)].dropna()
@@ -174,9 +178,11 @@ def main():
         "- **八态不是涨跌预测**：`慢跌` 压到 20% 的依据是规格 §3 的长样本 fwd20（−1.00%）与胜率（45%），"
         "`急跌` 反而留 50% 的依据是同一张表的 +0.89%（急跌会反抽）。"
         "这条不对称是规格的核心结论，不要按直觉改成「跌了就清仓」。",
-        "- **诊断腿不执行**：纳指/标普/恒生科技/黄金/科创50/中证A500 的量能是 ETF 自身量（代理量能），"
-        "且 `z_th`/`rvol` 阈值没有在它们上面重标（规格 §7.4），信号只作参照。",
-        "- **A500 样本不足 1 年**（563360 于 2024-10 上市，预热 270 根后剩不到 1 年），它那一行不可当证据。",
+        "- **七腿都执行，但额度不该等权**：价格/量能已是同源真实指数，`z_th`/`rvol` 仍是"
+        "规格在沪深300 上的标定值（规格 §7.4 建议在美股重标；两折样本外无一腿能稳定赢过原值）。"
+        "哪条腿值得多给额度看回测 §1c 的 Δ夏普排序 —— 恒生科技是唯一拖累组合的一条。",
+        "- **黄金的量能是 ETF 自身量**：现货黄金没有成交量，`rvol` 只能用 `518880` 的量代理，"
+        "所以黄金腿的强弱回调判定比其它六腿弱一档。",
     ]
     if notes:
         L += ["", "> 数据：" + " · ".join(notes)]
@@ -209,7 +215,7 @@ def main():
         act_txt = (f"{x['act'] * 100:+.0f}pp" if abs(x.get("act") or 0) > 1e-9 else "—")
         print(f"  {x['name']:8s} {x['state']:4s} regime {x.get('regime', '—'):2s} "
               f"许可 {x.get('pos', 0):4.0%} 动作 {act_txt:>6s}"
-              f"{'  ← 执行范围' if x['scope'] == '核心' else ''}")
+              f"{'  ← 执行' if x['scope'] == '执行' else ''}")
 
 
 if __name__ == "__main__":

@@ -5,14 +5,14 @@
 并给出「现价离最近支撑/压力多远」的读数 —— 一句话回答「现在在什么位置」。
 
 口径（与 v11 报告完全一致，改了会与 `_v11_support_bt.md` 对不上）：
-- 价格：默认**场外复权净值**（`--mode otc`），可选 `--mode exchange` 看场内 ETF 收盘。
+- 价格：真实指数（黄金用场内 `518880` 实物 ETF），与 v11 报告同一序列。
 - 摆动点：`SWING_N=10`（21 日窗口的极值），**滞后 10 日确认** ——
   所以图上的标记画在「确认日」，不是极值日；水平线也从确认日画起（那天才可知）。
 - 支撑/压力 = 已确认枢轴低点/高点，按「离现价远近」排序取前 N 个。
 - 副图的 `距支撑%` 与 v11 的 `dist` 同一列：`close/support − 1`，
   绿色带 = v11 定义的「到线带」`0~BAND`（默认 2%），跌破 0 就是破位。
 
-产物：`research/_levels_{leg}.png`（`--mode exchange` 时为 `research/_levels_{leg}_exchange.png`）
+产物：`research/_plot_levels/_levels_{leg}.png`
 
 机械规则输出，非投资建议。
 """
@@ -80,7 +80,7 @@ def levels(px, cur, n_side=6, since=None, max_dist=0.15, merge=0.006):
     return sup + broken, res[:n_side]
 
 
-def plot(leg="kc50", days=500, n_side=6, mode=None, out_dir=_HERE, **kw):
+def plot(leg="kc50", days=500, n_side=6, out_dir=_HERE, **kw):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -89,7 +89,7 @@ def plot(leg="kc50", days=500, n_side=6, mode=None, out_dir=_HERE, **kw):
     plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
 
-    px = sp.load(leg, mode=mode).dropna()
+    px = sp.load(leg).dropna()
     F = sp.build(px, leg, **kw)
     win = px.iloc[-int(days):]
     cur = float(px.iloc[-1])
@@ -97,8 +97,8 @@ def plot(leg="kc50", days=500, n_side=6, mode=None, out_dir=_HERE, **kw):
     sup, res = levels(px, cur, n_side=n_side, since=win.index[0] - pd.Timedelta(days=120))
 
     name = sp.rule.LEGS[leg]["name"]
-    code = sp.rule.LEGS[leg].get("otc") if mode is None else sp.rule.LEGS[leg].get("signal")
-    kind = "场外复权净值" if mode is None else f"场内收盘（{sp.rule.LEGS[leg]['signal_name']}）"
+    code = sp.vdata.IDX[leg][1]
+    kind = sp.vdata.price_short(leg=leg)
 
     fig = plt.figure(figsize=(13.6, 8.6))
     gs = GridSpec(2, 1, figure=fig, height_ratios=[3.4, 1.0], hspace=0.16)
@@ -200,8 +200,7 @@ def plot(leg="kc50", days=500, n_side=6, mode=None, out_dir=_HERE, **kw):
              linespacing=1.55, va="bottom")
 
     fig.subplots_adjust(left=0.07, right=0.855, top=0.86, bottom=0.175)
-    # 两种价格口径共用一张文件名会互相覆盖（写图的最后一跑赢），非默认口径加后缀
-    out = os.path.join(out_dir, f"_levels_{leg}{'' if mode is None else '_' + mode}.png")
+    out = os.path.join(out_dir, f"_levels_{leg}.png")
     fig.savefig(out, dpi=140, facecolor="white")
     plt.close(fig)
     return out, dict(leg=leg, name=name, date=cur_date, close=cur,
@@ -215,9 +214,8 @@ def main():
     ap.add_argument("--leg", default="kc50")
     ap.add_argument("--days", type=int, default=500, help="绘图窗口交易日（默认 500 ≈ 2 年）")
     ap.add_argument("--levels", type=int, default=6, help="每侧最多画几档")
-    ap.add_argument("--mode", default=None, choices=[None, "otc", "exchange"])
     args = ap.parse_args()
-    out, info = plot(args.leg, days=args.days, n_side=args.levels, mode=args.mode)
+    out, info = plot(args.leg, days=args.days, n_side=args.levels)
     print("出图:", out)
     print(f"{info['name']} {info['date'].date()} 收盘 {info['close']:.4f} · "
           f"{'贴线区' if info['on_line'] else '非贴线区'}")

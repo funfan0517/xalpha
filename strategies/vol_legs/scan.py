@@ -20,12 +20,12 @@
 差额里只有「趋势闸门降档 / 再平衡超配」会真成交, 「闸门 off / 阶梯未填满」只是停在那里等条件,
 **不构成卖出指令**(再平衡的锚仍是目标带)。
 
-美股腿(v1.1 §6)的三个特殊点都在报告里显式标注: 信号源是美元指数还是降级到人民币代理、
+美股腿(v1.1 §6)的三个特殊点都在报告里显式标注: 信号源是美元指数(不降级)、
 ERP 闸门取自人工月度复核值、QDII 额度关闭时该档顺延。
 
 用法:
   python strategies/vol_legs/scan.py                      # 当日(读本地行情库, 带内起步)
-  python strategies/vol_legs/scan.py --force              # 先刷新场外净值 + 行情库
+  python strategies/vol_legs/scan.py --force              # 先刷新指数库 + 黄金行情
   python strategies/vol_legs/scan.py --from-zero          # 空仓起步对照口径
   python strategies/vol_legs/scan.py --capital 2000000    # 按总资产折算金额
   python strategies/vol_legs/scan.py --hold a500=2.5,hs300=2.5,ndx=10,spx=10,kc50=2.5,hkt=2.5,gold=10
@@ -140,9 +140,10 @@ def leg_view(key, ind, res, pending, gates):
     pol = (res["policies"] or {}).get(key)
     pos = res["pos"].get(key, 0.0)
     ops = [o for o in pending if o["leg"] == key]
-    v = dict(name=rule.LEGS[key]["name"], signal=rule.LEGS[key]["signal"],
-             signal_name=rule.LEGS[key]["signal_name"], exec=rule.LEGS[key]["exec"],
-             exec_name=rule.LEGS[key]["exec_name"], band=rule.LEGS[key]["band"],
+    v = dict(name=rule.LEGS[key]["name"], idx=rule.LEGS[key]["idx"],
+             idx_name=rule.LEGS[key]["idx_name"], exec=rule.LEGS[key]["exec"],
+             exec_name=rule.LEGS[key]["exec_name"], venue=rule.LEGS[key]["venue"],
+             band=rule.LEGS[key]["band"],
              close=row["close"], ma=row["ma"], high52w=row["high52w"],
              dev=row["ma_dev"], dd=row["dd"], rsi=row["rsi"],
              rsi_prev=prev["rsi"], zone=_zone(row), below_days=row["below_days"],
@@ -281,9 +282,11 @@ def render(ctx):
       f"**{ctx['since']:%Y-%m-%d}**({base_txt}) · 管辖额度 "
       f"{rule.SLEEVE_PP:.0f}pp · 当前投入 {inv:.1f}pp / 管辖净值 {nav:.1f}pp"
       f"(仓位率 {inv / nav:.0%})。")
-    A(f"> **口径: 信号 & 记账 & 执行全用场外基金复权净值**(`rule.SIGNAL_MODE=\"{rule.SIGNAL_MODE}\"`)"
-      " —— 净值涨跌就是你的账户涨跌, 不含场内溢价; 换回场内/美元指数口径置 "
-      f"`SIGNAL_MODE=\"exchange\"`。")
+    A("> **口径: 信号 & 回测全用该市场的真实指数**"
+      "（沪深300 `SH000300` / A500 `SH000510` / 科创50 `SH000688` / 纳指 `.NDX` / "
+      "标普 `.INX` / 恒生科技 `HKHSTECH` / 黄金 `518880`）—— 不含场内溢价、跟踪误差与汇率；"
+      "**下单: 六条指数腿走场外 A 类基金、黄金走场内 `518880`**（下面「代码」列给的是执行代码）。"
+      "指数是价格指数（不含分红再投），对账时记住 A股约差 2.0~2.5pp/年。")
     A("> §0 口径: **收盘后计算、次日执行**。场外基金 15:00 前提交才拿当日净值, 所以"
       "「今日动作」= **明天下单**、按明天净值成交。机械规则输出, 非投资建议。")
     if base == "band":
@@ -296,9 +299,6 @@ def render(ctx):
     else:
         A("> 起点口径: **空仓起步**(`--from-zero`) —— 由阶梯/趋势闸门从 0 填到带, 是「规则自己建仓」"
           "的对照读法, 与实盘(已持满带)不同。")
-    if rule.SIGNAL_MODE == "exchange" and rule.A500_USE_PROXY_HISTORY:
-        A(f"> A500 信号序列 = `{rule.A500_PROXY_CODE}`(沪深300ETF) 链接至 "
-          f"`{rule.LEGS['a500']['signal']}` 上市(2024-10)之后 —— 只为补齐 250 日窗口。")
     A("")
 
     # ---- 一、今日动作
@@ -350,24 +350,18 @@ def render(ctx):
     # ---- 三、七腿状态
     A("## 三、七腿状态")
     A("")
-    otc_mode = rule.SIGNAL_MODE == "otc"
-    A("| 资产 | 净值/信号代码 | " + ("复权净值" if otc_mode else "收盘") +
-      " | MA250 | 偏离 | 52周高 | 回撤 dd | RSI14 | 年线 | 当前仓位 | 目标带 | 下一触发条件 |")
+    A("| 资产 | 信号指数 → 执行代码 | 收盘 | MA250 | 偏离 | 52周高 | 回撤 dd | RSI14 | 年线 | "
+      "当前仓位 | 目标带 | 下一触发条件 |")
     A("|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
     for key in rule.LEG_ORDER:
         x = v[key]
-        code = rule.LEGS[key]["otc"] if otc_mode else x["signal"]
-        A(f"| {x['name']} | `{code}` | {_px(x['close'])} | {_px(x['ma'])} | "
+        cell = (f"`{data.IDX[key][1]}` → 场内 `{x['exec']}`" if x["venue"] == "场内"
+                else f"`{data.IDX[key][1]}` → 场外 `{x['exec']}`")
+        A(f"| {x['name']} | {cell} | {_px(x['close'])} | {_px(x['ma'])} | "
           f"{_pct(x['dev'])} | {_px(x['high52w'])} | {_pct(-x['dd']) if x['dd'] is not None else '—'} | "
           f"{_f(x['rsi'], 1)} | {x['zone']} | {x['pos_pp']:.1f}pp | {x['band']:g}pp | "
           f"{x.get('trigger', '—')} |")
     A("")
-    if otc_mode:
-        srcs = [f"{rule.LEGS[k]['name']} {data.SOURCE_NOTE.get(k, '')}"
-                for k in rule.LEG_ORDER if data.SOURCE_NOTE.get(k)]
-        if srcs:
-            A("> 净值序列(全部场外, 累计净值含分红再投): " + "; ".join(srcs) + "。")
-            A("")
     A("> 回撤 dd = 1 − close / 近 250 交易日最高收盘; RSI14 为 Wilder 口径; "
       "「目标带」是§0 的战略上限, 不是建议立刻满仓。")
     A("")
@@ -398,8 +392,8 @@ def render(ctx):
               f"{_pct(-s['dd']) if s['dd'] is not None else '—'})")
         A(f"- 启动闸门: **{pol.gate_text(gates)}**")
         if key in ("ndx", "spx"):
-            src = data.SOURCE_NOTE.get(key, f"`{s['signal']}`")
-            A(f"- 信号源: {src}" + ("" if otc_mode else "(§6 要求美元指数口径)"))
+            src = data.SOURCE_NOTE.get(key, f"`{s['idx']}`")
+            A(f"- 信号源: {src}(§6 要求美元指数口径)")
             closed = key in (gates.get("qdii_limit_closed") or [])
             A(f"- QDII 通道: 只走场外 A 类 `{s['exec']}`"
               f"{'; ⚠️ **额度关闭/限大额 → 该档顺延**(禁止换场内追溢价)' if closed else ''}")
@@ -547,12 +541,12 @@ def active_md():
     L = [f"# 波动资产操作规则 · 固定 {n_leg} 腿名单", "",
          f"> 生成 {datetime.now():%Y-%m-%d} · 由《波动资产操作规则 v1.4》§0 直接定档"
          "(非回测 select, 不做 A/B 分级)。", "",
-         "| # | 腿 | 目标带 | 信号标的(场内) | 执行代码(场外) | 执行标的 |",
-         "|---|---|---:|---|---|---|"]
+         "| # | 腿 | 目标带 | 信号指数 | 执行代码 | 渠道 | 执行标的 |",
+         "|---|---|---:|---|---|---|---|"]
     for i, key in enumerate(rule.LEG_ORDER, 1):
         x = rule.LEGS[key]
         L.append(f"| {i} | {x['name']}({x['role']}) | {x['band']:g}pp | "
-                 f"`{x['signal']}` {x['signal_name']} | `{x['exec']}` | {x['exec_name']} |")
+                 f"`{x['idx']}` {x['idx_name']} | `{x['exec']}` | {x['venue']} | {x['exec_name']} |")
     core = sum(rule.LEGS[k]["band"] for k in LADDER_LEGS)
     atk = sum(rule.LEGS[k]["band"] for k in ("kc50", "hkt"))
     L += ["", f"> 管辖额度合计 **{rule.SLEEVE_PP:.0f}pp**(核心腿 {core:g} = A股 "
@@ -570,7 +564,8 @@ def active_md():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--force", action="store_true", help="先刷新场外净值(data/_otc_nav.json)与行情库")
+    ap.add_argument("--force", action="store_true",
+                    help="先刷新指数库(_global/_cn_index_klines)与黄金 518880 行情")
     ap.add_argument("--capital", type=float, default=None, help="总资产(元), 用于折算金额")
     ap.add_argument("--since", default=None,
                     help="复算起点(YYYY-MM-DD), 默认带内起步时为七腿就绪日")
@@ -589,17 +584,17 @@ def main():
         except Exception as exc:  # noqa: BLE001
             print(f"[warn] A 股行情刷新失败, 沿用本地库: {type(exc).__name__}: {exc}")
         try:
+            latest, fails = data.refresh_global_index()
+            if fails:
+                print(f"[warn] 指数刷新部分失败(用缓存): {fails}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] 指数刷新失败, 沿用缓存: {type(exc).__name__}: {exc}")
+        try:
             latest, fails = data.refresh_us()
             if fails:
                 print(f"[warn] 美股指数刷新部分失败(用缓存): {fails}")
         except Exception as exc:  # noqa: BLE001
             print(f"[warn] 美股指数刷新失败, 沿用缓存: {type(exc).__name__}: {exc}")
-        try:
-            latest, fails = data.refresh_otc()
-            if fails:
-                print(f"[warn] 场外净值刷新部分失败(用缓存): {fails}")
-        except Exception as exc:  # noqa: BLE001
-            print(f"[warn] 场外净值刷新失败, 沿用缓存: {type(exc).__name__}: {exc}")
 
     ind = data.indicators_all()
     gates, fomc = data.gates(ind["gold"].index)
@@ -695,9 +690,11 @@ def main():
         json.dump(dict(strategy="波动资产操作规则 v1.4", as_of=snap["as_of"],
                        sleeve_pp=rule.SLEEVE_PP,
                        legs=[dict(key=k, name=rule.LEGS[k]["name"], role=rule.LEGS[k]["role"],
-                                  band=rule.LEGS[k]["band"], signal=rule.LEGS[k]["signal"],
+                                  band=rule.LEGS[k]["band"], idx=rule.LEGS[k]["idx"],
+                                  idx_name=rule.LEGS[k]["idx_name"],
                                   exec=rule.LEGS[k]["exec"],
-                                  exec_name=rule.LEGS[k]["exec_name"])
+                                  exec_name=rule.LEGS[k]["exec_name"],
+                                  venue=rule.LEGS[k]["venue"])
                              for k in rule.LEG_ORDER]),
                   f, ensure_ascii=False, indent=2)
 

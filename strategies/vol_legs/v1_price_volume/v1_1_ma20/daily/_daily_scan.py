@@ -2,7 +2,7 @@
 """波动资产 · V1 量价家族 · 子策略 V1-1（MA20 穿越）· 每日买卖标的。
 
 流程：
-1. **先刷新场外复权净值**（`data.refresh_otc()`，七腿 + 桥接代理），失败沿用本地并标注；
+1. **先刷新该腿价格序列**（`data.refresh_global_index()`，七腿 + 桥接代理），失败沿用本地并标注；
 2. 对**七腿**（`rule.LEG_ORDER` —— 与主策略同一池）逐腿判定「净值 vs MA20」：
    - **买入**（0→1）：净值上穿 MA20；**卖出**（1→0）：净值下穿 MA20；
    - **持有** / **空仓**：未发生穿越，维持原仓位；
@@ -45,10 +45,10 @@ def act(sig):
 
 def freshness(leg, date, fails):
     cfg = ma20.rule.LEGS[leg]
-    code = cfg.get("otc")
+    code = cfg.get("idx")
     if code in fails:
         return f"❌刷新失败({code})"
-    exp = ma20.vdata._expected_otc_latest(cfg.get("otc_qdii", False))
+    exp = ma20.vdata.expected_latest(leg)
     if date >= exp:
         return "✅最新"
     return f"⚠️滞后(应至 {exp})"
@@ -57,7 +57,7 @@ def freshness(leg, date, fails):
 def mk_table(items):
     if not items:
         return ["（无）"]
-    out = ["| 腿 | 执行代码 | 净值日 | 复权净值 | MA20 | 距MA20 | 当前仓位 | 数据 |",
+    out = ["| 腿 | 执行代码 | 数据日 | 价格 | MA20 | 距MA20 | 当前仓位 | 数据 |",
            "|---|---|---|---|---|---|---|---|"]
     for x in sorted(items, key=lambda z: z["dist"], reverse=True):
         out.append(f"| {x['name']} | `{x['exec']}` | {x['date']} | {x['nav']:.4f} | "
@@ -67,7 +67,7 @@ def mk_table(items):
 
 
 def main():
-    latest, fails = ma20.vdata.refresh_otc()
+    latest, fails = ma20.vdata.refresh_global_index()
     maxdate = max(latest.values()) if latest else ""
     rows, flow = [], {}
     for leg in ma20.LEGS:
@@ -103,7 +103,7 @@ def main():
     L = [
         f"# 波动资产 · V1 量价家族 · 子策略 V1-1（MA20 穿越）· 每日买卖（{maxdate or '无数据'}）",
         f"> 池 = 主策略七腿（{' / '.join(ma20.rule.LEGS[k]['name'] for k in ma20.LEGS)}），"
-        "口径 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）。",
+        f"口径 = {ma20.vdata.price_desc()}。",
         f"> 规则：净值上穿 MA{ma20.MA_WIN} **买入** · 下穿 MA{ma20.MA_WIN} **卖出** · 其余维持原仓位（0/1）。",
         f"> 空仓按货基 {ma20.CASH_ANNUAL:.2%} 计息；成交按 **T+1 净值**（T 日盘后算，T+1 15:00 前提交）。",
         f"> 七腿 {len(rows)} 只：最新 {len(rows) - len(stale)} 只 · 滞后/失败 {len(stale)} 只。"
@@ -134,7 +134,7 @@ def main():
         L.append(f"| — | 最近 {RECENT} 个交易日内七腿无穿越 | — |")
 
     L += ["", "## 七腿明细", "",
-          "| 腿 | 角色 | 目标带 | 执行代码 | 净值日 | 复权净值 | MA20 | 距MA20 | 当前仓位 | 动作 | 数据 |",
+          "| 腿 | 角色 | 目标带 | 执行代码 | 数据日 | 价格 | MA20 | 距MA20 | 当前仓位 | 动作 | 数据 |",
           "|---|---|---:|---|---|---|---|---|---|---|---|"]
     for x in sorted(rows, key=lambda z: ma20.LEGS.index(z["leg"])):
         L.append(f"| {x['name']} | {x['role']} | {x['band']:g}pp | `{x['exec']}` "
@@ -149,7 +149,7 @@ def main():
         "- 本变种只管**逐腿进出时点**，主策略管**组合层仓位带**（阶梯 / 年线闸门 / 再平衡）——"
         "两者可叠加，但不要互相替代。",
         "- **场外成本不可忽略**：七腿 13~16 笔/年，A 类腿（纳指 / 标普 / 黄金）每笔往返 0.6%，"
-        "回测里扣费后组合年化从 8.10% 掉到 1.42%（见 `backtest/_v1_1_ma20_bt.md`）。",
+        "回测里扣费后组合年化几乎被吃光（读数见 `backtest/_v1_1_ma20_bt.md` 的「组合层」表）。",
         "",
         "> 机械规则输出，**非投资建议**。",
     ]

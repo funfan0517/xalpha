@@ -2,7 +2,7 @@
 """波动资产 · V3 变种（MACD + 布林通道 · 自适应窗口）· 每日买卖标的。
 
 流程：
-1. **先刷新场外复权净值**（`data.refresh_otc()`，七腿 + 桥接代理），失败沿用本地并标注；
+1. **先刷新该腿价格序列**（`data.refresh_global_index()`，七腿 + 桥接代理），失败沿用本地并标注；
 2. 对**七腿**（`rule.LEG_ORDER` —— 与主策略同一池）逐腿跑 `macd_boll.signal()`：
    - **买入**（0→1）：`DIF>0` 且 `DIF>DEA`（零轴上金叉状态）且 布林带宽放大 且 收盘上穿上轨；
    - **卖出**（1→0）：`DIF` 下穿 `DEA`（死叉）或 收盘自上轨下穿中轨；
@@ -58,10 +58,10 @@ def window_state(er):
 
 def freshness(leg, date, fails):
     cfg = macd_boll.rule.LEGS[leg]
-    code = cfg.get("otc")
+    code = cfg["idx"]
     if code in fails:
         return f"❌刷新失败({code})"
-    exp = macd_boll.vdata._expected_otc_latest(cfg.get("otc_qdii", False))
+    exp = macd_boll.vdata.expected_latest(leg)
     if date >= exp:
         return "✅最新"
     return f"⚠️滞后(应至 {exp})"
@@ -70,7 +70,7 @@ def freshness(leg, date, fails):
 def mk_table(items):
     if not items:
         return ["（无）"]
-    out = ["| 腿 | 执行代码 | 净值日 | 复权净值 | DIF/DEA | ER（窗口） | 距触发位 | 当前仓位 | 数据 |",
+    out = ["| 腿 | 执行代码 | 数据日 | 价格 | DIF/DEA | ER（窗口） | 距触发位 | 当前仓位 | 数据 |",
            "|---|---|---|---|---|---|---|---|---|"]
     for x in sorted(items, key=lambda z: z["dist"], reverse=True):
         out.append(f"| {x['name']} | `{x['exec']}` | {x['date']} | {x['nav']:.4f} | "
@@ -81,8 +81,11 @@ def mk_table(items):
 
 
 def main():
-    latest, fails = macd_boll.vdata.refresh_otc()
+    refreshed = "--no-refresh" not in sys.argv
+    latest, fails = (macd_boll.vdata.refresh_global_index() if refreshed else ({}, {}))
     maxdate = max(latest.values()) if latest else ""
+    if not maxdate:                       # --no-refresh / 盘中预演：直接用本地指数库末根
+        maxdate = str(macd_boll.load(macd_boll.rule.LEG_ORDER[0]).index[-1].date())
     rows, flow = [], {}
     for leg in macd_boll.LEGS:
         cfg = macd_boll.rule.LEGS[leg]
@@ -133,7 +136,7 @@ def main():
     L = [
         f"# 波动资产 · V3（MACD+BOLL 自适应窗口）· 每日买卖（{maxdate or '无数据'}）",
         f"> 池 = 主策略七腿（{' / '.join(macd_boll.rule.LEGS[k]['name'] for k in macd_boll.LEGS)}），"
-        "口径 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）。",
+        f"口径 = {macd_boll.vdata.price_desc()}。",
         "> 规则：`DIF>0 且 DIF>DEA` + 布林**开口放大** + 收盘**上穿上轨** → 买入；"
         "`死叉` 或 收盘**跌破中轨** → 卖出；其余维持 0/1 仓位。",
         f"> 布林窗口按 ER({macd_boll.ER_N}) 滞回：≥{macd_boll.ER_HI:.2f} 用 {macd_boll.W_FAST}（趋势态）/ "
@@ -174,7 +177,7 @@ def main():
         L.append(f"| — | 最近 {RECENT} 个交易日内七腿无信号 | — |")
 
     L += ["", "## 七腿明细", "",
-          "| 腿 | 角色 | 目标带 | 执行代码 | 净值日 | 复权净值 | DIF/DEA | ER（窗口） | 距触发位 | 当前仓位 | 动作 | 数据 |",
+          "| 腿 | 角色 | 目标带 | 执行代码 | 数据日 | 价格 | DIF/DEA | ER（窗口） | 距触发位 | 当前仓位 | 动作 | 数据 |",
           "|---|---|---:|---|---|---|---|---|---|---|---|---|"]
     for x in sorted(rows, key=lambda z: macd_boll.LEGS.index(z["leg"])):
         L.append(f"| {x['name']} | {x['role']} | {x['band']:g}pp | `{x['exec']}` "
@@ -192,9 +195,9 @@ def main():
         "两者可叠加，但不要互相替代。",
         "- 它是**突破追涨型**（突破了才上车），与主策略「跌了才加仓」的阶梯方向相反，"
         "**不可叠加在同一份额度上**。",
-        "- 曝光天然很低（回测 12%~19%）：没有突破就一直空仓，收益对少数几笔高度敏感。",
-        "- 年笔数 2~4/年（约 MA20 的 1/5），扣费后组合年化 5.55%→3.74%（-1.81pp，"
-        "C 类销售服务费未计）。",
+        "- 曝光天然很低（多数时间空仓）：没有突破就一直空仓，收益对少数几笔高度敏感。",
+        "- 年笔数 2~4/年（约 MA20 的 1/5），扣费后组合年化掉约 1/3（读数见 "
+        "`backtest/_v3_macd_boll_bt.md` 的「组合层」表；C 类销售服务费未计）。",
         "",
         "> 机械规则输出，**非投资建议**。",
     ]
@@ -220,7 +223,7 @@ def main():
 
     print("报告:", OUT_MD)
     print("JSON:", OUT_JSON)
-    print(f"最新净值日 {maxdate} | 买入 {len(buys)} · 卖出 {len(sells)} · "
+    print(f"最新指数日 {maxdate} | 买入 {len(buys)} · 卖出 {len(sells)} · "
           f"持有 {len(held)} · 空仓 {len(empty)} · 滞后/失败 {len(stale)}")
     print("今日买入:", [(x["leg"], x["name"]) for x in buys],
           "| 今日卖出:", [(x["leg"], x["name"]) for x in sells])

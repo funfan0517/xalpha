@@ -3,21 +3,32 @@
 
 设计原则: **A 股行情只读本地库; 美股指数按需增量刷新(带本地缓存)**。
   - A 股/港股 ETF 行情: `data/_long_klines.json`(跨策略共享十年库, `data/_refresh_data.py` 每日刷新)
-  - **美股指数(美元口径)**: `data/_us_index_klines.json`(本模块维护的共享库, `.NDX` / `.INX`)
+  - **A 股指数**: `data/_cn_index_klines.json`(`SH000300` 2005 起 / `SH000688` 2019-12 起 / `SH000001`)
+  - **美股指数(美元口径)**: 信号唯一走 `data/_global_index_klines.json`(2005 起);
+    `data/_us_index_klines.json`(2010 起) 只是历史遗留缓存, 由 `refresh_us()` 维护,
+    **不再是任何策略的信号源**(2026-11-16 起 v7/v8/v9/v10 全部改用长库)。
+  - **带成交量的指数**: `data/_global_index_klines.json`(`SH000510` / `.NDX` / `.INX` /
+    `HKHSTECH` 的收盘 + 成交量, `refresh_global_index()` 维护)。给 v12 的 `rvol` 用:
+    `xalpha.get_daily` 本来就返回 volume, 上面那份短库只是**没存**。
   - A500 估值: `data/_a500_pe_hist.csv`(中证官网 PE, 2024-09 起)
   - 10Y 中债: `data/_bt_caches/bond10y_m.csv`; 10Y 美债: `data/_bt_caches/ust10y_m.csv`
   - 人工/外部回填: `strategies/vol_legs/data/_val_inputs.json`(FOMC 日历、PB/ERP 分位、
     TIPS/WGRC 保险丝、QDII 额度状态)
 
-为什么 A 股/港股用场内 ETF 收盘而不是指数:
-  A500 指数只有 2024-09 之后的历史, 恒生科技指数在本仓库无行情库; 场内 ETF
-  (563360/588000/513180/518880)历史连续、与执行标的同源、且 §7 硬过滤要看的「场内溢价」
-  正是它们。代价是 ±0.5%~2% 的溢价噪声, 对 250 日均线与 52 周高点影响可忽略(README §2.2)。
+价格口径只有一套(**真实指数 + 场内黄金**, 2026-11-13 起):
+  指数没有场内溢价、没有跟踪误差、没有汇率污染(美股是美元口径), 历史比 ETF/场外基金长
+  3~10 年 —— 规则研究只能在这个口径上做。`_global_index_klines.json` 有 `SH000510`(2005 起)、
+  `.NDX` / `.INX` / `HKHSTECH`(2020-07 起), `_cn_index_klines.json` 有 `SH000300`(2005 起)/
+  `SH000688`(2019-12 起); 黄金没有指数, 用场内 `518880` 实物 ETF(无分红)。
+  代价是**价格指数不含分红再投**: A股腿低估约 2.0~2.5pp/年、美股约 1.3pp/年, 对账时按
+  这条折算(README §2.2)。执行不变 —— 六条指数腿仍是场外 A/C 类基金(`LEGS[...]['exec']`),
+  黄金走场内 `518880`; 指数只用于「信号 + 回测」。
+  旧的真实指数收盘 / 场内 ETF 收盘两套对照口径已删除, 不再有口径开关。
 
 为什么美股腿**必须**用美元指数(§6):
   人民币 ETF/联接净值 = 指数 × 汇率 × (1+溢价), 用净值算 MA250/回撤会把汇率波动当成趋势信号
-  —— 文档因此明令「信号一律用美元指数(NDX/SPX)」。本模块优先取 `.NDX`/`.INX`(Xueqiu),
-  取不到才降级到 513100/513500 人民币代理, 并在每日报告里显式标注降级原因。
+  —— 文档因此明令「信号一律用美元指数(NDX/SPX)」。本模块只取 `.NDX`/`.INX`(Xueqiu,
+  缓存到 `_global_index_klines.json`); 取不到就抛, 不降级到人民币代理(那会换轨)。
 
 「数据不足 → null」是本策略的硬约束(文档 §1): 所有估值的分位在历史不足 3 年、或源缺失时
 返回 None, 引擎对应规则**不执行**, 绝不用「池内中位数」「指数代理」这类估算值补位。
@@ -37,10 +48,12 @@ import rule  # noqa: E402
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _DATA_DIR = os.path.join(_DIR, "data")
+if _DIR not in sys.path:
+    sys.path.insert(0, _DIR)
+import _idxcache  # noqa: E402  七腿信号价格的唯一数据层（指数 OHLCV + 黄金 ETF）
 
 _LK = os.path.join(_ROOT, "data", "_long_klines.json")
 _US_LK = os.path.join(_ROOT, "data", "_us_index_klines.json")
-_OTC_LK = os.path.join(_ROOT, "data", "_otc_nav.json")
 _A500_PE = os.path.join(_ROOT, "data", "_a500_pe_hist.csv")
 _HS300_CSV = os.path.join(_ROOT, "data", "_bt_caches", "csi_000300.csv")
 _BOND10Y = os.path.join(_ROOT, "data", "_bt_caches", "bond10y_m.csv")
@@ -51,8 +64,7 @@ PCT_MIN_MONTHS = 36      # 文档 §1: 不足 3 年 -> 分位 = null
 PCT_WINDOW_MONTHS = 60   # 近 5 年月度值
 US_START = "20100101"    # 美股指数库起点(NDX/SPX 都能取到 2010 起)
 _US_ONCE = []            # 进程内只刷新一次
-_OTC_ONCE = []           # 同上(场外净值)
-SOURCE_NOTE = {}         # {leg: 信号源说明}, 供每日报告标注(含降级/桥接)
+SOURCE_NOTE = {}         # {leg: 信号源说明}, 供每日报告标注
 
 
 # ---------------------------------------------------------------- 行情
@@ -99,8 +111,8 @@ def _fetch_us(code, start):
 def refresh_us(codes=None):
     """增量刷新美股指数库。返回 (latest, fails)。"""
     lib = _read_us_lib()
-    targets = codes or sorted({v["signal"] for v in rule.LEGS.values()
-                               if str(v["signal"]).startswith(".")})
+    targets = codes or sorted({v["idx"] for v in rule.LEGS.values()
+                               if str(v["idx"]).startswith(".")})
     latest, fails = {}, {}
     for code in targets:
         node = lib.get(code)
@@ -168,198 +180,133 @@ def us_is_stale():
     return (bool(last) and last < _expected_us_latest()), last
 
 
-def series_for_leg(leg, mode=None):
-    """该腿的价格序列(信号 & 回测 & 记账共用)。
+def expected_latest(leg):
+    """该腿「应已收盘」的最新交易日(北京时间) —— 每日报告标注数据新鲜度用。
 
-    mode="otc"(默认, rule.SIGNAL_MODE): 场外复权净值 —— 与实际下单的基金同一口径,
-        含汇率、跟踪误差与分红再投, 回测收益 = 你真能拿到的收益。
-    mode="exchange": 场内 ETF 收盘(美股腿用美元指数, 失败降级到人民币 ETF 代理并标注)。
+    美股腿 = T-1(过去的工作日, 美股夜间收盘); 其余腿与 A 股同一个交易日历,
+    取 `_long_klines.json` 全库的最新日期(每日主流程刷新的就是它)。
     """
-    mode = mode or rule.SIGNAL_MODE
-    if mode == "otc":
-        return otc_series_for_leg(leg)
-    if leg == "a500":                       # 场内口径: 510300 链接补齐 2024-10 之前
-        SOURCE_NOTE.setdefault(leg, f"`{rule.LEGS[leg]['signal']}` "
-                                    f"{rule.LEGS[leg]['signal_name']}")
-        return a500_series()
-    sig = rule.LEGS[leg]["signal"]
-    if not str(sig).startswith("."):
-        SOURCE_NOTE.setdefault(leg, f"`{sig}` {rule.LEGS[leg]['signal_name']}")
-        return load_klines(sig)
+    if leg in ("ndx", "spx"):
+        return _expected_us_latest()
     try:
-        s = us_series(sig)
-        SOURCE_NOTE[leg] = f"`{sig}` {rule.LEGS[leg]['signal_name']}"
-        return s
-    except Exception as exc:  # noqa: BLE001
-        proxy = rule.LEGS[leg]["proxy"]
-        SOURCE_NOTE[leg] = (f"**降级 `{proxy}` {rule.LEGS[leg]['proxy_name']}**"
-                            f"(美元指数源不可用: {type(exc).__name__})")
-        return load_klines(proxy)
+        with open(_LK, encoding="utf-8") as f:
+            lib = json.load(f)
+        return max((v["dates"][-1] for v in lib.values() if v.get("dates")), default="")
+    except (OSError, ValueError):
+        return ""
 
 
-def _splice(base, overlay):
-    """把短历史序列接在长历史序列尾部(按拼接日缩放), 使长窗口指标连续。
+# ---------------------------------------------------------------- 口径文案
+# 变种(v1~v13)的报告头/图注不能各写一份口径名: 取价走 `series_for_leg(leg)`(真实指数),
+# 文案就从这里取, 保证「数字是什么、标签就写什么」。
+MODE_LABEL = "真实指数(主口径)"
 
-    拼接日之后用 overlay 的真实收益率, 之前保留 base 的形状 —— 只影响 52 周窗口的早期段,
-    拼接日之后是真实标的。用于 A500(563360 上市 2024-10, 之前用沪深300ETF 补齐窗口)。
+_PRICE_DESC = ("**真实指数**（`SH000300`/`SH000510`/`SH000688`/`.NDX`/`.INX`/`HKHSTECH`；"
+               "黄金用 `518880` 实物 ETF）—— 不含分红再投、场内溢价与汇率")
+
+_PRICE_CAVEAT = ("执行: 六条指数腿走场外 A 类基金（`LEGS[...]['exec']`），黄金走场内 `518880`；"
+                 "指数只用于「信号 + 回测」。价格指数不含分红再投，对账时 A 股腿按 "
+                 "−2.0~2.5pp/年、美股 −1.3pp/年 折算。")
+
+_PRICE_PLAIN = "真实指数（不含分红再投、溢价与汇率；黄金用 518880 实物 ETF）"
+
+
+def price_desc_plain():
+    """`price_desc` 的纯文本版，给 matplotlib 图表标题 / 轴标签用（不渲染 markdown）。"""
+    return _PRICE_PLAIN
+
+
+def price_short(leg=None):
+    """极短口径名，给图表标题的括号里用（如「（518880, 实物ETF）」）。
+
+    黄金是唯一的例外：它用的是 `518880` 实物 ETF（黄金没有指数），
+    单腿图传入 `leg="gold"` 才不会标成「真实指数」。
     """
-    start = overlay.index[0]
-    head = base[base.index < start]
-    if head.empty or len(overlay) < 2:
-        return overlay
-    # 缩放**前段**去对齐 overlay 的首值(而不是反过来): 这样序列末值 = 真实净值,
-    # 每日报告里显示的就是基金实际净值, 前段只保留收益率形状(标识为桥接段)。
-    head = head * (float(overlay.iloc[0]) / float(head.iloc[-1]))
-    return pd.concat([head, overlay]).sort_index()
+    return "实物ETF" if leg == "gold" else "真实指数"
 
 
-def a500_series():
-    """A500 信号序列; 是否用沪深300补齐早期窗口见 rule.A500_USE_PROXY_HISTORY。"""
-    real = load_klines(rule.LEGS["a500"]["signal"])
-    if not rule.A500_USE_PROXY_HISTORY:
-        return real
-    return _splice(load_klines(rule.A500_PROXY_CODE), real)
+def mode_label():
+    """报告标题里的口径名。"""
+    return MODE_LABEL
+
+
+def price_desc():
+    """报告头「价格 = ...」的那半句。"""
+    return _PRICE_DESC
+
+
+def price_caveat():
+    """`price_desc` 配套的一句边界说明（执行口径 / 折算）。"""
+    return _PRICE_CAVEAT
+
+
+def fill_desc():
+    """成交口径：指数收盘出信号，T+1 收盘成交。"""
+    return "**T+1 收盘成交**"
+
+
+def us_signal_exec_desc():
+    """v7/v8/v9/v10（现为全七腿）报告头的「信号 / 执行」说明。
+
+    2026-11-17 起这四个变种的池从 ndx/spx 两腿扩到 rule.LEG_ORDER 全七腿：
+    信号与回测统一走 series_for_leg() 的真实指数（A股/港股指数、美股 .NDX/.INX、黄金 518880），
+    表内收益是**指数口径**、不含汇率与 QDII 跟踪误差；实盘各腿按 rule.LEGS 的执行标的下单。
+    函数名保留 us_ 前缀以兼容 12 处调用，不再表示「只美股两腿」。
+    """
+    return ("信号 = 执行 = **真实指数**收盘（A股/港股指数 · 美股 `.NDX`/`.INX` · 黄金 518880），"
+            "**不含汇率与 QDII 跟踪误差**；美股腿实盘下单场外 QDII A 类（`270042` / `017641`），"
+            "对账时按 −1.3pp/年 折算分红；其余腿按各自主标的执行")
+
+
+def series_for_leg(leg):
+    """该腿的价格序列(信号 & 回测 & 记账共用): 真实指数, 黄金用 `518880`。
+
+    ⚠ 这里**故意不降级**: 六腿的信号口径就是真实指数（黄金 518880），场外只是「执行途径」。
+    指数库坏了就让它炸出来, 别用另一套口径的数字继续往下算 —— 那会让报告和信号悄悄换轨
+    （AGENTS.md §7 fail-fast）。
+    """
+    s = index_series_for_leg(leg)
+    _src, _code, _name = IDX[leg]
+    SOURCE_NOTE[leg] = (f"实物ETF `{_code}` {_name}" if _src == "etf"   # 黄金没有指数
+                        else f"指数 `{_code}` {_name}")
+    return s
+
+
+# ---------------------------------------------------------------- 真实指数（唯一价格口径）
+# 判据：**信号与回测都用「该市场指数本身」，不用 ETF 价格、不用场外净值**。
+#   - 指数没有溢价、没有跟踪误差、没有汇率污染（美股指数是美元口径），
+#     且历史比 ETF/场外基金长 3~10 年 —— 规则研究只能在这个口径上做。
+#   - 黄金没有「指数」：`518880` 是实物黄金 ETF（无分红、溢价 <0.3%），
+#     是可得的最干净序列。
+# ⚠ 全部是**价格指数**（不含分红再投）：A股腿会低估约 2.0~2.5pp/年、美股约 1.3pp/年，
+#   黄金不受影响。跨腿排序不受影响（同腿内一致），但绝对收益要按这条折算；
+#   沪深300 的实测差见 `backtest/_vol_legs_bt.md`（H00300 全收益 − 000300 价格）。
+# ⚠ 代码表有两处: 规则层 `rule.LEGS[leg]["idx"]`(唯一人读口径) 与数据层
+#   `_idxcache.LEGS`(取数实现)。这里拼成 `IDX` 并断言两者完全一致 —— 改动漏了另一边,
+#   import 时就炸, 不会让报告悄悄换腿。
+IDX = {leg: (_idxcache.LEGS[leg][0], cfg["idx"], cfg["idx_name"])
+       for leg, cfg in rule.LEGS.items()}
+
+assert IDX == _idxcache.LEGS, (
+    "rule.LEGS 与 _idxcache.LEGS 不一致 —— "
+    f"rule={ {k: (v[1], v[2]) for k, v in IDX.items()} } / "
+    f"cache={ {k: (v[1], v[2]) for k, v in _idxcache.LEGS.items()} }")
+
+
+def index_series_for_leg(leg):
+    """该腿的**真实指数**收盘序列。
+
+    实现统一在 `_idxcache`（唯一数据层：指数 OHLCV / 黄金用 `518880` 实物 ETF），
+    这里只取收盘 —— 需要 `open/high/low/volume` 的变种（v12/v13）直接调
+    `_idxcache.frame(leg)`，不要再各写一份读库逻辑。
+    """
+    return _idxcache.series(leg)
 
 
 def price_frame(legs=None):
     """-> DataFrame(index=交易日并集, columns=腿), 各腿只在自身有数据的日期有值。"""
     legs = legs or rule.LEG_ORDER
     return pd.DataFrame({leg: series_for_leg(leg) for leg in legs}).sort_index()
-
-
-# ---------------------------------------------------------------- 场外净值库
-def otc_codes():
-    """所有需要用到的场外代码(七腿 + 桥接代理), 去重保序。"""
-    out = []
-    for k in rule.LEG_ORDER:
-        for key in ("otc", "otc_proxy"):
-            c = rule.LEGS[k].get(key)
-            if c and c not in out:
-                out.append(c)
-    return out
-
-
-def _read_otc_lib():
-    try:
-        with open(_OTC_LK, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {}
-
-
-def _write_otc_lib(lib):
-    os.makedirs(os.path.dirname(_OTC_LK), exist_ok=True)
-    with open(_OTC_LK, "w", encoding="utf-8") as f:
-        json.dump(lib, f, ensure_ascii=False)
-
-
-def _a_share_latest_date():
-    try:
-        with open(_LK, encoding="utf-8") as f:
-            lib = json.load(f)
-        return max(pd.Timestamp(v["dates"][-1]) for v in lib.values() if v.get("dates"))
-    except Exception:  # noqa: BLE001
-        return pd.Timestamp(date.today() - timedelta(days=1))
-
-
-def _expected_otc_latest(qdii=False):
-    """场外净值「应已公布」的日期。
-
-    境内基金 T 日净值要 T 日晚间才公布 -> 以「昨天(工作日)」为上限;
-    QDII 净值通常再滞后 1~2 个交易日。
-    """
-    cap = date.today() - timedelta(days=1)
-    while cap.weekday() >= 5:
-        cap -= timedelta(days=1)
-    d = min(_a_share_latest_date().date(), cap)
-    for _ in range(2 if qdii else 0):
-        d -= timedelta(days=1)
-        while d.weekday() >= 5:
-            d -= timedelta(days=1)
-    return d.isoformat()
-
-
-def _fund_nav(code):
-    """取单只场外基金净值(xalpha fundinfo) -> DataFrame(date, nav, tot)。"""
-    import xalpha as xa
-    p = xa.fundinfo(code).price
-    if p is None or not len(p):
-        raise RuntimeError(f"{code} 净值返回空")
-    df = pd.DataFrame({
-        "date": pd.to_datetime(p["date"]).dt.strftime("%Y-%m-%d"),
-        "nav": pd.to_numeric(p["netvalue"], errors="coerce"),
-        "tot": pd.to_numeric(p.get("totvalue", p["netvalue"]), errors="coerce"),
-    }).dropna(subset=["nav"]).sort_values("date")
-    return df
-
-
-def refresh_otc(codes=None):
-    """刷新场外净值库(全量重取, 基金净值接口本来就是全历史)。返回 (latest, fails)。"""
-    lib = _read_otc_lib()
-    latest, fails = {}, {}
-    for code in (codes or otc_codes()):
-        try:
-            df = _fund_nav(code)
-            lib[code] = dict(dates=list(df["date"]), nav=[float(x) for x in df["nav"]],
-                             tot=[float(x) for x in df["tot"]])
-            latest[code] = lib[code]["dates"][-1]
-        except Exception as exc:  # noqa: BLE001
-            fails[code] = f"{type(exc).__name__}: {exc}"
-            latest[code] = (lib.get(code) or {}).get("dates", [""])[-1]
-    _write_otc_lib(lib)
-    return latest, fails
-
-
-def _otc_stale():
-    lib = _read_otc_lib()
-    for k in rule.LEG_ORDER:
-        code = rule.LEGS[k].get("otc")
-        if not code:
-            continue
-        node = lib.get(code)
-        if not node or not node["dates"]:
-            return True
-        if node["dates"][-1] < _expected_otc_latest(rule.LEGS[k].get("otc_qdii", False)):
-            return True
-    return False
-
-
-def otc_series(code, refresh=True):
-    """场外基金**复权净值**序列(累计净值, 已含分红再投) —— 回测与信号的统一口径。"""
-    if refresh and not _OTC_ONCE:
-        if _otc_stale():
-            latest, fails = refresh_otc()
-            _OTC_ONCE.append((latest, fails))
-        else:
-            _OTC_ONCE.append(({}, {}))
-    lib = _read_otc_lib()
-    node = lib.get(code)
-    if not node or not node["dates"]:
-        raise KeyError(f"{code} 不在 data/_otc_nav.json 且刷新失败")
-    tot = node.get("tot") or node["nav"]
-    return _to_series(dict(dates=node["dates"], close=tot))
-
-
-def otc_nav_table():
-    """-> {code: 最新复权净值(累计净值)}, 报告里展示用 —— 与信号序列同一列。"""
-    lib = _read_otc_lib()
-    return {c: ((v.get("tot") or v.get("nav") or [None])[-1]) for c, v in lib.items()}
-
-
-def otc_series_for_leg(leg):
-    """该腿场外净值(必要时用 otc_proxy 桥接早期窗口) + 写 SOURCE_NOTE。"""
-    cfg = rule.LEGS[leg]
-    main = otc_series(cfg["otc"])
-    note = f"场外 `{cfg['otc']}` {cfg['exec_name']}(复权净值)"
-    if cfg.get("otc_proxy") and rule.OTC_USE_PROXY_HISTORY:
-        proxy = otc_series(cfg["otc_proxy"])
-        start = main.index[0].date().isoformat()
-        if len(proxy) and proxy.index[0].date().isoformat() < start:
-            main = _splice(proxy, main)
-            note += (f" · 前段用 `{cfg['otc_proxy']}` {cfg.get('otc_proxy_name', '')}"
-                     f"(本基金 {cfg.get('otc_start', start)} 起)桥接 250 日窗口")
-    SOURCE_NOTE[leg] = note
-    return main
 
 
 # ---------------------------------------------------------------- 估值输入
@@ -618,10 +565,10 @@ def fomc_blackout_set(calendar, fomc_days, window=None):
     return out
 
 
-def indicators_all(legs=None, mode=None):
-    """-> {leg: 指标DataFrame}。mode="otc"(默认) 用场外复权净值; "exchange" 用场内/美元指数。"""
+def indicators_all(legs=None):
+    """-> {leg: 指标DataFrame}, 价格一律取真实指数(黄金 518880)。"""
     legs = legs or rule.LEG_ORDER
-    return {leg: rule.add_indicators(series_for_leg(leg, mode)) for leg in legs}
+    return {leg: rule.add_indicators(series_for_leg(leg)) for leg in legs}
 
 
 def asof_note(ind):
@@ -631,18 +578,69 @@ def asof_note(ind):
     return str(last.date()), ready
 
 
+# ---------------------------------------------------------------- 全球指数(收盘 + 成交量)
+_GIDX_LK = os.path.join(_ROOT, "data", "_global_index_klines.json")
+
+# leg -> (xueqiu/sina 代码, 名称)。v12 的 rvol 需要「指数成交量」，而
+# `_us_index_klines.json` 只存了收盘价 —— 这不是数据取不到，是当时没存。
+GIDX = {
+    "a500": ("SH000510", "中证A500 指数"),
+    "ndx": (".NDX", "纳斯达克100 指数"),
+    "spx": (".INX", "标普500 指数"),
+    "hkt": ("HKHSTECH", "恒生科技指数"),
+}
+
+
+def _read_gidx_lib():
+    try:
+        with open(_GIDX_LK, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def refresh_global_index(legs=None, start="20050101"):
+    """全量重取「带成交量的指数」库 -> (latest, fails)。
+
+    为什么不塞进 `_us_index_klines.json`：那份库只有 `dates/close`、且 2026-11-16 起
+    只剩主策略的冗余刷新（v7/v8/v9/v10 的信号一律读本库）；加字段要整库重取 4 千根，
+    而「指数成交量」目前只有 v12 的 `rvol` 需要。数据性质相同（指数行情），
+    落位仍是 `data/`（AGENTS.md §8.1）。
+    """
+    latest, fails = _idxcache.refresh(legs, start=start)
+    # 老接口按 leg 返回，转一次；`_idxcache` 内部按 code（它还要管 `SH000001` 这类非腿代码）
+    out_latest = {leg: latest.get(GIDX[leg][0], "") for leg in (legs or list(GIDX))}
+    out_fails = {leg: fails[GIDX[leg][0]] for leg in (legs or list(GIDX))
+                 if GIDX[leg][0] in fails}
+    return out_latest, out_fails
+
+
+def global_index_frame(leg, refresh=False):
+    """-> DataFrame(close, volume), index=交易日（库缺失/要求刷新时联网取一次）。
+
+    薄封装：真正的读库与字段回填在 `_idxcache.frame`；要 `open/high/low` 的调用方
+    直接用那个，这里只保留旧的 close/volume 两列语义。
+    """
+    if refresh:
+        _idxcache.refresh([leg])
+    try:
+        df = _idxcache.frame(leg)
+    except KeyError:                       # 库缺失时联网补一次（旧行为）
+        _idxcache.refresh([leg])
+        df = _idxcache.frame(leg)
+    return df[["close", "volume"]]
+
+
 def main():
     """自检 / 手动刷新行情库:
-    python strategies/vol_legs/data.py [--refresh-us] [--refresh-otc] [--mode otc|exchange]
+    python strategies/vol_legs/data.py [--refresh-idx] [--refresh-us]
     """
     import sys as _sys
-    mode = rule.SIGNAL_MODE
-    if "--mode" in _sys.argv:
-        mode = _sys.argv[_sys.argv.index("--mode") + 1]
-    if "--refresh-otc" in _sys.argv:
-        latest, fails = refresh_otc()
-        for c in latest:
-            print(f"  [{c}] {latest[c]}" + (f"  [失败] {fails[c]}" if c in fails else ""))
+    if "--refresh-idx" in _sys.argv:
+        latest, fails = refresh_global_index()
+        for leg in rule.LEG_ORDER:
+            print(f"  {rule.LEGS[leg]['name']:8s} {latest.get(leg) or '—'}"
+                  + (f"  [失败] {fails[leg]}" if leg in fails else ""))
     if "--refresh-us" in _sys.argv:
         latest, fails = refresh_us()
         for c in latest:
@@ -650,12 +648,12 @@ def main():
     stale, last = us_is_stale()
     print(f"美股指数库: {os.path.basename(_US_LK)} · 最新 {last or '(空)'} · "
           f"{'陈旧' if stale else '已最新'}")
-    print(f"场外净值库: {os.path.basename(_OTC_LK)} · "
-          f"{'陈旧/缺失' if _otc_stale() else '已最新'} · 信号模式 = {mode}")
+    print(f"信号口径: {mode_label()} · "
+          + " / ".join(f"{rule.LEGS[k]['name']}={IDX[k][1]}" for k in rule.LEG_ORDER))
     print("七腿价格序列:")
     for leg in rule.LEG_ORDER:
         try:
-            s = series_for_leg(leg, mode)
+            s = series_for_leg(leg)
             print(f"  {rule.LEGS[leg]['name']:8s} {s.index[0].date()} ~ {s.index[-1].date()} "
                   f"· {len(s):5d} 根 · {SOURCE_NOTE.get(leg)}")
         except Exception as exc:  # noqa: BLE001

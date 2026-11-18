@@ -59,7 +59,7 @@ def one(leg, df, sm, ind, sc):
 
     ax.fill_between(idx, ylo, yhi, where=(S >= 2).to_numpy(), color=C_UP, alpha=0.07, step="mid")
     ax.fill_between(idx, ylo, yhi, where=(S == 0).to_numpy(), color=C_DOWN, alpha=0.07, step="mid")
-    ax.plot(idx, px.to_numpy(), color=C_PRICE, lw=1.15, label="收盘（前复权）")
+    ax.plot(idx, px.to_numpy(), color=C_PRICE, lw=1.15, label="收盘（真实指数）")
     ax.plot(idx, ind["ma20"].loc[idx].to_numpy(), color=C_MA20, lw=0.85, label="MA20")
     ax.plot(idx, ind["ma60"].loc[idx].to_numpy(), color=C_MA60, lw=0.95, label="MA60")
     ax.plot(idx, ind["ma250"].loc[idx].to_numpy(), color=C_MA250, lw=1.15, label="MA250")
@@ -101,7 +101,7 @@ def one(leg, df, sm, ind, sc):
 
     fig.text(0.012, 0.012,
              f"V13 九宫格 · S(0~3)×力度 → 许可上限 · 兜底 {rule.DD_TRIGGER:.0%} · "
-             f"迟滞 {rule.HOLD_DAYS} 日（只约束升格）· 场内 {rule.LEGS[leg][0]} 前复权 · 机械规则输出，非投资建议",
+             f"迟滞 {rule.HOLD_DAYS} 日（只约束升格）· 真实指数收盘（黄金 518880）· 机械规则输出，非投资建议",
              fontsize=8.0, color=C_IDX)
     fig.subplots_adjust(left=0.055, right=0.99, top=0.93, bottom=0.115)
     out = os.path.join(_HERE, f"_v13_grid_{leg}.png")

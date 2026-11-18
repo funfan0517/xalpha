@@ -194,7 +194,7 @@ LEGS = rule.LEG_ORDER
 W = {k: float(rule.LEGS[k]["band"]) / float(rule.SLEEVE_PP) for k in LEGS}   # 带权归一化(Σ=1)
 
 # 场外申赎成本（(买入, 卖出) 单边费率），与 v1/v2/v3/v6 同一张表：
-# A 类（270042 / 017641 / 000216）申购 0.10% + 赎回 0.50%（持有 >7 天）；
+# A 类（270042 / 017641）+ 黄金 518880 场内申购 0.10% + 赎回 0.50%（持有 >7 天）；
 # C 类（023299 / 011609 / 012805）申赎免费，改收约 0.2%/年销售服务费 —— 后者**未计入**，
 # 故 C 类腿的扣费后数字偏乐观。滑点 `SLIP` 在 `fee_of()` 里逐边追加。
 FEE = {
@@ -276,9 +276,9 @@ def gated(leg, p=None):
     return leg in tuple(p["GATE_LEGS"])
 
 
-def load(leg, mode=None):
-    """该腿价格序列（默认场外复权净值）；缺失/刷新失败直接抛错，不静默补位。"""
-    return vdata.series_for_leg(leg, mode=mode).dropna()
+def load(leg):
+    """该腿价格序列（真实指数，黄金 518880）；缺失/刷新失败直接抛错，不静默补位。"""
+    return vdata.series_for_leg(leg).dropna()
 
 
 def fee_of(leg, slip=None):

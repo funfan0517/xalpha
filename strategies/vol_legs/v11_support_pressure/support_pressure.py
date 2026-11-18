@@ -110,9 +110,9 @@ def params(**kw):
     return p
 
 
-def load(leg, mode=None):
-    """该腿价格序列（默认场外复权净值）；缺失直接抛错，不静默补位。"""
-    return vdata.series_for_leg(leg, mode=mode).dropna()
+def load(leg):
+    """该腿价格序列（真实指数，黄金 518880）；缺失直接抛错，不静默补位。"""
+    return vdata.series_for_leg(leg).dropna()
 
 
 # ---------------------------------------------------------------- 2. 四个量的实现

@@ -56,7 +56,9 @@ def evaluate(df, w, start, label, kind="八态"):
 
 
 def main():
-    legs = rule.CORE_LEGS or ["hs300"]
+    # 只扫**标定腿**：这份报告是「规格那套阈值在本仓库数据上还成不成立」的验伪，
+    # 换腿就失去与规格对账的意义（七腿逐腿的增量排序在 `backtest/_v12_octo_trend_bt.md` §1c）。
+    legs = [rule.CALIB_LEG]
     L = [
         "# V12 · 敏感性扫描（升格确认 / 映射反证 / regime 单层）",
         "",

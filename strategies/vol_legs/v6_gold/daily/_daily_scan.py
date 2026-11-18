@@ -12,7 +12,7 @@ json 里的 `A/B/C` 各带 `action`（今日动作文案）/ `dir`（buy|sell|""
 - **C 占坑**：MACD 金叉还是死叉、最近一次信号在什么时候（并提醒换手成本）。
 
 用法：
-    python strategies/vol_legs/v6_gold/daily/_daily_scan.py              # 常规（会尝试刷场外净值）
+    python strategies/vol_legs/v6_gold/daily/_daily_scan.py              # 常规（读本地 518880 行情库）
     python strategies/vol_legs/v6_gold/daily/_daily_scan.py --no-refresh  # 只用本地缓存
 
 模拟结果，非投资建议。
@@ -83,20 +83,18 @@ def fmt_act(a):
 
 def main():
     refresh = "--no-refresh" not in sys.argv
-    px_o = G.load("otc", refresh=refresh)
-    px_e = G.load("exchange", refresh=False)
+    px = G.load(refresh=refresh)
 
-    a = read_a(G.state_a(px_o))
-    b = read_b(px_o)
-    c = read_c(px_e)
-    c_otc = read_c(px_o)
-    date_o, date_e = px_o.index[-1].date(), px_e.index[-1].date()
+    a = read_a(G.state_a(px))
+    b = read_b(px)
+    c = read_c(px)
+    date = px.index[-1].date()
 
     act_a = "无" if not a["decide"] else ("加仓" if a["decide"] == "buy" else "减仓")
     act_b = ("无" if abs(b["scale"] - b["state"]) < 0.05
              else f"调到 {b['scale']:.0%} 带（{pp(b['scale']):.1f}pp）")
     last_c = c["last_act"]
-    act_c = "无" if (not last_c or last_c["date"] != px_e.index[-1]) else \
+    act_c = "无" if (not last_c or last_c["date"] != px.index[-1]) else \
         ("买入" if last_c["kind"] == "buy" else "卖出")
     # 方向（buy / sell / ""=不动）—— 供看板汇总卡判「今天这条口径是买还是卖」，
     # 免得 pipeline 侧再复刻一遍阈值判断（口径只在本文件/ gold.py 里定义）。
@@ -106,10 +104,10 @@ def main():
 
     L = []
     A = L.append
-    A(f"# V6 黄金三口径 · 每日推荐操作（{date_o}）")
+    A(f"# V6 黄金三口径 · 每日推荐操作（{date}）")
     A("")
-    A(f"> 标的只有一个：**黄金**。场外执行 `{G.EXEC_CODE}`（净值 {px_o.iloc[-1]:.4f}，{date_o}）· "
-      f"场内信号 `{G.SIGNAL_CODE}`（收盘 {px_e.iloc[-1]:.4f}，{date_e}）· "
+    A(f"> 标的只有一个：**场内 `{G.SIGNAL_CODE}` 黄金ETF华安**（收盘 {px.iloc[-1]:.4f}，{date}）· "
+      f"价格 / 信号 / 执行都是这一只 ETF · "
       f"目标带 {G.BAND_PP:g}pp（1.0 = 满带 = {G.BAND_PP:g}pp）")
     A("> 决策在 T 日盘后，**T+1 收盘成交**；「今日动作」= 明天要下的单。")
     A("")
@@ -172,15 +170,13 @@ def main():
     # ---- C
     A(f"## 三、C 低仓位占坑（MACD {G.MACD_FAST}/{G.MACD_SLOW} 金叉持有）")
     A("")
-    A(f"- 场内信号：DIF {c['dif']:.4f} / DEA {c['dea']:.4f} → "
+    A(f"- 信号：DIF {c['dif']:.4f} / DEA {c['dea']:.4f} → "
       f"**{'金叉（持有）' if c['bull'] else '死叉（空仓）'}**，当前仓位 {c['state']:.0%}。")
     A(f"- 最近一次信号：{fmt_act(last_c)}")
-    A(f"- 场外同口径对照：{'金叉' if c_otc['bull'] else '死叉'}，仓位 {c_otc['state']:.0%}"
-      f"（DIF {c_otc['dif']:.4f} / DEA {c_otc['dea']:.4f}）")
     A(f"- **今日动作：{act_c}**")
-    A(f"- ⚠ 换手提醒：这条口径每年约 7~8 次调仓，**只在场内低佣金账户执行**；"
-      f"场外 A 类（赎 0.50%）累计成本 36pp、年化只剩 +5.07%，场内是 +7.49%"
-      f"（MACD {G.MACD_FAST}/{G.MACD_SLOW} 口径，见 `backtest/_v6_gold_bt.md` §4）。")
+    A(f"- ⚠ 换手提醒：这条口径每年约 1~2 个往返（MACD {G.MACD_FAST}/{G.MACD_SLOW}），"
+      f"按场内佣金 {G.FEE[0]:.3%} + 单边滑点 {G.SLIP:.2%} 计成本，"
+      "累计成本见 `backtest/_v6_gold_bt.md` §4。")
     A("")
     A("![C 低仓位占坑](_v6_gold_C.png)")
     A("")
@@ -204,8 +200,8 @@ def main():
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write(md)
     with open(OUT_JSON, "w", encoding="utf-8") as f:
-        json.dump(dict(date=str(date_o), date_ex=str(date_e), as_of=str(date_o),
-                       price_otc=float(px_o.iloc[-1]), price_ex=float(px_e.iloc[-1]),
+        json.dump(dict(date=str(date), as_of=str(date),
+                       price=float(px.iloc[-1]), code=G.SIGNAL_CODE,
                        band_pp=G.BAND_PP,
                        params=dict(ma_win=G.MA_WIN, degrade_days=G.DEGRADE_DAYS,
                                    floor=G.FLOOR, vol_window=G.VOL_WINDOW,
@@ -220,7 +216,7 @@ def main():
                               scale=b["scale"], target=b["target"],
                               action=act_b, dir=dir_b,
                               acts=[fmt_act(x) for x in b["acts"]]),
-                       C=dict(state_ex=c["state"], state_otc=c_otc["state"],
+                       C=dict(state=c["state"],
                               dif=c["dif"], dea=c["dea"], bull=c["bull"],
                               action=act_c, dir=dir_c,
                               last_act=(str(last_c["date"]) if last_c else None))),

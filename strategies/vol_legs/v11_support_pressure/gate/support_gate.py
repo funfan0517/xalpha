@@ -96,9 +96,9 @@ def fee_of(leg):
     return tg.fee_of(leg)
 
 
-def load(leg, mode=None):
-    """该腿价格序列（默认场外复权净值）；缺失直接抛错，不静默补位。"""
-    return v11.load(leg, mode=mode)
+def load(leg):
+    """该腿价格序列（真实指数，黄金 518880）；缺失直接抛错，不静默补位。"""
+    return v11.load(leg)
 
 
 # ---------------------------------------------------------------- 诊断 + 状态机

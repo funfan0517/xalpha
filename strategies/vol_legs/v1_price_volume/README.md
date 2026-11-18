@@ -1,5 +1,8 @@
 # V1 · MA20 穿越（七腿逐腿择时）· 波动资产第 1 号变种
 
+> ⚠ 本文的**历史结论数字**来自 2026-11-13 口径切换前（场外净值 / 场内 ETF）的回测，仅作沿革参考；
+> 当前口径唯一：**六腿真实指数收盘 + 黄金场内 `518880`**，当前读数以本目录 `backtest/*.md` 与每日产物为准。
+
 `vol_legs`（波动资产操作规则）的**第 1 号变种**。原 `v1_ma20` 于 **2026-11-07** 改组为本目录
 「量价家族」（内分 V1-1 纯价 / V1-2 量价）；**2026-11-10 按用户要求删除 V1-2，
 `v1_1_ma20/` 即 V1 的默认（也是唯一）实现** —— 目录名保留 `v1_price_volume` 只为不打断
@@ -64,7 +67,7 @@ V1-2（`v1_2_ma_trend_pv/`，2026-11-07 新建）用 20/60/250 三条均线 + �
 ```
 v1_price_volume/
 ├── README.md                    本文件（V1 说明 + V1-2 删除留档）
-└── v1_1_ma20/                   **V1 的默认（唯一）实现**：MA20 穿越（场外净值口径）
+└── v1_1_ma20/                   **V1 的默认（唯一）实现**：MA20 穿越（真实指数收盘口径）
     ├── ma20.py  backtest.py  README.md
     └── backtest/  daily/  research/
 ```
@@ -75,7 +78,7 @@ v1_price_volume/
 ## 5. 运行
 
 ```powershell
-# 回测（逐腿 + 组合层，场外净值口径）
+# 回测（逐腿 + 组合层，真实指数收盘口径）
 python strategies/vol_legs/v1_price_volume/v1_1_ma20/backtest.py
 python strategies/vol_legs/v1_price_volume/v1_1_ma20/research/backtest.py
 

@@ -2,7 +2,7 @@
 """波动资产 · V5 变种（趋势四象限闸门）· 每日仓位档位。
 
 流程：
-1. **先刷新场外复权净值**（`data.refresh_otc()`，七腿 + 桥接代理），失败沿用本地并标注；
+1. **先刷新该腿价格序列**（`data.refresh_global_index()`，七腿 + 桥接代理），失败沿用本地并标注；
    加 `--no-refresh` 可跳过联网（用本地缓存，报告会标「未刷新」）；
 2. 对**七腿**（`rule.LEG_ORDER`）逐腿算两个数：`close` 与 `MA250` 的关系、`MA250` 近 20 日斜率，
    得到四象限与目标档位（满带 1.0 / 半仓 0.5 / 观察 0.2）；
@@ -43,12 +43,12 @@ def level_name(x):
 
 def freshness(leg, date, fails, refreshed):
     cfg = tg.rule.LEGS[leg]
-    code = cfg.get("otc")
+    code = cfg.get("idx")
     if code in fails:
         return f"❌刷新失败({code})"
     if not refreshed:
         return "·未刷新(本地缓存)"
-    exp = tg.vdata._expected_otc_latest(cfg.get("otc_qdii", False))
+    exp = tg.vdata.expected_latest(leg)
     return "✅最新" if date >= exp else f"⚠️滞后(应至 {exp})"
 
 
@@ -74,7 +74,7 @@ def main():
     refreshed = "--no-refresh" not in sys.argv
     fails = {}
     if refreshed:
-        latest, fails = tg.vdata.refresh_otc()
+        latest, fails = tg.vdata.refresh_global_index()
         maxdate = max(latest.values()) if latest else ""
     else:
         maxdate = ""
@@ -140,7 +140,7 @@ def main():
     L = [
         f"# 波动资产 · V5（趋势四象限闸门）· 每日档位（{maxdate or rows[0]['date'] if rows else '无数据'}）",
         f"> 池 = 主策略七腿（{' / '.join(tg.rule.LEGS[k]['name'] for k in tg.LEGS)}），"
-        "口径 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）。",
+        f"口径 = {tg.vdata.price_desc()}。",
         f"> 判断趋势只看两个数：`close` 在 **MA{tg.MA_WIN}** 上/下、MA{tg.MA_WIN} 近 "
         f"**{tg.SLOPE_N} 日**朝上/朝下；两个都朝上才是上涨趋势，其余三格都不给加仓许可。",
         "> **但不是每腿都该用这两个数**：中证A500 的读数建议换成双均线 50/150，"
@@ -173,7 +173,7 @@ def main():
         "",
         "## 七腿档位（带内占比 = 该腿露出多少目标带）",
         "",
-        "| 腿 | 执行代码 | 闸门 | 净值日 | 复权净值 | 年线 | 年线斜率 | 象限 | 连续在年线下 | "
+        "| 腿 | 执行代码 | 闸门 | 数据日 | 价格 | 年线 | 年线斜率 | 象限 | 连续在年线下 | "
         "距年线 | 波动系数 | 档位（趋势×波动，今日→明日） | 占带 | pp | 今日动作 | 还缺什么 | 数据 |",
         "|---|---|---|---|---|---|---|---|---:|---:|---:|---|---:|---:|---|---|---|",
     ]

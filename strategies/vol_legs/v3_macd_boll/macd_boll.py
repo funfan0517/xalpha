@@ -7,8 +7,7 @@ ER 自适应窗口）一条没改：
 
 - **池** = `rule.LEG_ORDER` 七腿（中证A500 / 沪深300 / 纳指100 / 标普500 / 科创50 /
   恒生科技 / 黄金），不另立池、不做 A/B 分级，增删腿只改 `rule.LEGS`；
-- **价格** = `data.series_for_leg(leg)` 场外**复权净值**（`rule.SIGNAL_MODE`，含分红再投 /
-  汇率 / 跟踪误差），与主策略、v1_1_ma20 同一列；
+- **价格** = `data.series_for_leg(leg)`，**恒为真实指数**，与主策略、v1_1_ma20 同一列；
 - **成交** = T 日盘后算信号、**T+1 净值成交**（`pos = sig.shift(1)`），与 vol_legs §2.4 同一纪律；
 - **空仓**按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息，不假设 0 收益（否则择时会被现金拖累误伤）；
 - **波动上限层**（`TV`，默认 0.20，设 None/0 关闭）：信号为 1 时实际仓位再乘
@@ -89,9 +88,9 @@ FEE = {
 }
 
 
-def load(leg, mode=None):
-    """该腿价格序列（默认场外复权净值）；缺失/刷新失败直接抛错，不静默补位。"""
-    return vdata.series_for_leg(leg, mode=mode).dropna()
+def load(leg):
+    """该腿价格序列（真实指数，黄金 518880）；缺失/刷新失败直接抛错，不静默补位。"""
+    return vdata.series_for_leg(leg).dropna()
 
 
 # ---------------------------------------------------------------- 2. 指标
@@ -301,7 +300,7 @@ def exposure(sig):
 
 def leg_slice(leg, warmup=WARMUP, mode=None):
     """-> (px, sig_adaptive, sig_w20, sig_w30)。样本从第 warmup 个交易日之后起算。"""
-    px_full = load(leg, mode=mode)
+    px_full = load(leg)
     start = px_full.index[min(warmup, max(len(px_full) - 2, 0))]
     sig_full = signal(px_full)
     s20_full = signal_fixed(px_full, w=W_FAST)

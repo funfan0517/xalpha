@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 """波动资产 · V6 变种：黄金 ETF 三口径策略（A 长期配置 / B 控回撤 / C 低仓位占坑）。
 
-**本变种只做一个标的**：黄金。场内信号 `518880`（黄金ETF华安）、场外执行 `000216`
-（华安黄金ETF联接A）。它不发生在七腿内部，只回答「这笔投给黄金的钱该怎么拿」。
+**本变种只做一个标的**：黄金，**场内 `518880`**（黄金ETF华安，实物、无分红）。
+它不发生在七腿内部，只回答「这笔投给黄金的钱该怎么拿」。
 
 为什么单独立案：黄金**没有现金流锚** —— PE / ERP / 股息率 / 股债利差全都不适用，
 价格本身是唯一信息源。仓库里 20 多条时机规则在黄金上的实测结论一致：**没有一条跑赢买入持有
 的年化**，能赚到的只有「压回撤」和「少占用资金」。所以本变种给三套口径，各自服务一种人：
 
-| 口径 | 一句话 | 参考结果（000216 场外 · 12 年） |
+| 口径 | 一句话 | 参考结果（518880 场内 · 12 年） |
 |---|---|---|
 | **A 长期配置** | 满带持有 + 年线下满 60 日降到半仓 + 回撤阶梯越跌越买 | 见 `backtest/_v6_gold_bt.md` §2 |
 | **B 控回撤** | 波动目标层（**10%/120 日**，只压满带；可选叠年线四象限闸门） | 回撤 -32.8% → -15% 量级 |
-| **C 低仓位占坑** | MACD(12,26) 金叉持有 / 死叉空仓，只用约一半资金 | 占坑 50% 左右 |
+| **C 低仓位占坑** | MACD(50,200) 金叉持有 / 死叉空仓，只用约一半资金 | 占坑 50% 左右 |
 
 **A 的规则逐条**（对应主策略 `../rule.py::GoldPolicy` §5）：
 
@@ -30,10 +30,10 @@
 只压满带。`GATE_ON=False` 退化为「纯波动层、不做趋势判断」——`research/_vol_overlay.md` 里
 那一档 Calmar 更高（0.37 vs 0.25），所以两条都留着对照。
 
-**C 的规则**：`DIF = EMA12 − EMA26`、`DEA = EMA9(DIF)`；金叉（DIF 上穿 DEA）持有、死叉空仓，
+**C 的规则**：`DIF = EMA50 − EMA200`、`DEA = EMA9(DIF)`；金叉（DIF 上穿 DEA）持有、死叉空仓，
 **不看零轴**（与 `tech_indicators/v13_macd/rule.py` 同一口径）。它买的是「只用一半资金」，
-不是更高收益 —— 场外 A 类（申 0.1% + 赎 0.5%）下每年 10 次进出会吃掉大半超额，**C 只在场内低佣金账户成立**，
-详见 `backtest/_v6_gold_bt.md` §5。
+不是更高收益 —— 场内佣金万 0.3 下每年 1~2 个往返还能承受，换到高费率通道就不成立，
+详见 `backtest/_v6_gold_bt.md`。
 
 **成交与时序**（与 v1/v2/v3/v5 同一纪律）：`state[t]` = t 日收盘成交后的仓位；日收益用
 `state.shift(1)`；空仓部分按货基 `rule.CASH_ANNUAL`（1.40%）逐日计息；成本按 `|Δstate| × 费率`。
@@ -71,8 +71,8 @@ LABEL = "V6 黄金三口径"
 LEG = "gold"
 NAME = "黄金"
 BAND_PP = float(rule.LEGS[LEG]["band"])          # 10pp（主策略目标带）
-SIGNAL_CODE = rule.LEGS[LEG]["signal"]           # 518880（场内信号）
-EXEC_CODE = rule.LEGS[LEG]["otc"]                # 000216（场外执行）
+SIGNAL_CODE = rule.LEGS[LEG]["idx"]           # 518880（场内信号）
+EXEC_CODE = rule.LEGS[LEG]["exec"]            # 518880（场内执行，与信号同一只 ETF）
 
 # ---- A 长期配置（主策略 §5 黄金口径）
 MA_WIN = 250             # 年线（A 股口径 250，不是美股 200）
@@ -119,11 +119,9 @@ MACD_FAST, MACD_SLOW, MACD_SIGNAL = 50, 200, 9
 C_WARMUP = 400
 C_TREND_FILTER = False   # True = 只在年线上方允许持仓（敏感性用，默认关闭）
 
-# ---- 成本与现金（场外 A 类 / 场内 ETF 两套）
-SLIP = 0.0010            # 场外单边滑点 0.1%（与 v1~v5 同一口径）
-FEE_OTC = (rule.FEE_BUY, rule.FEE_SELL)          # (0.10%, 0.50%)
-SLIP_IN = 0.0005         # 场内单边滑点 0.05%（黄金 ETF 盘口厚，取 1~2 个 tick）
-FEE_IN = (0.0003, 0.0003)                        # 场内佣金万 0.3，无印花税
+# ---- 成本与现金（场内 ETF 一套）
+SLIP = 0.0005            # 场内单边滑点 0.05%（黄金 ETF 盘口厚，取 1~2 个 tick）
+FEE = (0.0003, 0.0003)   # 场内佣金万 0.3，无印花税
 CASH_ANNUAL = rule.CASH_ANNUAL
 CASH_DAILY = (1.0 + CASH_ANNUAL) ** (1.0 / 252) - 1.0
 
@@ -144,23 +142,19 @@ def params(**kw):
              VOL_MIN_HIST=VOL_MIN_HIST,
              MACD=(MACD_FAST, MACD_SLOW, MACD_SIGNAL), C_WARMUP=C_WARMUP,
              C_TREND_FILTER=C_TREND_FILTER,
-             SLIP=SLIP, FEE_OTC=FEE_OTC)
+             SLIP=SLIP, FEE=FEE)
     p.update(kw)
     return p
 
 
 # ---------------------------------------------------------------- 2. 数据
-def load(mode="otc", refresh=True):
-    """黄金价格序列。`otc` = 场外 000216 复权净值（默认）；`exchange` = 场内 518880 收盘。"""
-    if mode == "otc":
-        if not refresh:
-            # data.py 用「_OTC_ONCE 非空」表示本进程已决定过要不要刷新；塞一个空结果 =
-            # 与「本地不陈旧」同义，即直接用缓存、不联网（与 refresh_otc 的跳过分支一致）。
-            vdata._OTC_ONCE.append(({}, {}))
-        return vdata.series_for_leg(LEG).dropna()
-    if mode == "exchange":
-        return vdata.load_klines(SIGNAL_CODE).dropna()
-    raise ValueError(f"未知 mode: {mode}（可选 otc / exchange）")
+def load(refresh=True):
+    """黄金价格序列 —— 场内 `518880` 实物 ETF（与全族黄金腿同一条序列）。
+
+    A / B / C 三条口径共用这条价格，差别只在**仓位规则**，成本统一按场内佣金 + 滑点。
+    `refresh=False` 时直接用本地缓存（`series_for_leg` 本身只读本地库）。
+    """
+    return vdata.series_for_leg(LEG).dropna()      # 黄金 -> 518880
 
 
 def indicators(px, p=None):
@@ -393,12 +387,10 @@ def run_leg(state, px, fee=(0.0, 0.0), slip=SLIP, cash_annual=None):
     return (1.0 + r).cumprod()
 
 
-def fee_of(mode, p=None):
-    """-> (fee_tuple, slip)。场外 A 类 vs 场内 ETF 两套成本。"""
+def fee_of(p=None):
+    """-> (fee_tuple, slip)：场内 518880 的佣金与滑点（唯一成本口径）。"""
     p = p or params()
-    if mode == "otc":
-        return tuple(p["FEE_OTC"]), float(p["SLIP"])
-    return FEE_IN, SLIP_IN
+    return tuple(p["FEE"]), float(p["SLIP"])
 
 
 def actions(state):
@@ -445,9 +437,9 @@ def exposure(state):
     return float(state.mean()) if len(state) else 0.0
 
 
-def cost_drag(state, mode, p=None):
+def cost_drag(state, p=None):
     """累计成本占净值的比例（pp，按 |Δstate| × 费率累加，不含滑点外的复利效应）。"""
-    fee, slip = fee_of(mode, p)
+    fee, slip = fee_of(p)
     s = state.to_numpy(dtype=float)
     tot = 0.0
     for i in range(1, len(s)):
@@ -463,43 +455,40 @@ def slice_from(ind_like):
     return ok.index[0] if len(ok) else ind_like.index[0]
 
 
-def build(mode="otc", refresh=True, **kw):
+def build(refresh=True, **kw):
     """-> dict(px, A, B, C, start)。三个口径都从「各自预热完成」的日期起算。"""
     p = params(**kw)
-    px = load(mode, refresh=refresh)
+    px = load(refresh=refresh)
     A = state_a(px, **kw)
     B = state_b(px, **kw)
     C = state_c(px, **kw)
     start_a = A.index[A["ready"].fillna(False).to_numpy(dtype=bool)][0]
     start_b = B.index[B["ready"].fillna(False).to_numpy(dtype=bool)][0]
     start_c = px.index[min(int(p["C_WARMUP"]), len(px) - 2)]
-    return dict(px=px, A=A, B=B, C=C, start=dict(A=start_a, B=start_b, C=start_c), mode=mode, params=p)
+    return dict(px=px, A=A, B=B, C=C, start=dict(A=start_a, B=start_b, C=start_c), params=p)
 
 
 def _self_check():
-    """快速自检：两条序列可读、三口径档位语义正确、无前视。"""
-    for mode in ("otc", "exchange"):
-        d = build(mode, refresh=False)
-        px, A, B, C = d["px"], d["A"], d["B"], d["C"]
-        assert len(A) == len(B) == len(C) == len(px), "长度不一致"
-        for nm, s in (("A", A["state"]), ("B", B["state"]), ("C", C)):
-            assert float(s.min()) >= -1e-9 and float(s.max()) <= 1.0 + 1e-9, f"{nm} 越界"
-        assert float(A["state"].min()) >= FLOOR - 1e-9, "A 不应低于保险丝下限"
-        assert bool((B["state"] <= B["state_trend"] + 1e-9).all()), "B 的波动层只压不抬"
-        assert set(np.round(C.unique(), 6)) <= {0.0, 1.0}, C.unique()
-        code = EXEC_CODE if mode == "otc" else SIGNAL_CODE
-        print(f"{mode:8s} {code} {px.index[0].date()} ~ {px.index[-1].date()} n={len(px):5d} "
-              f"A起 {d['start']['A'].date()} 档位={A['state'].iloc[-1]:.0%} "
-              f"B起 {d['start']['B'].date()} 档位={B['state'].iloc[-1]:.0%} "
-              f"C起 {d['start']['C'].date()} 仓位={C.iloc[-1]:.0%}")
+    """快速自检：价格序列可读、三口径档位语义正确、无前视。"""
+    d = build(refresh=False)
+    px, A, B, C = d["px"], d["A"], d["B"], d["C"]
+    assert len(A) == len(B) == len(C) == len(px), "长度不一致"
+    for nm, s in (("A", A["state"]), ("B", B["state"]), ("C", C)):
+        assert float(s.min()) >= -1e-9 and float(s.max()) <= 1.0 + 1e-9, f"{nm} 越界"
+    assert float(A["state"].min()) >= FLOOR - 1e-9, "A 不应低于保险丝下限"
+    assert bool((B["state"] <= B["state_trend"] + 1e-9).all()), "B 的波动层只压不抬"
+    assert set(np.round(C.unique(), 6)) <= {0.0, 1.0}, C.unique()
+    print(f"{SIGNAL_CODE} {px.index[0].date()} ~ {px.index[-1].date()} n={len(px):5d} "
+          f"A起 {d['start']['A'].date()} 档位={A['state'].iloc[-1]:.0%} "
+          f"B起 {d['start']['B'].date()} 档位={B['state'].iloc[-1]:.0%} "
+          f"C起 {d['start']['C'].date()} 仓位={C.iloc[-1]:.0%}")
     print(f"带 {BAND_PP:g}pp · 年线 MA{MA_WIN} · 保险丝 {DEGRADE_DAYS} 日 → {FLOOR:.0%} · "
           f"阶梯 {LADDER_DD} → {LADDER_UNITS} 份(1 份={UNIT_FRAC:.0%} 带)")
     print(f"B: 闸门={'开' if GATE_ON else '关'} · 波动目标 {VOL_TARGET:.0%}/{VOL_WINDOW} 日 · "
           f"死区 {VOL_DEADBAND:g} · 限速 {VOL_MIN_GAP} 日")
     print(f"C: MACD{MACD_FAST}/{MACD_SLOW}/{MACD_SIGNAL} · 预热 {C_WARMUP} 日 · "
           f"年线过滤={'开' if C_TREND_FILTER else '关'}")
-    print(f"成本: 场外 {FEE_OTC[0]:.2%}/{FEE_OTC[1]:.2%} + 滑点 {SLIP:.2%} · "
-          f"场内 {FEE_IN[0]:.2%}/{FEE_IN[1]:.2%} + 滑点 {SLIP_IN:.2%} · 现金 {CASH_ANNUAL:.2%}")
+    print(f"成本: 场内买 {FEE[0]:.3%}/卖 {FEE[1]:.3%} + 滑点 {SLIP:.2%} · 现金 {CASH_ANNUAL:.2%}")
 
 
 if __name__ == "__main__":

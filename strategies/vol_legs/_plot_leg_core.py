@@ -8,13 +8,13 @@
 
 | key | 标的 | 序列 | 说明 |
 |---|---|---|---|
-| `a500` | 中证A500 | `023299` 场外复权净值 | 七腿之一；2025-03-27 前为 `000051` 桥接段（默认不画） |
-| `hs300` | 沪深300 | `000051` 场外复权净值 | **v1.4 起是独立的一条腿**（自带 2.5pp 目标带），同时也是 A500 的桥接基金 |
-| `ndx` | 纳指100 | `270042` 场外复权净值 | 七腿之一；QDII 净值滞后 T+1~T+2；无桥接，2012-08 起 |
-| `spx` | 标普500 | `017641` 场外复权净值 | 七腿之一；2023-04-06 前为 `050025` 桥接段（默认不画） |
-| `kc50` | 科创50 | `011609` 场外复权净值 | 七腿之一；2021-03 起 |
-| `hkt` | 恒生科技 | `012805` 场外复权净值 | 七腿之一；QDII 净值滞后 T+1~T+2 |
-| `gold` | 黄金 | `000216` 场外复权净值 | 七腿之一（避险腿）；2013-08 起 |
+| `a500` | 中证A500 | `023299` 真实指数收盘 | 七腿之一；2025-03-27 前为 `000051` 桥接段（默认不画） |
+| `hs300` | 沪深300 | `000051` 真实指数收盘 | **v1.4 起是独立的一条腿**（自带 2.5pp 目标带），同时也是 A500 的桥接基金 |
+| `ndx` | 纳指100 | `270042` 真实指数收盘 | 七腿之一；QDII 净值滞后 T+1~T+2；无桥接，2012-08 起 |
+| `spx` | 标普500 | `.INX` 真实指数 → 执行 `017641` | 七腿之一；无桥接段 |
+| `kc50` | 科创50 | `011609` 真实指数收盘 | 七腿之一；2021-03 起 |
+| `hkt` | 恒生科技 | `012805` 真实指数收盘 | 七腿之一；QDII 净值滞后 T+1~T+2 |
+| `gold` | 黄金 | `518880` 场内 ETF | 七腿之一（避险腿）；2013-08 起 |
 
 每张图两条线、同起点归 1：
 - **灰线** = 该标的自己的买入持有（复权净值，含分红再投）；
@@ -75,17 +75,21 @@ SERIES = {
                  fee=(0.0, 0.0), fee_note="C 类，申赎费 0"),
     "hkt": dict(name="恒生科技", code="012805", leg="hkt",
                 fee=(0.0, 0.0), fee_note="C 类，申赎费 0；QDII 净值滞后 T+1~T+2"),
-    "gold": dict(name="黄金", code="000216", leg="gold",
-                 fee=(0.001, 0.005), fee_note="A 类，申购 0.10% / 赎回 0.50%"),
+    "gold": dict(name="黄金", code="518880", leg="gold",
+                 fee=(0.001, 0.005), fee_note="场内 ETF，佣金量级 0.10% 双边"),
 }
 
 
 def load_px(key, mod):
-    """该腿/该标的的场外复权净值（七腿走 rule.LEGS，其余按基金代码直取）。"""
+    """该腿的**信号价**：真实指数（黄金 = 518880 实物 ETF）。
+
+    图里的 `code` 是**执行代码**（六腿场外 A/C 类、黄金场内 518880），只用于标注；
+    信号价只能来自 `rule.LEGS` 的 leg 键。
+    """
     leg = SERIES[key]["leg"]
-    if leg:
-        return mod.load(leg)
-    return vdata.otc_series(SERIES[key]["code"]).dropna()
+    if not leg:
+        raise KeyError(f"{key} 缺 leg 键：信号价只能来自 rule.LEGS")
+    return mod.load(leg)
 
 
 def _tv_params(mod):
@@ -112,7 +116,7 @@ def _tv_params(mod):
     return tv, win
 
 
-def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
+def plot(key, spec, prefix, out_dir, years=None):
     """画一条腿：`spec` 见模块 docstring / 各变种 `research/_plot_leg.py`。"""
     import matplotlib
     matplotlib.use("Agg")
@@ -131,20 +135,12 @@ def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
     mark_full = spec.get("mark_signal", spec["signal"])(px_full)
     warm = px_full.index[min(int(spec["warmup"]), len(px_full) - 2)]
 
-    # 桥接段（目前只有 A500：2025-03-27 之前是 000051 沪深300）
     leg = meta["leg"]
-    cut = None
-    if leg and rule.LEGS[leg].get("otc_proxy"):
-        _cut = pd.Timestamp(rule.LEGS[leg]["otc_start"])
-        if px_full.index[0] < _cut < px_full.index[-1]:
-            cut = _cut
-    real_only = bool(cut) and not with_bridge
-
     # 先在「预热后」的整段上跑净值（保证起始日的仓位是真实仓位），再截到要画的区间
     px_w, sig_w = px_full.loc[warm:], sig_full.loc[warm:]
     mk_w = mark_full.loc[warm:]
     nav_w = spec["run"](px_w, sig_w)                        # 主口径：不计申赎费
-    ini = cut if real_only else warm
+    ini = warm
     # 近 N 年窗口（`--years 3`）：信号、净值仍在**全样本**上算（否则起点仓位/指标不是真实值），
     # 算完再从窗口首日截取，净值以窗口首日为 1 重新归位 —— 否则窗口起点会带着之前累积的收益。
     win_years = float(years or 0.0)
@@ -158,8 +154,8 @@ def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
     pos = mk_w.shift(1).fillna(0).astype(float).loc[start:]   # 标点用：0/1 入场序列
     # 下格用：实际生效仓位 =「信号 × 波动上限」（`sig`）再按 T+1 成交滞后一天，与 `expo` 同口径
     pos_eff = sig_w.shift(1).fillna(0.0).clip(0.0, 1.0).loc[start:]
-    if real_only or win_years > 0:
-        nav = nav / nav.iloc[0]                             # 以起点（成立日 / 窗口首日）为 1 重新归位
+    if win_years > 0:
+        nav = nav / nav.iloc[0]                             # 以窗口首日为 1 重新归位
 
     hold = px / px.iloc[0]
     d = pos.diff().fillna(0).to_numpy()
@@ -207,13 +203,6 @@ def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
         ax.plot(x[idxs], nav_v[idxs], ls="none", marker=mk, ms=7.5, mfc=color,
                 mec="white", mew=0.6, zorder=5,
                 label=f"{side}点 · 策略净值（{len(idxs)} 次，实心）")
-
-    # 桥接段 —— 仅 --with-bridge 时画
-    if cut is not None and not real_only:
-        ax.axvspan(px.index[0], cut, color="#999", alpha=0.07, lw=0)
-        ax.axvline(cut, color="#888", lw=0.9, ls="--")
-        ax.text(cut, 0.99, f"{cut.date()} 起才是 {meta['code']} 真实净值  ", va="top",
-                ha="right", transform=ax.get_xaxis_transform(), fontsize=8.5, color="#666")
 
     ax.axhline(1.0, color="#aaa", lw=0.8, ls=":")
     ax.set_ylabel("累计净值（起点 = 1）", fontsize=10)
@@ -279,13 +268,15 @@ def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
     # 样本本身不足 N 年时（A500 只有 1.6 年），别再在标题写「近 3 年」，否则和「成立以来」自相矛盾
     win_eff = bool(win_years) and yrs >= win_years * 0.95
     win_txt = f"近 {win_years:g} 年 " if win_eff else ""
-    fig.suptitle(f"{meta['name']}（{meta['code']}, 场外复权净值）· {win_txt}{spec['short']}择时 vs 买入持有"
-                 + ("    |    成立以来 " if (real_only and start == ini) else "    |    ")
+    _code = vdata.IDX[leg][1] if leg else meta["code"]
+    fig.suptitle(f"{meta['name']}（{_code}, {vdata.price_short(leg=leg)}）· {win_txt}"
+                 f"{spec['short']}择时 vs 买入持有"
+                 + ("    |    ")
                  + f"{px.index[0].date()} ~ {px.index[-1].date()}",
                  x=0.055, ha="left", y=0.965, fontsize=14, color="#1b2b3a", weight="bold")
-    note = ["两条线同起点归 1：灰 = 该标的复权净值（含分红再投），紫 = 该变种择时的组合净值；"
-            "成交日 = 信号次日（T+1 净值），空仓按货基 "
-            f"{spec['cash']:.2%} 计息。",
+    note = [f"两条线同起点归 1：灰 = 该标的价（{vdata.price_desc_plain()}），"
+            "紫 = 该变种择时的组合净值；"
+            f"成交日 = 信号次日（T+1），空仓按货基 {spec['cash']:.2%} 计息。",
             "▲/▼ 同时画在两处：空心 = 该笔在指数上的价位，实心 = 同一笔在策略净值上的位置，"
             "细竖线把两点连起来。",
             ("下格：虚线台阶 = 0/1 入场状态（100% / 0%），蓝线 = 实际生效仓位 = 0/1 信号 × "
@@ -294,11 +285,6 @@ def plot(key, spec, prefix, out_dir, with_bridge=False, years=None):
              if tv else
              "下格：蓝线 = 实际生效仓位（本变种无波动上限层，与 0/1 入场状态重合）。"),
             fee_txt.strip() + "  ·  机械规则输出，非投资建议。"]
-    if real_only:
-        note.append(f"本图只画 {meta['code']} 成立（{cut.date()}）之后的真实净值，桥接段不显示；"
-                    "两条线以成立日为 1 重新归位。")
-        note.append("信号仍按族内主口径在含桥接的全样本上算（桥接只用来撑指标窗口）；"
-                    f"样本仅 {yrs:.1f} 年，年化与夏普的统计意义有限。")
     if win_years:
         if yrs < win_years * 0.95:
             note.append(f"该腿可用样本只有 {yrs:.1f} 年（不足 {win_years:g} 年），本图即全部样本；"
@@ -337,10 +323,8 @@ def cli(spec, prefix, out_dir, desc="单腿图（买入持有 vs 择时，标买
     ap = argparse.ArgumentParser(description=desc)
     ap.add_argument("--leg", choices=list(SERIES), action="append",
                     help="只画指定腿（可重复）；默认全部")
-    ap.add_argument("--with-bridge", action="store_true",
-                    help="A500 也画桥接段（默认只画 023299 成立之后的真实净值）")
     ap.add_argument("--years", type=float, metavar="N",
                     help="只画末端 N 年（如 3），文件名加 _3y 后缀，不覆盖全样本那张")
     args = ap.parse_args()
     for key in (args.leg or list(SERIES)):
-        plot(key, spec, prefix, out_dir, with_bridge=args.with_bridge, years=args.years)
+        plot(key, spec, prefix, out_dir, years=args.years)

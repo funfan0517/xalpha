@@ -9,8 +9,8 @@
 - **B 控回撤**：无趋势线（它不做趋势判断），净值上只标操作点；浅蓝底纹 = 波动系数 < 1（在压仓）。
 - **C 低仓位占坑**：三格 —— 净值 / MACD（DIF-DEA 柱 + 两条线）/ 仓位。
 
-标的只有一个：黄金。主口径用场外 `000216` 复权净值（与 v5 的黄金腿同一序列），
-C 另在场内 `518880` 上有更优成本（场外赎回费 0.50% 会吃掉大半），差别写在 C 图页脚。
+标的只有一个：黄金，场内 `518880` 实物 ETF。A / B / C 三条口径共用这一条价格，
+成本统一按场内佣金 + 滑点，差别只在仓位规则与换手。
 
 产物（本目录 `daily/`）：
     _v6_gold_A.png / _v6_gold_A_3y.png
@@ -19,7 +19,7 @@ C 另在场内 `518880` 上有更优成本（场外赎回费 0.50% 会吃掉大�
 
 用法（从仓库根跑）：
     python strategies/vol_legs/v6_gold/daily/_plot_legs.py            # 用本地缓存
-    python strategies/vol_legs/v6_gold/daily/_plot_legs.py --refresh  # 先刷场外净值
+    python strategies/vol_legs/v6_gold/daily/_plot_legs.py --refresh  # 只读本地 518880 行情库
     python strategies/vol_legs/v6_gold/daily/_plot_legs.py --leg C --years 3
 
 机械规则输出，非投资建议。
@@ -76,7 +76,7 @@ def plot(key, years=None, out_dir=_HERE, refresh=False):
     plt.rcParams["axes.unicode_minus"] = False
 
     meta = SPEC[key]
-    d = G.build("otc", refresh=refresh)
+    d = G.build(refresh=refresh)
     px_full = d["px"]
 
     if key == "A":
@@ -96,7 +96,7 @@ def plot(key, years=None, out_dir=_HERE, refresh=False):
     idx = px.index
     yrs = (idx[-1] - idx[0]).days / 365.25
 
-    fee, slip = G.fee_of("otc")
+    fee, slip = G.fee_of()
     if years:                                   # 区间图：净值切片后归 1，档位接续历史
         nav = G.run_leg(st_full, px_full, fee, slip).loc[idx]
         nav = nav / nav.iloc[0]
@@ -149,9 +149,9 @@ def plot(key, years=None, out_dir=_HERE, refresh=False):
         ticks = [t for t in (1, 1.5, 2, 3, 4, 5, 6, 8) if lo <= t <= hi]
         ax.set_yticks(ticks)
         ax.set_yticklabels([f"{t:g}" for t in ticks])
-        ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+        ax.set_ylabel("518880 收盘价（对数轴）", fontsize=10)
     else:
-        ax.set_ylabel("场外复权净值", fontsize=10)
+        ax.set_ylabel("518880 收盘价", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.30, zorder=1)
     ax.tick_params(labelbottom=False)
 
@@ -246,7 +246,7 @@ def plot(key, years=None, out_dir=_HERE, refresh=False):
 
     # ---- 标题
     win_txt = f"近 {years:g} 年 · " if years else ""
-    fig.text(0.045, 0.972, f"黄金（{G.EXEC_CODE}）· {meta['title']} · {meta['sub']}",
+    fig.text(0.045, 0.972, f"黄金（{G.SIGNAL_CODE}）· {meta['title']} · {meta['sub']}",
              ha="left", fontsize=13.2, color="#1b2b3a", weight="bold")
     fig.text(0.045, 0.935,
              f"{idx[0].date()} ~ {idx[-1].date()}（{yrs:.1f} 年）· {win_txt}"
@@ -275,10 +275,9 @@ def plot(key, years=None, out_dir=_HERE, refresh=False):
         note.append(f"规则：DIF = EMA{G.MACD_FAST} − EMA{G.MACD_SLOW}、DEA = EMA{G.MACD_SIGNAL}(DIF)；"
                     f"金叉持有、死叉空仓，不看零轴；预热 {G.C_WARMUP} 个交易日"
                     f"（EMA{G.MACD_SLOW} 初始值需长预热才收敛）。")
-        note.append("注意换手：场外 A 类赎回费 0.50% 会吃掉大半超额 —— 本图按场外真实费率画，"
-                    "同一信号放场内 518880（万 0.3 佣金 + 0.05% 滑点）年化 +7.49%，"
-                    "场外只有 +5.07%（见 `backtest/_v6_gold_bt.md` §4）。这条口径**只在场内执行**。")
-    note.append(f"成本 = |Δ仓位| × 费率，场外申 {G.FEE_OTC[0]:.2%} / 赎 {G.FEE_OTC[1]:.2%} "
+        note.append("注意换手：这条口径的进出次数决定累计成本（场内佣金万 0.3 + 单边滑点 0.05%），"
+                    "逐年成本见 `backtest/_v6_gold_bt.md` §4。")
+    note.append(f"成本 = |Δ仓位| × 费率，场内买 {G.FEE[0]:.3%} / 卖 {G.FEE[1]:.3%} "
                 f"+ 单边滑点 {G.SLIP:.2%}；空仓按货基 {G.CASH_ANNUAL:.2%} 计息；"
                 "决策在 T 日盘后、T+1 收盘成交，无前视。")
     if years:
@@ -304,7 +303,7 @@ def main():
     ap.add_argument("--leg", choices=list(SPEC), action="append", help="只画指定口径（可重复）")
     ap.add_argument("--years", type=float, action="append",
                     help="额外出近 N 年版（可重复，如 --years 3）")
-    ap.add_argument("--refresh", action="store_true", help="先刷场外净值（否则只用缓存）")
+    ap.add_argument("--refresh", action="store_true", help="只读本地 518880 行情库")
     args = ap.parse_args()
 
     for key in (args.leg or list(SPEC)):

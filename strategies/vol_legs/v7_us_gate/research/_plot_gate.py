@@ -2,7 +2,7 @@
 """V7（美股两腿年线闸门）· 年线 + 操作点单腿图：纳指100 / 标普500。
 
 图的读法（与 `v5_trend_gate/research/plot_trend/_plot_trend.py` 同一版式，便于并排比较）：
-- **上格深色线** = 场外 QDII 复权净值（含分红再投 / 汇率 / 跟踪误差），这是你真能拿到的收益；
+- **上格深色线** = 该腿价格（美元指数真实收盘）；
 - **橙线** = MA200 年线（画在**美元指数**上再投影到净值坐标系会失真，所以橙线画在净值的年线上，
   而**决策用的是美元指数**的 MA200 —— 两者驱动同一段行情，看图形状一致，数值以报告为准）；
 - **底色** = 当天美元指数在年线上（浅绿）/ 年线下（浅红）；
@@ -107,9 +107,9 @@ def plot(leg, out_dir=_HERE):
                  if lo <= t <= hi]
         ax.set_yticks(ticks)
         ax.set_yticklabels([f"{t:g}" for t in ticks])
-        ax.set_ylabel("场外复权净值（对数轴）", fontsize=10)
+        ax.set_ylabel(f"{ug.vdata.price_short()}（对数轴）", fontsize=10)
     else:
-        ax.set_ylabel("场外复权净值", fontsize=10)
+        ax.set_ylabel(f"{ug.vdata.price_short()}", fontsize=10)
     ax.grid(ls="--", lw=0.6, alpha=0.30, zorder=1)
     ax.tick_params(labelbottom=False)
 
@@ -133,19 +133,6 @@ def plot(leg, out_dir=_HERE):
                         (o["date"], float(nav.loc[o["date"]])), textcoords="offset points",
                         xytext=(0, 10 if up_o else -16), ha="center", fontsize=7.2,
                         color=C_BUY if up_o else C_SELL, zorder=7)
-
-    # 桥接段（标普：050025 -> 017641）
-    cut = None
-    if cfg.get("otc_proxy"):
-        _cut = pd.Timestamp(cfg.get("otc_start"))
-        if idx[0] < _cut < idx[-1]:
-            cut = idx[idx.searchsorted(_cut)]
-            ax.axvspan(idx[0], cut, color="#9aa5b1", alpha=0.10, lw=0, zorder=1)
-            ax.axvline(cut, color="#7b8794", lw=0.9, ls="--", zorder=2)
-            ax.text(cut, 0.975, f"{cut.date()} 起为 {cfg['otc']} 真实净值"
-                                f"（此前 {cfg.get('otc_proxy')} 桥接） ",
-                    transform=ax.get_xaxis_transform(), va="top", ha="right",
-                    fontsize=8.3, color="#5b6b7a")
 
     # ---- 下格：仓位阶梯
     axp.step(idx, st.to_numpy(), where="post", color=C_STEP, lw=1.15)
@@ -185,7 +172,7 @@ def plot(leg, out_dir=_HERE):
 
     # ---- 图例
     handles = [
-        Line2D([], [], color=C_PRICE, lw=1.3, label=f"{cfg['name']} 复权净值"),
+        Line2D([], [], color=C_PRICE, lw=1.3, label=f"{cfg['name']} 价格"),
         Line2D([], [], color=C_MA, lw=1.25, label=f"MA{ug.MA_WIN} 年线（净值口径）"),
         Line2D([], [], ls="none", marker="^", ms=8, mfc="none", mec=C_BUY,
                label=f"回补 ▲（{sum(1 for o in ops if o['kind'] == 'buy')}）"),
@@ -203,7 +190,7 @@ def plot(leg, out_dir=_HERE):
               columnspacing=1.0, handletextpad=0.5, borderaxespad=0.2)
 
     fig.text(0.045, 0.972,
-             f"{cfg['name']}（{cfg['otc']}）年线闸门 · MA{ug.MA_WIN} × 连续 {ug.CONFIRM} 月确认"
+             f"{cfg['name']}（{cfg['idx']}）年线闸门 · MA{ug.MA_WIN} × 连续 {ug.CONFIRM} 月确认"
              f" + 深破 {ug.DEEP:.0%} 免确认"
              + (f" × 波动层 TV {float(p['TV']):.0%}" if float(p["TV"] or 0) > 0 else "")
              + " · 月末决策（真实操作点）",
@@ -220,7 +207,7 @@ def plot(leg, out_dir=_HERE):
              ha="left", fontsize=9.4, color="#5b6b7a")
 
     note = [
-        f"规则：每月最后一个交易日收盘看**美元指数**（{cfg['signal']}）与其 MA{ug.MA_WIN}；"
+        f"规则：每月最后一个交易日收盘看**美元指数**（{cfg['idx']}）与其 MA{ug.MA_WIN}；"
         f"连续 {ug.CONFIRM} 个月在年线下方才减仓 → {ug.level_name(floor)}（{floor:.0%}）；"
         f"**首次破位即低于年线 {ug.DEEP:.0%} 以上 → 当月就减（实心 ▼，不等第二个月）**；"
         "重新站上年线 → 次月即回满，不等确认。",

@@ -31,7 +31,6 @@ sys.path.insert(0, _V2)
 import boll  # noqa: E402
 
 # 离线优先：禁止回测期内的网络刷新（只读本地缓存，与看板其余卡片口径一致）
-boll.vdata._otc_stale = lambda: False  # type: ignore[attr-defined]
 
 OUT_MD = os.path.join(_HERE, "_v2_boll_daily.md")
 OUT_JSON = os.path.join(_HERE, "_v2_boll_daily.json")
@@ -49,7 +48,7 @@ def act(sig):
 
 def freshness(leg, date):
     cfg = boll.rule.LEGS[leg]
-    exp = boll.vdata._expected_otc_latest(cfg.get("otc_qdii", False))
+    exp = boll.vdata.expected_latest(leg)
     if date >= exp:
         return "✅最新"
     return f"⚠️滞后(应至 {exp})"
@@ -58,7 +57,7 @@ def freshness(leg, date):
 def mk_table(items):
     if not items:
         return ["（无）"]
-    out = ["| 腿 | 执行代码 | 净值日 | 复权净值 | 中轨/上轨 | 距触发位 | 当前仓位 | 数据 |",
+    out = ["| 腿 | 执行代码 | 数据日 | 价格 | 中轨/上轨 | 距触发位 | 当前仓位 | 数据 |",
            "|---|---|---|---|---|---|---|---|"]
     for x in sorted(items, key=lambda z: z["dist"], reverse=True):
         out.append(f"| {x['name']} | `{x['exec']}` | {x['date']} | {x['nav']:.4f} | "
@@ -111,7 +110,7 @@ def main():
     L = [
         f"# 波动资产 · V2（BOLL 上轨突破 N={boll.PARAMS['N']} / K={boll.PARAMS['K']:g}）· 每日买卖（{as_of or '无数据'}）",
         f"> 池 = 主策略七腿（{' / '.join(boll.rule.LEGS[k]['name'] for k in boll.LEGS)}），"
-        "口径 = 场外**复权净值**（含分红再投 / 汇率 / 跟踪误差）。",
+        f"口径 = {boll.vdata.price_desc()}。",
         f"> 规则：收盘**上穿上轨**（MA{boll.PARAMS['N']}+{boll.PARAMS['K']:g}×STD）→ 买入；"
         "收盘**跌回中轨** → 卖出；其余维持 0/1 仓位。只做多，不做下轨反做。",
         f"> **波动上限 {boll.PARAMS['TV']:.0%}（可配 `PARAMS[\"TV\"]`，设 None 关闭）**："
@@ -150,7 +149,7 @@ def main():
         L.append(f"| — | 最近 {RECENT} 个交易日内七腿无信号 | — |")
 
     L += ["", "## 七腿明细", "",
-          "| 腿 | 角色 | 目标带 | 执行代码 | 净值日 | 复权净值 | 中轨/上轨 | 距触发位 | 当前仓位 | 动作 | 数据 |",
+          "| 腿 | 角色 | 目标带 | 执行代码 | 数据日 | 价格 | 中轨/上轨 | 距触发位 | 当前仓位 | 动作 | 数据 |",
           "|---|---|---:|---|---|---|---|---|---|---|---|"]
     for x in sorted(rows, key=lambda z: boll.LEGS.index(z["leg"])):
         L.append(f"| {x['name']} | {x['role']} | {x['band']:g}pp | `{x['exec']}` "

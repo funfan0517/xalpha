@@ -75,7 +75,8 @@ def probe(price, vol, tag, start):
 
 
 def main():
-    etf = vdata.frame("hs300", vol_mode="etf")     # 原始 ETF 自身量（不走市场量能替换）
+    # 历史对照专门走 etf_frame()：信号口径已统一为真实指数，frame() 不再接受 price_mode。
+    etf = vdata.etf_frame("hs300")                                   # ETF 价 + 自身量
     v_etf = etf["volume"]
     v_300 = _idx("SH000300")
     v_001 = _idx("SH000001")

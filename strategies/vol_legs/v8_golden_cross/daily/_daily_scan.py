@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-"""波动资产 · V8 变种（美股两腿金叉 50/200 × 波动层 TV20）· 每日操作。
+"""波动资产 · V8 变种（全七腿金叉 50/200 × 波动层 TV20 · 现阶段重点美股两腿）· 每日操作。
 
 流程：
-1. **先刷新数据**：美股指数（`.NDX` / `.INX`，增量）+ 场外 QDII 净值（仅这两条腿）；
+1. **先刷新数据**：真实指数长库 `data/_global_index_klines.json`（`.NDX` / `.INX`，
+   2005 起，走 `data.refresh_global_index`，仅这两条腿）；信号与回测价格都读它；
    加 `--no-refresh` 用本地缓存，报告会标「未刷新」；
 2. 对两条腿各算：**方向门**（MA50 vs MA200）、`vol20`、波动层系数 `min(1, TV/vol)`、
    目标仓位（过死区）、与现仓的差、**两条触发路径各自的距离**；
@@ -69,7 +70,7 @@ def leg_view(leg, refreshed, fails, us_latest):
     recent = ops[-RECENT:]
     return dict(
         leg=leg, name=cfg["name"], band=float(cfg["band"]),
-        exec=cfg["exec"], exec_name=cfg["exec_name"], signal=cfg["signal"],
+        exec=cfg["exec"], exec_name=cfg["exec_name"], signal=cfg["idx"],
         nav_date=nav.index[-1].date().isoformat(), sig_date=d_sig.date().isoformat(),
         nav=float(nav.iloc[-1]), close=float(sig.iloc[-1]),
         fast=fv, slow=sv, gap=gap, golden=bool(golden), need_cross=need_cross,
@@ -86,13 +87,11 @@ def leg_view(leg, refreshed, fails, us_latest):
 
 
 def _fresh(leg, refreshed, fails, us_latest):
-    code = gc.rule.LEGS[leg]["otc"]
+    sig = gc.rule.LEGS[leg]["idx"]
+    if leg in fails or sig in fails:
+        return f"⚠️真实指数刷新失败({sig})，用缓存"
     if not refreshed:
         return "·未刷新(本地缓存)"
-    if code in fails:
-        return f"❌净值刷新失败({code})"
-    if us_latest.get("fail"):
-        return "⚠指数部分失败"
     return "✅已刷新"
 
 
@@ -100,16 +99,12 @@ def main():
     refreshed = "--no-refresh" not in sys.argv
     fails, us_latest = {}, {}
     if refreshed:
-        codes = [gc.rule.LEGS[k]["otc"] for k in gc.POOL]
+        # 信号与回测价格都读 `_global_index_klines.json`（2005 起），刷新也必须刷这个库；
+        # `_us_index_klines.json` 只有 2010 起，刷它不会让 v8 的信号变新。
         try:
-            _l, fails = gc.vdata.refresh_otc(codes=codes)
-        except Exception as exc:                                 # noqa: BLE001
-            fails = {c: f"{type(exc).__name__}: {exc}" for c in codes}
-        try:
-            _u, us_fails = gc.vdata.refresh_us()
-            us_latest = dict(latest=_u, fail=us_fails)
-        except Exception as exc:                                 # noqa: BLE001
-            us_latest = dict(latest={}, fail={"__all__": f"{type(exc).__name__}: {exc}"})
+            _l, fails = gc.vdata.refresh_global_index(legs=list(gc.POOL))
+        except Exception as exc:                                  # noqa: BLE001
+            fails = {k: f"{type(exc).__name__}: {exc}" for k in gc.POOL}
 
     rows = [leg_view(k, refreshed, fails, us_latest) for k in gc.POOL]
     act = [r for r in rows if r["pending"] is not None]
@@ -122,9 +117,8 @@ def main():
 
     L = [
         f"# 波动资产 · V8（金叉 50/200 × 波动层 TV20）· 每日操作（{last_date}）",
-        f"> 池 = **只有纳指100（{gc.rule.LEGS['ndx']['otc']}）与标普500"
-        f"（{gc.rule.LEGS['spx']['otc']}，此前 050025 桥接）**；"
-        "信号 = **美元指数**收盘（`.NDX` / `.INX`），执行 = 场外 QDII **人民币复权净值**。",
+        f"> 池 = **全七腿**（{', '.join(gc.rule.LEGS[k]['name'] for k in gc.POOL)}）；"
+        f"{gc.vdata.us_signal_exec_desc()}。",
         f"> 规则：`仓位 = (MA{gc.FAST} > MA{gc.SLOW} ? 1 : 0) × min(1, {gc.TV:.0%} / vol{gc.VOL_WIN})`，"
         f"日频 · 死区 {gc.VOL_DEAD:.0%} · 单边成本 {gc.COST:.1%} · "
         f"空仓按货基 {gc.CASH_ANNUAL:.2%} 计息。",
@@ -176,7 +170,7 @@ def main():
         "",
         "## 逐腿读数",
         "",
-        "| 腿 | 执行代码 | 净值日 | 复权净值 | 信号代码 | 信号日 | 信号收盘 | MA50 | MA200 | 间距 | 目标带 | 折合 pp |",
+        "| 腿 | 执行代码 | 数据日 | 价格 | 信号代码 | 信号日 | 信号收盘 | MA50 | MA200 | 间距 | 目标带 | 折合 pp |",
         "|---|---|---|---:|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for r in rows:
@@ -232,8 +226,7 @@ def main():
             "summary": {"action": bool(act), "down": [r["leg"] for r in downs],
                         "up": [r["leg"] for r in ups],
                         "combo_pp": comb, "combo_target_pp": comb_tgt,
-                        "refreshed": refreshed, "fail": list(fails),
-                        "us_fail": list(us_latest.get("fail") or {})},
+                        "refreshed": refreshed, "fail_index": list(fails)},
             "legs": [{k: v for k, v in r.items() if k != "ops"} for r in rows],
             "recent": [dict(date=d, leg=nm, kind=k, frm=a, to=b)
                        for d, nm, k, a, b in sorted(allops, reverse=True)],
@@ -247,9 +240,7 @@ def main():
               f"vol20 {r['vol']:.2%} · TV/vol {r['scale']:.2f} · 目标 {r['target']:.0%} · "
               f"{r['action']} · {r['fresh']}")
     if fails:
-        print("净值刷新失败:", fails)
-    if (us_latest.get("fail") or {}):
-        print("指数刷新失败:", us_latest["fail"])
+        print("真实指数刷新失败:", fails)
 
 
 if __name__ == "__main__":

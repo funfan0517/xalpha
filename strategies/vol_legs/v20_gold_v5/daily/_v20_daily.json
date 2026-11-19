@@ -1,33 +1,36 @@
 {
   "strategy": "v20",
-  "name": "v20 黄金 · V6-B 控回撤（当前 ★1）",
-  "status": "研究确认无提升",
+  "name": "v20 黄金 · V5.1 黄金仓位（风险预算 × 利率闸门）",
+  "status": "当前 ★1（研究确认无提升）",
   "leg": "gold",
   "as_of": "2026-11-18",
-  "generated": "2026-11-18",
+  "generated": "2026-11-19",
   "rule": {
-    "rule": "V6-B 纯波动层（TV10%/120 日 + 15pp 死区/10 日限速，原生 gold.state_b）",
+    "rule": "风险预算 scale=clip(10%/120 日波动, 20%, 1) × 实际利率闸门 gate(DFII10 水平 0.5%±0.15pp) → 量化到 20pp 六档；跨 1 档才动，T 日收盘信号 → T+1 收盘成交",
     "trade_at": "T 日收盘信号 → T+1 收盘成交",
     "fee_side": 0.001,
-    "cash_annual": 0.014
+    "cash_annual": 0.014,
+    "rate_source": "FRED DFII10（data/_dfii10.csv）"
   },
-  "current_position": 0.3995,
-  "next_target": 0.3995,
+  "current_position": 0.4,
+  "next_target": 0.4,
   "action": "买入并持有",
   "legs": [
     {
       "leg": "gold",
-      "name": "v20 黄金 · V6-B 控回撤（当前 ★1）",
+      "name": "v20 黄金 · V5.1 黄金仓位（风险预算 × 利率闸门）",
       "code": "518880",
       "action": "买入并持有",
-      "state": 0.3995,
-      "pending": 0.3995,
-      "pos": 0.3995,
+      "state": 0.4,
+      "pending": 0.4,
+      "pos": 0.4,
       "level_txt": "当前 40% → 目标 40%",
       "date": "2026-11-18",
       "close": 7.708
     }
   ],
   "recent_flow": [],
-  "note": "_beat_best_top3.md：最佳候选 ROT 后段略赢但全样本不及；保持当前 ★1 V6-B。"
+  "reading": "波动 22.7% → 预算 0.44；实际利率 +2.89% → 闸门 1.00",
+  "rate_note": "FRED DFII10 2003-01-02 ~ 2026-11-17（5973 行）",
+  "note": "best_by_leg.md §0（2026-11-19）：黄金 ★1 = V5.1；_beat_best_top3.md 九个组合候选无一通过双闸门。"
 }

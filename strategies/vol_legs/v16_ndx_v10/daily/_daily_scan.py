@@ -61,7 +61,7 @@ def main():
                           fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
                 current_position=round(prev, 4), next_target=round(cur, 4),
                 action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。")
+                note="_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
@@ -71,7 +71,7 @@ def main():
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
          f"- 标的：纳指100（`270042`，真实指数口径）；策略：V10 波动层（当前 ★1）。", "",
          "## 规则", "", "V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。", "",
+         f"> {engine.STATUS}。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:

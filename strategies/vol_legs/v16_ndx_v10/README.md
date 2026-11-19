@@ -2,7 +2,7 @@
 
 > **研究确认无提升**。规则与数字来源：
 > [`research/beat_best/_beat_best_top3.md`](../research/beat_best/_beat_best_top3.md)（2026-11-18）。
-> _beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。
+> _beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。
 
 ## 规则
 

@@ -113,14 +113,15 @@ def main():
         "急跌/慢跌/弱反弹/强反弹）。状态机 `engine.py::classify`，参数 `rule.py`。",
         "> 口径：**真实指数收盘 + 同源指数量能**（黄金用场内 `518880`；宽基 ETF 自身量是做市噪声，"
         "会把弱回调/强回调的符号做反）。**T 日收盘出信号，T+1 收盘前执行**。",
-        f"> 许可映射：{' · '.join(f'{k} {v:.0%}' for k, v in rule.CAP.items())}"
+        f"> 许可映射（生效基线 = 规格 ⊕ `慢跌` 0，2026-11-19）："
+        f"{' · '.join(f'{k} {v:.0%}' for k, v in rule.CAP.items())}"
         f" · 升格确认 {rule.UP_CONFIRM} 日（降格立即）。",
         ("**生效口径 = v12.1**（`rule.OPT=True`）："
          + "；".join(f"{rule.NAMES[l]} {rule.cap_version(l)}"
-                    for l in rule.LEGS if rule.cap_version(l) != "规格 CAP")
+                    for l in rule.LEGS if rule.cap_version(l).startswith("v12.1"))
          + "。依据 `research/opt_ashare/` 与 `strategies/vol_legs/research/v12v13_compare/`；"
-           "括号里的许可已按腿生效，`rule.OPT=False` 可回退规格口径。")
-        if rule.OPT else "生效口径 = 规格 CAP（`rule.OPT=False`）。",
+           "括号里的许可已按腿生效，`rule.OPT=False` 可回退基线口径。")
+        if rule.OPT else "生效口径 = 基线 CAP（`rule.OPT=False`）。",
         f"> 执行范围：**{' + '.join(rule.NAMES[l] for l in rule.CORE_LEGS)}**"
         "（`rule.CORE_LEGS`，2026-11-18 由「只做沪深300」扩到七腿；"
         "`z_th`/`rvol` 仍是规格在沪深300 上的标定值，额度按回测 §1c 的 Δ夏普排）。",
@@ -175,9 +176,11 @@ def main():
         "",
         "- **「许可」是上限语义**：今天读到的许可 = 明天起可以持有的最大带内比例，"
         "不是「明天必须买到这个数」。低于当前持仓就该减，高于当前持仓只是**解锁**加仓资格。",
-        "- **八态不是涨跌预测**：`慢跌` 压到 20% 的依据是规格 §3 的长样本 fwd20（−1.00%）与胜率（45%），"
-        "`急跌` 反而留 50% 的依据是同一张表的 +0.89%（急跌会反抽）。"
-        "这条不对称是规格的核心结论，不要按直觉改成「跌了就清仓」。",
+        *[f"- **参数变更 {d}**：{t}" for d, t in rule.CHANGELOG],
+        "- **八态不是涨跌预测**：`慢跌` 压到 0%（规格 20%，本仓库 2026-11-19 下调）的依据是"
+        "规格 §3 的长样本 fwd20（−1.00%）与胜率（45%），`急跌` 反而留 50% 的依据是同一张表的"
+        "+0.89%（急跌会反抽）。这条不对称是规格的核心结论 —— **不是「跌了就清仓」**："
+        "清仓只针对钝刀割肉的慢跌，急跌仍留半仓。",
         "- **七腿都执行，但额度不该等权**：价格/量能已是同源真实指数，`z_th`/`rvol` 仍是"
         "规格在沪深300 上的标定值（规格 §7.4 建议在美股重标；两折样本外无一腿能稳定赢过原值）。"
         "哪条腿值得多给额度看回测 §1c 的 Δ夏普排序 —— 恒生科技是唯一拖累组合的一条。",
@@ -195,8 +198,10 @@ def main():
         variant="v12_octo_trend",
         core=rule.CORE_LEGS,
         cap_opt={l: rule.cap_map(l) for l in rule.LEGS} if rule.OPT else None,
-        cap_spec=rule.CAP,
+        cap_spec=rule.CAP_SPEC,
+        cap_base=rule.CAP,
         cap_version={l: rule.cap_version(l) for l in rule.LEGS},
+        changelog=[dict(date=d, note=t) for d, t in rule.CHANGELOG],
         vol_target=rule.VOL_TARGET if rule.OPT else {},
         up_confirm=rule.UP_CONFIRM,
         vol_mode=rule.VOL_MODE,

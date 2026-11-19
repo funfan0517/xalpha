@@ -61,7 +61,7 @@ def main():
                           fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
                 current_position=round(prev, 4), next_target=round(cur, 4),
                 action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md：同尺夏普 0.69→0.83、后段 1.50→1.80，回撤 −18.79%→−10.29%；样本仅 6 年。")
+                note="_beat_best_top3.md：同尺夏普 0.79→0.90、后段 1.57→1.85，回撤 −14.37%→−8.31%；样本仅 6 年。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
@@ -71,7 +71,7 @@ def main():
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
          f"- 标的：科创50（`011609`，真实指数口径）；策略：E2×TV20 波动上限。", "",
          "## 规则", "", "(V2 + V12 等权融合) × 波动上限 TV20%（研究同款 cap 层）。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md：同尺夏普 0.69→0.83、后段 1.50→1.80，回撤 −18.79%→−10.29%；样本仅 6 年。", "",
+         f"> {engine.STATUS}。_beat_best_top3.md：同尺夏普 0.79→0.90、后段 1.57→1.85，回撤 −14.37%→−8.31%；样本仅 6 年。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:

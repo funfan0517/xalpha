@@ -2,7 +2,7 @@
 """v16 · 纳指100 · V10 波动层（当前 ★1）。
 
 来源：`strategies/vol_legs/research/beat_best/_beat_best_top3.md`（2026-11-18）。
-状态：**研究确认无提升**。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。
+状态：**研究确认无提升**。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。
 
 规则：V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）。
 逐日权重直接调各变种的**原生引擎**（经 `strategies/vol_legs/_top3_bridge.py` 隔离加载），

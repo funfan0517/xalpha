@@ -110,3 +110,40 @@ Set-Location g:\xalpha          # 禁止
 > ⚠ **迁移后必须实跑验证**，不要只看代码。这一轮踩到的坑：
 > 1. `pipeline/strategies.json` 里除了显眼的 `raw_out` / `out_active_md` / `out_active_json`，还有 **`backtest.report`** 和 **`daily.signal_report` / `daily.dashboard`** 这几个容易漏掉的字段 —— 它们是**回读运行日志**时才暴露的（日志里打印的仍是旧路径）。
 > 2. `pipeline/run_flow.py` 的 `--report` 分支原先**从产物目录推断报告生成器**（假设 `_reportbt.py` 与报告产物同目录）。产物一旦移进 `backtest/`，这个假设就失效 —— 已改为**从 `engine` 目录推断**（引擎留在策略包根）。**改动布局时要留意这种"从某个文件位置反推另一个文件位置"的隐式耦合**，它不会报语法错，只会在运行时找不到文件。
+
+## 9. 新策略上线纪律：默认不进每日操作报告
+
+**规则（2026-11-19 定）：新策略 / 新变种默认 `daily.enabled = false`。未经用户明确同意，不得写进每日操作报告（看板）。**
+
+「跑产物」与「进报告」是两件事，必须分开决定：
+
+| | 由什么控制 | 新策略的默认 |
+|---|---|---|
+| 每日脚本跑不跑、产物刷不刷新 | `pipeline/strategies.json` 的 `daily.runner` / 家族 `run_daily_*.ps1` | **照跑**（产物要能复核） |
+| 看板（每日操作报告）里出不出这张卡 | `daily.enabled`（`daily_digest.py::_card_on`） | **false**（不进报告） |
+
+### 9.1 上板（进每日操作报告）的流程
+
+1. **必须有用户的明确指令**（原话如「把 vN 加进看板 / 上板 / 进每日操作」）。自己判断「策略有效、应该上板」不算同意。
+2. 把 `daily.enabled` 改成 `true`，并写 `daily.enabled_note`：**`YYYY-MM-DD 用户同意（原话摘要或出处）`** —— 这一行是唯一的凭据，没有它下次没人知道这张卡为什么在报告里。
+3. 补齐 `daily.signal_report` / `daily.signal_json` / `daily.block` 与 `pipeline/daily_digest.py` 的 `PARSERS` 注册。
+4. 跑 `python pipeline/check_daily_config.py`（E3/E4 会卡住漏写开关与无凭据上板）。
+
+### 9.2 下板（撤出报告）同样留痕
+
+`daily.enabled = false` + `enabled_note` 写清「date 用户要求撤出/为什么撤出/产物去哪看」。
+**产物脚本不要一起删** —— 下板只是不出卡，研究数据要能继续刷新（参考 v2 / v4~v6 的写法）。
+
+### 9.3 为什么要有这条
+
+- `daily.enabled` 的原语义是「`is not False` 即上板」，**漏写键 = 默认上板**。新策略一旦忘写，就会静默挤进报告，把当天的操作版面稀释掉，而且没有任何报错。
+- 报告是「每天照着做」的东西，任何未经验证的策略混进去都是**执行风险**，不是展示问题。
+- 历史上已经踩过：2026-11-19 新增 `bond_cash` 的 v4/v5/v6 三个研究变种，回测均未跑赢 v0 / 固定中性，创建时默认带出了卡片；同日按本规则改为 `enabled=false`（产物仍由 `run_daily_bond_cash.ps1` 第 5/6/7 步刷新）。
+
+### 9.4 强制校验（写进 CI 习惯）
+
+```powershell
+python pipeline/check_daily_config.py          # E3 缺显式 enabled / E4 上板无凭据，任一即失败
+```
+
+校验通过时会打印**当前上板清单**，改完 `strategies.json` 顺手看一眼，比翻 JSON 靠谱。

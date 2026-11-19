@@ -116,13 +116,14 @@ def main():
           "分离度符号会反）；黄金无非指数可用，退回 `518880` 自身量。"
         + f"T 日收盘判态、T+1 起承担仓位 · 空仓计货基 {rule.CASH_ANNUAL:.2%} · "
         f"摩擦单边 {rule.FEE_SIDE * 1e4:.1f}bp · 预热 {rule.WARMUP} 根。",
-        "> 许可映射（**规格原表，按 §3/§4 的后验统计定，不按回测调**）："
+        "> 许可映射（**生效基线 = 规格原表 ⊕ `慢跌` 20%→0**，2026-11-19）："
         + " · ".join(f"{k} {v:.0%}" for k, v in rule.CAP.items())
         + f" · 升格确认 {rule.UP_CONFIRM} 日（降格立即）。"
+        "规格原值见 §3 的「许可·规格」列（`rule.CAP_SPEC`），除 `慢跌` 外两表一致。"
         + (f"\n> **生效口径 = v12.1**（`rule.OPT={rule.OPT}`）："
            + "；".join(f"{rule.NAMES[l]} {rule.cap_version(l)}"
-                      for l in rule.LEGS if rule.cap_version(l) != "规格 CAP")
-           + "。§1b 给两版对照，`rule.OPT=False` 可一键回到规格口径。"
+                      for l in rule.LEGS if rule.cap_version(l).startswith("v12.1"))
+           + "。§1b 给两版对照，`rule.OPT=False` 可一键回到基线口径。"
            if rule.OPT else "\n> **生效口径 = 规格 CAP**（`rule.OPT=False`）。"),
         "",
         "## 1. 逐腿（按当前生效口径）",
@@ -149,11 +150,12 @@ def main():
 
     # ---------------- v12.1 vs 规格口径
     if rule.OPT:
-        L += ["", "## 1b. v12.1 vs 规格口径（同一窗口/同一成本，只有许可与波动覆盖不同）", "",
+        L += ["", "## 1b. v12.1 vs 基线口径（同一窗口/同一成本，只有许可与波动覆盖不同）", "",
               "来源：`research/opt_ashare/_opt_ashare.md`（次日/5 日期望重标）→ "
-              "`strategies/vol_legs/research/v12v13_compare/_v12v13_compare.md`（20.7 年指数样本裁决）。",
+              "`strategies/vol_legs/research/v12v13_compare/_v12v13_compare.md`（20.7 年指数样本裁决）。"
+              "「基线」= `rule.cap_map` 的 `OPT=False` 版（`CAP`，含 `慢跌` 0% 这一处偏离规格）。",
               "",
-              "| 腿 | 规格年化 | 规格回撤 | 规格夏普 | v12.1年化 | v12.1回撤 | v12.1夏普 | Δ夏普 | 生效许可 |",
+              "| 腿 | 基线年化 | 基线回撤 | 基线夏普 | v12.1年化 | v12.1回撤 | v12.1夏普 | Δ夏普 | 生效许可 |",
               "|---|---:|---:|---:|---:|---:|---:|---:|---|"]
         for r in rows:
             if r["ann"] is None:
@@ -229,7 +231,7 @@ def main():
               "|---|---:|---:|---:|---:|---:|"]
         for x in ss["rows"]:
             L.append(f"| {x['state']} | {x['share']:.1%} | {pct(x['fwd'])} | "
-                     f"{x['win']:.1%} | {rule.cap_of(x['state']):.0%} | "
+                     f"{x['win']:.1%} | {rule.CAP_SPEC.get(x['state'], 0.0):.0%} | "
                      f"{rule.cap_of(x['state'], leg=core):.0%} |")
         L += ["", "**四组配对分离度**（fwd20 差 / 胜率差）：", "",
               "| 配对 | fwd20 差 | 胜率差 | 样本 |", "|---|---:|---:|---|"]
@@ -280,7 +282,7 @@ def main():
         f"4. **年化跑输恒持是预期内的**：{rule.NAMES[core]} 样本内平均许可只有 "
         f"{results[core]['expo']:.0%}，空仓段拿的是货基 {rule.CASH_ANNUAL:.2%}。"
         "这条规则的卖点是**回撤与「慢跌不参与」**，不是年化。规格 §4② 的「急跌会反抽、"
-        "慢跌继续跌」是本策略敢在急跌留半仓、慢跌压到 2 成的唯一依据。",
+        "慢跌继续跌」是本策略敢在急跌留半仓、慢跌给 0（规格 20%，2026-11-19 下调）的唯一依据。",
         "5. **口径不可与其它变种混算**：价格用真实指数、量能用同源指数量能，"
         "**不含分红再投、场内溢价与汇率**，与 v1/v2/v3/v5 的真实指数口径同属一类；"
         "黄金仍用 `518880` 实物 ETF（无指数）。",

@@ -1,6 +1,6 @@
 # V1 · 四因子久期档（晴雨表）
 
-> 生成 2026-11-19 08:41 · 数据截止 **2026-11-18** · 规则来源 `G:\tradingagents\bond_strategy\bond_rules.md` v1.0
+> 生成 2026-11-19 10:03 · 数据截止 **2026-11-18** · 规则来源 `G:\tradingagents\bond_strategy\bond_rules.md` v1.0
 
 ## 一、债券晴雨表（温度只定赔率、不定方向）
 

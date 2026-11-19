@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""在前三最优策略之上，还能不能再往前推一步？—— 原生引擎 · 同尺版（2026-11-18）
+"""在前三最优策略之上，还能不能再往前推一步？—— 原生引擎 · 同尺版（2026-11-19）
 
 与同目录另两份研究的区别（**这是本课题存在的理由**）：
 
@@ -9,10 +9,14 @@
 | `_beat_best_index.py`（11-16） | 真实指数 | **手写近似** | 基线错位：NDX 用 V9 而非当前 ★1 V10；SPX 用 V13 而非 ★1 V12 |
 | **本文件** | 真实指数 | **原生引擎逐日权重** | 直接用 `best_by_leg.md` §0 的当前前三名，不重写规则 |
 
+2026-11-19 重跑：`v12` 把 `慢跌` 从 20% 改到 0% 后，沪深300 / 标普500 / 科创50 三条腿的 ★1
+都换成了 V12；黄金腿纳入重构后的 `v5_gold_score`（V5.1 风险预算 × 利率闸门）后 ★1 变成 V5.1。
+所以本文件的 TOP3 基线整体换过一轮（见下方 `TOP3`）。
+
 方法三条硬约束：
-1. **不重写规则**：八个变种的逐日权重全部来自各自原生引擎（`boll.weight` / `macd_boll.weight` /
+1. **不重写规则**：九个变种的逐日权重全部来自各自原生引擎（`boll.weight` / `macd_boll.weight` /
    `vol_target.machine` / `vol_layer.state_daily` / `engine.backtest_leg` / `engine.state_machine` /
-   `gold.state_b` / `ma20.signal`），用 `pipeline/intraday_preview.py::_isolated` 范式隔离同名模块。
+   `gold.state_b` / `ma20.signal` / `score.run`），用 `pipeline/intraday_preview.py::_isolated` 范式隔离同名模块。
    import 与调用都必须在隔离上下文里（V12 `engine.py:296` 会在**调用时**再 `import data` 并 fail-fast）。
 2. **同尺**：统一价格（`data.series_for_leg`）、统一窗口（预热 300 根）、统一成本（单边 10bp、
    空仓 1.40%），不复用各变种自己的费率。附录另给「原生费率复现」列，验证引擎加载无误。
@@ -63,16 +67,16 @@ CUT = 0.60                 # 前 60% / 后 40%
 GATE = 0.02                # 全样本夏普门槛（排除舍入级伪超越）
 POST_GATE = 0.02           # 后段夏普门槛：后段只赢 0.00x 属噪声，不予采纳
 
-# 当前前三名——逐字抄自 research/best_by_leg/_best_by_leg.md §0（2026-11-18）
+# 当前前三名——逐字抄自 research/best_by_leg/_best_by_leg.md §0（2026-11-19 重跑）
 # key 必须与下方 ENGINE 的 key 一致；第 0 项 = 该腿当前 ★1（基线）
 TOP3 = {
-    "a500": [("v3", "V3 MACD+BOLL"), ("v2", "V2 BOLL"), ("v1", "V1 MA20")],
-    "hs300": [("v2", "V2 BOLL"), ("v12", "V12 八态趋势"), ("v9", "V9 波动目标")],
+    "a500": [("v3", "V3 MACD+BOLL"), ("v2", "V2 BOLL"), ("v12", "V12 八态趋势")],
+    "hs300": [("v12", "V12 八态趋势"), ("v2", "V2 BOLL"), ("v9", "V9 波动目标")],
     "ndx": [("v10", "V10 波动层"), ("v9", "V9 波动目标"), ("v13", "V13 九宫格")],
     "spx": [("v12", "V12 八态趋势"), ("v13", "V13 九宫格"), ("v9", "V9 波动目标")],
-    "kc50": [("v2", "V2 BOLL"), ("v12", "V12 八态趋势"), ("v3", "V3 MACD+BOLL")],
+    "kc50": [("v12", "V12 八态趋势"), ("v2", "V2 BOLL"), ("v3", "V3 MACD+BOLL")],
     "hkt": [("v3", "V3 MACD+BOLL"), ("v9", "V9 波动目标"), ("v2", "V2 BOLL")],
-    "gold": [("v6b", "V6-B 控回撤"), ("v13", "V13 九宫格"), ("v12", "V12 八态趋势")],
+    "gold": [("v5", "V5.1 黄金仓位"), ("v6b", "V6-B 控回撤"), ("v13", "V13 九宫格")],
 }
 NAMES = {"a500": "中证A500", "hs300": "沪深300", "ndx": "纳指100", "spx": "标普500",
          "kc50": "科创50", "hkt": "恒生科技", "gold": "黄金"}
@@ -82,6 +86,8 @@ ENGINE_SPECS = {
     "v1": ("v1_price_volume/v1_1_ma20", ("data", "rule", "engine", "ma20"), "ma20", 0.0015),
     "v2": ("v2_boll_breakout", ("data", "rule", "engine", "boll"), "boll", 0.0030),
     "v3": ("v3_macd_boll", ("data", "rule", "engine", "macd_boll"), "macd_boll", 0.0030),
+    # v5 的 score.py 会 `import engine`（家族根目录那份，取 metrics）与 `import factors`
+    "v5": ("v5_gold_score", ("data", "rule", "engine", "factors", "score"), "score", 0.00025),
     "v6b": ("v6_gold", ("data", "rule", "engine", "gold"), "gold", 0.0008),
     "v9": ("v9_vol_target", ("data", "rule", "engine", "vol_target"), "vol_target", 0.0010),
     "v10": ("v10_vol_layer", ("data", "rule", "engine", "vol_layer"), "vol_layer", 0.0010),
@@ -106,7 +112,7 @@ def isolated(directory, names):
 
 
 class Engines:
-    """一次性加载八个原生引擎模块；**调用**时仍套隔离（V12 在调用时二次 import data）。"""
+    """一次性加载九个原生引擎模块；**调用**时仍套隔离（V12 在调用时二次 import data）。"""
 
     def __init__(self):
         self.mods, self.dmods = {}, {}
@@ -131,6 +137,15 @@ class Engines:
                 h = m.weight(px, m.signal(px)[0]).shift(1).fillna(0.0)
             elif key == "v3":
                 h = m.weight(px, m.signal(px)).shift(1).fillna(0.0)
+            elif key == "v5":
+                # `score.run` 的 `state[t]` = t 日收盘成交后的仓位（已含 T+1 成交滞后），
+                # 所以「t 日收益对应的仓位」= state.shift(1)。状态机必须**在全样本上跑**
+                # （START=0.40 起手档 + 120 日波动预热），再 reindex 进研究窗口，
+                # 否则窗口起点会重放一次 0.40 的假建仓。
+                F = importlib.import_module("factors")
+                full = vdata.series_for_leg(leg).dropna().astype("float64")
+                df5 = m.run(pd.DataFrame({"close": full}), F.read_rate())
+                h = df5["state"].shift(1).reindex(px.index).ffill().fillna(0.0)
             elif key == "v6b":
                 h = m.state_b(px)["state"].shift(1).fillna(0.0)
             elif key == "v9":
@@ -175,6 +190,9 @@ def native_fee(key, leg, eng):
     """自检专用：取各引擎真实费率档（C 类腿 0 费率 / A 类 10+50bp / 场内 16bp / 单边 5~10bp）。"""
     if key in ("v1", "v2", "v3"):
         return tuple(eng.mods[key].FEE[leg])
+    if key == "v5":
+        m = eng.mods[key]
+        return float(m.FEE) + float(m.SLIP)          # 场内万 2.5 单边、默认计滑点
     if key == "v6b":
         m = eng.mods[key]
         return (float(m.FEE[0]) + float(m.SLIP), float(m.FEE[1]) + float(m.SLIP))
@@ -269,7 +287,7 @@ def main():
     L = [
         "# 在「当前前三」之上，还能再往前推一步吗？—— 原生引擎 · 同尺版",
         "",
-        "> 由 `research/beat_best/_beat_best_top3.py` 生成（2026-11-18）。"
+        "> 由 `research/beat_best/_beat_best_top3.py` 生成（2026-11-19）。"
         "基线逐字取自 `research/best_by_leg/_best_by_leg.md` §0 的**当前前三名**，"
         "逐日权重来自各变种**原生引擎**，不重写规则、不复用旧研究的近似函数。",
         "",
@@ -309,10 +327,10 @@ def main():
         for key, label in rows:
             holds[key] = eng.hold(key, leg, px)
         # 自检：用各引擎原生费率近似复现（仅验证加载，不参与候选比较）
-        pub = {"a500": [0.88, 0.83, 0.77], "hs300": [0.75, 0.73, 0.73],
-               "ndx": [0.73, 0.66, 0.65], "spx": [0.59, 0.59, 0.56],
-               "kc50": [0.70, 0.67, 0.61], "hkt": [0.34, 0.16, 0.14],
-               "gold": [0.74, 0.65, 0.61]}[leg]
+        pub = {"a500": [0.88, 0.83, 0.81], "hs300": [0.83, 0.75, 0.73],
+               "ndx": [0.73, 0.66, 0.65], "spx": [0.66, 0.59, 0.56],
+               "kc50": [0.84, 0.70, 0.61], "hkt": [0.34, 0.16, 0.14],
+               "gold": [1.02, 0.74, 0.65]}[leg]
         for i, (key, label) in enumerate(rows):
             m = metrics(holds[key], px, fee=native_fee(key, leg, eng))
             checks.append(f"| {NAMES[leg]} | {label} | {fmt(m['ann'])} | {fmt(m['mdd'])} | "

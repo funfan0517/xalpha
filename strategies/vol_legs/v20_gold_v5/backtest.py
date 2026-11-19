@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v20 回测：黄金 · V6-B 控回撤（当前 ★1）。
+"""v20 回测：黄金 · V5.1 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
 
 产物：`backtest/_<v>_bt.md` / `.jsonl`。机械规则输出，非投资建议。
-用法：`python strategies/vol_legs/v20_gold_v6b/backtest.py`
+用法：`python strategies/vol_legs/v20_gold_v5/backtest.py`
 """
 import io
 import json
@@ -54,20 +54,26 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：最佳候选 ROT 后段略赢但全样本不及；保持当前 ★1 V6-B。")
+               note="best_by_leg.md §0（2026-11-19）：黄金 ★1 = V5.1（夏普 1.02 / 回撤 -12.33%）；"
+                    "_beat_best_top3.md 九个组合候选无一通过双闸门（最佳 MIN2 0.98 < 1.04）。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v20 回测报告 · 黄金", "",
-        f"> 由 `strategies/vol_legs/v20_gold_v6b/backtest.py` 生成。**研究确认无提升**。", "",
+        f"> 由 `strategies/vol_legs/v20_gold_v5/backtest.py` 生成。**当前 ★1（研究确认无提升）**。", "",
         "## 规则", "",
-        "V6-B 纯波动层（TV10%/120 日 + 15pp 死区/10 日限速，原生 gold.state_b）。", "",
-        f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
-        f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：最佳候选 ROT 后段略赢但全样本不及；保持当前 ★1 V6-B。", "",
+        f"{engine.RULE_TXT}。", "",
+        f"逐日权重来自原生引擎（`_top3_bridge.py` → `v5_gold_score/score.py`），"
+        f"t 日收盘成交后建仓 → T+1 收益；统一单边 {engine.FEE_SIDE:.2%}、"
+        f"空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
+        "> 研究出处：`research/best_by_leg/_best_by_leg.md` §0（2026-11-19 重跑）——"
+        "黄金 ★1 = V5.1（含费夏普 1.02 / 回撤 −12.33%），V6-B 退到 ★2（0.74 / −16.12%）。"
+        "`research/beat_best/_beat_best_top3.md` 里的九个组合/叠加候选无一通过双闸门"
+        "（最佳 MIN2 0.98 < 基线 1.04），所以 v20 直接采用 ★1 本身。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
@@ -79,8 +85,10 @@ def main():
         f"后段（自 {cut.date()}）夏普 **{post['sharpe']:.2f}**。", "",
         "## 口径与边界", "",
         "- 单一标的策略，**不做跨腿配权**；与其他版本同尺比较时先看费率列。",
-        "- 成本为研究口径单边 10bp，与该腿原生费率（如 A 类 60bp 往返 / 场内 16bp）不同，"
-        "绝对数不可与 `best_by_leg.md` 直接对账。",
+        "- 成本为研究口径单边 10bp，与 V5 自己的产物（场内万 2.5 单边）不同，"
+        "绝对数不可与 `best_by_leg.md` 的 1.02 直接对账（同为含费但费率档不同）。",
+        "- 实际利率取 FRED `DFII10` 缓存（`data/_dfii10.csv`），T 日只用 ≤T−1 的观测；"
+        "缓存过期时每日扫描会尝试联网补一次，失败则沿用缓存并在报告里标注。",
         "- 图中长期与近三年两张 PNG 由 `research/_plot_leg.py` 生成；"
         "近三年窗口仍用全样本算信号，只截末端并把净值归 1。",
         "", "> 机械规则输出，非投资建议。",

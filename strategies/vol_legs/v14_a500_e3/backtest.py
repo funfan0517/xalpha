@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v14 回测：中证A500 · V3 MACD+BOLL（当前 ★1）。
+"""v14 回测：中证A500 · E3 前三等权融合（V3 + V2 + V12）。
 
 产物：`backtest/_<v>_bt.md` / `.jsonl`。机械规则输出，非投资建议。
-用法：`python strategies/vol_legs/v14_a500_v3/backtest.py`
+用法：`python strategies/vol_legs/v14_a500_e3/backtest.py`
 """
 import io
 import json
@@ -54,20 +54,24 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：候选 E2 全样本赢、后段输；保持当前 ★1 V3。")
+               note="_beat_best_top3.md（2026-11-19）：E3 前三等权融合 ★超越，夏普 0.66→0.82、后段 0.34→0.38。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v14 回测报告 · 中证A500", "",
-        f"> 由 `strategies/vol_legs/v14_a500_v3/backtest.py` 生成。**研究确认无提升**。", "",
+        f"> 由 `strategies/vol_legs/v14_a500_e3/backtest.py` 生成。**★ 研究超越项**。", "",
         "## 规则", "",
-        "V3 MACD+BOLL 开口突破（原生 macd_boll.weight）+ 波动上限 TV20%。", "",
+        f"{engine.RULE_TXT}。", "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：候选 E2 全样本赢、后段输；保持当前 ★1 V3。", "",
+        "> 研究出处：`research/beat_best/_beat_best_top3.md`（2026-11-19 重跑）："
+        "E3 前三等权融合 ★超越，同尺夏普 0.66 → **0.82**、后段 0.34 → **0.38**、"
+        "年化 +6.59% → +9.22%、回撤 −13.74% → −16.20%；毛夏普 0.74 → 0.92（信号效应为主），"
+        "换手 8.5 → 44.8 次/年。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

@@ -48,9 +48,10 @@ e*    = 量化(clip(scale × gate, 0, 1), 20%)          # 六档：0/20/40/60/80
    之间抖：105 笔 → 45 笔，年化 +9.43% → +9.61%，夏普 0.97 → 1.02。
 
 **不进仓位的提示数据**：资金流（`data/_flow_518880.csv` 东财主力，只有 120 天；
-`data/_etf_shares_518880.csv` 上交所每日份额，2013-07 起全史）只出现在每日报告的
-「近期提示」栏，**不参与 `scale × gate`、不进任何档位计算**。数据源与负贡献结论保留在
-`research/flow_source/_probe_flow.md`。
+`data/_etf_shares_518880.csv` 上交所每日份额，2013-07 起全史）与**宏观环境格**
+（DXY × CPI 分档）只出现在每日报告的「不计分项」栏，**不参与 `scale × gate`、
+不进任何档位计算**。数据源与负贡献结论保留在 `research/flow_source/_probe_flow.md`
+与 `research/dxy_cpi/_probe_dxy_cpi.md`。
 
 ## 3. 回测结论（`backtest/_v5_gold_score_bt.md`）
 
@@ -115,6 +116,7 @@ v5_gold_score/
 │   ├── _plot_score.py         # 长期 + 近三年两张图
 │   └── _v5_gold_score.png / _v5_gold_score_3y.png
 └── research/
+    ├── dxy_cpi/               # 美元指数 × 通胀（外部文档复现 + 叠加回测 + 安慰剂）：只做读数
     ├── flow_source/           # 资金流源探针（120 天硬上限 / 份额全史）
     ├── opt_probe/             # v5.1 设计探针（规则家族 / 参数面 / 闸门带 / 利率符号 / 敏感性）
     └── rate_level/            # 利率水平假说：年度非重叠点复检（+0.63，三段符号不稳）
@@ -134,12 +136,34 @@ python strategies/vol_legs/v5_gold_score/backtest.py                    # 回测
 python strategies/vol_legs/v5_gold_score/daily/_daily_scan.py           # 每日读数（联网补利率）
 python strategies/vol_legs/v5_gold_score/daily/_plot_score.py           # 长期 + 近三年两张图
 python strategies/vol_legs/v5_gold_score/research/rate_level/_probe_level.py  # 利率水平假说检验
+python strategies/vol_legs/v5_gold_score/research/dxy_cpi/_probe_dxy_cpi.py --refresh  # 美元×通胀检验（首次补 DXY/CPI/XAU）
 ```
 
 **未接入每日看板**：`pipeline/strategies.json` 不注册、`run_daily_vol_legs.ps1` 不调用。
 需要时手跑上面两行。
 
-## 6. 已知边界（用之前必须知道）
+## 6. 外部研究：美元指数 × 通胀（只做读数，不进公式）
+
+来源：外部《美元指数与通胀对黄金的影响研究》（2026-11-19，样本 118 个月）提出了
+「DXY × CPI 格子历史胜率」与三条草案 R-03d-1/2/3。用仓库数据在**240 个月**上复检，
+结论写在 `research/dxy_cpi/_probe_dxy_cpi.md`，要点：
+
+1. **单因子方向复现了，「最差档」没复现**：DXY>105 最好（+2.53% / 64% / t=2.20）、
+   CPI 2~3% 最舒适（+1.46% / 59% / t=2.78）都成立；但 DXY<95「最差」（文档 −0.53%/34%）
+   实测 **+0.45% / 50%**，CPI 4~5%「最差」（文档 −2.38%/33%）实测 **+0.63% / 50%**。
+   仓位折扣规则恰恰只需要「什么时候最差」—— 而这一半没有证据。
+2. **格子样本不够**：最大格子 56 个月 ≈ 4 个独立年度；外部文档 n=6 的格子不到 1 个年度。
+3. **接进公式无改善**：格子胜率乘数在滚动口径下 1 条**一次都没触发**（无格子同时满足
+   n≥12 且胜率<45%）；放宽到 n≥6 后年化最好 +0.06pp、夏普 +0.02，**安慰剂 p=0.21**；
+   全样本作弊上界也只有 +0.05pp；DXY 背离口径夏普 −0.12、调仓 ×8。
+4. **落地方式 = 每日报告一行读数**（`F.macro_cell()`，与 `read_flow` / `read_shares` 同级）：
+   `DXY 103.8 × CPI +4.08% → 102.5~105 × 4~5（历史 n=2、1 月胜率 50%）`。
+   **永不改变仓位数字**。
+
+所需缓存（数据类，别的策略可复用）：`data/_dxy.csv`（ICE 美元指数，东财 100.UDI，
+1986 起；v6 研究维护）、`data/_cpi.csv`（FRED CPIAUCSL，本变种新增）。
+
+## 7. 已知边界（用之前必须知道）
 
 1. **不是 alpha，是风险归一化**：它不预测方向。想要「更高年化」这套规则给不了；
    它给的是同样的年化、三分之一的回撤。

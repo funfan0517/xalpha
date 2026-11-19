@@ -1,0 +1,117 @@
+{
+  "strategy": "V4 · 股债对冲三票",
+  "as_of": "2026-11-18",
+  "generated": "2026-11-19 10:03",
+  "source_methodology": "Newfound Research (2018) carry-trend-hedge + 国泰海通 (2026-06) 股债增强",
+  "carry": {
+    "spread": 0.435,
+    "pct": 32.4,
+    "vote": -1,
+    "rule": "10Y-1Y 期限利差近3年分位 ≥66.7%→+1 / ≤33.3%→-1 / 中间0"
+  },
+  "trend": {
+    "vote": 1,
+    "rule": "10Y 收益率 MA5<MA20 且 MA20<MA60 → +1；全反向 → -1；否则 0"
+  },
+  "hedge": {
+    "stock_ret": -0.1391,
+    "stock_pct": 26.0,
+    "vote": 0,
+    "rule": "沪深300 近252日收益的5年分位 ≥90%→-1（股票过热减久期）/ ≤10%→+1（避险加久期）"
+  },
+  "signal": {
+    "score": 0,
+    "long_w": 35.0,
+    "cur": 47.0,
+    "eff": 47.0,
+    "moved": false,
+    "is_rebalance": false,
+    "act": "hold",
+    "pending": 35.0,
+    "next_rebalance": "下月最后一个交易日"
+  },
+  "held": {
+    "003376": 14.1,
+    "011983": 15.9
+  },
+  "rows": [
+    {
+      "code": "003376",
+      "name": "广发7-10年国开A",
+      "short": "广发7-10年国开A",
+      "act": "hold",
+      "label": "14.1pp",
+      "pp": 0,
+      "nav": 1.5133,
+      "r20": null,
+      "r250": null,
+      "note": "长端占比 47.0%",
+      "role": "长端(10Y)",
+      "theme": "长端"
+    },
+    {
+      "code": "011983",
+      "name": "永赢3-5年政金A",
+      "short": "永赢3-5年政金A",
+      "act": "hold",
+      "label": "15.9pp",
+      "pp": 0,
+      "nav": 1.2152,
+      "r20": null,
+      "r250": null,
+      "note": "长端占比 47.0%",
+      "role": "底仓(3-5Y)",
+      "theme": "底仓"
+    },
+    {
+      "code": "000198",
+      "name": "余额宝",
+      "short": "余额宝",
+      "act": "hold",
+      "label": "5.0pp",
+      "pp": 0,
+      "nav": null,
+      "r20": null,
+      "r250": null,
+      "note": "与 v0/v1/v3 一致",
+      "role": "现金腿",
+      "theme": "现金腿"
+    },
+    {
+      "code": "014437",
+      "name": "存单AAA 7天",
+      "short": "存单AAA 7天",
+      "act": "hold",
+      "label": "5.0pp",
+      "pp": 0,
+      "nav": null,
+      "r20": null,
+      "r250": null,
+      "note": "与 v0/v1/v3 一致",
+      "role": "现金腿",
+      "theme": "现金腿"
+    },
+    {
+      "code": "票",
+      "name": "Carry+Trend+Hedge",
+      "short": "票",
+      "act": "none",
+      "label": "+0",
+      "pp": 0,
+      "nav": null,
+      "r20": null,
+      "r250": null,
+      "note": "carry -1 / trend +1 / hedge +0 → 长端 47.0%",
+      "role": "信号",
+      "theme": "信号"
+    }
+  ],
+  "sources": {
+    "003376": "2026-11-18",
+    "011983": "2026-11-18",
+    "000198": "2026-11-18",
+    "014437": "2026-11-18",
+    "曲线": "2026-11-17",
+    "沪深300": "2026-11-17"
+  }
+}

@@ -3,7 +3,8 @@
 
 输出（本目录 `daily/`）：`_v5_gold_score_daily.md` · `_v5_gold_score_daily.json`。
 报告字段：**实现波动 → 风险预算 / 实际利率水平 → 闸门 / 目标档 e* / 当前档 / 推荐动作 / 数据截止日**，
-另附「不计分项」（FedWatch / 央行购金 / 内外价差 / 资金流）的当日提示 —— 它们**永不改变仓位数字**。
+另附「不计分项」（宏观环境格 DXY × CPI / FedWatch / 央行购金 / 内外价差 / 资金流）的当日提示 ——
+它们**永不改变仓位数字**（宏观格为什么不进公式：`research/dxy_cpi/_probe_dxy_cpi.md`）。
 
 用法（从仓库根跑）：
     python strategies/vol_legs/v5_gold_score/daily/_daily_scan.py            # 会先补实际利率/份额缓存
@@ -70,6 +71,20 @@ def flow_note(flow, shares=None, close=None):
     return "；".join(bits) if bits else "无缓存"
 
 
+def macro_note(m):
+    """宏观环境格读数（**不计分**）：只说明当前落在 DXY × CPI 哪一格，不改仓位。
+
+    为什么不做成因子：见 `research/dxy_cpi/_probe_dxy_cpi.md` —— 接进 `scale × gate` 后
+    年化/回撤/夏普均无改善，全样本作弊上界也只有 +0.05pp 年化。
+    """
+    if not m:
+        return "缺 `data/_dxy.csv` / `_cpi.csv` 缓存（不影响仓位）"
+    stat = (f"历史 n={m['n']}、1 月胜率 {m['win']:.0%}、均值 {m['mean']:+.2%}"
+            if m["n"] else "该格历史无样本")
+    return (f"DXY {m['dxy']:.1f} × CPI {m['cpi']:+.2f}%（{m['asof']}）→ 格子 "
+            f"**{m['cell']}**（{stat}）")
+
+
 def main():
     ap = argparse.ArgumentParser(description="V5.1 黄金仓位 · 每日读数")
     ap.add_argument("--offline", action="store_true", help="不联网（只用本地缓存）")
@@ -108,6 +123,7 @@ def main():
         cond += f"；事件窗口 ±{int(p['EVENT_FREEZE'])} 日内只许持有或减仓"
 
     h = hints()
+    macro = F.macro_cell()
     hint_lines = []
     if h:
         for k, lab in (("fedwatch", "FedWatch 加息/降息概率"), ("cb_gold", "央行购金"),
@@ -169,6 +185,7 @@ def main():
 
     A("## 二、不计分项（只作提示，永不改变仓位数字）")
     A("")
+    A(f"- 宏观环境格：{macro_note(macro)}")
     if hint_lines:
         L.extend(hint_lines)
     else:
@@ -179,6 +196,9 @@ def main():
     A("> 为什么资金流不进仓位：上交所份额全史已补齐并实测 —— 顺势口径显著恶化回撤、"
       "逆势只修回撤不增收益，两个方向都跑输恒定半仓。"
       "详见 `research/flow_source/_probe_flow.md`。")
+    A("> 为什么美元/通胀格子不进仓位：DXY 与实际利率的信息高度重叠（已在闸门里），"
+      "而月度格子的样本量不足以驱动仓位 —— 接进公式后年化/回撤/夏普均无改善。"
+      "详见 `research/dxy_cpi/_probe_dxy_cpi.md`。")
     A("")
 
     A("## 三、净值与操作点")
@@ -226,6 +246,7 @@ def main():
         acts=[f"{a['date'].date()} {'加仓' if a['kind'] == 'buy' else '减仓'} "
               f"{a['frm']:.0%}→{a['to']:.0%}" for a in S.actions(df["state"])[-3:]],
         hints=h, hint_conflict=conflict,
+        macro=macro,
     )
     with open(OUT_JSON, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=1)

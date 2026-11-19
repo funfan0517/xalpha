@@ -54,12 +54,13 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。")
+               note="_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v16 回测报告 · 纳指100", "",
         f"> 由 `strategies/vol_legs/v16_ndx_v10/backtest.py` 生成。**研究确认无提升**。", "",
@@ -67,7 +68,7 @@ def main():
         "V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）。", "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02、后段持平；保持当前 ★1 V10。", "",
+        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

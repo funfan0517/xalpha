@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v17 每日操作：标普500 · MAX2 任一在场（V12∪V13）。
+"""v17 每日操作：标普500 · V12 八态趋势（当前 ★1）。
 
 T 日盘后算决策 → T+1 收盘前执行。只读本地缓存，不联网刷新（与 v2/v13 同纪律）。
 产物：`daily/_<v>_daily.md` / `.json`。机械规则输出，非投资建议。
@@ -57,21 +57,22 @@ def main():
 
     snap = dict(strategy="v17", name=engine.LABEL, status=engine.STATUS,
                 leg=engine.LEG, as_of=date, generated=str(pd.Timestamp.now().date()),
-                rule=dict(rule="max(V12 八态趋势许可上限, V13 九宫格许可上限)——任一认可即持仓", trade_at="T 日收盘信号 → T+1 收盘成交",
+                rule=dict(rule=engine.RULE_TXT, trade_at="T 日收盘信号 → T+1 收盘成交",
                           fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
                 current_position=round(prev, 4), next_target=round(cur, 4),
                 action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md：同尺夏普 0.53→0.62、后段 0.71→0.75；毛夏普持平，增益来自换手下降。")
+                note="_beat_best_top3.md（2026-11-19）：无候选通过双闸门；V12 自身即 ★1（夏普 0.59）。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
     L = ["# v17 每日操作 · 标普500", "",
-         f"> **★ 研究超越项** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
+         f"> **{engine.STATUS}** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
          "## 今日动作", "",
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
-         f"- 标的：标普500（`017641`，真实指数口径）；策略：MAX2 任一在场（V12∪V13）。", "",
-         "## 规则", "", "max(V12 八态趋势许可上限, V13 九宫格许可上限)——任一认可即持仓。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md：同尺夏普 0.53→0.62、后段 0.71→0.75；毛夏普持平，增益来自换手下降。", "",
+         f"- 标的：标普500（`017641`，真实指数口径）；策略：V12 八态趋势（当前 ★1）。", "",
+         "## 规则", "", f"{engine.RULE_TXT}。", "",
+         f"> {engine.STATUS}。_beat_best_top3.md（2026-11-19）：九个候选无一通过双闸门"
+         "（最佳 MAX2 后段 0.74 < 基线 0.80），保持 ★1 = V12（同尺夏普 0.59）。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:

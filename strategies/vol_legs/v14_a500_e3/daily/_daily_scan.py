@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v14 每日操作：中证A500 · V3 MACD+BOLL（当前 ★1）。
+"""v14 每日操作：中证A500 · E3 前三等权融合（V3 + V2 + V12）。
 
 T 日盘后算决策 → T+1 收盘前执行。只读本地缓存，不联网刷新（与 v2/v13 同纪律）。
 产物：`daily/_<v>_daily.md` / `.json`。机械规则输出，非投资建议。
@@ -57,21 +57,22 @@ def main():
 
     snap = dict(strategy="v14", name=engine.LABEL, status=engine.STATUS,
                 leg=engine.LEG, as_of=date, generated=str(pd.Timestamp.now().date()),
-                rule=dict(rule="V3 MACD+BOLL 开口突破（原生 macd_boll.weight）+ 波动上限 TV20%", trade_at="T 日收盘信号 → T+1 收盘成交",
+                rule=dict(rule=engine.RULE_TXT, trade_at="T 日收盘信号 → T+1 收盘成交",
                           fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
                 current_position=round(prev, 4), next_target=round(cur, 4),
                 action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md：候选 E2 全样本赢、后段输；保持当前 ★1 V3。")
+                note="_beat_best_top3.md（2026-11-19）：E3 前三等权融合 ★超越，夏普 0.66→0.82、后段 0.34→0.38。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
     L = ["# v14 每日操作 · 中证A500", "",
-         f"> **研究确认无提升** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
+         f"> **{engine.STATUS}** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
          "## 今日动作", "",
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
-         f"- 标的：中证A500（`023299`，真实指数口径）；策略：V3 MACD+BOLL（当前 ★1）。", "",
-         "## 规则", "", "V3 MACD+BOLL 开口突破（原生 macd_boll.weight）+ 波动上限 TV20%。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md：候选 E2 全样本赢、后段输；保持当前 ★1 V3。", "",
+         f"- 标的：中证A500（`023299`，真实指数口径）；策略：E3 前三等权融合（V3+V2+V12）。", "",
+         "## 规则", "", f"{engine.RULE_TXT}。", "",
+         f"> {engine.STATUS}。_beat_best_top3.md（2026-11-19）：同尺夏普 0.66 → 0.82、"
+         "后段 0.34 → 0.38、回撤 −13.74% → −16.20%。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:

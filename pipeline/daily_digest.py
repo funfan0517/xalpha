@@ -161,11 +161,13 @@ def _num(s):
 def _card_on(meta):
     """该策略是否单独出卡。
 
+    - ``daily.enabled`` **必须显式为 true** 才出卡（缺键 = 不上板，fail-safe）——
+      新策略默认不得进每日操作报告，未经用户同意不许出现在看板上（AGENTS.md §9）；
     - ``daily.enabled=false`` → 整卡撤掉（策略已移出每日操作，历史归档也不再渲染）；
     - ``daily.card=false``   → 数据仍取、但不单独出卡（如 V17 缩成板块5 技术指标卡片的一行）。
     """
     daily = (meta or {}).get("daily") or {}
-    return daily.get("enabled") is not False and daily.get("card") is not False
+    return daily.get("enabled") is True and daily.get("card") is not False
 
 
 def _blocks(doc):
@@ -1004,22 +1006,24 @@ def parse_vol_legs(_cfg):
 # 2026-11-18 起本卡只列 **v14~v20 七个单标的专用策略**（一策略一腿）。
 # v2 / v3 / v4 / v6 / v9 / v12 已从看板移除：其 daily 产物与 PNG 仍由
 # `run_daily_vol_legs.ps1` 照常生成，只是不再进这张卡。
+# v21（利弗莫尔关键点）**不进看板**：规则未稳定、7 腿样本还在验证，见
+# `strategies/vol_legs/v21_livermore_keypoint/backtest/_v21_7legs.md`。
 _VOL_VARIANTS = [
     # v14~v20：单标的专用策略（一策略一腿）。
     ("v14", "V14 中证A500 单腿",
-     "strategies/vol_legs/v14_a500_v3/daily/_v14_daily.json", {"a500"}),
+     "strategies/vol_legs/v14_a500_e3/daily/_v14_daily.json", {"a500"}),
     ("v15", "V15 沪深300 单腿",
      "strategies/vol_legs/v15_hs300_min2/daily/_v15_daily.json", {"hs300"}),
     ("v16", "V16 纳指100 单腿",
      "strategies/vol_legs/v16_ndx_v10/daily/_v16_daily.json", {"ndx"}),
     ("v17", "V17 标普500 单腿",
-     "strategies/vol_legs/v17_spx_max2/daily/_v17_daily.json", {"spx"}),
+     "strategies/vol_legs/v17_spx_v12/daily/_v17_daily.json", {"spx"}),
     ("v18", "V18 科创50 单腿",
      "strategies/vol_legs/v18_kc50_e2tv/daily/_v18_daily.json", {"kc50"}),
     ("v19", "V19 恒生科技 单腿",
      "strategies/vol_legs/v19_hkt_v3/daily/_v19_daily.json", {"hkt"}),
     ("v20", "V20 黄金 单腿",
-     "strategies/vol_legs/v20_gold_v6b/daily/_v20_daily.json", {"gold"}),
+     "strategies/vol_legs/v20_gold_v5/daily/_v20_daily.json", {"gold"}),
 ]
 
 # 板块2 口径（2026-11-13 起唯一）：信号 / 回测 / 记账都用该市场真实指数，黄金用场内
@@ -1033,8 +1037,8 @@ _VOL_FILL = "收盘"
 # v2/v3/v4/v6/v9/v12 的十二张旧图已从看板移除（策略产物仍照常生成，只是不再内嵌）。
 _VOL_FIGS = [
     # v14~v20：七条腿各一张长期图（近三年图不进看板，见各策略 research/）。
-    ("strategies/vol_legs/v14_a500_v3/research/_v14_a500.png",
-     f"**中证A500**（执行 `023299` · {_VOL_PRICE}）· V14 V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升"
+    ("strategies/vol_legs/v14_a500_e3/research/_v14_a500.png",
+     f"**中证A500**（执行 `023299` · {_VOL_PRICE}）· V14 E3 前三等权融合（V3+V2+V12）★ 研究超越项"
      " · 长期图（近三年版在策略目录 research/ 下）"),
     ("strategies/vol_legs/v15_hs300_min2/research/_v15_hs300.png",
      f"**沪深300**（执行 `000051` · {_VOL_PRICE}）· V15 MIN2 双确认：min(V2 BOLL 突破, V12 八态趋势许可)"
@@ -1042,8 +1046,8 @@ _VOL_FIGS = [
     ("strategies/vol_legs/v16_ndx_v10/research/_v16_ndx.png",
      f"**纳指100**（执行 `270042` · {_VOL_PRICE}）· V16 V10 ER20/10 自适应波动层 + 5 日死区，当前 ★1；研究确认无提升"
      " · 长期图（近三年版在策略目录 research/ 下）"),
-    ("strategies/vol_legs/v17_spx_max2/research/_v17_spx.png",
-     f"**标普500**（执行 `017641` · {_VOL_PRICE}）· V17 MAX2 任一在场：max(V12 八态趋势, V13 九宫格许可)"
+    ("strategies/vol_legs/v17_spx_v12/research/_v17_spx.png",
+     f"**标普500**（执行 `017641` · {_VOL_PRICE}）· V17 V12 八态趋势（当前 ★1；研究确认无提升）"
      " · 长期图（近三年版在策略目录 research/ 下）"),
     ("strategies/vol_legs/v18_kc50_e2tv/research/_v18_kc50.png",
      f"**科创50**（执行 `011609` · {_VOL_PRICE}）· V18 (V2 + V12 等权融合) × 波动上限 TV20%"
@@ -1051,8 +1055,8 @@ _VOL_FIGS = [
     ("strategies/vol_legs/v19_hkt_v3/research/_v19_hkt.png",
      f"**恒生科技**（执行 `012805` · {_VOL_PRICE}）· V19 V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升"
      " · 长期图（近三年版在策略目录 research/ 下）"),
-    ("strategies/vol_legs/v20_gold_v6b/research/_v20_gold.png",
-     f"**黄金**（执行 `518880` · {_VOL_PRICE}）· V20 V6-B 纯波动层（TV10%/120 日），当前 ★1；研究确认无提升"
+    ("strategies/vol_legs/v20_gold_v5/research/_v20_gold.png",
+     f"**黄金**（执行 `518880` · {_VOL_PRICE}）· V20 V5.1 黄金仓位（风险预算 × 实际利率闸门），当前 ★1"
      " · 长期图（近三年版在策略目录 research/ 下）"),
 ]
 
@@ -1060,14 +1064,25 @@ _VOL_FIGS = [
 def _vol_classify(x):
     """逐腿动作归一：买入 / 卖出 / 持有 / 空仓（兼容带档位口径的 '维持' + state）。"""
     t = str(x.get("action") or "")
+    if "并持有" in t:          # v14~v20 的「买入并持有」= 已在场内、今日无待成交，统计成「持有」
+        return "持有"
     if "买" in t or "加仓" in t:
         return "买入"
     if "卖" in t or "减仓" in t or "清" in t:
         return "卖出"
-    # v9 的动作列写的是「→ 满仓（快减）」，不含买卖字样 —— 待成交决策靠 pending vs state 判向
+    # v9 的动作列写的是「→ 满仓（快减）」，不含买卖字样 —— 待成交决策靠 pending vs state 判向。
+    # 只在 pending **确实不同**时才判买/卖：v14~v20 的 `action` 写「空仓 / 买入并持有」，
+    # 但 `pending == state`（无待成交），旧写法把它们误标成「卖出 1」「买入 1」，
+    # 于是「今日无动作」的腿在看板上看起来像刚成交（2026-11-19 发现并修正）。
     if x.get("pending") is not None:
         try:
-            return "买入" if float(x["pending"]) > float(x.get("state") or 0) else "卖出"
+            _p = float(x["pending"])
+            _s = x.get("state")
+            _s = float(_s) if _s is not None else float(x.get("pos") or 0)
+            if _p > _s + 1e-9:
+                return "买入"
+            if _p < _s - 1e-9:
+                return "卖出"
         except (TypeError, ValueError):
             pass
     pos = x.get("pos")
@@ -1089,6 +1104,9 @@ def _vol_level(x):
     p = x.get("pending")
     if p is not None:
         try:
+            # v14~v20 的 level_txt 本身就写成「当前 X% → 目标 Y%」，再拼一次会变成三段箭头
+            if "→" in str(lvl):
+                return f"（{lvl}）"
             return f"（{lvl} → {float(p):.0%}）"
         except (TypeError, ValueError):
             pass
@@ -1104,8 +1122,14 @@ def _vol_variant_row(label, d, emph):
 
     emph_parts = [f"**{x.get('name')}** {_vol_classify(x)}{_vol_level(x)}"
                   for x in legs if x.get("leg") in emph]
-    # 全部腿都是重点时（v12 自 2026-11-18 起七腿全执行），「★重点」就没区分度了，换一个说法
-    head = "★重点：" if len(emph_parts) < len(legs) else "★全七腿（均执行）："
+    # 单标的策略（v14~v20，一策略一腿）写成「★目标腿」；多腿变种才用「★重点 / ★全七腿」
+    # —— 否则单腿卡会显示成「★全七腿（均执行）」，既误导又是旧口径的残留。
+    if len(legs) == 1:
+        head = "★目标腿："
+    elif len(emph_parts) < len(legs):
+        head = "★重点："
+    else:
+        head = "★全七腿（均执行）："
     detail = head + ("、".join(emph_parts) or "—")
 
     # 其余腿也带上各自的仓位状态（v2/v3 空仓·持有、v6/v9 带档位/带内仓位），仅供参考 ——
@@ -1247,6 +1271,7 @@ def parse_vol_variants(_cfg):
 
     2026-11-18 起 v2 / v3 / v4 / v6 / v9 / v12 从看板移除；
     其 daily 产物与 PNG 仍由 run_daily_vol_legs.ps1 照常生成，只是不再进这张卡。
+    v21（利弗莫尔关键点）**不进本卡**：规则与 7 腿样本仍在验证，产物只留在策略目录。
     """
     rows, srcs, as_ofs = [], [], []
     n_buy = n_sell = 0
@@ -1295,10 +1320,17 @@ def parse_vol_variants(_cfg):
          ["买入", str(n_buy)], ["卖出", str(n_sell)]],
         note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
              "2026-11-18 起本卡只列 **v14~v20 七个单标的专用策略**（一策略一腿）："
-             "v14 中证A500=V3、v15 沪深300=MIN2(V2∩V12)、v16 纳指100=V10、"
-             "v17 标普500=MAX2(V12∪V13)、v18 科创50=E2×TV20、v19 恒生科技=V3、v20 黄金=V6-B。"
-             "v15/v17/v18 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
-             "其余四条是「研究确认无提升、保持当前 ★1」的单标的封装。★ = 该策略唯一目标腿。"
+             "v14 中证A500=E3(V3+V2+V12)、v15 沪深300=MIN2(V12∩V2)、v16 纳指100=V10、"
+             "v17 标普500=V12、v18 科创50=E2×TV20、v19 恒生科技=V3、"
+             "v20 黄金=V5.1（风险预算 × 实际利率闸门）。"
+             "**2026-11-19 研究重跑**：v12 把「慢跌」改到 0% 后，沪深300/标普500/科创50 的 ★1 都换成 V12；"
+             "黄金腿纳入重构后的 v5_gold_score 后 ★1 换成 V5.1。"
+             "v14(E3)/v15(MIN2)/v18(E2×TV20) 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
+             "v16/v17/v19 三条是「研究确认无提升、保持当前 ★1」的单标的封装；"
+             "v20 就是 best_by_leg §0 的黄金 ★1 本身（重跑后无候选通过双闸门）。"
+             "v21 利弗莫尔关键点（用户视频口径）**未稳定前不进本卡**，"
+             "其产物与 7 腿验证只在策略目录。"
+             "★ = 该策略唯一目标腿。"
              "v2/v3/v4/v6/v9/v12 已从本卡移除（其 daily 产物与 PNG 仍由 "
              "`run_daily_vol_legs.ps1` 照常生成，只是不再进看板）。"
              "括号里是仓位状态（买入/卖出/持有/空仓）；有**待成交决策**时写成「当前 → 目标」，不是 0/1。"
@@ -1498,6 +1530,115 @@ def parse_bond_cash_v3(_cfg):
     )
 
 
+def parse_bond_cash_v4(_cfg):
+    """板块6 V4 卡片：Carry + Trend + Hedge 三票的久期择时（股票动量反向映射债券）。"""
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    c, t, h, s = (d.get(k) or {} for k in ("carry", "trend", "hedge", "signal"))
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+    return _entry(
+        "bond_cash_v4", "V4 · 股债对冲三票（Carry+Trend+Hedge）", d.get("as_of"),
+        f"score {s.get('score', 0):+d}", s.get("act", "hold"),
+        f"Carry {c.get('vote', 0):+d}（10Y−1Y {c.get('spread')}% / 3年分位 {c.get('pct')}%）"
+        f" + Trend {t.get('vote', 0):+d}"
+        f" + Hedge {h.get('vote', 0):+d}（沪深300 252日 {(h.get('stock_ret') or 0):.2%} / "
+        f"5年分位 {h.get('stock_pct')}%）"
+        f" → score **{s.get('score', 0):+d}** · 长端 {s.get('cur')}% → 目标 {s.get('long_w')}%"
+        f"（{'触发' if s.get('moved') else '滞后带内不动'}）",
+        rows,
+        [["Carry 票", f"{c.get('vote', 0):+d}（分位 {c.get('pct')}%）"],
+         ["Trend 票", f"{t.get('vote', 0):+d}"],
+         ["Hedge 票", f"{h.get('vote', 0):+d}（分位 {h.get('stock_pct')}%）"],
+         ["长端占比", f"{s.get('eff')}%"],
+         ["下次调仓", s.get("next_rebalance") or "—"]],
+        note="规则来源 Newfound Research (2018) carry-trend-hedge 三票框架 + 国泰海通 (2026-06) "
+             "股债增强配置。carry/trend 两票与 V3 逐行同源，只多一条 Hedge（沪深300 近 252 日收益的 "
+             "5 年分位 ≥90%→−1 减久期 / ≤10%→+1 避险加久期）。"
+             "**回测 2023-05~2026-11：V4 三票 +3.73%/−1.79%/夏普 1.61 vs V3 口径双票 "
+             "+3.81%/−1.91%/1.63 —— Hedge 票独立贡献 −0.08pp，基本为零**（3.5 年里股票分位顶 291 天、"
+             "分位底仅 3 天，Hedge 退化成「股票强势时减久期」的单边开关）。阈值 80/20 与 95/5 结论不变，"
+             "只作研究对照。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["腿/信号", "标的", "动作", "配置/依据"],
+        all_rows=True,
+    )
+
+
+def parse_bond_cash_v5(_cfg):
+    """板块6 V5 卡片：波动率目标的久期敞口（不预测方向）。"""
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    v, s = (d.get(k) or {} for k in ("vol", "signal"))
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+    sig = "—" if v.get("sigma") is None else f"{v['sigma']:.2%}"
+    return _entry(
+        "bond_cash_v5", "V5 · 波动率目标（按 σ 缩放久期敞口）", d.get("as_of"),
+        f"σ {sig}", s.get("act", "hold"),
+        f"σ = max(σ21, σ63) = **{sig}**（σ21 {(v.get('sigma21') or 0):.2%} / "
+        f"σ63 {(v.get('sigma63') or 0):.2%}）· "
+        f"σ/目标 {(v.get('ratio') or 0):.2f}×"
+        + (" · **熔断：长端清零**" if v.get("guard") else "")
+        + f" → 长端 {s.get('cur')}% → 目标 {s.get('w_raw')}%"
+          f"（{'触发' if s.get('moved') else '滞后带内不动'}）",
+        rows,
+        [["σ21 / σ63", f"{(v.get('sigma21') or 0):.2%} / {(v.get('sigma63') or 0):.2%}"],
+         ["σ / 目标", f"{(v.get('ratio') or 0):.2f}×（目标 {v.get('target')}）"],
+         ["熔断", "是" if v.get("guard") else "否"],
+         ["长端占比", f"{s.get('eff')}%"],
+         ["下次调仓", s.get("next_rebalance") or "—"]],
+        note="规则来源 Moreira & Muir (2017) volatility-managed portfolios + 目标波动率资产组合管理"
+             "（中国股/债/商品 7.5 年实证）+ 兴证 (2020-05) VaR 久期择时。"
+             "**不预测方向，只按风险预算缩放**：w = 70% × min(1, 1.50%/σ)，σ>3.00% 时熔断清零。"
+             "回测 2021-12~2026-11（5 年）：V5 +4.15%/−1.66%/夏普 1.80 vs v0 固定哑铃 "
+             "+4.49%/−2.38%/1.79 —— **0.34pp 年化换 0.72pp 回撤，是风险预算不是 alpha**；"
+             "反向对照（高波动加久期）+4.25%/−2.38%/1.66 证明回撤改善来自机制本身。"
+             "目标波动调到 2.5% 会退化成「基本不动手」（平均长端 66.5%）。",
+        src=_rel(path),
+        data="净值 " + ", ".join(f"{k} {v2}" for k, v2 in (d.get("sources") or {}).items()),
+        cols=["腿/信号", "标的", "动作", "配置/依据"],
+        all_rows=True,
+    )
+
+
+def parse_bond_cash_v6(_cfg):
+    """板块6 V6 卡片：双利差锚（期限利差定久期 × 信用利差定品种）。"""
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    c, sl, cr, s = (d.get(k) or {} for k in ("carry", "slope", "credit", "signal"))
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+    return _entry(
+        "bond_cash_v6", "V6 · 双利差锚（期限利差 × 信用利差）", d.get("as_of"),
+        f"score {s.get('score', 0):+d}", s.get("act", "hold"),
+        f"久期：Carry {c.get('vote', 0):+d}（分位 {c.get('pct')}%）"
+        f" + Slope {sl.get('vote', 0):+d}（Δ{sl.get('ds_bp')}bp）→ score **{s.get('score', 0):+d}**"
+        f" · 长端 {s.get('cur')}% → 目标 {s.get('long_w')}%"
+        f"（{'触发' if s.get('moved') else '滞后带内不动'}）"
+        f" · 品种：Δ信用利差 {cr.get('dcs_bp')}bp → 底仓 **{cr.get('leg_name')}**",
+        rows,
+        [["Carry 票", f"{c.get('vote', 0):+d}（分位 {c.get('pct')}%）"],
+         ["Slope 票", f"{sl.get('vote', 0):+d}（Δ{sl.get('ds_bp')}bp）"],
+         ["Credit 票", f"{cr.get('vote', 0):+d}（Δ{cr.get('dcs_bp')}bp）"],
+         ["长端占比", f"{s.get('eff')}%"],
+         ["底仓", f"{cr.get('leg_name')}（{cr.get('leg')}）"]],
+        note="规则来源 国信证券《基于双利差锚的周期划分和债券投资策略》(2021) + "
+             "国泰海通《信用—利率与久期的双层策略》(2026)。两轴正交：久期轴 = carry（10Y−1Y 近 3 年分位）"
+             "+ slope（10Y−1Y 的 60 日变化，±10bp 死区）；品种轴 = AAA3Y−国债3Y 的 60 日变化"
+             "（≤−5bp 信用收窄→000032 / ≥+5bp 走阔→011983 / 中间维持）。"
+             "**回测 2023-05~2026-11：V6 双轴 +3.14%/−1.58%/1.52 同时输给只久期轴 +3.79%/1.69、"
+             "只品种轴 +4.13%/1.63 与 v0 +4.39%/1.67 —— 双轴互相抵消**（久期轴把长端压到平均 25.8%、"
+             "品种轴 71% 时间在信用债），40bp 成本下崩到 +1.79%。唯一亮点：2025 债熊年 +0.65% vs v0 −0.13%。"
+             "双利差锚适合做周期判断，不适合月度券种轮动。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["腿/信号", "标的", "动作", "配置/依据"],
+        all_rows=True,
+    )
+
+
 PARSERS = {
     "dividend": parse_dividend,
     "vol_variants": parse_vol_variants,
@@ -1516,6 +1657,9 @@ PARSERS = {
     "bond_cash_v1": parse_bond_cash_v1,
     "bond_cash_v2": parse_bond_cash_v2,
     "bond_cash_v3": parse_bond_cash_v3,
+    "bond_cash_v4": parse_bond_cash_v4,
+    "bond_cash_v5": parse_bond_cash_v5,
+    "bond_cash_v6": parse_bond_cash_v6,
 }
 
 

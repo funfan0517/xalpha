@@ -1,0 +1,107 @@
+{
+  "strategy": "V5 · 波动率目标",
+  "as_of": "2026-11-18",
+  "generated": "2026-11-19 10:03",
+  "source_methodology": "Moreira & Muir (2017) vol-managed portfolios + 目标波动率法 + 兴证 VaR 久期择时",
+  "vol": {
+    "sigma21": 0.02681,
+    "sigma63": 0.01791,
+    "sigma": 0.02681,
+    "target": 0.015,
+    "ratio": 1.79,
+    "guard": false,
+    "rule": "σ = max(σ21, σ63) 年化；w = 70% × min(1, 1.50%/σ)；σ > 3.00% → 清零"
+  },
+  "signal": {
+    "w_raw": 39.16,
+    "cur": 52.58,
+    "eff": 52.58,
+    "moved": false,
+    "is_rebalance": false,
+    "act": "hold",
+    "pending": 39.16,
+    "next_rebalance": "下月最后一个交易日"
+  },
+  "held": {
+    "003376": 15.77,
+    "011983": 14.23
+  },
+  "rows": [
+    {
+      "code": "003376",
+      "name": "广发7-10年国开A",
+      "short": "广发7-10年国开A",
+      "act": "hold",
+      "label": "15.8pp",
+      "pp": 0,
+      "nav": 1.5133,
+      "r20": null,
+      "r250": null,
+      "note": "长端占比 52.6%",
+      "role": "长端(10Y)",
+      "theme": "长端"
+    },
+    {
+      "code": "011983",
+      "name": "永赢3-5年政金A",
+      "short": "永赢3-5年政金A",
+      "act": "hold",
+      "label": "14.2pp",
+      "pp": 0,
+      "nav": 1.2152,
+      "r20": null,
+      "r250": null,
+      "note": "长端占比 52.6%",
+      "role": "底仓(3-5Y)",
+      "theme": "底仓"
+    },
+    {
+      "code": "000198",
+      "name": "余额宝",
+      "short": "余额宝",
+      "act": "hold",
+      "label": "5.0pp",
+      "pp": 0,
+      "nav": null,
+      "r20": null,
+      "r250": null,
+      "note": "与 v0/v1 一致",
+      "role": "现金腿",
+      "theme": "现金腿"
+    },
+    {
+      "code": "014437",
+      "name": "存单AAA 7天",
+      "short": "存单AAA 7天",
+      "act": "hold",
+      "label": "5.0pp",
+      "pp": 0,
+      "nav": null,
+      "r20": null,
+      "r250": null,
+      "note": "与 v0/v1 一致",
+      "role": "现金腿",
+      "theme": "现金腿"
+    },
+    {
+      "code": "σ",
+      "name": "已实现波动",
+      "short": "σ",
+      "act": "none",
+      "label": "2.68%",
+      "pp": 0,
+      "nav": null,
+      "r20": null,
+      "r250": null,
+      "note": "σ/目标 1.79× → 长端 52.6%",
+      "role": "信号",
+      "theme": "信号"
+    }
+  ],
+  "sources": {
+    "003376": "2026-11-18",
+    "011983": "2026-11-18",
+    "000198": "2026-11-18",
+    "014437": "2026-11-18"
+  }
+}

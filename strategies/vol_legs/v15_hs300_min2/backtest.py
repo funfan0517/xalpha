@@ -54,12 +54,13 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：同尺夏普 0.77→0.97、后段 0.27→0.36，毛夏普 0.82→1.05（信号效应）。")
+               note="_beat_best_top3.md：同尺夏普 0.75→0.96、后段 0.20→0.36，毛夏普 0.90→1.04（信号效应为主）；回撤 −32.08%→−11.66%。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v15 回测报告 · 沪深300", "",
         f"> 由 `strategies/vol_legs/v15_hs300_min2/backtest.py` 生成。**★ 研究超越项**。", "",
@@ -67,7 +68,7 @@ def main():
         "min(V2 BOLL 突破仓位, V12 八态趋势许可上限)——两条都认可才持仓。", "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：同尺夏普 0.77→0.97、后段 0.27→0.36，毛夏普 0.82→1.05（信号效应）。", "",
+        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：同尺夏普 0.75→0.96、后段 0.20→0.36，毛夏普 0.90→1.04（信号效应为主）；回撤 −32.08%→−11.66%。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

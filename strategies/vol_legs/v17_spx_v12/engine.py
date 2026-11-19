@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""v17 · 标普500 · MAX2 任一在场（V12∪V13）。
+"""v17 · 标普500 · V12 八态趋势（当前 ★1）。
 
-来源：`strategies/vol_legs/research/beat_best/_beat_best_top3.md`（2026-11-18）。
-状态：**★ 研究超越项**。_beat_best_top3.md：同尺夏普 0.53→0.62、后段 0.71→0.75；毛夏普持平，增益来自换手下降。
+来源：`strategies/vol_legs/research/beat_best/_beat_best_top3.md`（2026-11-19 重跑）。
+状态：**研究确认无提升**。同尺基线夏普 0.59（V12）；九个候选里最好的 MAX2 只在全样本
++0.02、后段 0.74 < 基线 0.80，被双闸门挡掉；E2/E3/MIN2/E2×TV20 也都 ≤ 基线。保持 ★1。
 
-规则：max(V12 八态趋势许可上限, V13 九宫格许可上限)——任一认可即持仓。
-逐日权重直接调各变种的**原生引擎**（经 `strategies/vol_legs/_top3_bridge.py` 隔离加载），
-不重写规则。`weight(t)` = t 日收盘决策，`run()` 内 `shift(1)` → T+1 收益生效。
+规则：V12 八态趋势→仓位许可上限（原生 `engine.backtest_leg` 的逐日权重，v12.1 生效口径）。
+2026-11-19 前本策略是「MAX2 任一在场（max(V12, V13)）」的 ★超越项 —— V12 把 `慢跌`
+改到 0% 后自己升到标普500 的 ★1，MAX2 相对它不再有增量，故退化为单一 V12。
+`weight(t)` = t 日收盘决策，`run()` 内 `shift(1)` → T+1 收益生效。
 成本：研究口径统一单边 10bp（非该腿原生费率），空仓货基 1.40%。
 """
 import os
@@ -25,8 +27,9 @@ for _p in (_HERE, _STRAT, _VL):
 from _top3_bridge import CASH_ANNUAL, FEE_SIDE, WARMUP, bridge  # noqa: E402
 
 LEG = "spx"
-LABEL = "v17 标普500 · MAX2 任一在场（V12∪V13）"
-STATUS = "★ 研究超越项"
+LABEL = "v17 标普500 · V12 八态趋势（当前 ★1）"
+STATUS = "研究确认无提升"
+RULE_TXT = "V12 八态趋势 → 带内仓位许可上限（原生 engine.backtest_leg，v12.1 生效口径）"
 PARAMS = {}
 
 def load(leg=LEG):
@@ -37,9 +40,7 @@ def load(leg=LEG):
 def weight(px):
     """t 日收盘决策仓位 ∈ [0,1]（含 T+1 时滞前的最后一步）。"""
     px = px.astype("float64")
-    a = bridge.v12(px, LEG)
-    b = bridge.v13(px, LEG)
-    return pd.Series(np.maximum(a, b), index=px.index).clip(0.0, 1.0)
+    return bridge.v12(px, LEG)
 
 
 def run(px, sig=None, cash=None, fee=None):

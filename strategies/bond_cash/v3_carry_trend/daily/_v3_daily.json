@@ -1,7 +1,7 @@
 {
   "strategy": "V3 · Carry + 趋势投票",
   "as_of": "2026-11-18",
-  "generated": "2026-11-19 08:41",
+  "generated": "2026-11-19 10:03",
   "source_methodology": "Newfound Research (2018) / 兴业证券 (2026-05) 的可复现交集",
   "carry": {
     "spread": 0.435,
@@ -17,14 +17,16 @@
     "score": 0,
     "long_w": 35.0,
     "cur": 52.5,
-    "eff": 35.0,
-    "moved": true,
-    "act": "sell",
+    "eff": 52.5,
+    "moved": false,
+    "is_rebalance": false,
+    "act": "hold",
+    "pending": 35.0,
     "next_rebalance": "下月最后一个交易日"
   },
   "held": {
-    "003376": 10.5,
-    "011983": 19.5
+    "003376": 15.75,
+    "011983": 14.25
   },
   "rows": [
     {
@@ -32,12 +34,12 @@
       "name": "广发7-10年国开A",
       "short": "广发7-10年国开A",
       "act": "hold",
-      "label": "10.5pp",
+      "label": "15.8pp",
       "pp": 0,
       "nav": 1.5133,
       "r20": null,
       "r250": null,
-      "note": "长端占比 35.0%",
+      "note": "长端占比 52.5%",
       "role": "长端(10Y)",
       "theme": "长端"
     },
@@ -46,12 +48,12 @@
       "name": "永赢3-5年政金A",
       "short": "永赢3-5年政金A",
       "act": "hold",
-      "label": "19.5pp",
+      "label": "14.2pp",
       "pp": 0,
       "nav": 1.2147,
       "r20": null,
       "r250": null,
-      "note": "长端占比 35.0%",
+      "note": "长端占比 52.5%",
       "role": "底仓(3-5Y)",
       "theme": "底仓"
     },
@@ -93,7 +95,7 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "carry -1 / trend +1 → 长端 35.0%",
+      "note": "carry -1 / trend +1 → 长端 52.5%",
       "role": "信号",
       "theme": "信号"
     }

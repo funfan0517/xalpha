@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v17 回测：标普500 · MAX2 任一在场（V12∪V13）。
+"""v17 回测：标普500 · V12 八态趋势（当前 ★1）。
 
 产物：`backtest/_<v>_bt.md` / `.jsonl`。机械规则输出，非投资建议。
-用法：`python strategies/vol_legs/v17_spx_max2/backtest.py`
+用法：`python strategies/vol_legs/v17_spx_v12/backtest.py`
 """
 import io
 import json
@@ -54,20 +54,23 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：同尺夏普 0.53→0.62、后段 0.71→0.75；毛夏普持平，增益来自换手下降。")
+               note="_beat_best_top3.md（2026-11-19）：无候选通过双闸门；V12 自身即 ★1（夏普 0.59）。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v17 回测报告 · 标普500", "",
-        f"> 由 `strategies/vol_legs/v17_spx_max2/backtest.py` 生成。**★ 研究超越项**。", "",
+        f"> 由 `strategies/vol_legs/v17_spx_v12/backtest.py` 生成。**研究确认无提升**。", "",
         "## 规则", "",
-        "max(V12 八态趋势许可上限, V13 九宫格许可上限)——任一认可即持仓。", "",
+        f"{engine.RULE_TXT}。", "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：同尺夏普 0.53→0.62、后段 0.71→0.75；毛夏普持平，增益来自换手下降。", "",
+        "> 研究出处：`research/beat_best/_beat_best_top3.md`（2026-11-19 重跑）："
+        "九个候选无一通过双闸门（最佳 MAX2 全样本 0.61、后段 0.74 < 基线 0.80），"
+        "故保持 ★1 = V12 八态趋势（同尺夏普 0.59）。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

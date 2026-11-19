@@ -9,6 +9,10 @@
      （最典型的翻车方式：新增变种时忘了把 runner 置空）
   E2 悬空引用：runner 指向不存在的 .ps1，或 daily.block 不在 blocks[].key
      → 运行时只打印一行 [skip]，表现是「看板有卡但数据是昨天的」
+  E3 缺显式开关：`daily` 段没有 `enabled` 键 —— **新策略未经允许不得写入每日操作报告**
+     （`daily.enabled=false` 才是默认；漏写会按 True 处理，等于偷偷上板）
+  E4 上板无凭据：`enabled=true` 但 `enabled_note` 为空或不含日期
+     —— 上板必须留下「YYYY-MM-DD 谁同意的」这一行，否则下次没人知道它为什么在报告里
   W1 留空无解释：runner 为空却没有 runner_note
   W2 产物缺失：声明的 signal_report / signal_json 尚未生成（可能只是还没跑过）
   W3 空板块：某个 block 下没有任何 enabled 策略
@@ -19,10 +23,12 @@
 """
 import json
 import os
+import re
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = os.path.join(_ROOT, "pipeline", "strategies.json")
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 _PATH_EXT = (".md", ".json", ".html")
 # 只有这些语义的字段才可能是产物路径。缺了这层，`enabled_note` / `card_note` 这类
@@ -57,7 +63,21 @@ def check(cfg):
         if not daily:
             errors.append(f"{sid}: 缺 daily 段（run_daily_all 会把它排到最后但仍无 runner）")
             continue
-        enabled = daily.get("enabled", True) is not False
+        # E3：新策略未经允许不得写入每日操作报告 —— 必须显式声明 enabled，
+        # 缺省 True 会让「忘了写」变成「偷偷上板」。
+        if "enabled" not in daily:
+            errors.append(f"{sid}: daily 段缺显式 enabled —— 新策略默认不进每日操作报告，"
+                          f"必须显式写 \"enabled\": false；上板须经用户同意")
+        enabled = daily.get("enabled") is True   # 缺键按「不上板」算（与 daily_digest._card_on 一致）
+
+        # E4：上板要留凭据（日期 + 谁同意），否则没人知道它为什么在报告里。
+        if enabled:
+            note = (daily.get("enabled_note") or "").strip()
+            if not note:
+                errors.append(f"{sid}: daily.enabled=true 但缺 enabled_note —— "
+                              f"上板必须写明「YYYY-MM-DD 谁同意」，否则视为未经允许")
+            elif not _DATE.search(note):
+                errors.append(f"{sid}: daily.enabled_note 里没有日期 → {note[:40]!r}")
 
         block = daily.get("block")
         if block not in blocks:
@@ -90,7 +110,9 @@ def check(cfg):
             warns.append(f"block={k} 下没有 enabled 策略（该板块的看板卡片将长期沿用旧数据）")
 
     stats = {"strategies": len(strategies), "enabled": n_enabled,
-             "runners": len(runner_users), "blocks": len(blocks)}
+             "runners": len(runner_users), "blocks": len(blocks),
+             "on_board": [sid for sid, st in strategies.items()
+                          if ((st or {}).get("daily") or {}).get("enabled") is True]}
     return errors, warns, stats
 
 
@@ -105,6 +127,9 @@ def main(argv=None):
     print("每日操作配置自检 · pipeline/strategies.json")
     print(f"  策略 {stats['strategies']} · enabled {stats['enabled']} · "
           f"唯一 runner {stats['runners']} 个 · 板块 {stats['blocks']} 个")
+    print(f"  每日操作报告收录 {len(stats['on_board'])} 个：{', '.join(stats['on_board'])}")
+    print(f"  未上板 {stats['strategies'] - stats['enabled']} 个（产物照跑、不进报告；"
+          f"上板需用户同意并在 enabled_note 留日期）")
 
     for msg in errors:
         print(f"  [ERROR] {msg}")

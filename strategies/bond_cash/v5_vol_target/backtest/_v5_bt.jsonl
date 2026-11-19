@@ -1,0 +1,15 @@
+{"name": "V5 波动率目标（月末）", "years": 4.94, "cagr": 4.15, "vol": 1.53, "sharpe": 1.8, "mdd": -1.66, "worst_year": -0.43, "total": 22.27}
+{"name": "V5 波动率目标（每 10 日 / 双周）", "years": 4.94, "cagr": 3.88, "vol": 1.56, "sharpe": 1.59, "mdd": -1.94, "worst_year": -0.79, "total": 20.69}
+{"name": "V5 波动率目标（无滞后带）", "years": 4.94, "cagr": 4.15, "vol": 1.53, "sharpe": 1.8, "mdd": -1.66, "worst_year": -0.43, "total": 22.27}
+{"name": "反面：高波动加久期（机制对照）", "years": 5.21, "cagr": 4.25, "vol": 1.71, "sharpe": 1.66, "mdd": -2.38, "worst_year": -0.13, "total": 24.2}
+{"name": "v0 固定哑铃 70/30", "years": 5.21, "cagr": 4.49, "vol": 1.72, "sharpe": 1.79, "mdd": -2.38, "worst_year": -0.13, "total": 25.72}
+{"name": "固定中性 35/65", "years": 5.21, "cagr": 4.15, "vol": 1.47, "sharpe": 1.87, "mdd": -1.98, "worst_year": 0.02, "total": 23.61}
+{"name": "全防守 100% 3-5 年", "years": 5.21, "cagr": 3.81, "vol": 1.28, "sharpe": 1.89, "mdd": -1.66, "worst_year": 0.16, "total": 21.52}
+{"name": "全进攻 100% 7-10 年", "years": 5.21, "cagr": 4.78, "vol": 1.97, "sharpe": 1.72, "mdd": -2.8, "worst_year": -0.26, "total": 27.55}
+{"name": "目标1.0%", "years": 4.94, "cagr": 3.97, "vol": 1.41, "sharpe": 1.83, "mdd": -1.66, "worst_year": 0.01, "total": 21.24}
+{"name": "目标1.5%", "years": 4.94, "cagr": 4.15, "vol": 1.53, "sharpe": 1.8, "mdd": -1.66, "worst_year": -0.43, "total": 22.27}
+{"name": "目标2.0%", "years": 4.94, "cagr": 4.27, "vol": 1.63, "sharpe": 1.76, "mdd": -2.05, "worst_year": -0.71, "total": 22.96}
+{"name": "目标2.5%", "years": 4.94, "cagr": 4.43, "vol": 1.69, "sharpe": 1.79, "mdd": -2.17, "worst_year": -0.38, "total": 23.9}
+{"name": "成本0.0", "years": 4.94, "cagr": 4.38, "vol": 1.53, "sharpe": 1.95, "mdd": -1.66, "worst_year": -0.22, "total": 23.59}
+{"name": "成本0.001", "years": 4.94, "cagr": 4.15, "vol": 1.53, "sharpe": 1.8, "mdd": -1.66, "worst_year": -0.43, "total": 22.27}
+{"name": "成本0.004", "years": 4.94, "cagr": 3.48, "vol": 1.58, "sharpe": 1.31, "mdd": -1.91, "worst_year": -1.03, "total": 18.39}

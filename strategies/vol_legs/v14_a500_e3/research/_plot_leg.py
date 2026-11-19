@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v14 单腿图：中证A500 · V3 MACD+BOLL（当前 ★1）。
+"""v14 单腿图：中证A500 · E3 前三等权融合（V3 + V2 + V12）。
 
 产物：`research/_<v>___leg__.png`（长期）与 `_<v>___leg___3y.png`（近三年）。
 信号与净值在全样本上算，近三年只截末端并归 1。机械规则输出，非投资建议。
@@ -20,11 +20,11 @@ for _p in (_VL, _STRAT, _HERE):
 import engine                  # noqa: E402
 import _plot_leg_core as core  # noqa: E402
 
-PARAMS = {"TV": 0.20, "TV_WIN": 20}
+PARAMS = {}
 
 SPEC = dict(
-    mod=engine, tag="v14", short="V3 MACD+BOLL（当前 ★1）",
-    line="v14 择时（V3 MACD+BOLL（当前 ★1））",
+    mod=engine, tag="v14", short="E3 前三等权（V3+V2+V12）",
+    line="v14 择时（E3 前三等权融合）",
     warmup=engine.WARMUP,
     signal=lambda px: engine.weight(px),
     mark_signal=lambda px: (engine.weight(px) >= 0.5).astype(float),

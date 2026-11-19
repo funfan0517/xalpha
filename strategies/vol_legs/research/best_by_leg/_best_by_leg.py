@@ -9,7 +9,7 @@
 
 1. 把家族里**每个变种自己的回测产物**（`backtest/_*_bt.jsonl`）读进来，取各变种的**默认口径那一行**
    （变种名里带「默认」/`gate=是` 等标记；v6 已统一场内 `518880` 单口径，见 `rows_v6()`；
-   v12 取 v12.1 生效口径、七腿全部参赛，见 `rows_v12()`）；
+   v5.1 黄金仓位规则见 `rows_v5()`；v12 取 v12.1 生效口径、七腿全部参赛，见 `rows_v12()`）；
 2. 每个标的内部，只保留**样本年数 ≥ 该标的最长样本 75%** 的行参与选优
    —— 短样本（如 v13 的科创50 / 恒生科技只有约 5 年）照样列出来，
    但标 `·短样本` 且**不参与选优**，否则「1 年样本 + 夏普 1.5」会挤掉 15 年样本 + 夏普 0.6；
@@ -231,6 +231,30 @@ def rows_v6():
     return out
 
 
+def rows_v5():
+    """黄金仓位规则 V5.1（风险预算 × 实际利率闸门 → 六档目标仓位）。
+
+    2026-11-18 重写：旧 v5.0「三因子计分 → 三档」已整体删除，只剩两件有证据的事
+    —— **波动目标的风险预算** + **实际利率水平（FRED DFII10）闸门**。
+
+    与本清单的 V6 各行**同层可比**：它回答的也是「投给黄金的这笔钱该拿几成」
+    （连续 0~100%），不是「买不买黄金」，所以 `layer="leg"` 正常参赛。
+
+    ⚠ **费率档不同**：V5 用场内万 2.5 单边（`score.FEE`、`SLIP=0`），V6 用佣金 0.03% + 滑点 0.05%。
+    两者都算「含费」，但差额约 0.55bp/次 × 15 次/年 ≈ 0.08pp/年，**不足以解释两行 0.28 的夏普差**；
+    真要精确对账就看 §3-② 的费率口径列。
+    """
+    out = []
+    for r in _load_jsonl("v5_gold_score/backtest/_v5_gold_score_bt.jsonl"):
+        if r.get("key") != "strategy":      # bh / half / cash / group=ablation_or_sens 都不是策略行
+            continue
+        out.append(mk("gold", "v5", "V5.1 黄金仓位（风险预算 × 利率闸门）", r,
+                      "v5_gold_score/backtest/_v5_gold_score_bt.jsonl",
+                      fee="含费（场内万 2.5 单边 · 空仓货基 1.40%）",
+                      note="实际利率（FRED DFII10）水平闸门；不预测方向，只做风险归一化"))
+    return out
+
+
 def _default_cfg(name):
     """从产物变种名里抽出「默认口径」的配置描述。
 
@@ -339,7 +363,7 @@ def rows_bh():
 
 def collect():
     rows = []
-    for fn in (rows_ladder, rows_bh, rows_v6, rows_v12, rows_v13,
+    for fn in (rows_ladder, rows_bh, rows_v5, rows_v6, rows_v12, rows_v13,
                lambda: rows_simple("v1_price_volume/v1_1_ma20/backtest/_v1_1_ma20_bt.jsonl",
                                    "v1", "V1 MA20 穿越（下车）",
                                    "含费（A 类 0.10/0.50 · C 类 0）",
@@ -597,6 +621,10 @@ def render(picked, rows):
     L.append("| `v4_erp_band/research/stop_overlay` V4 加止损 | 研究结论：`ma` 解冻 10 档全部不过卡玛基准，"
              "`erp` 解冻能把回撤 -38.96% → -21.41% 但年化 -4.28pp（等于换成更保守的产品），"
              "**建议保持关闭**（`atr_stop.CFG['enabled']=False`），不进候选 |")
+    L.append("| `v21_livermore_keypoint` 利弗莫尔关键点 | **按用户 2026-11-19 指令整支不进本清单**："
+             "规则未稳定（沪深300 只有 2 笔建仓、黄金腿 12 年只触发 1 次、科创50/恒生科技为负贡献），"
+             "单腿只有纳指 0.75 略高于 V10 的 0.73、回撤却深 8pp。研究与产物留在它自己目录"
+             "（`v21_livermore_keypoint/backtest/_v21_7legs.md`），不参与 ★1~★3 排名 |")
     L.append("| 主策略的科创50 / 恒生科技 / 黄金腿 | 主策略只有组合层复权净值，"
              "**没有这三条腿的独立单腿产物**（`_vol_legs_bt.json::singles` 只有 4 条腿），"
              "故主策略在这三条腿上无法与变种同尺比较 |")

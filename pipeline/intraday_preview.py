@@ -290,20 +290,20 @@ def preview_vol_variants(rt):
                 "v9_vol_target/daily/_v9_vol_target_daily.json",
                 "v12_octo_trend/daily/_v12_daily.md",
                 "v12_octo_trend/daily/_v12_daily.json",
-                "v14_a500_v3/daily/_v14_daily.md",
-                "v14_a500_v3/daily/_v14_daily.json",
+                "v14_a500_e3/daily/_v14_daily.md",
+                "v14_a500_e3/daily/_v14_daily.json",
                 "v15_hs300_min2/daily/_v15_daily.md",
                 "v15_hs300_min2/daily/_v15_daily.json",
                 "v16_ndx_v10/daily/_v16_daily.md",
                 "v16_ndx_v10/daily/_v16_daily.json",
-                "v17_spx_max2/daily/_v17_daily.md",
-                "v17_spx_max2/daily/_v17_daily.json",
+                "v17_spx_v12/daily/_v17_daily.md",
+                "v17_spx_v12/daily/_v17_daily.json",
                 "v18_kc50_e2tv/daily/_v18_daily.md",
                 "v18_kc50_e2tv/daily/_v18_daily.json",
                 "v19_hkt_v3/daily/_v19_daily.md",
                 "v19_hkt_v3/daily/_v19_daily.json",
-                "v20_gold_v6b/daily/_v20_daily.md",
-                "v20_gold_v6b/daily/_v20_daily.json"):
+                "v20_gold_v5/daily/_v20_daily.md",
+                "v20_gold_v5/daily/_v20_daily.json"):
         src = os.path.join(vl, rel.replace("/", os.sep))
         if os.path.exists(src):
             shutil.copyfile(src, _tpath(f"strategies/vol_legs/{rel}"))
@@ -433,7 +433,8 @@ def main():
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
     for key in ("permanent", "vol_legs", "dividend", "dividend_v9", "bond_cash",
-                "bond_cash_v1", "bond_cash_v2", "bond_cash_v3"):
+                "bond_cash_v1", "bond_cash_v2", "bond_cash_v3", "bond_cash_v4",
+                "bond_cash_v5", "bond_cash_v6"):
         if key in entries:
             _mark(entries[key], "🟡", "无盘中数据源（场外净值/月度估值/美股未开盘），沿用上一收盘")
 

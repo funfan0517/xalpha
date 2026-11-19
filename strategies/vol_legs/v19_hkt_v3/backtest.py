@@ -59,7 +59,8 @@ def main():
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v19 回测报告 · 恒生科技", "",
         f"> 由 `strategies/vol_legs/v19_hkt_v3/backtest.py` 生成。**研究确认无提升**。", "",

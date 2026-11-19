@@ -54,12 +54,13 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：同尺夏普 0.69→0.83、后段 1.50→1.80，回撤 −18.79%→−10.29%；样本仅 6 年。")
+               note="_beat_best_top3.md：同尺夏普 0.79→0.90、后段 1.57→1.85，回撤 −14.37%→−8.31%；样本仅 6 年。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     cut = px.index[int(len(px) * 0.60)]
-    post = engine.perf(nav.loc[cut:])
+    # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
+    post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v18 回测报告 · 科创50", "",
         f"> 由 `strategies/vol_legs/v18_kc50_e2tv/backtest.py` 生成。**★ 研究超越项**。", "",
@@ -67,7 +68,7 @@ def main():
         "(V2 + V12 等权融合) × 波动上限 TV20%（研究同款 cap 层）。", "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：同尺夏普 0.69→0.83、后段 1.50→1.80，回撤 −18.79%→−10.29%；样本仅 6 年。", "",
+        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：同尺夏普 0.79→0.90、后段 1.57→1.85，回撤 −14.37%→−8.31%；样本仅 6 年。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

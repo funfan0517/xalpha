@@ -16,6 +16,9 @@
 **旧 v5.0「三因子计分 → 三档」已整体删除**：`TARGET_MODE` 分支、价格突破/利率变化/
 资金流计分、置信度收缩与相关消融全部移除（结论与历史留在 git 历史，不再随策略发布）。
 资金流数据只作每日报告的「近期提示」，**永不进仓位**。
+同理，本文件下半部分的 `macro_cell`（DXY × CPI 格子读数）也只是「不计分项」：
+外部研究发现这组月度宏观水平值接进公式后年化/回撤/夏普均无改善
+（见 `research/dxy_cpi/_probe_dxy_cpi.md`）。
 """
 import io
 import os
@@ -331,6 +334,110 @@ def table(px, rate=None, flow=None, p=None, shares=None):
                             ready=vol_ok.to_numpy(dtype=bool) & gate.notna().to_numpy(dtype=bool)))
     out["blocked"] = _event_mask(px.index, int(p["EVENT_FREEZE"]))
     return out
+
+
+# ---------------------------------------------------------------- 不计分的宏观读数（DXY × CPI）
+# **永不进仓位**：只给每日报告一行「当前在哪一格」，与 read_flow / read_shares 同一级别。
+# 为什么只做读数：`research/dxy_cpi/_probe_dxy_cpi.md` —— 接进 scale × gate 后年化/回撤/夏普
+# 均无改善，连全样本作弊上界也只有 +0.05pp。
+DXY_CSV = os.path.join(_DATA, "_dxy.csv")                 # ICE 美元指数（东财 100.UDI）
+CPI_CSV = os.path.join(_DATA, "_cpi.csv")                 # FRED CPIAUCSL（月度）
+DX_BUCKETS = (("<95", 0, 95), ("95~97.5", 95, 97.5), ("97.5~100", 97.5, 100),
+              ("100~102.5", 100, 102.5), ("102.5~105", 102.5, 105), (">105", 105, 1e9))
+CPI_BUCKETS = (("<2", 0, 2), ("2~3", 2, 3), ("3~4", 3, 4), ("4~5", 4, 5), (">5", 5, 1e9))
+
+
+def read_dxy(path=DXY_CSV):
+    """ICE 美元指数日频 -> Series；缺文件返回 None（提示项，不 fail-fast）。"""
+    if not os.path.exists(path):
+        return None
+    df = pd.read_csv(path)
+    col = "dxy" if "dxy" in df.columns else df.columns[-1]
+    return pd.Series(pd.to_numeric(df[col], errors="coerce").to_numpy(),
+                     index=pd.to_datetime(df.iloc[:, 0])).dropna().sort_index()
+
+
+def read_cpi_yoy(path=CPI_CSV):
+    """FRED CPIAUCSL -> 同比%（index = PeriodIndex[月]）；缺文件返回 None。"""
+    if not os.path.exists(path):
+        return None
+    df = pd.read_csv(path)
+    col = "cpi" if "cpi" in df.columns else df.columns[-1]
+    s = pd.Series(pd.to_numeric(df[col], errors="coerce").to_numpy(),
+                  index=pd.PeriodIndex(pd.to_datetime(df.iloc[:, 0]), freq="M")).dropna().sort_index()
+    return ((s / s.shift(12) - 1.0) * 100.0).dropna()
+
+
+def _month_last(s):
+    d = pd.DataFrame({"v": s.astype(float)})
+    d["ym"] = d.index.to_period("M")
+    return d.groupby("ym")["v"].last()
+
+
+def macro_bucket(v, buckets):
+    for name, lo, hi in buckets:
+        if lo <= v < hi:
+            return name
+    return "n/a"
+
+
+def macro_monthly(gold=None, dxy=None, yoy=None):
+    """月频格子底表：period / dxy / cpi / fwd1 / fwd3（**无前视**）。
+
+    DXY 先 `shift(1)` 再取月末（北京收盘早于美市收盘）；CPI 用 m−1 月同比
+    （m 月数据 m+1 月中才发布）。`gold` 缺省用 `data/_gold_xau.csv`；缺数据返回 None。
+    """
+    if dxy is None:
+        dxy = read_dxy()
+    if yoy is None:
+        yoy = read_cpi_yoy()
+    if gold is None:
+        if not os.path.exists(XAU_CSV):
+            return None
+        x = pd.read_csv(XAU_CSV)
+        gold = pd.Series(pd.to_numeric(x["gold"], errors="coerce").to_numpy(),
+                         index=pd.to_datetime(x["date"])).dropna().sort_index()
+    if dxy is None or yoy is None or gold is None or not len(yoy):
+        return None
+    gm, dm = _month_last(gold), _month_last(dxy.shift(1))
+    known = {p + 1: v for p, v in yoy.items()}
+    idx = gm.index.intersection(dm.index).sort_values()
+    rows = []
+    for i, m in enumerate(idx):
+        if m not in known:
+            continue
+        f1 = gm[idx[i + 1]] / gm[m] - 1.0 if i + 1 < len(idx) else np.nan
+        f3 = gm[idx[i + 3]] / gm[m] - 1.0 if i + 3 < len(idx) else np.nan
+        rows.append(dict(p=m, dxy=float(dm[m]), cpi=float(known[m]),
+                         fwd1=float(f1) if np.isfinite(f1) else None,
+                         fwd3=float(f3) if np.isfinite(f3) else None))
+    return pd.DataFrame(rows) if rows else None
+
+
+def macro_cell(table=None, asof=None):
+    """当前 DXY × CPI 格子 + 该格子历史 1 月远期统计（**不计分，永不进仓位**）。
+
+    -> dict(dxy, cpi, cell, key, n, mean, win, asof) 或 None（缺数据）。
+    """
+    t = macro_monthly() if table is None else table
+    if t is None or not len(t):
+        return None
+    if asof is not None:
+        t = t[t["p"] <= pd.Period(asof, freq="M")]
+        if not len(t):
+            return None
+    last = t.iloc[-1]
+    kb = macro_bucket(last["dxy"], DX_BUCKETS)
+    kc = macro_bucket(last["cpi"], CPI_BUCKETS)
+    key = f"{kb} × {kc}"
+    sub = t[[macro_bucket(r["dxy"], DX_BUCKETS) == kb and macro_bucket(r["cpi"], CPI_BUCKETS) == kc
+             for _, r in t.iterrows()]]
+    vals = [float(v) for v in sub["fwd1"].tolist() if v is not None and np.isfinite(v)]
+    return dict(dxy=float(last["dxy"]), cpi=float(last["cpi"]), cell=key, key=(kb, kc),
+                n=len(vals),
+                mean=(float(np.mean(vals)) if vals else None),
+                win=(float(np.mean([v > 0 for v in vals])) if vals else None),
+                asof=str(last["p"]))
 
 
 # ---------------------------------------------------------------- 自检

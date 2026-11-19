@@ -86,6 +86,8 @@
         "criteria": "固定 8 项(由用户设定直接定档, 非回测 select, 不做 A/B 分级)"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "core",
         "codes": [],
         "runner": "run_daily_permanent.ps1",
@@ -254,6 +256,8 @@
         "criteria": "固定 7 腿(由 §0 战略目标直接定档, 非回测 select, 不做 A/B 分级)"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "vol",
         "codes": [],
         "runner": "run_daily_vol_legs.ps1",
@@ -425,47 +429,47 @@
       "note": "2026-10-30 由 tech_indicators/v3_macd_boll 复制并按六腿真实指数收盘落地（规则本体一条没动, 只换池与口径）; 同日接进每日操作板块2, 顶替 V1/V4 的卡片。**定位**: 与 v1_1_ma20 同一层（逐腿进出时点）, 但它回答的是「什么时候追突破上车」——**突破追涨型**, 与主策略「跌了才加仓」的阶梯方向相反, 不可叠加在同一份额度上（若要叠加: 主策略管带位, 本变种只管「带内已建仓位要不要临时下车」）。**回测诚实结论**（真实指数收盘口径, 2026-10-30）: 逐腿 6 腿年化跑赢买入持有 3/6、回撤 6/6 全部更小（逐腿年化差中位 -1.70pp）; 组合层 2021-11~2026-10 年化 5.55% / 回撤 -4.89% / 夏普 0.93（扣费 3.74% / -5.01% / 0.52）, 静态带 11.09% / -17.45% / 0.80, 平均只投入 18% —— **只降回撤、不增收益**。**增收益只在「买入持有本来为负」的腿上**: 恒生科技 -11.55% -> +7.26%、科创50 -4.65% -> +9.26%; 美股两条长牛腿让渡最多（纳指 -14.34pp、标普 -11.90pp）。**成本不是决定性变量**: 年笔数 2.1~3.9/年（MA20 是 13~16）, 组合层 5.55% -> 3.74%（-1.81pp）, 费用吃掉约 1/3 毛收益。**定位是保险不是收益引擎**: 2022 年 +1.71% vs 静态带 -12.26%（+13.97pp）, 2023-2025 连续落后 12.9/17.5/18.6pp。**已知边界**: QDII 腿净值滞后 T+1~T+2; 桥接段（000051/050025）不是本基金业绩; C 类 0.2%/年销售服务费未计; 组合层仅 4.9 年样本且曝光天然只有 12%~19%（无突破即空仓）, 收益对少数几笔高度敏感; 窗口/ER 阈值未做敏感性扫描。",
       "pipeline_mode": "full_pool"
     },
-    "v14_a500_v3": {
-      "name": "V14 中证A500 单腿策略 · V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
+    "v14_a500_e3": {
+      "name": "V14 中证A500 单腿策略 · E3 前三等权融合（V3+V2+V12）",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
       "universe": {
         "signal": "中证A500 真实指数收盘（黄金 = 场内 518880）",
         "exec": "023299",
         "note": "**单标的策略**：目标标的只有 `a500`，不做跨腿配权、不做 A/B 分级。"
       },
       "rules": [
-        "V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升",
+        "E3 前三等权融合：(V3 MACD+BOLL + V2 BOLL 突破 + V12 八态趋势许可) 等权各 1/3",
         "T 日收盘出决策，T+1 收盘成交；空仓按货基 1.40% 计息",
         "研究同尺成本：单边 10bp（非该腿原生费率），绝对数不与 best_by_leg.md 对账"
       ],
       "thresholds": {
-        "authoritative": "strategies/vol_legs/v14_a500_v3/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
+        "authoritative": "strategies/vol_legs/v14_a500_e3/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
         "fee_side": 0.001,
         "cash_annual": 0.014,
         "warmup": 300,
         "trade_at": "T+1"
       },
       "backtest": {
-        "engine": "strategies/vol_legs/v14_a500_v3/backtest.py",
-        "raw_out": "strategies/vol_legs/v14_a500_v3/backtest/_v14_bt.jsonl",
-        "report": "strategies/vol_legs/v14_a500_v3/backtest/_v14_bt.md"
+        "engine": "strategies/vol_legs/v14_a500_e3/backtest.py",
+        "raw_out": "strategies/vol_legs/v14_a500_e3/backtest/_v14_bt.jsonl",
+        "report": "strategies/vol_legs/v14_a500_e3/backtest/_v14_bt.md"
       },
       "daily": {
         "block": "vol",
         "codes": [],
         "runner": "",
         "runner_note": "不单列 runner：由 run_daily_vol_legs.ps1 第 2 步每日刷新，留空避免 run_daily_all 把 vol_legs 跑两遍",
-        "signal_report": "strategies/vol_legs/v14_a500_v3/daily/_v14_daily.md",
-        "signal_json": "strategies/vol_legs/v14_a500_v3/daily/_v14_daily.json",
+        "signal_report": "strategies/vol_legs/v14_a500_e3/daily/_v14_daily.md",
+        "signal_json": "strategies/vol_legs/v14_a500_e3/daily/_v14_daily.json",
         "enabled": false,
         "enabled_note": "并入板块2「变种操作一览」汇总卡，不单独出卡；脚本照常每日刷新产物"
       },
-      "note": "**研究确认无提升** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
+      "note": "**★ 研究超越项** —— 规则与数字来源 research/best_by_leg/_best_by_leg.md 与 research/beat_best/_beat_best_top3.md（2026-11-19 重跑）：E3 前三等权融合同尺夏普 0.66→0.82、后段 0.34→0.38、回撤 −13.74%→−16.20%；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
     "v15_hs300_min2": {
       "name": "V15 沪深300 单腿策略 · MIN2 双确认：min(V2 BOLL 突破, V12 八态趋势许可)",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项**。",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项**。",
       "universe": {
         "signal": "沪深300 真实指数收盘（黄金 = 场内 518880）",
         "exec": "000051",
@@ -503,7 +507,7 @@
     },
     "v16_ndx_v10": {
       "name": "V16 纳指100 单腿策略 · V10 ER20/10 自适应波动层 + 5 日死区，当前 ★1；研究确认无提升",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
       "universe": {
         "signal": "纳指100 真实指数收盘（黄金 = 场内 518880）",
         "exec": "270042",
@@ -539,47 +543,47 @@
       "note": "**研究确认无提升** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
-    "v17_spx_max2": {
-      "name": "V17 标普500 单腿策略 · MAX2 任一在场：max(V12 八态趋势, V13 九宫格许可)",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项**。",
+    "v17_spx_v12": {
+      "name": "V17 标普500 单腿策略 · V12 八态趋势（当前 ★1）",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项**。",
       "universe": {
         "signal": "标普500 真实指数收盘（黄金 = 场内 518880）",
         "exec": "017641",
         "note": "**单标的策略**：目标标的只有 `spx`，不做跨腿配权、不做 A/B 分级。"
       },
       "rules": [
-        "MAX2 任一在场：max(V12 八态趋势, V13 九宫格许可)",
+        "V12 八态趋势 → 带内仓位许可上限（原生 engine.backtest_leg，v12.1 生效口径）",
         "T 日收盘出决策，T+1 收盘成交；空仓按货基 1.40% 计息",
         "研究同尺成本：单边 10bp（非该腿原生费率），绝对数不与 best_by_leg.md 对账"
       ],
       "thresholds": {
-        "authoritative": "strategies/vol_legs/v17_spx_max2/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
+        "authoritative": "strategies/vol_legs/v17_spx_v12/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
         "fee_side": 0.001,
         "cash_annual": 0.014,
         "warmup": 300,
         "trade_at": "T+1"
       },
       "backtest": {
-        "engine": "strategies/vol_legs/v17_spx_max2/backtest.py",
-        "raw_out": "strategies/vol_legs/v17_spx_max2/backtest/_v17_bt.jsonl",
-        "report": "strategies/vol_legs/v17_spx_max2/backtest/_v17_bt.md"
+        "engine": "strategies/vol_legs/v17_spx_v12/backtest.py",
+        "raw_out": "strategies/vol_legs/v17_spx_v12/backtest/_v17_bt.jsonl",
+        "report": "strategies/vol_legs/v17_spx_v12/backtest/_v17_bt.md"
       },
       "daily": {
         "block": "vol",
         "codes": [],
         "runner": "",
         "runner_note": "不单列 runner：由 run_daily_vol_legs.ps1 第 2 步每日刷新，留空避免 run_daily_all 把 vol_legs 跑两遍",
-        "signal_report": "strategies/vol_legs/v17_spx_max2/daily/_v17_daily.md",
-        "signal_json": "strategies/vol_legs/v17_spx_max2/daily/_v17_daily.json",
+        "signal_report": "strategies/vol_legs/v17_spx_v12/daily/_v17_daily.md",
+        "signal_json": "strategies/vol_legs/v17_spx_v12/daily/_v17_daily.json",
         "enabled": false,
         "enabled_note": "并入板块2「变种操作一览」汇总卡，不单独出卡；脚本照常每日刷新产物"
       },
-      "note": "**★ 研究超越项** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
+      "note": "**研究确认无提升** —— 规则与数字来源 research/beat_best/_beat_best_top3.md（2026-11-19 重跑）：同尺基线夏普 0.59，九个候选无一通过双闸门（最佳 MAX2 全样本 0.61、后段 0.74 < 基线 0.80），故 V12 自身即 ★1；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
     "v18_kc50_e2tv": {
       "name": "V18 科创50 单腿策略 · (V2 + V12 等权融合) × 波动上限 TV20%",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项**。",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项**。",
       "universe": {
         "signal": "科创50 真实指数收盘（黄金 = 场内 518880）",
         "exec": "011609",
@@ -617,14 +621,14 @@
     },
     "v19_hkt_v3": {
       "name": "V19 恒生科技 单腿策略 · V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
       "universe": {
         "signal": "恒生科技 真实指数收盘（黄金 = 场内 518880）",
         "exec": "012805",
         "note": "**单标的策略**：目标标的只有 `hkt`，不做跨腿配权、不做 A/B 分级。"
       },
       "rules": [
-        "V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升",
+        "E3 前三等权融合：(V3 MACD+BOLL + V2 BOLL 突破 + V12 八态趋势许可) 等权各 1/3",
         "T 日收盘出决策，T+1 收盘成交；空仓按货基 1.40% 计息",
         "研究同尺成本：单边 10bp（非该腿原生费率），绝对数不与 best_by_leg.md 对账"
       ],
@@ -653,48 +657,100 @@
       "note": "**研究确认无提升** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
-    "v20_gold_v6b": {
-      "name": "V20 黄金 单腿策略 · V6-B 纯波动层（TV10%/120 日），当前 ★1；研究确认无提升",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-18）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
+    "v20_gold_v5": {
+      "name": "V20 黄金 单腿策略 · V5.1 黄金仓位（风险预算 × 实际利率闸门）",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
       "universe": {
         "signal": "黄金 真实指数收盘（黄金 = 场内 518880）",
         "exec": "518880",
         "note": "**单标的策略**：目标标的只有 `gold`，不做跨腿配权、不做 A/B 分级。"
       },
       "rules": [
-        "V6-B 纯波动层（TV10%/120 日），当前 ★1；研究确认无提升",
+        "风险预算 scale=clip(10%/120 日波动, 20%, 1) × 实际利率闸门 gate(DFII10 水平 0.5%±0.15pp) → 量化到 20pp 六档；跨 1 档才动",
         "T 日收盘出决策，T+1 收盘成交；空仓按货基 1.40% 计息",
         "研究同尺成本：单边 10bp（非该腿原生费率），绝对数不与 best_by_leg.md 对账"
       ],
       "thresholds": {
-        "authoritative": "strategies/vol_legs/v20_gold_v6b/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
+        "authoritative": "strategies/vol_legs/v20_gold_v5/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
         "fee_side": 0.001,
         "cash_annual": 0.014,
         "warmup": 300,
         "trade_at": "T+1"
       },
       "backtest": {
-        "engine": "strategies/vol_legs/v20_gold_v6b/backtest.py",
-        "raw_out": "strategies/vol_legs/v20_gold_v6b/backtest/_v20_bt.jsonl",
-        "report": "strategies/vol_legs/v20_gold_v6b/backtest/_v20_bt.md"
+        "engine": "strategies/vol_legs/v20_gold_v5/backtest.py",
+        "raw_out": "strategies/vol_legs/v20_gold_v5/backtest/_v20_bt.jsonl",
+        "report": "strategies/vol_legs/v20_gold_v5/backtest/_v20_bt.md"
       },
       "daily": {
         "block": "vol",
         "codes": [],
         "runner": "",
         "runner_note": "不单列 runner：由 run_daily_vol_legs.ps1 第 2 步每日刷新，留空避免 run_daily_all 把 vol_legs 跑两遍",
-        "signal_report": "strategies/vol_legs/v20_gold_v6b/daily/_v20_daily.md",
-        "signal_json": "strategies/vol_legs/v20_gold_v6b/daily/_v20_daily.json",
+        "signal_report": "strategies/vol_legs/v20_gold_v5/daily/_v20_daily.md",
+        "signal_json": "strategies/vol_legs/v20_gold_v5/daily/_v20_daily.json",
         "enabled": false,
         "enabled_note": "并入板块2「变种操作一览」汇总卡，不单独出卡；脚本照常每日刷新产物"
       },
-      "note": "**研究确认无提升** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
+      "note": "**当前 ★1（研究确认无提升）** —— 黄金 ★1 由 best_by_leg.md §0（2026-11-19 重跑）定为 V5.1（含费夏普 1.02 / 回撤 −12.33%，V6-B 退到 ★2 的 0.74 / −16.12%），规则本体在 strategies/vol_legs/v5_gold_score/（factors.py 参数权威源 + score.py 状态机）；beat_best_top3 的九个组合候选无一通过双闸门（最佳 MIN2 0.98 < 1.04）。依赖 data/_dfii10.csv（FRED 实际利率），每日扫描过期时联网补一次、失败降级沿用缓存。回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
+      "pipeline_mode": "single_leg"
+    },
+    "v21_livermore_keypoint": {
+      "name": "V21 沪深300 单腿策略 · 利弗莫尔关键点买入法（回撤≥20% 后 20 日突破试仓 + 20/20/20/40 金字塔 + 首买价 -10% 止损）",
+      "source_methodology": "用户 2026-11-19 提供的视频口径（利弗莫尔关键点买入法，2005–2026 沪深300）。规则状态机在 strategies/vol_legs/v21_livermore_keypoint/engine.py 内自实现（路径依赖，不走 _top3_bridge）；口径扫描与跨标的样本外见 research/_sweep.md。",
+      "universe": {
+        "signal": "沪深300 真实指数收盘（`SH000300`，价格指数，2005 起真实 OHLCV）",
+        "exec": "000051",
+        "note": "**单标的策略**：目标标的只有 `hs300`，不做跨腿配权、不做 A/B 分级；与 V15 同腿不同规则。"
+      },
+      "rules": [
+        "触发：距 252 日最高收盘回撤 ≥ 20% 才允许新开仓（下跌途中不买）",
+        "关键点：过去 20 日最高**收盘价**（不含当日），收盘 > 关键点 才算突破",
+        "建仓：T 日收盘确认 → T+1 收盘买 20%",
+        "加仓：相对**首买价** +5% / +10% / +15% 各一次，+20% / +20% / +40%；每根 K 线最多一档，只在浮盈时加",
+        "止损：收盘价 ≤ 首买价 × 0.90 → T+1 收盘清仓（收盘判定，不用盘中最低价）",
+        "退出：主口径**只有止损**（视频无固定止盈）→ 2009-02 加满后再未退出；备选 trail / hold_days 见 research/_sweep.md",
+        "成本：研究同尺单边 10bp，空仓货基 1.40%；场外 A 类真实费率（申 0.10% / 赎 0.50%）在回测敏感性里单列"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/vol_legs/v21_livermore_keypoint/engine.py::PARAMS",
+        "lookback": 20,
+        "dd_win": 252,
+        "dd_trigger": 0.20,
+        "first_size": 0.2,
+        "add_levels": [0.05, 0.1, 0.15],
+        "add_sizes": [0.2, 0.2, 0.4],
+        "stop_pct": 0.1,
+        "exec_lag": 1,
+        "fee_side": 0.001,
+        "cash_annual": 0.014,
+        "warmup": 252,
+        "trade_at": "T+1 收盘"
+      },
+      "backtest": {
+        "engine": "strategies/vol_legs/v21_livermore_keypoint/backtest.py",
+        "raw_out": "strategies/vol_legs/v21_livermore_keypoint/backtest/_v21_bt.jsonl",
+        "report": "strategies/vol_legs/v21_livermore_keypoint/backtest/_v21_bt.md"
+      },
+      "daily": {
+        "block": "vol",
+        "codes": [],
+        "runner": "",
+        "runner_note": "**不进每日流程**（2026-11-19 用户要求：新策略未稳定前不加进每日操作报告）。run_daily_vol_legs.ps1 第 2/3 步与板块2 看板都不跑它，需要时手跑 daily/_daily_scan.py",
+        "signal_report": "strategies/vol_legs/v21_livermore_keypoint/daily/_v21_daily.md",
+        "signal_json": "strategies/vol_legs/v21_livermore_keypoint/daily/_v21_daily.json",
+        "enabled": false,
+        "enabled_note": "未稳定：不进每日流程、不出看板卡；只保留回测（单腿 + 7 腿）与研究产物"
+      },
+      "note": "**用户视频口径 · 样本内 · 未稳定**。2005–2026 沪深300 只有两笔建仓（2008-04 止损、2008-11 加满），2009-02 后一直满仓：年化 +3.10% / 回撤 −46.70% / 夏普 0.08，同期买入持有 +7.21% / −72.30% / 0.23。7 腿回测见 backtest/_v21_7legs.md。它是风控策略不是收益策略，样本极小 —— **先验证再谈接入每日流程**。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
     "vol_variants": {
       "name": "波动类变种操作一览 · v14–v20 单标的策略",
-      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v14_a500_v3,v15_hs300_min2,v16_ndx_v10,v17_spx_max2,v18_kc50_e2tv,v19_hkt_v3,v20_gold_v6b}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
+      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v14_a500_e3,v15_hs300_min2,v16_ndx_v10,v17_spx_v12,v18_kc50_e2tv,v19_hkt_v3,v20_gold_v5}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "vol",
         "codes": [],
         "runner": "",
@@ -702,7 +758,7 @@
         "signal_report": "strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.md",
         "automation": "(随各变种扫描)"
       },
-      "note": "2026-11-18 起本卡只列 v14~v20 七个单标的专用策略（一策略一腿），v2/v3/v4/v6/v9/v12 已从看板移除；其 daily 产物与 PNG 仍由 run_daily_vol_legs.ps1 照常生成，只是不再进这张卡。v15/v17/v18 来自 research/beat_best/_beat_best_top3.md 的研究超越项，其余四条是研究确认无提升、保持当前 ★1 的单标的封装。",
+      "note": "2026-11-18 起本卡只列 v14~v20 七个单标的专用策略（一策略一腿），v2/v3/v4/v6/v9/v12 已从看板移除；其 daily 产物与 PNG 仍由 run_daily_vol_legs.ps1 照常生成，只是不再进这张卡。v15/v17/v18 来自 research/beat_best/_beat_best_top3.md 的研究超越项，其余四条是研究确认无提升、保持当前 ★1 的单标的封装。**v21（利弗莫尔关键点，2026-11-19）未稳定前不进本卡，也不进每日流程**：规则与 7 腿样本仍在验证，产物只留在策略目录。",
       "pipeline_mode": "summary"
     },
     "v6_gold": {
@@ -1128,6 +1184,8 @@
         }
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "dividend",
         "runner": "run_daily_dividend.ps1",
         "signal_md": "strategies/dividend/v4_rsi/daily/_v4_signal.md",
@@ -1167,6 +1225,8 @@
         "time_enabled": false
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "dividend",
         "codes": [],
         "runner": "",
@@ -1356,6 +1416,8 @@
         "criteria": "二元轮动, 非逐码 select: 整策略作为单标的 GD_ROT 评级(A=策略年化>0且超额>0; B=超额>0但年化≤0)"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "style",
         "codes": [],
         "runner": "run_daily_growth_div_rotation.ps1",
@@ -1489,6 +1551,8 @@
         "window": "2010-06-01~2026-10-30"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "style",
         "codes": [],
         "runner": "",
@@ -1541,6 +1605,8 @@
         "criteria": "不做 A/B 分级: 六个策略对全池 55 只全部出信号（阈值由回测网格取优, 不逐码筛选标的）"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "tech",
         "codes": [],
         "strategies": [
@@ -1562,6 +1628,8 @@
       "name": "技术指标 V17 · 趋势四象限闸门（年线位置 × 年线斜率）",
       "source_methodology": "strategies/tech_indicators/v17_trend_gate/（README.md + trend_gate.py + backtest.py + daily/_daily_scan.py）；规则沿用 vol_legs 的趋势四象限闸门（原 v5 变种，现为共享模块 strategies/vol_legs/_trend_gate.py），仅数据源从「七腿真实指数收盘」换成家族 54 只场内 ETF 收盘价（data/_long_klines.json + _pool.py / _universe.md 前四类）",
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "tech",
         "codes": [],
         "runner": "",
@@ -1577,7 +1645,7 @@
     },
     "bond_cash": {
       "name": "稳健资产 · 债腿 30pp + 现金腿 10pp（7-10 国开 A 70% / 3-5 政金 A 30%，固定哑铃 + 可选动量开关）",
-      "source_methodology": "E:/qianwen/jijin/债券全谱系与操作规则.md v1.0 · 参数权威源 strategies/bond_cash/rule.py::CFG / ::SAT / ::POOL · 标的池 = data/_universe.md 第六类(6xx 11 只)+第七类(7xx 4 只)",
+      "source_methodology": "E:/qianwen/jijin/债券全谱系与操作规则.md v1.0 + G:/tradingagents/bond_strategy/债券种类手册.md（2026-11-17，场内 ETF 视角，只借它的分类/久期光谱来认门类，不用它的收益口径）· 参数权威源 strategies/bond_cash/rule.py::CFG / ::SAT / ::POOL · 标的池 = data/_universe.md 第六类(6xx 11 只)+第七类(7xx 4 只)",
       "universe": {
         "offshore_pool": "data/_universe.md",
         "pool": "债券 6xx 11 只 + 现金 7xx 4 只（权威源 strategies/bond_cash/rule.py::POOL / ::ORDER）",
@@ -1642,6 +1710,8 @@
         "criteria": "固定 15 只（_universe.md 6xx+7xx 直接定档，非回测 select）"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "bond",
         "codes": [],
         "runner": "run_daily_bond_cash.ps1",
@@ -1742,6 +1812,8 @@
         "criteria": "固定标的，非选基策略；不做 A/B 分级"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "bond",
         "codes": [],
         "runner": "",
@@ -1894,6 +1966,8 @@
         "criteria": "固定两腿，非选基策略"
       },
       "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
         "block": "bond",
         "codes": [],
         "runner": "",
@@ -1903,6 +1977,321 @@
         "automation": "(未创建)"
       },
       "note": "2026-11-18 落地，按 Newfound carry-trend 双确认与兴业利率 MA 投票的可复现交集建 V3。设计动机：v1 已证实基金净值做信号会把零附近翻转放大 2.5 倍，V3 改用中债收益率曲线（连续估值、月度采样）。回测 2023-05~2026-11：V3 +3.76%/−1.88%/夏普1.58（Σ|Δw|=4.6），优于纯 Carry(+3.14%) 与纯 Trend(+3.18%)，但低于 v0 固定哑铃 +4.39%/−2.38%，夏普低于固定中性 35/65 的 1.70 —— 两票经常抵消（score=0 占 419/1114 天），长期状态接近固定中性；样本仅 3.5 年且几乎全债牛，不能外推。成本 0/10/40bp → +4.03%/+3.76%/+2.94%。边界：只覆盖 7-10 年 vs 3-5 年，做空/ECFC/LPPLS 未实现。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v4": {
+      "name": "V4 · 股债对冲三票（Carry + Trend + Hedge 的久期择时）",
+      "source_methodology": "Newfound Research (2018) A Carry-Trend-Hedge Approach to Duration Timing + 国泰海通 (2026-06) 从利率择时到久期轮动（股债增强）· 参数权威源 strategies/bond_cash/v4_stock_hedge/rule.py::CFG · 基准 = v3 双票",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "长端 003376（#606）/ 底仓 011983（#605）/ 现金 000198+014437（#701/#702）；信号源 = 中债国债 10Y/1Y 曲线 + 沪深300 指数",
+        "data": "strategies/bond_cash/v4_stock_hedge/data/_nav_cache.json + 只读 ../v1_four_factor/data/_curve.csv + data/_bt_caches/csi_000300.csv",
+        "note": "carry/trend 两票与 v3 逐行同源，只多一条 Hedge（股票动量极端分位反向映射债券）；40pp 额度与现金腿不动。"
+      },
+      "rules": [
+        "Carry 票 = 10Y−1Y 期限利差近 3 年滚动分位：≥66.7%→+1 / ≤33.3%→−1 / 中间 0（与 v3 同源）",
+        "Trend 票 = 10Y 国债收益率 MA5<MA20 与 MA20<MA60 各一票，全同向才记 ±1（与 v3 同源）",
+        "Hedge 票 = 沪深300 近 252 日累计收益的 5 年滚动分位 ≥90%→−1（股票过热减久期）/ ≤10%→+1（避险加久期）/ 中间 0",
+        "score = carry + trend + hedge ∈[−3,+3] → 长端占比 0/12/23/35/47/58/70%，其余放 011983",
+        "月末最后交易日算分、T+1 承担；滞后带 1.5pp；成本 |Δw|×2×单边 10bp",
+        "现金腿固定 5pp 000198 + 5pp 014437，与 v0/v1/v3 一致"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v4_stock_hedge/rule.py",
+        "carry": {
+          "short": "cgb_1y",
+          "long": "cgb_10y",
+          "years": 3,
+          "lo": 0.3333,
+          "hi": 0.6667,
+          "min_obs": 250
+        },
+        "trend": {
+          "pairs": [
+            [5, 20],
+            [20, 60]
+          ]
+        },
+        "hedge": {
+          "window": 252,
+          "years": 5,
+          "hi": 90.0,
+          "lo": 10.0,
+          "on_stock_hot": -1,
+          "on_stock_cold": 1
+        },
+        "long_by_score": {
+          "-3": 0.0,
+          "-2": 0.12,
+          "-1": 0.23,
+          "0": 0.35,
+          "1": 0.47,
+          "2": 0.58,
+          "3": 0.7
+        },
+        "hysteresis_pp": 1.5,
+        "rebalance": "month_end",
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v4_stock_hedge/backtest.py",
+        "raw_out": "strategies/bond_cash/v4_stock_hedge/backtest/_v4_bt.jsonl",
+        "report": "strategies/bond_cash/v4_stock_hedge/backtest/_v4_bt.md",
+        "window": "2023-05-30~2026-11-18（842 交易日，受曲线起点 + 3 年分位样本限制）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "固定两腿，非选基策略"
+      },
+      "daily": {
+        "enabled": false,
+        "enabled_note": "2026-11-19 研究变种，**未经用户允许不上板**（回测 Hedge 票独立贡献 ≈0）；产物由 run_daily_bond_cash.ps1 第 5 步照常刷新，看 strategies/bond_cash/v4_stock_hedge/daily/_v4_daily.md",
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner：由 run_daily_bond_cash.ps1 第 5 步每日刷新，避免 run_daily_all 把同一个 runner 跑两遍",
+        "signal_report": "strategies/bond_cash/v4_stock_hedge/daily/_v4_daily.md",
+        "signal_json": "strategies/bond_cash/v4_stock_hedge/daily/_v4_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-19 落地，接 v3 README §3 留的「Hedge 票」口子（股票动量极端分位反向映射债券）。回测 2023-05~2026-11：V4 三票 +3.73%/−1.79%/夏普1.61（Σ|Δw|=3.5）vs V3 口径双票 +3.81%/−1.91%/1.63 —— Hedge 票独立贡献 −0.08pp，回撤改善 0.12pp，基本为零。原因：3.5 年里股票动量打到 5 年分位顶 291 天、打到分位底仅 3 天，Hedge 退化成「股票强势时减久期」的单边开关，而 2024Q4 之后债市并未转熊。阈值 80/20 与 95/5 结论不变。故 V4 只作研究对照，不替代 v0/v3。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v5": {
+      "name": "V5 · 波动率目标的久期敞口（不预测方向，按风险预算缩放）",
+      "source_methodology": "Moreira & Muir (2017) Volatility-Managed Portfolios + 目标波动率资产组合管理（中国股/债/商品 7.5 年实证）+ 兴证 (2020-05) VaR 久期择时 · 参数权威源 strategies/bond_cash/v5_vol_target/rule.py::CFG",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "长端 003376（#606）/ 底仓 011983（#605）/ 现金 000198+014437（#701/#702）；信号源 = 长端腿自身已实现波动",
+        "data": "strategies/bond_cash/v5_vol_target/data/_nav_cache.json（场外累计净值，当日缓存）；不读曲线/SHIBOR",
+        "note": "数据链最短的变种；40pp 额度与现金腿不动，只在债腿内部按 σ 缩放长端占比。"
+      },
+      "rules": [
+        "σ = max(σ21, σ63)（长端腿 003376 日对数收益年化波动，两窗取较大者）",
+        "w = 70% × min(1, 1.50%/σ)，clip 到 [0,70%]，不加杠杆",
+        "熔断：σ > 2×1.50% = 3.00% → 长端清零，100% 011983",
+        "月末最后交易日调仓（备选每 10 个交易日/双周）、T+1 承担、滞后带 1.5pp",
+        "现金腿固定 5pp 000198 + 5pp 014437，与 v0/v1 一致"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v5_vol_target/rule.py",
+        "vol": {
+          "fast": 21,
+          "slow": 63,
+          "target_annual": 0.015,
+          "cap_w": 0.7,
+          "floor_w": 0.0,
+          "guard_mult": 2.0
+        },
+        "hysteresis_pp": 1.5,
+        "rebalance": "month_end",
+        "every_n": 10,
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v5_vol_target/backtest.py",
+        "raw_out": "strategies/bond_cash/v5_vol_target/backtest/_v5_bt.jsonl",
+        "report": "strategies/bond_cash/v5_vol_target/backtest/_v5_bt.md",
+        "window": "2021-12-09~2026-11-18（1197 交易日；不依赖曲线缓存，样本比 v3/v4/v6 长 1.5 年）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "固定两腿，非选基策略"
+      },
+      "daily": {
+        "enabled": false,
+        "enabled_note": "2026-11-19 研究变种，**未经用户允许不上板**（回测夏普与 v0 打平、是风险预算不是 alpha）；产物由 run_daily_bond_cash.ps1 第 6 步照常刷新，看 strategies/bond_cash/v5_vol_target/daily/_v5_daily.md",
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner：由 run_daily_bond_cash.ps1 第 6 步每日刷新",
+        "signal_report": "strategies/bond_cash/v5_vol_target/daily/_v5_daily.md",
+        "signal_json": "strategies/bond_cash/v5_vol_target/daily/_v5_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-19 落地。回测 2021-12~2026-11（5 年）：V5 月末 +4.15%/回撤−1.66%/夏普1.80（平均长端 50.3%、Σ|Δw|=5.4）vs v0 固定哑铃 +4.49%/−2.38%/1.79 vs 固定中性 35/65 +4.15%/−1.98%/1.87。**结论：0.34pp 年化换 0.72pp 回撤，夏普与 v0 打平，是风险预算不是 alpha。** 机制对照：反向（高波动加久期）+4.25%/−2.38%/1.66 —— 收益几乎相同、回撤差 0.72pp，证明回撤改善来自机制本身而非运气。目标波动 1.0/1.5/2.0/2.5% → 夏普 1.83/1.80/1.76/1.79，往 2.5% 走退化成「基本不动手」（平均长端 66.5%、Σ|Δw|=1.5）。双周调仓更差（+3.88%/−1.94%）。熔断触发 155/1197 天（12.9%）。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v6": {
+      "name": "V6 · 双利差锚（期限利差定久期 × 信用利差定品种）",
+      "source_methodology": "国信证券《基于双利差锚的周期划分和债券投资策略》(金融经济 2021-04) + 国泰海通《债券择时从多空到轮动：信用—利率与久期的双层策略》(2026) · 参数权威源 strategies/bond_cash/v6_dual_spread/rule.py::CFG",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "长端 003376（#606）/ 底仓-利率 011983（#605）/ 底仓-信用 000032（#608）/ 现金 000198+014437（#701/#702）",
+        "data": "strategies/bond_cash/v6_dual_spread/data/_nav_cache.json + 只读 ../v1_four_factor/data/_curve.csv（期限利差 cgb_10y−cgb_1y、信用利差 aaa_3y−cgb_3y）",
+        "note": "家族里唯一引入信用品种的变种：000032 只在信用利差收窄时进债腿；40pp 额度与现金腿不动。"
+      },
+      "rules": [
+        "久期轴：score = carry + slope，carry = 10Y−1Y 近 3 年分位（≥66.7%→+1 / ≤33.3%→−1），slope = 10Y−1Y 的 60 日变化（≤−10bp 牛平→+1 / ≥+10bp 熊陡→−1）",
+        "久期轴映射：score ∈[−2,+2] → 长端 003376 占债腿 0/17.5/35/52.5/70%，其余放底仓",
+        "品种轴：AAA3Y−国债3Y 的 60 日变化 Δcs ≤−5bp（信用收窄）→ 底仓切 000032；≥+5bp（走阔）→ 切 011983；中间维持上次",
+        "两轴正交：久期轴只动 003376 与底仓比例，品种轴只动「底仓是谁」",
+        "月末最后交易日调仓、T+1 承担；滞后带 1.5pp；成本按 Σ|Δw|×单边 10bp（券种切换 = 2×(1−w)）"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v6_dual_spread/rule.py",
+        "carry": {
+          "short": "cgb_1y",
+          "long": "cgb_10y",
+          "years": 3,
+          "lo": 0.3333,
+          "hi": 0.6667,
+          "min_obs": 250
+        },
+        "slope": {
+          "window": 60,
+          "deadband_bp": 10.0
+        },
+        "credit": {
+          "spread_leg": "aaa_3y",
+          "base_leg": "cgb_3y",
+          "window": 60,
+          "deadband_bp": 5.0
+        },
+        "long_by_score": {
+          "-2": 0.0,
+          "-1": 0.175,
+          "0": 0.35,
+          "1": 0.525,
+          "2": 0.7
+        },
+        "hysteresis_pp": 1.5,
+        "rebalance": "month_end",
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v6_dual_spread/backtest.py",
+        "raw_out": "strategies/bond_cash/v6_dual_spread/backtest/_v6_bt.jsonl",
+        "report": "strategies/bond_cash/v6_dual_spread/backtest/_v6_bt.md",
+        "window": "2023-05-30~2026-11-18（842 交易日，受曲线起点 + 3 年分位限制）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "固定三腿候选，非选基策略"
+      },
+      "daily": {
+        "enabled": false,
+        "enabled_note": "2026-11-19 研究变种，**未经用户允许不上板**（回测双轴互相抵消、40bp 成本下失效）；产物由 run_daily_bond_cash.ps1 第 7 步照常刷新，看 strategies/bond_cash/v6_dual_spread/daily/_v6_daily.md",
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner：由 run_daily_bond_cash.ps1 第 7 步每日刷新",
+        "signal_report": "strategies/bond_cash/v6_dual_spread/daily/_v6_daily.md",
+        "signal_json": "strategies/bond_cash/v6_dual_spread/daily/_v6_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-19 落地。回测 2023-05~2026-11：V6 双轴 +3.14%/回撤−1.58%/夏普1.52（Σ|Δw|=15.1）同时输给只久期轴 +3.79%/1.69、只品种轴 +4.13%/1.63 与 v0 +4.39%/1.67。**双轴互相抵消**：久期轴把长端压到平均 25.8%（slope 有 261 天投 −1，叠 carry 长期 0/−1）；品种轴的「超额」其实是信用债本身收益（只品种轴 +4.13% ≈ 固定 70/30 底仓换信用 +4.12%，71.3% 时间持有信用债）。成本最脆弱：单边 40bp 时年化崩到 +1.79%（Σ|Δw|=15.1，是 v3 的 3 倍）。唯一亮点是 2025 债熊年 +0.65% vs v0 −0.13%。死区网格全部 +3.07%~+3.38%，问题在结构不在参数。结论：双利差锚可作周期判断工具，不适合月度券种轮动。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v7": {
+      "name": "V7 · 门派风险预算（ERC：利率债 / 信用债 / 可转债 / 现金）",
+      "source_methodology": "《债券种类手册》(G:/tradingagents/bond_strategy/债券种类手册.md) §二 四门派分类 + 等风险贡献 ERC（Maillard/Roncalli/Teïletche 2010）；复用 strategies/permanent/research/_alloc_study.py 的风险贡献分解 · 参数权威源 strategies/bond_cash/v7_risk_budget/rule.py::CFG",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "利率腿 = 003376(#606)×70% + 011983(#605)×30% 合成；信用腿 000032(#608)；转债腿 470058（场外可转债 A）；现金 000198+014437 固定 10pp",
+        "data": "strategies/bond_cash/v7_risk_budget/data/_nav_cache.json（6 只场外累计净值，当日缓存）；转债不用场内 511380 行情（v0 §5-8）",
+        "note": "债腿 30pp 内部只做风险预算，不做方向择时；现金 10pp 固定、不进 ERC（σ≈0 会把逆波动解推到现金）。"
+      },
+      "rules": [
+        "三类风险资产（利率 / 信用 / 转债）做等风险贡献 ERC：月末用过去 60 个交易日日收益的年化协方差（向对角收缩 δ=0.30）解不动点",
+        "利率腿内部固定 70/30（v0 口径）后合成一条腿再进 ERC —— 否则等于偷偷做久期择时",
+        "约束（占债腿）：可转债 ≤16.7%（=总资产 5pp）、信用债 ≤50%、利率债 ≥50%",
+        "现金腿固定 10pp = 5pp 000198 + 5pp 014437，不参与风险预算",
+        "月末最后交易日算、T+1 承担；滞后带 1.5pp；成本 Σ|Δw|×单边 10bp",
+        "输出三件东西：目标配比、当前配比、**风险贡献分解**（谁在偷风险）"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v7_risk_budget/rule.py",
+        "erc": {
+          "window": 60,
+          "min_obs": 40,
+          "shrink": 0.3,
+          "damp": 0.3
+        },
+        "caps": {
+          "rate": 1.0,
+          "credit": 0.5,
+          "conv": 0.1667
+        },
+        "floors": {
+          "rate": 0.5,
+          "credit": 0.0,
+          "conv": 0.0
+        },
+        "hysteresis_pp": 1.5,
+        "rebalance": "month_end",
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v7_risk_budget/backtest.py",
+        "raw_out": "strategies/bond_cash/v7_risk_budget/backtest/_v7_bt.jsonl",
+        "report": "strategies/bond_cash/v7_risk_budget/backtest/_v7_bt.md",
+        "window": "2021-12-07~2026-11-18（1199 交易日；债腿内部口径，现金腿在外）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "固定四门派，非选基策略"
+      },
+      "daily": {
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner：由 run_daily_bond_cash.ps1 第 8 步每日刷新（只刷新产物，不上看板）",
+        "enabled": false,
+        "enabled_note": "2026-11-19 研究变种，**未经用户允许不上板**（回测跑输全利率 1.03pp，ERC≈约束下逆波动，价值在风险贡献表而非收益）；产物由 run_daily_bond_cash.ps1 第 8 步照常刷新，看 strategies/bond_cash/v7_risk_budget/daily/_v7_daily.md",
+        "signal_report": "strategies/bond_cash/v7_risk_budget/daily/_v7_daily.md",
+        "signal_json": "strategies/bond_cash/v7_risk_budget/daily/_v7_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-19 落地，回答「四大门派该各配多少」。定位是**配比体检**不是收益增强：四门派期望收益差 1~3pp/年、估计误差更大，先验最优权重不存在。回测 2021-12~2026-11（债腿内部）：V7 +3.48%/回撤−1.51%/夏普1.75（Σ|Δw|=0.7）vs 全利率 +4.51%/−2.38%/1.78 vs 全信用 +2.50%/1.52 vs 全转债 −0.85%/−22.18% vs 等权 +2.16%/−5.88%。**结论：少赚 1.03pp、回撤浅 0.87pp、最差单年由 −0.13% 转 +0.58%；2025 债熊年 +1.72pp 是唯一显著超额。** 风险贡献表是核心产出：利率下限绑定 → 利率 50% 权重贡献 65.7% 风险；转债 5% 权重贡献 17% 风险。协方差窗 60/120/252 日 → 3.48/3.55/3.49%（不敏感），成本 0/10/40bp → 3.49/3.48/3.44%（月频成本可忽略）。边界：转债只有 470058 主动型壳，akshare 中证转债指数 000832 接口落地时连接失败故未用；样本 5 年、参数样本内标定。",
       "pipeline_mode": "rotation"
     }
   }

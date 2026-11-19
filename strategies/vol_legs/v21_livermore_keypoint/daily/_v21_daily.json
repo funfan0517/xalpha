@@ -1,0 +1,89 @@
+{
+  "strategy": "v21",
+  "name": "v21 沪深300 · 利弗莫尔关键点",
+  "status": "用户口径 · 样本外待验证",
+  "leg": "hs300",
+  "as_of": "2026-11-17",
+  "generated": "2026-11-19",
+  "rule": {
+    "rule": "回撤≥20% 后收盘突破 20 日最高收盘 → 次日收盘 20%；浮盈 +5/+10/+15% 各加 20/20/40%；收盘破首买价 -10% 清仓",
+    "trade_at": "T 日收盘信号 → T+1 收盘成交",
+    "fee_side": 0.001,
+    "cash_annual": 0.014
+  },
+  "current_position": 1.0,
+  "next_target": 1.0,
+  "action": "持有 100%",
+  "legs": [
+    {
+      "leg": "hs300",
+      "name": "v21 沪深300 · 利弗莫尔关键点",
+      "code": "000051",
+      "action": "持有 100%",
+      "state": 1.0,
+      "pending": null,
+      "pos": 1.0,
+      "level_txt": "浮盈 +81%",
+      "date": "2026-11-17",
+      "close": 3976.46,
+      "dd": -0.2141,
+      "keypoint": 4152.11,
+      "first_buy": 1987.22,
+      "avg_cost": 2195.65,
+      "stop_price": 1788.5,
+      "next_add_price": null,
+      "adds": 3
+    }
+  ],
+  "recent_flow": [
+    {
+      "date": "2008-05-05",
+      "sig_date": "2008-04-30",
+      "kind": "entry",
+      "price": 4055.78,
+      "from_pct": 0.0,
+      "to_pct": 0.2
+    },
+    {
+      "date": "2008-05-27",
+      "sig_date": "2008-05-26",
+      "kind": "stop",
+      "price": 3576.2,
+      "from_pct": 0.2,
+      "to_pct": 0.0
+    },
+    {
+      "date": "2008-11-17",
+      "sig_date": "2008-11-14",
+      "kind": "entry",
+      "price": 1987.22,
+      "from_pct": 0.0,
+      "to_pct": 0.2
+    },
+    {
+      "date": "2008-12-09",
+      "sig_date": "2008-12-08",
+      "kind": "add",
+      "price": 2040.85,
+      "from_pct": 0.2,
+      "to_pct": 0.4
+    },
+    {
+      "date": "2009-02-09",
+      "sig_date": "2009-02-06",
+      "kind": "add",
+      "price": 2296.67,
+      "from_pct": 0.4,
+      "to_pct": 0.6
+    },
+    {
+      "date": "2009-02-10",
+      "sig_date": "2009-02-09",
+      "kind": "add",
+      "price": 2326.76,
+      "from_pct": 0.6,
+      "to_pct": 1.0
+    }
+  ],
+  "note": "用户 2026-11-19 视频口径。主口径只有止损、无固定止盈，2009-02 加满后一直持有；退出备选见 research/_sweep.md。"
+}

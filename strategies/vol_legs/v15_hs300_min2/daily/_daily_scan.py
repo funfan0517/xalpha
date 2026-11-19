@@ -61,7 +61,7 @@ def main():
                           fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
                 current_position=round(prev, 4), next_target=round(cur, 4),
                 action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md：同尺夏普 0.77→0.97、后段 0.27→0.36，毛夏普 0.82→1.05（信号效应）。")
+                note="_beat_best_top3.md：同尺夏普 0.75→0.96、后段 0.20→0.36，毛夏普 0.90→1.04（信号效应为主）；回撤 −32.08%→−11.66%。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
@@ -71,7 +71,7 @@ def main():
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
          f"- 标的：沪深300（`000051`，真实指数口径）；策略：MIN2 双确认（V2∩V12）。", "",
          "## 规则", "", "min(V2 BOLL 突破仓位, V12 八态趋势许可上限)——两条都认可才持仓。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md：同尺夏普 0.77→0.97、后段 0.27→0.36，毛夏普 0.82→1.05（信号效应）。", "",
+         f"> {engine.STATUS}。_beat_best_top3.md：同尺夏普 0.75→0.96、后段 0.20→0.36，毛夏普 0.90→1.04（信号效应为主）；回撤 −32.08%→−11.66%。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:

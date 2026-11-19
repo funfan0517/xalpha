@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v17 单腿图：标普500 · MAX2 任一在场（V12∪V13）。
+"""v17 单腿图：标普500 · V12 八态趋势（当前 ★1）。
 
 产物：`research/_<v>___leg__.png`（长期）与 `_<v>___leg___3y.png`（近三年）。
 信号与净值在全样本上算，近三年只截末端并归 1。机械规则输出，非投资建议。
@@ -23,8 +23,8 @@ import _plot_leg_core as core  # noqa: E402
 PARAMS = {}
 
 SPEC = dict(
-    mod=engine, tag="v17", short="MAX2 任一在场（V12∪V13）",
-    line="v17 择时（MAX2 任一在场（V12∪V13））",
+    mod=engine, tag="v17", short="V12 八态趋势（当前 ★1）",
+    line="v17 择时（V12 八态趋势）",
     warmup=engine.WARMUP,
     signal=lambda px: engine.weight(px),
     mark_signal=lambda px: (engine.weight(px) >= 0.5).astype(float),

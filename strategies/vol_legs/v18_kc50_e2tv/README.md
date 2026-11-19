@@ -2,7 +2,7 @@
 
 > **★ 研究超越项**。规则与数字来源：
 > [`research/beat_best/_beat_best_top3.md`](../research/beat_best/_beat_best_top3.md)（2026-11-18）。
-> _beat_best_top3.md：同尺夏普 0.69→0.83、后段 1.50→1.80，回撤 −18.79%→−10.29%；样本仅 6 年。
+> _beat_best_top3.md：同尺夏普 0.79→0.90、后段 1.57→1.85，回撤 −14.37%→−8.31%；样本仅 6 年。
 
 ## 规则
 

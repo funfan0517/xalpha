@@ -4,6 +4,10 @@
 各变种的 `research/_plot_leg.py` 只是给本模块传一份 `spec`（信号函数 / 净值函数 / 预热天数 /
 文案），图的形式、口径、配色、标注方式全部在这里统一，避免三个变种各抄一份再各自漂移。
 
+`spec` 可选的 `lag`（默认 1）= 从「信号」到「实际持仓」的成交滞后：`signal` 返回**决策序列**
+时用 1（T 日收盘决策 → T+1 成交），返回**已含滞后的持仓序列**时用 0（如 v21 的状态机，
+首买价/加仓档/止损线都是路径依赖的，没法用 `decision.shift(1)` 表达）。
+
 七条腿（`--leg` 任选，默认全跑）：
 
 | key | 标的 | 序列 | 说明 |
@@ -151,9 +155,13 @@ def plot(key, spec, prefix, out_dir, years=None):
         start = max(pd.Timestamp(ini), pd.Timestamp(px_w.index[_p]))
     px, sig = px_w.loc[start:], sig_w.loc[start:]
     nav = nav_w.loc[start:]
-    pos = mk_w.shift(1).fillna(0).astype(float).loc[start:]   # 标点用：0/1 入场序列
-    # 下格用：实际生效仓位 =「信号 × 波动上限」（`sig`）再按 T+1 成交滞后一天，与 `expo` 同口径
-    pos_eff = sig_w.shift(1).fillna(0.0).clip(0.0, 1.0).loc[start:]
+    # 成交滞后：族内多数变种的 `signal` 是**决策序列**，要 shift(1) 才是实际持仓；
+    # 少数变种（如 v21 利弗莫尔）的状态机自己已经含 T+1 成交滞后，直接返回持仓序列，
+    # 用 `spec["lag"]=0` 申明，避免再整体后移一天。
+    lag = int(spec.get("lag", 1))
+    pos = mk_w.shift(lag).fillna(0).astype(float).loc[start:]   # 标点用：0/1 入场序列
+    # 下格用：实际生效仓位 =「信号 × 波动上限」（`sig`）再按成交滞后，与 `expo` 同口径
+    pos_eff = sig_w.shift(lag).fillna(0.0).clip(0.0, 1.0).loc[start:]
     if win_years > 0:
         nav = nav / nav.iloc[0]                             # 以窗口首日为 1 重新归位
 
@@ -165,7 +173,7 @@ def plot(key, spec, prefix, out_dir, years=None):
     ph, pn = spec["perf"](hold), spec["perf"](nav)
     yrs = (px.index[-1] - px.index[0]).days / 365.25
     n_round = (len(buys) + len(sells)) / 2.0
-    expo = float(sig.shift(1).fillna(0).mean())             # 实际持仓（含波动上限），不是入场天数占比
+    expo = float(sig.shift(lag).fillna(0).mean())           # 实际持仓（含波动上限），不是入场天数占比
 
     hold_v = hold.to_numpy()
     x = px.index

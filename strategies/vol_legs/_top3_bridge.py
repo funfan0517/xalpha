@@ -11,14 +11,14 @@
 每个策略的 `engine.weight(px)` 返回决策序列，`engine.run()` 内部 `shift(1)` 得到实际持仓。
 这与 `_beat_best_top3.py` 里的 `hold` 一一对应：`hold[t] = decision[t-1]`。
 
-七腿映射（v14~v20，每策略只有一条腿）：
-    v14 a500  V3 MACD+BOLL ............ 研究确认无提升，保持当前 ★1
-    v15 hs300  MIN2 双确认 (V2∩V12) ... ★ 超越项
+七腿映射（v14~v20，每策略只有一条腿；2026-11-19 按 `_beat_best_top3.md` 重跑结果更新）：
+    v14 a500  E3 前三等权 (V3+V2+V12)/3  ★ 超越项
+    v15 hs300  MIN2 双确认 (V12∩V2) .... ★ 超越项
     v16 ndx    V10 波动层 ............. 研究确认无提升，保持当前 ★1
-    v17 spx    MAX2 任一在场 (V12∪V13)  ★ 超越项
+    v17 spx    V12 八态趋势 ........... 研究确认无提升，保持当前 ★1
     v18 kc50   E2×TV20 波动上限 ....... ★ 超越项
     v19 hkt    V3 MACD+BOLL ........... 研究确认无提升，保持当前 ★1
-    v20 gold   V6-B 控回撤 ............ 研究确认无提升，保持当前 ★1
+    v20 gold   V5.1 黄金仓位（风险预算 × 利率闸门） 当前 ★1
 
 用法（各策略 engine.py）：
     from _top3_bridge import bridge
@@ -58,6 +58,8 @@ _SPECS = {
     "v1": ("v1_price_volume/v1_1_ma20", ("data", "rule", "engine", "ma20"), "ma20"),
     "v2": ("v2_boll_breakout", ("data", "rule", "engine", "boll"), "boll"),
     "v3": ("v3_macd_boll", ("data", "rule", "engine", "macd_boll"), "macd_boll"),
+    # v5：入口是 score.py（状态机），因子在 factors.py（另挂 auxs，不叫 data）
+    "v5": ("v5_gold_score", ("data", "rule", "engine", "factors", "score"), "score"),
     "v6b": ("v6_gold", ("data", "rule", "engine", "gold"), "gold"),
     "v9": ("v9_vol_target", ("data", "rule", "engine", "vol_target"), "vol_target"),
     "v10": ("v10_vol_layer", ("data", "rule", "engine", "vol_layer"), "vol_layer"),
@@ -66,16 +68,17 @@ _SPECS = {
 }
 
 
-# v14~v20 自己的目录必须从原生引擎的搜索路径里临时摘掉：v1/v2/v3/v6/v9/v10
+# v14~v21 自己的目录必须从原生引擎的搜索路径里临时摘掉：v1/v2/v3/v6/v9/v10
 # 都没有自己的 engine.py，import engine 会回落到 sys.path 上的第一个 engine.py。
 # 如果此时调用方正是某个新策略的 engine.py（还没初始化完），就会形成循环导入。
+# v21 自带 engine.py 且不走 bridge，但它同样会污染 `import engine` 的解析结果，一并摘掉。
 _SHADOW_DIRS = {
     os.path.join(_HERE, d) for d in (
-        "v14_a500_v3", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_max2",
-        "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v6b")
+        "v14_a500_e3", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
+        "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")
 } | {os.path.join(_HERE, d, "research") for d in (
-        "v14_a500_v3", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_max2",
-        "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v6b")}
+        "v14_a500_e3", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
+        "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")}
 
 
 @contextlib.contextmanager
@@ -101,12 +104,14 @@ def isolated(directory, names):
 
 class _Bridge:
     def __init__(self):
-        self.mods, self.dmods = {}, {}
+        self.mods, self.dmods, self.auxs = {}, {}, {}
         for key, (sub, names, mod) in _SPECS.items():
             d = os.path.join(_HERE, sub)
             with isolated(d, names):
                 self.mods[key] = importlib.import_module(mod)
                 self.dmods[key] = importlib.import_module("data")
+                if key == "v5":                    # 入口模块之外还要拿 factors（读 FRED 实际利率）
+                    self.auxs[key] = importlib.import_module("factors")
 
     def _ctx(self, key):
         sub, names, _mod = _SPECS[key]
@@ -127,6 +132,36 @@ class _Bridge:
         with self._ctx("v3"):
             m = self.mods["v3"]
             return m.weight(px, m.signal(px)).reindex(px.index).fillna(0.0).clip(0.0, 1.0)
+
+    @property
+    def v5_factors(self):
+        """v5 的因子模块（每日扫描要借它补 FRED 实际利率 / 读闸门读数）。"""
+        return self.auxs["v5"]
+
+    def v5_detail(self, px, leg="gold"):
+        """V5.1 的完整因子表：`state` / `target` / `action` / `vol` / `scale` / `gate` / `rate_level`。
+
+        状态机在**全样本**上跑（见 `v5()`），返回**全样本**表；调用方自己按 `px.index` 截。
+        """
+        full = vdata.series_for_leg(leg).dropna().astype("float64")
+        with self._ctx("v5"):
+            df = self.mods["v5"].run(pd.DataFrame({"close": full}),
+                                     self.auxs["v5"].read_rate())
+        return df
+
+    def v5(self, px, leg="gold"):
+        """V5.1 黄金仓位（风险预算 × 实际利率闸门）→ 决策仓位（= `score.run` 的 `state`）。
+
+        `state[t]` = t 日**收盘成交后**的仓位（引擎内部已含 T+1 成交滞后），
+        正好是本桥约定的 `decision[t]`（`run()` 里再 shift(1) → `hold[t] = state[t-1]`，与
+        `score.run_leg` 的 `state.shift(1)` 完全一致）。
+
+        状态机必须在**全样本**上跑再 reindex 进调用方窗口：`START=0.40` 起手档、
+        120 日波动预热、FRED 实际利率三者都依赖窗口起点之前的历史，截窗重跑会在
+        窗口头重放一次 `0.40` 的假建仓（见 `v5_detail`）。
+        """
+        df = self.v5_detail(px, leg)
+        return df["state"].reindex(px.index).ffill().fillna(0.0).clip(0.0, 1.0)
 
     def v6b(self, px, leg=None):
         with self._ctx("v6b"):

@@ -179,8 +179,11 @@ strategies/dividend/
   v9_temp5/            V9 · 五因子估值温度（35/20/16/15/14 · PB 合成）+ HTML 看板，未接每日流程
   v10_resonance/       V10 · 三重共振状态机（回撤×均线×股息率，买入后持有到结构退出），未接每日流程
   research/            ④ 专项分析（不属于任何版本）
+    _leg_engine.py     单标的共同引擎（数据 / 信号原语 / 同尺模拟），两个课题共用
     backtest_dims.py（5 指标边际） · backtest_rsi14.py（单标的 RSI14）
-    backtest/_dims_* · _rsi14_090010*
+    v4_levels.py · v4_thresholds.py · mood_band.py · backtest/
+    best_by_fund/      每只标的的策略表现与前三名 → _best_by_fund.{md,jsonl}
+    beat_best/         单标的「超过当前最优」搜索 → _beat_best.md
   data/                策略数据（池镜像 / 净值缓存 / 估值快照 / _csi_hist）
 ```
 
@@ -208,6 +211,9 @@ strategies/dividend/
 | ③ 备选规则 | `pool_rule_v1.py`（利差读数卡，并行未替换）→ `daily/_pool_rule_v1.{md,json}` |
 | ③ 总对比 | `_compare_all.py`（**V0–V10**：§一 V0–V8 对齐窗口全景 + §三 原生口径含 V9/V10）→ `backtest/_compare_all_report.md`。V9/V10 与 `_single_signal` 结构不同构，只并列在 §三 表、**不参与 §一 排名**；§五 另附两者定位 |
 | ④ 专项分析 | `research/backtest_dims.py`（5 指标边际）· `research/backtest_rsi14.py`（单标的 RSI14 择时）· `research/mood_band.py`（80/65 情绪双阈值波段，外部策略复现）→ `research/backtest/*` |
+| ④ **每腿前三（2026-11-19）** | `research/_leg_engine.py`（共用引擎）+ `research/best_by_fund/_best_by_fund.py` → `_best_by_fund.{md,jsonl}`：10 只标的 × 可落到单只基金的规则（BH/V1/V3/V4/V5/V6/V8），每标的前三名（夏普）+ 组合层诊断。对应 vol_legs 的 `research/best_by_leg` |
+| ④ **超越搜索（2026-11-19）** | `research/beat_best/_beat_best.py` → `_beat_best.md`：以每只标的的 ★1 为基线，10 档固定候选（含 C10「RSI14+RSI12 各 50%」集成）+ 后段闸门 + 邻域检验。对应 vol_legs 的 `research/beat_best` |
+| ④ **温度档位配权（2026-11-19）** | `v9_temp5/research/temp_weight/_temp_weight.py` → `_temp_weight.md`：把红利资金看成 100%，按 V9 温度档位在 6 只标的间分配（不降总仓位）。**结论：+0.5pp/年、Calmar +0.13，两段窗口同向但只踩在 95% 边缘**；增量来自动态调权（静态倾斜 ≈ 等权），落地建议 λ=0.5 半强度 + 只在大档位动 |
 | 启动 | `run_daily_dividend.ps1`（仓库根） |
 
 ### 版本谱系与结论（2026-10-26）
@@ -269,6 +275,32 @@ strategies/dividend/
 `bond10y_m.csv`（10Y 中债**月频**，本策略读它算股债收益比）·
 `bond10y_d.csv`（10Y 中债**日频**，2026-10-28 由 `v9_temp5/data.py` 首次生产，供需要日频的场合复用）。
 
+### 5.1 单标的横向研究（2026-11-19）
+
+`research/best_by_fund/` 与 `research/beat_best/` 把 vol_legs 的两个课题搬到红利：
+**「腿」= 10 只基金**（不是版本），因为红利的版本大多是组合规则（横截面 top2 × 板块时间倍率），
+单标的层面每个版本都能落成一条规则。共用引擎 `research/_leg_engine.py`
+（累计净值 · 月末信号次月生效 · 单边 0.03% · 空仓不计息，与 `_single_signal.simulate` 同尺）。
+
+四条结论（细节见两份报告）：
+
+1. **RSI 是唯一在整池上都站得住的规则** —— 10 只里 9 只的 ★1 是 V4/V8；只有 `018388`
+   （港股通）的 ★1 是买入持有。**估值三兄弟（股息率/利差/收益比）在 28 行里 26 行等同不做**
+   （平均仓位 ≥90%、调仓 ≤4 次），与「利率单边下行把分位顶死」是同一件事。
+2. **★1 是 RSI ≠ 该标的适合择时** —— `005125`/`007467`/`007760`/`561580` 的 ★1 也是 RSI，
+   但年化仍不高于买入持有；「该不该择时」只有 `universe.py` 的双窗口 ΔCalmar 在回答。
+3. **组合层比单标的层更重要**：把每只标的的 ★1 拼成等权组合（共同窗口 2023-11~2026-10），
+   夏普 0.85 **低于**现行 V4 的 0.97 —— 单标的最优丢掉了横截面「哪只最便宜」这一层信息。
+4. **超越搜索只找到 5 只，且只有 3 只稳**：把 RSI 三档拆成五档（`research/v4_levels.py` 的
+   「五档 B」，清仓线仍 70）在 `007467`/`007760`/`561580` 上过★（邻域 2/3~3/3）；
+   `016441` 的「RSI 3 月均值」与 `018388` 的「年线闸门」邻域只有 1/3，按判据算噪声。
+   加方向层（年线/金叉/动量）在 30 行里只有 1 行赢，「σ 上限 / 常驻底仓」在红利上也不灵
+   （与 vol_legs 在科创50 的结论**相反**：红利 σ 高位往往就是反弹初期）。
+   「RSI14 与 RSI12 各 50%」的集成（C10）也无增量：两者只有 **~6% 的月份仓位不同**
+   （同族参数孪生），平均只能把仓位拉回中间，而基线已是两者中较好的那个。
+
+> 这两份报告是**研究产物，不进每日流程**（AGENTS §9）：每日动作仍由 `v4_rsi/daily.py` 出。
+
 ## 6. 运行
 
 ```powershell
@@ -305,6 +337,10 @@ python strategies/dividend/v6_ratio/backtest.py  # V6 股债收益比
 python strategies/dividend/v7_combo/search.py    # V7 组合优选 + 横向对比总表
 python strategies/dividend/research/backtest_dims.py   # 专项：5 个价值分的边际（V0 指标重要度）
 python strategies/dividend/research/backtest_rsi14.py  # 专项：单标的 RSI14 择时（结论已被 V4 覆盖）
+python strategies/dividend/research/_leg_engine.py     # 引擎自检：打印 10 只标的的候选与可用窗口
+python strategies/dividend/research/best_by_fund/_best_by_fund.py  # 每只标的前三名（先跑这个）
+python strategies/dividend/research/beat_best/_beat_best.py        # 超越搜索（读上一步的 jsonl 当基线）
+python strategies/dividend/v9_temp5/research/temp_weight/_temp_weight.py  # 温度档位配权（满仓、按档位分权重）
 python strategies/dividend/_compare_all.py       # V0–V10 总对比（§一 V0–V8 全景 + §三 原生口径含 V9/V10）
 powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1
 # 或走 pipeline:

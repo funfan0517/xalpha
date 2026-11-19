@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v14 每日操作：中证A500 · E3 前三等权融合（V3 + V2 + V12）。
+"""v14 每日操作：中证A500 · E2 前二等权融合（V3 + V12）。
 
 T 日盘后算决策 → T+1 收盘前执行。只读本地缓存，不联网刷新（与 v2/v13 同纪律）。
 产物：`daily/_<v>_daily.md` / `.json`。机械规则输出，非投资建议。
@@ -61,7 +61,8 @@ def main():
                           fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
                 current_position=round(prev, 4), next_target=round(cur, 4),
                 action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md（2026-11-19）：E3 前三等权融合 ★超越，夏普 0.66→0.82、后段 0.34→0.38。")
+                note="_beat_best_top3.md（2026-11-19 二次重跑）：E2 前二等权（V3+V12）★超越最佳，"
+                    "夏普 0.66→0.86、后段 0.34→0.46。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
@@ -69,10 +70,10 @@ def main():
          f"> **{engine.STATUS}** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
          "## 今日动作", "",
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
-         f"- 标的：中证A500（`023299`，真实指数口径）；策略：E3 前三等权融合（V3+V2+V12）。", "",
+         f"- 标的：中证A500（`023299`，真实指数口径）；策略：E2 前二等权融合（V3+V12）。", "",
          "## 规则", "", f"{engine.RULE_TXT}。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md（2026-11-19）：同尺夏普 0.66 → 0.82、"
-         "后段 0.34 → 0.38、回撤 −13.74% → −16.20%。", "",
+         f"> {engine.STATUS}。_beat_best_top3.md（2026-11-19 二次重跑）：同尺夏普 0.66 → 0.86、"
+         "后段 0.34 → 0.46、回撤 −13.74% → −13.85%。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:

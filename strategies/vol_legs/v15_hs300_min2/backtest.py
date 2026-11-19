@@ -54,7 +54,8 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：同尺夏普 0.75→0.96、后段 0.20→0.36，毛夏普 0.90→1.04（信号效应为主）；回撤 −32.08%→−11.66%。")
+               note="_beat_best_top3.md（2026-11-19 二次重跑）：同尺夏普 0.84→0.94、后段 0.29→0.38，"
+                    "毛夏普 0.98→1.01（信号效应为主）；回撤 −19.94%→−11.46%。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -68,7 +69,9 @@ def main():
         "min(V2 BOLL 突破仓位, V12 八态趋势许可上限)——两条都认可才持仓。", "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：同尺夏普 0.75→0.96、后段 0.20→0.36，毛夏普 0.90→1.04（信号效应为主）；回撤 −32.08%→−11.66%。", "",
+        f"> 研究出处：`research/beat_best/_beat_best_top3.md`（2026-11-19 第二次重跑，v12 波动层按腿后）。"
+        f"同尺夏普 0.84→0.94、后段 0.29→0.38，毛夏普 0.98→1.01（信号效应为主）；"
+        f"回撤 −19.94%→−11.46%。**基线随 v12 变动，所以这些数字每次 v12 改规则都要重取。**", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

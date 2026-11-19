@@ -68,7 +68,7 @@ python -W ignore strategies\vol_legs\v9_vol_target\daily\_daily_scan.py --no-ref
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9_vol_target daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
 
 Write-Host "  - v14 中证A500 单腿 ..."
-python -W ignore strategies\vol_legs\v14_a500_e3\daily\_daily_scan.py
+python -W ignore strategies\vol_legs\v14_a500_e2\daily\_daily_scan.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v14 daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
 
 Write-Host "  - v15 沪深300 单腿 ..."
@@ -130,9 +130,9 @@ python -W ignore strategies\vol_legs\v9_vol_target\research\_plot_target.py --le
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9 plot_target failed (exit $LASTEXITCODE) - 保留上次的图" }
 
 Write-Host "  - v14 中证A500 长期图 + 近三年图 ..."
-python -W ignore strategies\vol_legs\v14_a500_e3\research\_plot_leg.py
+python -W ignore strategies\vol_legs\v14_a500_e2\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v14 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
-python -W ignore strategies\vol_legs\v14_a500_e3\research\_plot_leg.py --years 3
+python -W ignore strategies\vol_legs\v14_a500_e2\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v14 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
 
 Write-Host "  - v15 沪深300 长期图 + 近三年图 ..."

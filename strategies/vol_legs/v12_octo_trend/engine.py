@@ -205,12 +205,95 @@ def vol_target(df, w, vt):
     `σ20` 用当日收盘可得的日收益标准差（年化），与 `z20`/`rvol` 同窗口；仓位 T+1 才生效，
     所以没有前视。用途是给「年化波动是别人两倍」的腿（科创50）压风险预算，
     **不改判定、只压上限**，证据见 `research/opt_ashare/_opt_ashare.md` §3.2。
+
+    ⚠ 2026-11-19 起这只是**历史口径**（`research/opt_7legs` / `_er_vol_layer` 的 S1 对照）；
+    回测/日报走下面的 `vol_layer()`。
     """
     n = int(rule.VOL_WIN)
     sig = df["close"].pct_change().rolling(n, min_periods=n).std() * np.sqrt(rule.TRADING_DAYS)
     # 暖机段没有 σ -> 用 0.05 当下限，使 vt/σ 足够大、不约束仓位（等价于"不覆盖"）
     sig = sig.fillna(0.05).clip(lower=0.05)
     return pd.concat([w, (float(vt) / sig).rename("cap")], axis=1).min(axis=1)
+
+
+# ---------------------------------------------------------------- 波动层（2026-11-19 · 按腿）
+# 实现在这里、配置在 `rule.VOL_LAYER`。两条口径来自 `v10_vol_layer`：
+#   "er"    `scale = min(1, TV(ER)/vol20)`，ER(20) 趋势态 TV=20% / 震荡态 10%，带滞回；
+#   "fixed" `scale = min(1, TV/vol20)`，TV 常数。
+# 两者都再过一道「幅度死区 10pp + 时间死区 5 日」，最后 `w' = min(w, scale)`。
+# **不改判定、不加杠杆**：scale ≤ 1，只压上限。
+def efficiency_ratio(px, n=None):
+    """Kaufman ER(n) = |n 日净变动| / n 日路径总变动。只判趋势纯度，不判涨跌。"""
+    n = int(rule.VL_ER_N if n is None else n)
+    s = px.astype("float64")
+    return (s - s.shift(n)).abs() / s.diff().abs().rolling(n).sum()
+
+
+def er_state(er, hi=None, lo=None):
+    """ER ≥ hi → 趋势态；≤ lo → 震荡态；中间**维持**（滞回，避免阈值附近抖动）。"""
+    hi = float(rule.VL_ER_HI if hi is None else hi)
+    lo = float(rule.VL_ER_LO if lo is None else lo)
+    fast, out = False, []
+    for v in er.to_numpy(dtype=float):
+        if not np.isnan(v):
+            if v >= hi:
+                fast = True
+            elif v <= lo:
+                fast = False
+        out.append(fast)
+    return pd.Series(out, index=er.index, dtype=bool)
+
+
+def vol_scale(df, cfg):
+    """波动层系数 `min(1, TV(ER)/vol20)`（未过死区）。预热 / vol=0 → 1.0（不约束）。"""
+    n = int(rule.VL_VOL_WIN)
+    vol = df["close"].pct_change().rolling(n, min_periods=n).std(ddof=1) * np.sqrt(rule.TRADING_DAYS)
+    if str(cfg.get("mode")) == "er":
+        fast = er_state(efficiency_ratio(df["close"]))
+        tv = pd.Series(np.where(fast, float(cfg["tv"]), float(cfg["tv_low"])), index=df.index)
+    else:
+        tv = pd.Series(float(cfg["tv"]), index=df.index)
+    s = (tv / vol).replace([np.inf, -np.inf], np.nan).clip(upper=1.0).fillna(1.0)
+    return s.clip(lower=0.0, upper=1.0)
+
+
+def deadzone(tgt, dead=None, gap=None):
+    """幅度死区 + 时间死区：`|新目标−现仓| ≥ dead` 且距上次调仓 ≥ gap 日才动手。
+
+    ⚠ 只能作用在**波动层系数**上，不能作用在合并后的仓位上 —— 八态的许可变化是
+    离散跳档，合并后再过死区会把「降格立即生效」也拖慢 gap 日（实测沪深300 0.92→0.83、
+    科创50 0.59→0.19）。见 `research/er_vol_layer` §7。
+    """
+    dead = float(rule.VL_DEAD if dead is None else dead)
+    gap = int(rule.VL_DEAD_DAYS if gap is None else gap)
+    g = tgt.to_numpy(dtype=float)
+    if not len(g):
+        return pd.Series(dtype="float64", index=tgt.index)
+    out = np.empty(len(g))
+    cur, last = float(g[0]), 0
+    out[0] = cur
+    for i in range(1, len(g)):
+        if abs(g[i] - cur) >= dead - 1e-12 and (i - last) >= gap:
+            cur, last = float(g[i]), i
+        out[i] = cur
+    return pd.Series(out, index=tgt.index, dtype="float64")
+
+
+def vol_coef(df, cfg):
+    """波动层系数（**已过死区**），`≤ 1`；不做合并。
+
+    `cfg` = `rule.vol_layer_of(leg)`：`dict(mode="er"|"fixed", tv=..., tv_low=..., dead=..., gap=...)`
+    （`dead`/`gap` 可省，默认取 `rule.VL_DEAD` / `VL_DEAD_DAYS`）。
+    """
+    sc = vol_scale(df, cfg)
+    if float(cfg.get("dead", rule.VL_DEAD)) > 0 or int(cfg.get("gap", rule.VL_DEAD_DAYS)) > 0:
+        sc = deadzone(sc, cfg.get("dead"), cfg.get("gap"))
+    return sc
+
+
+def vol_layer(df, w, cfg):
+    """把波动层装到八态仓位上：`min(八态许可, 死区后的系数)`。"""
+    return pd.concat([w, vol_coef(df, cfg).rename("sc")], axis=1).min(axis=1)
 
 
 # ---------------------------------------------------------------- 净值与指标
@@ -284,13 +367,16 @@ def state_stats(px, cx, horizon=20):
 
 # ---------------------------------------------------------------- 单腿回测
 def backtest_leg(leg, df=None, up_confirm=None, params=None, opt=None):
-    """-> dict(leg, name, df, ind, cx, w, w_spec, nav, perf, acts, expo, start, end, bars)。
+    """-> dict(leg, name, df, ind, cx, w, w_spec, w_vol, nav, perf, acts, expo, start, end, bars)。
+
+    `w_vol` = 该腿波动层系数（已过死区，≤1；无波动层则 None），日报里单独印一列，
+    便于区分「今天仓位低」是八态压的还是波动层压的。
 
     `start` = 第一根「出状态」的 bar（暖机之后），净值与统计都从那里起算 ——
     与 v13 的 `sm["start"]` 同口径，避免拿暖机段的 0 仓摊薄年化。
 
-    `opt`：None = 跟随 `rule.OPT`；True = 该腿的 `CAP_OPT` + 波动覆盖（v12.1）；
-    False = 强制规格口径。`w` 是生效口径，`w_spec` 恒为规格口径（对照用）。
+    `opt`：None = 跟随 `rule.OPT`；True = 该腿的 `CAP_OPT` + `VOL_LAYER`（v12.1）；
+    False = 强制规格口径（`CAP` 原表、无波动层）。`w` 是生效口径，`w_spec` 恒为规格口径（对照用）。
     """
     opt = rule.OPT if opt is None else bool(opt)
     import importlib
@@ -308,18 +394,21 @@ def backtest_leg(leg, df=None, up_confirm=None, params=None, opt=None):
     w_spec = positions(cx["state"], up_confirm=up_confirm, cap_map=rule.CAP)
     w = positions(cx["state"], up_confirm=up_confirm,
                   cap_map=rule.cap_map(leg) if opt else rule.CAP)
-    vt = rule.vol_target_of(leg) if opt else None
-    if vt:
-        w = vol_target(df, w, vt)
+    cfg = rule.vol_layer_of(leg) if opt else None
+    w_vol = None
+    if cfg:
+        w_vol = vol_coef(df, cfg)
+        w = pd.concat([w, w_vol.rename("sc")], axis=1).min(axis=1)
     first = cx["state"].notna()
     if not first.any():
         return dict(leg=leg, name=rule.NAMES[leg], df=df, ind=ind, cx=cx, w=w, w_spec=w_spec,
-                    nav=None, perf=None, acts=[], expo=np.nan, start=None, end=df.index[-1],
-                    bars=0, opt=opt, cap_txt=rule.cap_version(leg) if opt else "规格 CAP")
+                    w_vol=w_vol, nav=None, perf=None, acts=[], expo=np.nan, start=None,
+                    end=df.index[-1], bars=0, opt=opt,
+                    cap_txt=rule.cap_version(leg) if opt else "规格 CAP")
     st = int(np.argmax(first.to_numpy()))
     nav = run(df, w).loc[df.index[st]:]
     w_st = w.loc[df.index[st]:]
     return dict(leg=leg, name=rule.NAMES[leg], df=df, ind=ind, cx=cx, w=w, w_spec=w_spec, nav=nav,
-                perf=perf(nav), acts=actions(w_st), expo=float(w_st.mean()),
+                w_vol=w_vol, perf=perf(nav), acts=actions(w_st), expo=float(w_st.mean()),
                 start=df.index[st], end=df.index[-1], bars=len(nav),
                 opt=opt, cap_txt=rule.cap_version(leg) if opt else "规格 CAP")

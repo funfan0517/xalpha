@@ -125,6 +125,14 @@ def main():
                       for l in rule.LEGS if rule.cap_version(l).startswith("v12.1"))
            + "。§1b 给两版对照，`rule.OPT=False` 可一键回到基线口径。"
            if rule.OPT else "\n> **生效口径 = 规格 CAP**（`rule.OPT=False`）。"),
+        ("> **波动层（2026-11-19 按腿，`rule.VOL_LAYER`）**："
+         + " · ".join(f"{rule.NAMES[l]} {rule.vol_layer_txt(l)}"
+                      for l in rule.LEGS if rule.vol_layer_of(l))
+         + f"；{' · '.join(rule.NAMES[l] for l in rule.LEGS if not rule.vol_layer_of(l))} 不加。"
+         "形态恒为 `min(八态许可, 波动层系数)`，**只压上限**；10pp/5日死区只作用于系数本身"
+         "（作用在合并后的仓位上会把「降格立即生效」也拖慢，实测更差）。"
+         "证据 `research/er_vol_layer/_er_vol_layer.md`。"
+         if rule.OPT else "> 波动层：未启用（`rule.OPT=False`）。"),
         "",
         "## 1. 逐腿（按当前生效口径）",
         "",
@@ -150,19 +158,21 @@ def main():
 
     # ---------------- v12.1 vs 规格口径
     if rule.OPT:
-        L += ["", "## 1b. v12.1 vs 基线口径（同一窗口/同一成本，只有许可与波动覆盖不同）", "",
+        L += ["", "## 1b. v12.1（含按腿波动层）vs 基线口径（同一窗口/同一成本）", "",
               "来源：`research/opt_ashare/_opt_ashare.md`（次日/5 日期望重标）→ "
-              "`strategies/vol_legs/research/v12v13_compare/_v12v13_compare.md`（20.7 年指数样本裁决）。"
-              "「基线」= `rule.cap_map` 的 `OPT=False` 版（`CAP`，含 `慢跌` 0% 这一处偏离规格）。",
+              "`strategies/vol_legs/research/v12v13_compare/_v12v13_compare.md`（20.7 年指数样本裁决）"
+              "→ `research/er_vol_layer/_er_vol_layer.md`（波动层按腿配置，2026-11-19）。"
+              "「基线」= `rule.cap_map` 的 `OPT=False` 版（`CAP`，含 `慢跌` 0% 这一处偏离规格，**无波动层**）。",
               "",
-              "| 腿 | 基线年化 | 基线回撤 | 基线夏普 | v12.1年化 | v12.1回撤 | v12.1夏普 | Δ夏普 | 生效许可 |",
-              "|---|---:|---:|---:|---:|---:|---:|---:|---|"]
+              "| 腿 | 基线年化 | 基线回撤 | 基线夏普 | 现行年化 | 现行回撤 | 现行夏普 | Δ夏普 | 波动层 | 生效许可 |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---|---|"]
         for r in rows:
             if r["ann"] is None:
                 continue
             L.append(f"| {r['name']} | {pct(r['ann_spec'])} | {pct(r['mdd_spec'])} | "
                      f"{r['sharpe_spec']:.2f} | {pct(r['ann'])} | {pct(r['mdd'])} | "
-                     f"{r['sharpe']:.2f} | {r['sharpe'] - r['sharpe_spec']:+.2f} | {r.get('cap', '—')} |")
+                     f"{r['sharpe']:.2f} | {r['sharpe'] - r['sharpe_spec']:+.2f} | "
+                     f"{rule.vol_layer_txt(r['leg'])} | {r.get('cap', '—')} |")
 
     # ---------------- 七腿增量排序（八态层到底改善了谁）
     ok = [r for r in rows if r["ann"] is not None]
@@ -293,10 +303,14 @@ def main():
         "（规格 −0.28%），映射仍按规格压到 20%。理由是不拿本样本的后验数据反推参数 —— "
         "真按本样本改就该给它 50%，那等于用后验统计调参，换台机器/换个窗口就翻回去。"
         "代价是这条腿少赚一点，收益是参数仍然只有**一个出处**（规格）。",
-        "8. **v12.1 只改了两个旋钮，且每个都有样本外依据**：`强回调` 50%→20%（两腿都亏）、"
-        "科创50 额外 `强反弹` 100% + `急跌` 20% + `σ` 覆盖 25%。沪深300 **不加** `强反弹` —— "
-        "换到 2006-2026 的指数样本（含 2008）后它会带来 −41.1% 的回撤（`research/"
-        "v12v13_compare` §F）。`rule.OPT=False` 一键回退规格口径。",
+        "8. **v12.1 只改了两处，且每处都有样本外依据**：① 许可表 —— `强回调` 50%→20%（两腿都亏）、"
+        "科创50 额外 `强反弹` 100% + `急跌` 20%；沪深300 **不加** `强反弹`（换到 2006-2026 指数样本"
+        "含 2008 后它会带来 −41.1% 回撤，`research/v12v13_compare` §F）；② 波动层按腿"
+        "（2026-11-19，`research/er_vol_layer`）。`rule.OPT=False` 一键回退规格口径。",
+        "9. **波动层按腿的原因（别把它当「统一参数」）**：A股两腿与恒科上 ER 层打穿等比缩仓基准；"
+        "科创50 的 ER 净贡献是 **−0.31**，它要的是死区不是 ER（原 σ覆盖 25% 已被替换）；"
+        "黄金的波动是脉冲式的，死区让它错过降仓窗口，所以用**更低的固定 TV10** 而不是 ER；"
+        "美股两腿的八态层已把平均许可压到 ~47%，再叠一层是二次压缩。",
         "",
         "> 机械规则输出，非投资建议。",
     ]

@@ -167,7 +167,7 @@ CAP = dict(CAP_SPEC, **{"慢跌": 0.0})
 #   - 科创50 的 `急跌` 50%→20% 单独列（它的次日期望 −0.61%/日、t=−3.7，与沪深300 相反）；
 #   - `弱反弹` / `慢涨` / `z_th` / `rvol` 全部不动（重标的最优点落在网格边界 = 不可辨）。
 #
-# `OPT = False` 一键回到规格口径（`CAP` 原表、无波动覆盖），回测/日报/图都会跟着变。
+# `OPT = False` 一键回到规格口径（`CAP` 原表、无 `CAP_OPT`、无波动层），回测/日报/图都会跟着变。
 OPT = True
 
 CAP_OPT = {
@@ -180,8 +180,32 @@ CAP_OPT = {
     # 都是 +0.17 夏普且回撤不变（−16.6%），故保留；它的风险已在报告里单独标注。
     "kc50": dict(CAP, **{"强回调": 0.2, "强反弹": 1.0, "急跌": 0.2}),
 }
-# 波动率目标（年化）：只给高波动腿。空 = 不覆盖。
-VOL_TARGET = {"kc50": 0.25}
+# ---------------------------------------------------------------- 二d · 波动层（按腿 · 生效口径）
+# 2026-11-19 用户指定：由「只有科创50 一条腿的固定 σ覆盖 25%」换成**按腿的波动层组合**。
+# 证据 `research/er_vol_layer/_er_vol_layer.md`（同一八态仓位、同一 `engine.run`、同一 `start`；
+# 判据是打穿「等比缩仓」基准 C1−B2，而不是只看回撤变浅）：
+#   a500 / hs300 / hkt -> C1：ER(20) 切 TV 20%/10% 的自适应层（C1−B2 = +0.05 / +0.08 / +0.24）
+#   gold               -> C4：固定 TV10 + 死区（0.81 vs S1 0.62，全表最高）
+#   kc50               -> C3：固定 TV20 + 死区（0.89 vs S1 0.84；**不要 ER**，ER 净贡献 −0.31）
+#   ndx / spx          -> 不加：八态层已把平均许可压到 ~47%，再叠一轮是二次压缩（−0.04 / +0.05）
+# 形态恒为 `min(八态许可, 波动层系数)`：只压上限，不改判定、不加杠杆、不放大仓位。
+VOL_LAYER = {
+    "a500": dict(mode="er", tv=0.20, tv_low=0.10),
+    "hs300": dict(mode="er", tv=0.20, tv_low=0.10),
+    "hkt": dict(mode="er", tv=0.20, tv_low=0.10),
+    "gold": dict(mode="fixed", tv=0.10),
+    "kc50": dict(mode="fixed", tv=0.20),
+}
+VL_ER_N = 20                      # Kaufman 效率比窗口
+VL_ER_HI, VL_ER_LO = 0.40, 0.30   # ER 阈值（带滞回：中间维持原档）
+VL_VOL_WIN = 20                   # 已实现波动窗口（与 z20 / rvol 同口径）
+VL_DEAD = 0.10                    # 幅度死区：|Δ系数| < 10pp 不动手
+VL_DEAD_DAYS = 5                  # 时间死区：距上次调仓 < 5 交易日不动手
+
+# **历史口径（2026-11-19 前）**：固定 σ 覆盖 `min(w, vt/σ20)`，只有科创50 一条腿。
+# 已**不被回测 / 日报读取**（生效口径是上面的 `VOL_LAYER`）；保留它只有一个用途：
+# 让 `research/opt_7legs`、`research/er_vol_layer` 里的「S1 现状」列可复现（它们比较的是旧口径）。
+VOL_TARGET_LEGACY = {"kc50": 0.25}
 VOL_WIN = 20              # σ 的窗口（与 z20 / rvol 同口径）
 
 # 升格确认日数（降格立即生效）。见模块 docstring 第 3 条。
@@ -191,6 +215,12 @@ UP_CONFIRM = 2
 # 日报会把这些行印在「读法与边界」里：许可变了，看板上的「昨日」列仍是按**新参数**重算的，
 # 不写出来就会变成「昨天说 20%、今天说 0% 但显示『无许可变化』」。最近一次在前。
 CHANGELOG = [
+    ("2026-11-19",
+     "**波动层改为按腿**（用户指定）：a500/hs300/hkt 上 ER20/10 自适应层 + 10pp/5日死区；"
+     "黄金 固定 TV10 + 死区；科创50 固定 TV20 + 死区（**撤掉原 σ覆盖 25%**，也**不用 ER**）；"
+     "美股两腿不加。证据 `research/er_vol_layer/_er_vol_layer.md`。"
+     "**这会改变每条腿的目标仓位**：看板上的「昨日」列是按新参数重算的，"
+     "所以今天显示「无变化」也可能与昨天的旧口径仓位不同，请按今日数字执行。"),
     ("2026-11-19",
      "`慢跌` 许可 **20% → 0**（规格 20%）。理由：规格的 fwd20 为负 → 数学最优就是空仓，"
      "20% 只是「观察仓」约定；七腿单旋钮扫描 6 腿 0% 夏普更高、纳指打平（前/后两折同向）。"
@@ -227,11 +257,38 @@ def cap_map(leg=None):
     return CAP_OPT.get(leg, CAP)
 
 
-def vol_target_of(leg=None):
-    """该腿的波动率目标（年化）；None = 不做覆盖。"""
+def vol_layer_of(leg=None):
+    """该腿生效的波动层配置；None = 不加波动层（美股两腿）。
+
+    返回 `dict(mode="er"|"fixed", tv=..., tv_low=...)`，交给 `engine.vol_layer()` 执行。
+    `OPT=False` 时一律 None（回到规格口径）。
+    """
     if not OPT or leg is None:
         return None
-    return VOL_TARGET.get(leg)
+    cfg = VOL_LAYER.get(leg)
+    return dict(cfg) if cfg else None
+
+
+def vol_layer_txt(leg=None):
+    """波动层的一句话描述（报告/日报/图注用）。"""
+    cfg = vol_layer_of(leg)
+    if not cfg:
+        return "无"
+    if str(cfg.get("mode")) == "er":
+        return (f"ER{VL_ER_N} 自适应 {cfg['tv']:.0%}/{cfg.get('tv_low', 0):.0%}"
+                f" + {VL_DEAD:.0%}/{VL_DEAD_DAYS}日死区")
+    return f"固定 TV{cfg['tv']:.0%} + {VL_DEAD:.0%}/{VL_DEAD_DAYS}日死区"
+
+
+def vol_target_of(leg=None):
+    """**历史口径**（2026-11-19 前的固定 σ 覆盖）：None = 不做覆盖。
+
+    ⚠ 回测/日报**已不再调用**它（生效口径是 `vol_layer_of`）。留着只为让
+    `research/opt_7legs` / `research/er_vol_layer` 的「S1 现状」列能复现旧读数。
+    """
+    if not OPT or leg is None:
+        return None
+    return VOL_TARGET_LEGACY.get(leg)
 
 
 def cap_of(state, leg=None):
@@ -245,13 +302,18 @@ def cap_of(state, leg=None):
 
 
 def cap_version(leg=None):
-    """一句话描述该腿生效的许可口径（写进报告/日报，免得读者分不清哪一版）。"""
-    if not OPT or leg is None or leg not in CAP_OPT:
+    """一句话描述该腿生效的**整条执行口径**（许可表 + 波动层）。
+
+    写进报告/日报/图注，免得读者分不清哪一版。两段用 ` + ` 连接：
+    前一段是许可表的偏离（无偏离则 `规格 CAP（慢跌 0）`），后一段是波动层（无则省略）。
+    """
+    if not OPT or leg is None:
         return "规格 CAP（慢跌 0）"
-    diff = {k: v for k, v in CAP_OPT[leg].items() if abs(v - CAP.get(k, v)) > 1e-9}
-    txt = "v12.1(" + "、".join(f"{k} {v:.0%}" for k, v in diff.items()) + ")"
-    vt = VOL_TARGET.get(leg)
-    return txt + (f" + σ覆盖{vt:.0%}" if vt else "")
+    diff = {k: v for k, v in CAP_OPT.get(leg, CAP).items() if abs(v - CAP.get(k, v)) > 1e-9}
+    txt = ("v12.1(" + "、".join(f"{k} {v:.0%}" for k, v in diff.items()) + ")"
+           if diff else "规格 CAP（慢跌 0）")
+    cfg = vol_layer_of(leg)
+    return txt + (f" + 波动层 {vol_layer_txt(leg)}" if cfg else "")
 
 
 def fee_of(leg):

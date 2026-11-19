@@ -1,0 +1,24 @@
+{
+  "signal": "gate",
+  "asof": "2026-11-17",
+  "month": "2026-11-30",
+  "temp6": 63.98,
+  "temp_effective": 60.62,
+  "temp_rank": 0.8438,
+  "band": "中性偏热",
+  "band_action": "不再新增，持有观望",
+  "rsi_board": 56.99,
+  "v4_mult": 0.5,
+  "v4_picks": [
+    "016441",
+    "090010"
+  ],
+  "gate_enabled": false,
+  "gate": {
+    "cold": 40.0,
+    "hot": 60.0,
+    "cold_hit": false,
+    "hot_hit": false
+  },
+  "note": "闸门未采纳；仓位仍按 V4（v4_rsi/daily.py）"
+}

@@ -3,7 +3,7 @@
   "name": "v19 恒生科技 · V3 MACD+BOLL（当前 ★1）",
   "status": "研究确认无提升",
   "leg": "hkt",
-  "as_of": "2026-11-17",
+  "as_of": "2026-11-18",
   "generated": "2026-11-19",
   "rule": {
     "rule": "V3 MACD+BOLL 开口突破（原生 macd_boll.weight）+ 波动上限 TV20%",
@@ -24,8 +24,8 @@
       "pending": 0.0,
       "pos": 0.0,
       "level_txt": "当前 0% → 目标 0%",
-      "date": "2026-11-17",
-      "close": 3758.17
+      "date": "2026-11-18",
+      "close": 3736.33
     }
   ],
   "recent_flow": [],

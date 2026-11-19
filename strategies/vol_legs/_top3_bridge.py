@@ -11,14 +11,17 @@
 每个策略的 `engine.weight(px)` 返回决策序列，`engine.run()` 内部 `shift(1)` 得到实际持仓。
 这与 `_beat_best_top3.py` 里的 `hold` 一一对应：`hold[t] = decision[t-1]`。
 
-七腿映射（v14~v20，每策略只有一条腿；2026-11-19 按 `_beat_best_top3.md` 重跑结果更新）：
-    v14 a500  E3 前三等权 (V3+V2+V12)/3  ★ 超越项
+七腿映射（v14~v20，每策略只有一条腿；2026-11-19 第二次重跑后，v12 波动层已按腿）：
+    v14 a500  E2 前二等权 (V3+V12)/2 .... ★ 超越项（最佳）；E3 也过闸门但夏普低 0.03
     v15 hs300  MIN2 双确认 (V12∩V2) .... ★ 超越项
     v16 ndx    V10 波动层 ............. 研究确认无提升，保持当前 ★1
     v17 spx    V12 八态趋势 ........... 研究确认无提升，保持当前 ★1
     v18 kc50   E2×TV20 波动上限 ....... ★ 超越项
     v19 hkt    V3 MACD+BOLL ........... 研究确认无提升，保持当前 ★1
     v20 gold   V5.1 黄金仓位（风险预算 × 利率闸门） 当前 ★1
+
+⚠ v14 在 2026-11-19 换过两次：上午 E3（V3+V2+V12，因 v12 慢跌改 0%）、下午改 E2
+（V3+V12，因 v12 波动层按腿后 A500 的 ★2/★3 互换）。目录名同步 `v14_a500_e3` → `v14_a500_e2`。
 
 用法（各策略 engine.py）：
     from _top3_bridge import bridge
@@ -74,10 +77,10 @@ _SPECS = {
 # v21 自带 engine.py 且不走 bridge，但它同样会污染 `import engine` 的解析结果，一并摘掉。
 _SHADOW_DIRS = {
     os.path.join(_HERE, d) for d in (
-        "v14_a500_e3", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
+        "v14_a500_e2", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
         "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")
 } | {os.path.join(_HERE, d, "research") for d in (
-        "v14_a500_e3", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
+        "v14_a500_e2", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
         "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")}
 
 

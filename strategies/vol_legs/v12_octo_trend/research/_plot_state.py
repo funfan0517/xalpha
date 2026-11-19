@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V12 · 八态单腿图（价格 + 三均线 + 态色带 + 许可阶梯 + 操作点）。
+"""V12 · 八态单腿图（价格 + 三均线 + 态色带 + 许可/实际仓位阶梯 + 操作点）。
 
 版式对齐 v13 的 `research/_plot_grid.py`（上价格 / 中许可 / 下面板色带），多出来的一层是
 **八态色带** —— 八态是这条策略唯一的信息源，必须能一眼看出「哪段是急涨、哪段是慢跌」。
@@ -114,13 +114,17 @@ def one(leg, r):
                Line2D([], [], marker="v", ls="", color=C_DOWN, label="减仓")]
     ax.legend(handles=handles, fontsize=8, frameon=False, ncol=6, loc="upper left")
 
-    # 中格：许可上限（带内比例）
-    ax2.step(idx, (w * 100).to_numpy(), where="post", color=C_DOWN, lw=1.25)
+    # 中格：八态许可（虚线）与**实际仓位**（实线，= min(许可, 波动层系数)）
+    cap_w = engine.positions(cx["state"], cap_map=rule.cap_map(leg)) if rule.OPT else w
+    ax2.step(idx, (cap_w.loc[idx] * 100).to_numpy(), where="post", color=C_IDX, lw=0.9,
+             ls="--", label="八态许可")
+    ax2.step(idx, (w * 100).to_numpy(), where="post", color=C_DOWN, lw=1.25, label="实际仓位")
     ax2.fill_between(idx, 0, (w * 100).to_numpy(), step="post", color=C_DOWN, alpha=0.10)
     ax2.set_ylim(-3, 108)
     ax2.set_yticks([0, 20, 50, 100])
-    ax2.set_ylabel("许可（%）", fontsize=9.5)
+    ax2.set_ylabel("许可 / 仓位（%）", fontsize=9.5)
     ax2.grid(ls="--", lw=0.5, alpha=0.3)
+    ax2.legend(fontsize=8, frameon=False, ncol=2, loc="upper left")
 
     # 下格：八态色带（按连续同态分段画 axvspan —— 比 imshow 干净，不会把日期轴变成 0~n）
     runs, cur, t0 = [], None, None

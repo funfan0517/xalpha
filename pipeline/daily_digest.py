@@ -1011,7 +1011,7 @@ def parse_vol_legs(_cfg):
 _VOL_VARIANTS = [
     # v14~v20：单标的专用策略（一策略一腿）。
     ("v14", "V14 中证A500 单腿",
-     "strategies/vol_legs/v14_a500_e3/daily/_v14_daily.json", {"a500"}),
+     "strategies/vol_legs/v14_a500_e2/daily/_v14_daily.json", {"a500"}),
     ("v15", "V15 沪深300 单腿",
      "strategies/vol_legs/v15_hs300_min2/daily/_v15_daily.json", {"hs300"}),
     ("v16", "V16 纳指100 单腿",
@@ -1037,8 +1037,8 @@ _VOL_FILL = "收盘"
 # v2/v3/v4/v6/v9/v12 的十二张旧图已从看板移除（策略产物仍照常生成，只是不再内嵌）。
 _VOL_FIGS = [
     # v14~v20：七条腿各一张长期图（近三年图不进看板，见各策略 research/）。
-    ("strategies/vol_legs/v14_a500_e3/research/_v14_a500.png",
-     f"**中证A500**（执行 `023299` · {_VOL_PRICE}）· V14 E3 前三等权融合（V3+V2+V12）★ 研究超越项"
+    ("strategies/vol_legs/v14_a500_e2/research/_v14_a500.png",
+     f"**中证A500**（执行 `023299` · {_VOL_PRICE}）· V14 E2 前二等权融合（V3+V12）★ 研究超越项"
      " · 长期图（近三年版在策略目录 research/ 下）"),
     ("strategies/vol_legs/v15_hs300_min2/research/_v15_hs300.png",
      f"**沪深300**（执行 `000051` · {_VOL_PRICE}）· V15 MIN2 双确认：min(V2 BOLL 突破, V12 八态趋势许可)"

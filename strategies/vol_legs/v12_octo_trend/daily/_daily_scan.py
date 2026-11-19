@@ -86,6 +86,8 @@ def main():
         else:
             action = "持有" if pos > 1e-9 else "空仓"
         state = str(last["state"])
+        wv = r.get("w_vol")
+        coef = float(wv.iloc[-1]) if wv is not None else None
         rows.append(dict(
             leg=leg, name=rule.NAMES[leg], code=rule.LEGS[leg][0],
             state=state, regime=str(last["regime"]), regime_used=str(last["regime_used"]),
@@ -96,6 +98,8 @@ def main():
             pos=pos, pos_prev=pos_prev, act=act, action=action,
             level_txt=f"{state} {pos:.0%}",
             cap_prev_state=str(prev["state"]),
+            vol_coef=coef,
+            vol_layer=rule.vol_layer_txt(leg),
             scope=("执行" if leg in rule.CORE_LEGS else
                    "观察" if leg in rule.WATCH_LEGS else "诊断"),
             vol=("指数量能" if leg in vdata.IDX_MAP else "ETF 自身量"),
@@ -122,6 +126,14 @@ def main():
          + "。依据 `research/opt_ashare/` 与 `strategies/vol_legs/research/v12v13_compare/`；"
            "括号里的许可已按腿生效，`rule.OPT=False` 可回退基线口径。")
         if rule.OPT else "生效口径 = 基线 CAP（`rule.OPT=False`）。",
+        ("**波动层（2026-11-19 按腿，`rule.VOL_LAYER`）**："
+         + " · ".join(f"{rule.NAMES[l]} {rule.vol_layer_txt(l)}"
+                      for l in rule.LEGS if rule.vol_layer_of(l))
+         + f"；{' · '.join(rule.NAMES[l] for l in rule.LEGS if not rule.vol_layer_of(l))} 不加。"
+         "**实际仓位 = min(八态许可, 波动层系数)**，系数 ≤ 1 只压上限；"
+         "下表「系数」列是今天生效的那个数，判断「该不该减」看的是**实际仓位**。"
+         "依据 `research/er_vol_layer/_er_vol_layer.md`。"
+         if rule.OPT else "波动层：未启用（`rule.OPT=False`）。"),
         f"> 执行范围：**{' + '.join(rule.NAMES[l] for l in rule.CORE_LEGS)}**"
         "（`rule.CORE_LEGS`，2026-11-18 由「只做沪深300」扩到七腿；"
         "`z_th`/`rvol` 仍是规格在沪深300 上的标定值，额度按回测 §1c 的 Δ夏普排）。",
@@ -130,11 +142,13 @@ def main():
         "",
     ]
     if todo:
-        L += ["| 腿 | 代码 | 状态（昨日 → 今日） | 许可 | 幅度 | 依据 |", "|---|---|---|---:|---:|---|"]
+        L += ["| 腿 | 代码 | 状态（昨日 → 今日） | 实际仓位 | 幅度 | 依据 |",
+              "|---|---|---|---:|---:|---|"]
         for x in todo:
-            why = (f"`{x['state']}` 许可 {rule.cap_of(x['state'], leg=x['leg']):.0%}；"
-                   f"z20 {fmt(x['z20'], 2)} · rvol {fmt(x['rvol'], 2)} · "
-                   f"距MA20 {fmt(x['vs_ma20'], 1)}%")
+            why = (f"`{x['state']}` 许可 {rule.cap_of(x['state'], leg=x['leg']):.0%}"
+                   + (f" · 波动层 {x['vol_coef']:.0%}" if x.get("vol_coef") is not None else "")
+                   + f"；z20 {fmt(x['z20'], 2)} · rvol {fmt(x['rvol'], 2)} · "
+                     f"距MA20 {fmt(x['vs_ma20'], 1)}%")
             L.append(f"| {x['name']} | `{x['code']}` | {x['cap_prev_state']} → **{x['state']}** | "
                      f"{x['pos_prev']:.0%} → **{x['pos']:.0%}** | {x['act'] * 100:+.0f}pp | {why} |")
     else:
@@ -146,14 +160,17 @@ def main():
             L.append("执行范围今日无信号。")
 
     L += ["", "## 2. 全腿八态", "",
-          "| 腿 | 范围 | 执行标的 | 状态 | regime | z20 | rvol | 距MA20 | 许可 | 昨日 | 今日动作 | 量能口径 |",
-          "|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|"]
+          "| 腿 | 范围 | 执行标的 | 状态 | regime | z20 | rvol | 距MA20 | 许可 | 系数 "
+          "| 实际仓位 | 昨日 | 今日动作 | 量能口径 |",
+          "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|"]
     for x in rows:
         act_txt = (f"{x['act'] * 100:+.0f}pp" if abs(x.get("act") or 0) > 1e-9
                    else ("持有" if (x.get("pos") or 0) > 1e-9 else "空仓"))
+        coef = x.get("vol_coef")
         L.append(f"| {x['name']} | {x['scope']} | `{x['code']}` | {x['state']} | {x['regime']} | "
                  f"{fmt(x.get('z20'), 2)} | {fmt(x.get('rvol'), 2)} | "
-                 f"{fmt(x.get('vs_ma20'), 1)}% | {x.get('pos', 0):.0%} | "
+                 f"{fmt(x.get('vs_ma20'), 1)}% | {rule.cap_of(x['state'], leg=x['leg']):.0%} | "
+                 f"{'—' if coef is None else f'{coef:.0%}'} | {x.get('pos', 0):.0%} | "
                  f"{x.get('pos_prev', 0):.0%} | {act_txt} | {x.get('vol', '—')} |")
 
     # 标定腿最近的状态切换流水（固定沪深300，与执行范围解耦）
@@ -184,6 +201,10 @@ def main():
         "- **七腿都执行，但额度不该等权**：价格/量能已是同源真实指数，`z_th`/`rvol` 仍是"
         "规格在沪深300 上的标定值（规格 §7.4 建议在美股重标；两折样本外无一腿能稳定赢过原值）。"
         "哪条腿值得多给额度看回测 §1c 的 Δ夏普排序 —— 恒生科技是唯一拖累组合的一条。",
+        "- **「许可」与「实际仓位」不是一回事**：`min(八态许可, 波动层系数)`，"
+        "系数由 `vol20` 与（A股两腿/恒科的）ER 状态决定，带 10pp/5日 死区。"
+        "所以「许可 100% 却只有 60% 仓位」是正常的 —— 看「实际仓位」决定买卖，"
+        "看「系数」理解为什么。**波动层只压不加**，它不会把仓位推到许可之上。",
         "- **黄金的量能是 ETF 自身量**：现货黄金没有成交量，`rvol` 只能用 `518880` 的量代理，"
         "所以黄金腿的强弱回调判定比其它六腿弱一档。",
     ]
@@ -202,7 +223,8 @@ def main():
         cap_base=rule.CAP,
         cap_version={l: rule.cap_version(l) for l in rule.LEGS},
         changelog=[dict(date=d, note=t) for d, t in rule.CHANGELOG],
-        vol_target=rule.VOL_TARGET if rule.OPT else {},
+        vol_layer={l: rule.vol_layer_of(l) for l in rule.LEGS if rule.vol_layer_of(l)},
+        vol_layer_txt={l: rule.vol_layer_txt(l) for l in rule.LEGS},
         up_confirm=rule.UP_CONFIRM,
         vol_mode=rule.VOL_MODE,
         legs=[{k: (str(v) if isinstance(v, (np.str_,)) else

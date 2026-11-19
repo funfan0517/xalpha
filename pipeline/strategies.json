@@ -34,6 +34,13 @@
       "title": "技术指标 · 全池 55 只（6 策略并列）",
       "desc": "对全池 55 只场内 ETF（以各行业风险类资产为主）同时跑 MACD / V3(MACD+BOLL) / V6(4 票打分) / V7(风格路由) / V9(右侧买入) / V10(亮灯)，输出每只标的在各策略下的动作与共振名单。",
       "note": "全池出信号、不做 A/B 分级；同一只标的被越多策略同时点名，信号越值得看。"
+    },
+    {
+      "no": 6,
+      "key": "bond",
+      "title": "稳健资产 · 债腿 30pp + 现金腿 10pp（久期阶梯 + 可选动量开关 / V1 四因子）",
+      "desc": "债腿 30pp = 70% 7-10 年国开 A（003376）+ 30% 3-5 年政金 A（011983）固定哑铃；现金腿 10pp = 5pp 货基（000198）+ 5pp 存单（014437）。V0 默认不动手；V1 用四因子打分在债腿内部调长端占比（35%~70%）。全谱系 15 只只监控、5 只动手。",
+      "note": "债腿与现金腿分格不混用（6xx 只填债、7xx 只填现金）。V0 的动量开关默认关（真实壳复现不出文档正增量）；V1 按 bond_rules v1.0 的温度/四因子/情景只改久期分布，不改 40pp 额度。006331 含权按文档计权益侧。"
     }
   ],
   "strategies": {
@@ -1567,6 +1574,336 @@
       },
       "note": "2026-11-04 落地: 照搬 vol_legs 的趋势四象限闸门规则（现为共享模块 _trend_gate.py）、换 54 只场内 ETF 收盘价口径（详见 v17 README 与 tech_indicators README）。单标的分档（满仓/半仓/观察仓，非 0/1 择时），目标仓位直接作为该 ETF 露出比例；无风险利率按家族惯例取 0。口径与五基线 / 每日 6 策略表不同，故不进 compare.py、不进每日 6 策略表。**2026-11-04 起不单独出卡**（daily.card=false）: 原先是板块5 的第二张 54 行卡，读起来与 6 策略表并列但口径不同、噪声大；改为在技术指标卡片 V10 行下面加一行 —— 只展示今日加减仓标的 + 处于上涨趋势（满仓维持）的标的，逐只象限仍留在 v17 自己的 md/html。回测结论（10.7 年样本, 全池等权）: 闸门年化 +3.30% / 回撤 -15.59% / 夏普 0.37 vs 买入持有 +3.97% / -25.23% —— 降回撤、不增收益；闸门价值与资产「阴跌倾向」正相关。",
       "pipeline_mode": "full_pool"
+    },
+    "bond_cash": {
+      "name": "稳健资产 · 债腿 30pp + 现金腿 10pp（7-10 国开 A 70% / 3-5 政金 A 30%，固定哑铃 + 可选动量开关）",
+      "source_methodology": "E:/qianwen/jijin/债券全谱系与操作规则.md v1.0 · 参数权威源 strategies/bond_cash/rule.py::CFG / ::SAT / ::POOL · 标的池 = data/_universe.md 第六类(6xx 11 只)+第七类(7xx 4 只)",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "债券 6xx 11 只 + 现金 7xx 4 只（权威源 strategies/bond_cash/rule.py::POOL / ::ORDER）",
+        "data": "strategies/bond_cash/data/_nav_cache.json（场外累计净值，当日缓存）+ data/_bt_caches/ust10y_m.csv（全球债卫星条件）",
+        "note": "债腿只用 6xx（久期来源）、现金腿只用 7xx，两档不混用；006331 含权计权益侧、不进债腿；执行走场外 A 类 003376/011983/002864/000198/014437。"
+      },
+      "rules": [
+        "债腿 30pp 固定哑铃：70% 003376 + 30% 011983，不做估值分位轮动、不做利率分位久期择时",
+        "可选动量开关（默认关）：003376 累计净值近 63 日累计收益符号，转负把 70% 段并到底仓，启用时配 ±0.5% 死区",
+        "现金腿 10pp：5pp 000198 + 5pp 014437",
+        "卫星默认 0：511090 ≤20% 债腿（需 30Y-10Y 利差>0.40pp，人工复核）；100050 ≤1/5 债腿（美债10Y 分位>90 且动量转正）",
+        "纪律：连跌≥5 日不新增、≥7 日不接刀；不把折返门控搬到债腿；不把转债/含权当债券",
+        "成交：T 日收盘算信号、T+1 起承担收益；换手成本 = 70%×单边10bp×2",
+        "收益口径一律场外累计净值（含分红再投），场内债 ETF 禁止用行情涨跌幅算收益"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/rule.py",
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "bond_leg": {
+          "core_on": "003376",
+          "core_off": "011983",
+          "base": "011983",
+          "core_w": 0.7,
+          "base_w": 0.3
+        },
+        "gate": {
+          "on": false,
+          "win": 63,
+          "deadband": 0.005,
+          "proxy": "003376 累计净值"
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "satellite_max_frac": {
+          "511090": 0.2,
+          "100050": 0.2
+        },
+        "discipline": {
+          "no_add_down_days": 5,
+          "no_catch_down_days": 7
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/backtest.py",
+        "raw_out": "strategies/bond_cash/backtest/_bond_cash_bt.jsonl",
+        "report": "strategies/bond_cash/backtest/_bond_cash_bt.md",
+        "window": "现行窗 2021-12-09~2026-11-17；长窗 2016-12-29~2026-11-17（底仓 001512）"
+      },
+      "select": {
+        "out_active_md": "strategies/bond_cash/daily/_universe_bond_cash_active.md",
+        "out_active_json": "strategies/bond_cash/daily/_universe_bond_cash_active.json",
+        "min_sample_years": 0.0,
+        "criteria": "固定 15 只（_universe.md 6xx+7xx 直接定档，非回测 select）"
+      },
+      "daily": {
+        "block": "bond",
+        "codes": [],
+        "runner": "run_daily_bond_cash.ps1",
+        "signal_report": "strategies/bond_cash/daily/_bond_cash_daily.md",
+        "signal_json": "strategies/bond_cash/daily/_bond_cash_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-18 落地：把 data/_universe.md 第六类债券 + 第七类现金合并成稳健资产大类。默认固定哑铃不做择时：现行窗 +4.54%/-2.38%/夏普1.80；长窗 +4.09%/-4.69%/1.39；40pp 组合层 +3.83%/-1.78%/1.84。动量开关复现不出文档正增量（信号源是基金净值不是中债指数、10 年翻 53~54 次 vs 文档 20 次；债灾段吃不到；文档按 0 成本），故 gate_on=false。现金腿 000198 +1.42% / 014437 +2.01%（腿内 +0.59pp/年，落到组合层仅 +0.03pp/年）。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v1": {
+      "name": "V1 · 四因子久期档（债券晴雨表，基于 v0 债腿内部调久期）",
+      "source_methodology": "G:/tradingagents/bond_strategy/bond_rules.md v1.0（2026-11-17）· 参数权威源 strategies/bond_cash/v1_four_factor/rule.py::CFG / ::POLICY_DATES · 基准 = 同目录上一层 v0 固定哑铃",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "债腿长端 003376（#606 A 类）/ 底仓 011983（#605）/ 现金 000198+014437（#701/#702）；基准 ETF 511260",
+        "data": "strategies/bond_cash/v1_four_factor/data/（_curve.csv=akshare 国债/AAA 中短票收益率；_shibor_1w.csv；_nav_cache.json）",
+        "note": "V1 不改 v0 的 40pp 额度，只在债腿 30pp 内部把长端占比 w_long 从固定 70% 改成状态变量；情景概率只提示不入仓位。"
+      },
+      "rules": [
+        "温度 0~100 = 估值 40%（100-10Y 国债 3 年分位）+ 资金 20%（100-SHIBOR-1W 3 年分位）+ 动能 25%（511260 累计净值 250 日区间位置）+ 信用 15%（AAA 中短票3Y-国债1Y 利差 3 年分位）；缺失按可用权重归一，覆盖<3 项降级",
+        "四因子各 ∈{-1,0,+1}：估值温度≤20→+1/≥80→-1；趋势 close>MA5>MA20 且近20日高×0.995→+1/反向→-1；资金≥70→+1/≤30→-1；信用≥70→+1/≤30→-1",
+        "score = 四因子之和；互斥强制震荡观望（R-08）；趋势与估值/资金背离降级（R-11）；score≥+2 偏多、≤-2 偏空",
+        "长端占比 = clip(35% + score/4 × (70%-35%) × 折扣(高1.0/中0.75/低0.5), 0, 70%)；其余放 011983",
+        "滞后带 5.25pp（R-18 的 1.5pp 按带宽 35/10 放缩，否则低置信 score±1 天天翻仓）；事件前 2 个自然日只许减久期（R-19）",
+        "情景：估值温度分桶（10/30/50/70/90 ±10）统计未来20日上涨概率，n≥20 启用否则 50%；只出概率不出点位",
+        "当前仓位读 daily/_v1_state.json 的 w_long（首次按基准 35% 假设）；T 日算分、T+1 承担收益；换手成本 |Δw|×2×单边10bp"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v1_four_factor/rule.py",
+        "temp_weights": {
+          "valuation": 0.4,
+          "funding": 0.2,
+          "momentum": 0.25,
+          "credit": 0.15
+        },
+        "pct_years": 3,
+        "mom_window": 250,
+        "min_coverage": 3,
+        "factor_cuts": {
+          "valuation": [
+            20,
+            80
+          ],
+          "funding": [
+            30,
+            70
+          ],
+          "credit": [
+            30,
+            70
+          ]
+        },
+        "trend": {
+          "ma_fast": 5,
+          "ma_slow": 20,
+          "near": 0.005,
+          "h20": 20
+        },
+        "long": {
+          "base": 0.35,
+          "cap": 0.7,
+          "floor": 0.0,
+          "hysteresis_pp": 5.25
+        },
+        "confidence_discount": {
+          "high": 1.0,
+          "medium": 0.75,
+          "low": 0.5
+        },
+        "scenario": {
+          "buckets": [
+            10,
+            30,
+            50,
+            70,
+            90
+          ],
+          "band": 10,
+          "horizon": 20,
+          "min_n": 20
+        },
+        "policy_dates": [],
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v1_four_factor/backtest.py",
+        "raw_out": "strategies/bond_cash/v1_four_factor/backtest/_v1_bt.jsonl",
+        "report": "strategies/bond_cash/v1_four_factor/backtest/_v1_bt.md",
+        "window": "长窗 2018-08-01~2026-11-17（底仓 001512，信用因子缺席 3/4）；现行窗 2023-07-03~2026-11-17（底仓 011983，覆盖 4/4）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "固定标的，非选基策略；不做 A/B 分级"
+      },
+      "daily": {
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner：由 run_daily_bond_cash.ps1 第 2 步每日刷新 v1 产物，避免 run_daily_all 把同一个 runner 跑两遍",
+        "signal_report": "strategies/bond_cash/v1_four_factor/daily/_v1_daily.md",
+        "signal_json": "strategies/bond_cash/v1_four_factor/daily/_v1_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-18 落地，按 bond_rules.md v1.0 建 V1。与 v0 的关系：只把债腿 30pp 里的长端占比从固定 70% 改成四因子打分（基准35%/上限70%/滞后带5.25pp/事件冻结），40pp 额度与现金腿完全不动。回测诚实结论：长窗 V1 +2.94%/-4.47%/夏普0.97 vs v0 固定哑铃 +3.83%/-4.69%/1.31（V1 换手 138 次/10.1年）；现行窗 V1 +3.82%/-2.14%/1.67 vs v0 +4.45%/-2.38%/1.80（74 次/5.2年）。V1 用收益换回撤，债牛里跑不赢固定哑铃 —— 四因子天然互斥（估值贵时趋势多）使 87% 的日子回到中性 35%。成本敏感：40bp 时长窗降到 +2.10%。已知边界：信用因子依赖 akshare 曲线，2023 年前不可用；情景桶样本来自 511260 净值 2017 起；温度/阈值全部来自文档未调参；事件日历 POLICY_DATES 人工维护。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v2": {
+      "name": "V2 · 债券横截面双动量轮动（对照研究，回测为负）",
+      "source_methodology": "Bond ETF Dual Momentum (portfolioslab.com) + MDPI FinTech 2026 5(2):29 Median strategy（对照）· 参数权威源 strategies/bond_cash/v2_cross_momentum/rule.py::CFG",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "7 只债腿候选（#606 003376 / #605 011983 / #604 001512 / #602 002864 防御 / #608 000032 / #609 006884 / #607 511090）；现金腿 000198+014437",
+        "data": "strategies/bond_cash/v2_cross_momentum/data/_nav_cache.json（场外累计净值，当日缓存）",
+        "note": "月度横截面排名，持前 2 名等权；最强动量 ≤0 全切短债 002864。40pp 额度与现金腿不变。"
+      },
+      "rules": [
+        "每月最后一个交易日收盘，按近 126 个交易日累计收益对 7 只候选降序排名",
+        "取前 top_n=2 名等权；若第一名动量 ≤0% → 全切防御 002864（绝对动量降落伞）",
+        "T+1 起承担新持仓；511090 2023-05 前无净值，自动缺席排名",
+        "成本 Σ|Δw| × 单边 10bp（Σ|Δw| 已含卖+买两侧）",
+        "现金腿固定 5pp 000198 + 5pp 014437，与 v0/v1 一致"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v2_cross_momentum/rule.py",
+        "lookback": 126,
+        "top_n": 2,
+        "abs_floor": 0.0,
+        "defensive": "002864",
+        "rebalance": "month_end",
+        "universe": [
+          "003376",
+          "011983",
+          "001512",
+          "002864",
+          "000032",
+          "006884",
+          "511090"
+        ],
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v2_cross_momentum/backtest.py",
+        "raw_out": "strategies/bond_cash/v2_cross_momentum/backtest/_v2_bt.jsonl",
+        "report": "strategies/bond_cash/v2_cross_momentum/backtest/_v2_bt.md",
+        "window": "2022-03-16~2026-11-17（1133 交易日，受 000032 等核心标的 + 126 日预热限制）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "横截面排名选出，非固定名单"
+      },
+      "daily": {
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "enabled": false,
+        "runner_note": "对照策略：保留扫描产物供研究，但 daily.enabled=false → 不进默认看板与调度；手跑 python strategies/bond_cash/v2_cross_momentum/daily/_daily_scan.py",
+        "signal_report": "strategies/bond_cash/v2_cross_momentum/daily/_v2_daily.md",
+        "signal_json": "strategies/bond_cash/v2_cross_momentum/daily/_v2_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-18 落地，按 Bond ETF Dual Momentum 与 MDPI 2026 Median 策略建**对照研究**。结论明确为负：2022-03~2026-11 双动量 top2 年化 −1.74%/回撤 −8.04%/夏普 −3.60（147 次调仓、Σ|Δw|=108），v0 固定哑铃 +4.56%/−2.38%/1.82；零成本下 top2 也只有 +0.56%（满仓 003376 +4.86%）→ 问题在信号本身不在成本。MDPI 的中位组(第4名)在本市场 −1.87% 同样失败。63/126/252 日 × top1/top2/median/bottom2 共 12 组全部落在 +0.24%~+0.91%，无一组接近长端买入持有。排名分布显示赢家常是「前期跌得少的短端/信用」而非长端，在利率下行样本里正好做反。daily.enabled=false：产物保留、不进默认调度。",
+      "pipeline_mode": "rotation"
+    },
+    "bond_cash_v3": {
+      "name": "V3 · Carry + 趋势投票的久期择时（中债曲线口径）",
+      "source_methodology": "Newfound Research (2018) A Carry-Trend-Hedge Approach to Duration Timing + 兴业证券 (2026-05) 基于宏观预期、趋势过滤与泡沫预警的利率择时框架 · 参数权威源 strategies/bond_cash/v3_carry_trend/rule.py::CFG",
+      "universe": {
+        "offshore_pool": "data/_universe.md",
+        "pool": "长端 003376（#606）/ 底仓 011983（#605）/ 现金 000198+014437（#701/#702）；信号源 = 中债国债 10Y/1Y 收益率曲线",
+        "data": "strategies/bond_cash/v3_carry_trend/data/_nav_cache.json + 只读 ../v1_four_factor/data/_curve.csv（v1 统一维护，避免重复抓 akshare）",
+        "note": "两票都来自收益率曲线本身（非基金净值），月末低频采样；40pp 额度与现金腿不动。"
+      },
+      "rules": [
+        "Carry 票 = 10Y−1Y 期限利差近 3 年滚动分位：≥66.7%→+1 / ≤33.3%→−1 / 中间 0",
+        "Trend 票 = 10Y 国债收益率 MA5<MA20 与 MA20<MA60 各一票，全同向才记 ±1（利率下行=利多债）",
+        "score = carry + trend ∈[−2,+2] → 长端占比 {0, 17.5, 35, 52.5, 70}%，其余放 011983",
+        "月末最后交易日算分、T+1 承担；滞后带 1.5pp；成本 |Δw|×2×单边 10bp",
+        "现金腿固定 5pp 000198 + 5pp 014437，与 v0/v1 一致"
+      ],
+      "thresholds": {
+        "authoritative": "strategies/bond_cash/v3_carry_trend/rule.py",
+        "carry": {
+          "short": "cgb_1y",
+          "long": "cgb_10y",
+          "years": 3,
+          "lo": 0.3333,
+          "hi": 0.6667,
+          "min_obs": 250
+        },
+        "trend": {
+          "pairs": [
+            [
+              5,
+              20
+            ],
+            [
+              20,
+              60
+            ]
+          ]
+        },
+        "long_by_score": {
+          "-2": 0.0,
+          "-1": 0.175,
+          "0": 0.35,
+          "1": 0.525,
+          "2": 0.7
+        },
+        "hysteresis_pp": 1.5,
+        "rebalance": "month_end",
+        "sleeve_pp": {
+          "bond": 30.0,
+          "cash": 10.0
+        },
+        "cash_leg": {
+          "000198": 0.5,
+          "014437": 0.5
+        },
+        "cost": {
+          "fee_side": 0.001,
+          "rf_annual": 0.014
+        }
+      },
+      "backtest": {
+        "engine": "strategies/bond_cash/v3_carry_trend/backtest.py",
+        "raw_out": "strategies/bond_cash/v3_carry_trend/backtest/_v3_bt.jsonl",
+        "report": "strategies/bond_cash/v3_carry_trend/backtest/_v3_bt.md",
+        "window": "2023-05-30~2026-11-17（841 交易日，受曲线起点 + 3 年分位样本限制）"
+      },
+      "select": {
+        "out_active_md": "",
+        "out_active_json": "",
+        "criteria": "固定两腿，非选基策略"
+      },
+      "daily": {
+        "block": "bond",
+        "codes": [],
+        "runner": "",
+        "runner_note": "不单列 runner：由 run_daily_bond_cash.ps1 第 4 步每日刷新，避免 run_daily_all 把同一个 runner 跑两遍",
+        "signal_report": "strategies/bond_cash/v3_carry_trend/daily/_v3_daily.md",
+        "signal_json": "strategies/bond_cash/v3_carry_trend/daily/_v3_daily.json",
+        "automation": "(未创建)"
+      },
+      "note": "2026-11-18 落地，按 Newfound carry-trend 双确认与兴业利率 MA 投票的可复现交集建 V3。设计动机：v1 已证实基金净值做信号会把零附近翻转放大 2.5 倍，V3 改用中债收益率曲线（连续估值、月度采样）。回测 2023-05~2026-11：V3 +3.76%/−1.88%/夏普1.58（Σ|Δw|=4.6），优于纯 Carry(+3.14%) 与纯 Trend(+3.18%)，但低于 v0 固定哑铃 +4.39%/−2.38%，夏普低于固定中性 35/65 的 1.70 —— 两票经常抵消（score=0 占 419/1114 天），长期状态接近固定中性；样本仅 3.5 年且几乎全债牛，不能外推。成本 0/10/40bp → +4.03%/+3.76%/+2.94%。边界：只覆盖 7-10 年 vs 3-5 年，做空/ECFC/LPPLS 未实现。",
+      "pipeline_mode": "rotation"
     }
   }
 }

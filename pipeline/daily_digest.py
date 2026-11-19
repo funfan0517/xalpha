@@ -1384,6 +1384,120 @@ def parse_bond_cash(_cfg):
     )
 
 
+def parse_bond_cash_v1(_cfg):
+    """板块6 V1 卡片：债券晴雨表（温度）→ 四因子 → 情景 → 长端占比。
+
+    读 ``strategies/bond_cash/v1_four_factor/daily/_v1_daily.json``；所有判断已在
+    v1 的 engine 里做完，看板只做展示，不复刻规则。
+
+    V1 不改 v0 的 40pp 额度：只在债腿 30pp 内部把「7-10 年 vs 3-5 年」的比例
+    交给四因子打分决定（基准 35%、上限 70%、滞后带 5.25pp）。
+    """
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    as_of = d.get("as_of")
+    t, s, pos, sc = (d.get(k) or {} for k in ("temp", "signal", "position", "scenario"))
+
+    rows = []
+    for r in d.get("rows") or []:
+        rows.append(_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                         r.get("label") or "—", r.get("note") or ""))
+
+    summary = (f"合成温度 {t.get('composite')}（{t.get('band')}）· score {s.get('score', 0):+d} "
+               f"**{s.get('side')}**（置信{'低' if s.get('conf') == 'low' else '中' if s.get('conf') == 'medium' else '高'}）"
+               f"· 长端 {pos.get('cur')}% → 目标 {pos.get('target')}%"
+               f"（{'触发调仓' if pos.get('moved') else '滞后带内不动'}）"
+               f"· 未来20日债牛 {sc.get('bull')}%")
+
+    return _entry(
+        "bond_cash_v1", "V1 · 四因子久期档（债券晴雨表）", as_of,
+        s.get("side") or "—", pos.get("act", "hold"), summary, rows,
+        [["合成温度", f"{t.get('composite')} · {t.get('band')}"],
+         ["覆盖", f"{t.get('coverage')}/4 项"],
+         ["长端占比", f"{pos.get('cur')}% → {pos.get('target')}%"],
+         ["20日债牛", f"{sc.get('bull')}%（n={sc.get('n')}）"]],
+        note="规则来源 `G:/tradingagents/bond_strategy/bond_rules.md` v1.0。"
+             "**v1 只改债腿内部的久期分布，不动 v0 的 40pp 额度**：长端 `003376` 占比 = "
+             "35% + score/4 × (70%−35%) × 置信折扣，其余放 `011983`；现金腿 5pp 货基 + 5pp 存单不变。"
+             "温度 40% 估值 / 20% 资金 / 25% 动能 / 15% 信用，**只定赔率不定方向**（R-03）；"
+             "四因子互斥强制震荡观望（R-08），R-11 背离降级；情景只出概率、不出点位（R-12/R-15）。"
+             "R-18 的 1.5pp 滞后带按带宽比例 35/10 放缩为 **5.25pp**（不放缩会天天翻仓，实测 72 次/年 → 14 次/年）。"
+             "**回测诚实结论**：长窗 2018-08~ 固定哑铃 +3.83%/−4.69%，V1 +2.94%/−4.47%（138 次换手）；"
+             "现行窗 2023-07~ 固定哑铃 +4.45%/−2.38%，V1 +3.82%/−2.14%（74 次）。"
+             "V1 以收益换回撤，在债牛里跑不赢固定哑铃 —— 四因子天然互斥（估值偏贵时趋势偏多）"
+             "使多数日子回到 35% 中性。信用因子依赖 akshare 曲线，2023 年前不可用（覆盖 3/4）。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["项", "读数", "动作", "说明"],
+        all_rows=True,
+    )
+
+
+def parse_bond_cash_v2(_cfg):
+    """板块6 V2 对照卡：横截面双动量轮动（默认 daily.enabled=false，不进看板）。"""
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    m = d.get("momentum") or {}
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+    held = d.get("held") or {}
+    return _entry(
+        "bond_cash_v2", "V2 · 横截面双动量轮动（对照，未启用）", d.get("as_of"),
+        "对照策略", "none",
+        f"近 {m.get('win')} 日动量排名取前 {m.get('top_n')} 名等权 · 持仓 " +
+        ("、".join(f"{k} {v:.0%}" for k, v in held.items()) if held else "—") +
+        f" · 上次调仓 {(d.get('last_rebalance') or {}).get('date')}",
+        rows,
+        [["动量窗", f"{m.get('win')} 日"], ["持仓数", str(m.get("top_n"))],
+         ["防御", str(m.get("defensive"))],
+         ["下次调仓", d.get("next_rebalance") or "—"]],
+        note="规则来源 Bond ETF Dual Momentum + MDPI FinTech 2026 Median（对照）。"
+             "**回测结论为负**：2022-03~2026-11 双动量 top2 −1.74% / 回撤 −8.04%，"
+             "v0 固定哑铃 +4.56% / −2.38%；零成本下也只有 +0.56%（满仓 003376 +4.86%）—— "
+             "问题在信号本身而非成本。MDPI 的中位组在本市场也是 −1.87%，"
+             "63/126/252 日 × top1/top2/median/bottom2 共 12 组全部 +0.24%~+0.91%，"
+             "没有一组接近长端买入持有。`daily.enabled=false`：产物保留供研究，不进默认调度。",
+        src=_rel(path),
+        data="净值 " + ", ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["代码", "标的", "动作", "配置/动量"],
+        all_rows=True,
+    )
+
+
+def parse_bond_cash_v3(_cfg):
+    """板块6 V3 卡片：Carry + 趋势投票的久期择时。"""
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    c, t, s = (d.get(k) or {} for k in ("carry", "trend", "signal"))
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+    return _entry(
+        "bond_cash_v3", "V3 · Carry + 趋势投票（久期择时）", d.get("as_of"),
+        f"score {s.get('score', 0):+d}", s.get("act", "hold"),
+        f"Carry {c.get('vote', 0):+d}（10Y−1Y {c.get('spread')}% / 3年分位 {c.get('pct')}%）"
+        f" + Trend {t.get('vote', 0):+d} → score **{s.get('score', 0):+d}** · "
+        f"长端 {s.get('cur')}% → 目标 {s.get('long_w')}%"
+        f"（{'触发' if s.get('moved') else '滞后带内不动'}）",
+        rows,
+        [["Carry 票", f"{c.get('vote', 0):+d}（分位 {c.get('pct')}%）"],
+         ["Trend 票", f"{t.get('vote', 0):+d}"],
+         ["长端占比", f"{s.get('eff')}%"],
+         ["下次调仓", s.get("next_rebalance") or "—"]],
+        note="规则来源 Newfound Research (2018) carry-trend 双确认 + 兴业证券 (2026-05) "
+             "利率 MA 投票久期轮动的可复现交集。**信号源是中债收益率曲线而非基金净值**"
+             "（避开 v1 已知的净值噪声放大缺陷），月末采样、低换手。"
+             "Carry = 10Y−1Y 利差近 3 年分位（≥66.7%→+1 / ≤33.3%→−1）；"
+             "Trend = 10Y MA5<MA20 与 MA20<MA60 双确认；两票相加映射 0/17.5/35/52.5/70% 长端。"
+             "回测 2023-05~2026-11：V3 +3.76% / −1.88% / 夏普 1.58，优于纯 Carry(+3.14%) 与纯 "
+             "Trend(+3.18%)，但低于 v0 固定哑铃 +4.39%/−2.38%，夏普低于固定中性 35/65 的 1.70 —— "
+             "样本仅 3.5 年且几乎全债牛，不能外推到完整周期。做空/ECFC/LPPLS 未实现。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["腿/信号", "标的", "动作", "配置/依据"],
+        all_rows=True,
+    )
+
+
 PARSERS = {
     "dividend": parse_dividend,
     "vol_variants": parse_vol_variants,
@@ -1399,6 +1513,9 @@ PARSERS = {
     "permanent": parse_permanent,
     "vol_legs": parse_vol_legs,
     "bond_cash": parse_bond_cash,
+    "bond_cash_v1": parse_bond_cash_v1,
+    "bond_cash_v2": parse_bond_cash_v2,
+    "bond_cash_v3": parse_bond_cash_v3,
 }
 
 

@@ -1,0 +1,210 @@
+{
+  "strategy": "V1 · 四因子久期档（债券晴雨表）",
+  "as_of": "2026-11-18",
+  "generated": "2026-11-19 08:41",
+  "source_methodology": "G:/tradingagents/bond_strategy/bond_rules.md v1.0（2026-11-17）",
+  "temp": {
+    "valuation": 98.3,
+    "funding": 89.8,
+    "momentum": 96.4,
+    "credit": 43.0,
+    "composite": 87.9,
+    "band": "过热",
+    "coverage": 4,
+    "degrade": false
+  },
+  "factors": {
+    "valuation": -1,
+    "trend": 1,
+    "funding": 1,
+    "credit": 0
+  },
+  "signal": {
+    "score": 1,
+    "side": "震荡观望",
+    "conf": "low",
+    "conflict": true,
+    "degrade": true,
+    "freeze": false
+  },
+  "scenario": {
+    "ok": true,
+    "p_up": 65.7,
+    "n": 1289,
+    "bucket": 90.0,
+    "bull": 65.7,
+    "flat": 17.1,
+    "bear": 17.1,
+    "note": "同桶样本 n=1289（估值温度 90±10）"
+  },
+  "position": {
+    "cur": 35.0,
+    "target": 39.38,
+    "eff_target": 39.38,
+    "w_long": 35.0,
+    "moved": false,
+    "act": "hold",
+    "delta_pp": 0.0,
+    "long_pp": 10.5,
+    "base_pp": 19.5,
+    "cash_pp": {
+      "000198": 5.0,
+      "014437": 5.0
+    },
+    "long_code": "003376",
+    "base_code": "011983"
+  },
+  "note": "四因子互斥 → 强制震荡观望；R-11 降级（趋势与估值/资金背离）",
+  "rows": [
+    {
+      "code": "温度",
+      "name": "估值/资金/动能/信用",
+      "short": "温度",
+      "act": "none",
+      "label": "87.9 过热",
+      "pp": 0,
+      "note": "估值 98.3 · 资金 89.8 · 动能 96.4 · 信用 43.0 · 覆盖 4/4",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "估值因子",
+      "name": "温度 98.3",
+      "short": "估值因子",
+      "act": "sell",
+      "label": "-1",
+      "pp": 0,
+      "note": "估值温度 ≤20 / ≥80",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "趋势因子",
+      "name": "温度 96.4",
+      "short": "趋势因子",
+      "act": "buy",
+      "label": "+1",
+      "pp": 0,
+      "note": "close>MA5>MA20 且近 20 日高 ×0.995；反向",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "资金因子",
+      "name": "温度 89.8",
+      "short": "资金因子",
+      "act": "buy",
+      "label": "+1",
+      "pp": 0,
+      "note": "资金温度 ≥70 / ≤30（松=利多）",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "信用因子",
+      "name": "温度 43.0",
+      "short": "信用因子",
+      "act": "none",
+      "label": "+0",
+      "pp": 0,
+      "note": "信用温度 ≥70 / ≤30（利差窄=拥挤）",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "003376",
+      "name": "广发中债7-10年国开债A",
+      "short": "003376",
+      "act": "hold",
+      "label": "10.5pp",
+      "pp": 0,
+      "note": "长端占比 35.0% → 39.4% · 滞后带内不动",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "011983",
+      "name": "永赢中债3-5年政金债A",
+      "short": "011983",
+      "act": "hold",
+      "label": "19.5pp",
+      "pp": 0,
+      "note": "债腿剩余（3-5 年政金）",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "000198",
+      "name": "天弘余额宝",
+      "short": "000198",
+      "act": "hold",
+      "label": "5.0pp",
+      "pp": 0,
+      "note": "现金腿（与 v0 一致）",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "014437",
+      "name": "鹏华同业存单AAA 7天",
+      "short": "014437",
+      "act": "hold",
+      "label": "5.0pp",
+      "pp": 0,
+      "note": "现金腿（与 v0 一致）",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    },
+    {
+      "code": "20D",
+      "name": "未来20日情景",
+      "short": "20D",
+      "act": "none",
+      "label": "牛 65.7%",
+      "pp": 0,
+      "note": "震荡 17.1% / 熊 17.1% · n=1289 · score +1 震荡观望（低）",
+      "r20": null,
+      "r250": null,
+      "nav": null,
+      "role": "",
+      "theme": ""
+    }
+  ],
+  "sources": {
+    "10Y国债": "2026-11-17",
+    "SHIBOR": "2026-11-13",
+    "收益率曲线": "2026-11-17",
+    "净值": "2026-11-18"
+  },
+  "state": {
+    "w_long": 0.35,
+    "init": false
+  }
+}

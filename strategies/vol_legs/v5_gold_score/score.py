@@ -40,7 +40,7 @@ import engine       # noqa: E402
 import factors as F  # noqa: E402
 import rule         # noqa: E402
 
-LABEL = "V5 黄金计分仓位"
+LABEL = "V5.1 黄金仓位（风险预算 × 利率闸门）"
 LEG = "gold"
 NAME = "黄金"
 BAND_PP = float(rule.LEGS[LEG]["band"])       # 10pp（本报告内部一律记成「占带比例」）
@@ -141,12 +141,11 @@ def run(px, rate=None, flow=None, p=None, shares=None):
     p = p or params()
     T = F.table(px, rate, flow, p, shares=shares)
     st, act = run_target(T["target"], T["ready"].to_numpy(dtype=bool), T["blocked"], p)
-    mode = str(p.get("TARGET_MODE", "risk"))
     done = np.empty(len(T), dtype=object)
     done[:] = ""
     for i in range(1, len(T)):                    # 成交说明：t−1 的决策写在 t 日
         if act.iloc[i - 1] != CN["hold"]:
-            done[i] = _note(T, i - 1, act.iloc[i - 1], st.iloc[i], mode)
+            done[i] = _note(T, i - 1, act.iloc[i - 1], st.iloc[i])
     out = T.copy()
     out["state"] = st.to_numpy()
     out["action"] = act.to_numpy()
@@ -154,11 +153,8 @@ def run(px, rate=None, flow=None, p=None, shares=None):
     return out
 
 
-def _note(T, i, act, new_state, mode="risk"):
+def _note(T, i, act, new_state):
     r = T.iloc[i]
-    if mode == "score":
-        return (f"score={int(r['score']):+d}（f_p={int(r['f_p']):+d} f_r={int(r['f_r']):+d}）"
-                f"{r['conf']}置信度 → 目标 {r['target']:.0%}，{act}至 {new_state:.0%}")
     return (f"波动 {r['vol']:.1%}→预算 {r['scale']:.2f}；利率 {r['rate_level']:+.2f}%→"
             f"闸门 {r['gate']:.2f} → 目标 {r['target']:.0%}，{act}至 {new_state:.0%}")
 
@@ -264,7 +260,7 @@ def _self_check():
           f"目标 {last['target']:.0%} 当前 {last['state']:.0%} 动作 {last['action']} · "
           f"平均仓位 {exposure(st):.0%} · 调仓 {b['trades']} 次 / 完整往返 {b['cycles']} 段 / "
           f"清仓 {b['full_exits']} 次")
-    print(f"参数：模式 {F.TARGET_MODE} · 波动目标 {F.VOL_TARGET:.0%}/{F.VOL_WINDOW}日 "
+    print(f"参数：风险预算 × 利率闸门 · 波动目标 {F.VOL_TARGET:.0%}/{F.VOL_WINDOW}日 "
           f"下限 {F.VOL_MIN:.0%} · 利率闸门 {F.RATE_LEVEL_TH:+.1f}pp 否则×{F.RATE_LEVEL_LOW:g} · "
           f"步长 {F.STEP:.0%} · 滞后 {F.HYST} 档 · 事件冻结 ±{F.EVENT_FREEZE} 日")
     print(f"成本：单边 {FEE:.5%} + 滑点 {SLIP:.2%} · 现金 {CASH_ANNUAL:.2%} · 带 {BAND_PP:g}pp")

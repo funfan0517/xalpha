@@ -20,7 +20,7 @@ import engine  # noqa: E402
 import factors as F  # noqa: E402
 
 
-def monthly(sig, rebal="M"):
+def monthly(sig, rebal="ME"):
     """把日频信号降成月度（每期最后一个交易日取值），只在换月时更新。"""
     return sig.resample(rebal).last().dropna()
 

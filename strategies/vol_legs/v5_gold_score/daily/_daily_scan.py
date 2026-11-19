@@ -94,7 +94,9 @@ def main():
     gate = float(last["gate"])
     rate_date = last["rate_date"].date()
     dir_ = {"买入": "buy", "卖出": "sell"}.get(act, "")
-    band_yrs = (df.index[-1] - df.index[0]).days / 365.25
+    ready = df["ready"].to_numpy(dtype=bool)
+    run_start = df.index[ready][0] if ready.any() else df.index[0]
+    band_yrs = (df.index[-1] - run_start).days / 365.25
     gap_pp = abs(target - state) * S.BAND_PP
     threshold_pp = F.HYST * F.STEP * S.BAND_PP
 
@@ -161,8 +163,8 @@ def main():
       + ("" if gate >= 1.0 else "（实际利率偏低 → 未来更可能上行，对金不利 → 只拿一半预算）") + "。")
     A(f"- 目标档 = 量化({scale:.2f} × {gate:.2f} = {scale * gate:.2f}, 步长 {F.STEP:.0%}) = "
       f"**{target:.0%}**。")
-    A(f"- 滞后防抖：|e* − e| ≥ {F.HYST} 档（{threshold_pp:.0f}pp）才动作，"
-      f"当前差 {gap_pp:.0f}pp → {'触发' if act != '持有' else '不触发'}。")
+    A(f"- 滞后防抖：|e* − e| ≥ {F.HYST} 档（{F.STEP:.0%} 仓位 = {threshold_pp:.1f}pp 带）才动作，"
+      f"当前差 {gap_pp:.1f}pp → {'触发' if act != '持有' else '不触发'}。")
     A("")
 
     A("## 二、不计分项（只作提示，永不改变仓位数字）")
@@ -174,9 +176,9 @@ def main():
     A(f"- 资金流提示：{flow_note(flow, shares, float(last['close']))}")
     A("")
     A("> 这些项与本次调仓方向冲突时只标注「观察，谨慎」，**绝不改变目标档数字**。")
-    A("> 为什么资金流不进仓位：上交所份额全史已补齐并实测，顺势口径把回撤从 -16.2% 恶化到 "
-      "-23.8%、逆势只修回撤不增收益，两个方向都跑输本口径。"
-      "详见 `backtest/_v5_gold_score_bt.md` §4 与 `research/flow_source/_probe_flow.md`。")
+    A("> 为什么资金流不进仓位：上交所份额全史已补齐并实测 —— 顺势口径显著恶化回撤、"
+      "逆势只修回撤不增收益，两个方向都跑输恒定半仓。"
+      "详见 `research/flow_source/_probe_flow.md`。")
     A("")
 
     A("## 三、净值与操作点")
@@ -199,7 +201,7 @@ def main():
                 f"（现在 {pp(state):.1f}pp）。")
     A(tail)
     A("")
-    A(f"> 回测口径：{df.index[0].date()} ~ {date}（{band_yrs:.1f} 年），"
+    A(f"> 回测口径：{run_start.date()} ~ {date}（{band_yrs:.1f} 年），"
       f"单边 {S.FEE:.4%}，空仓计货基 {S.CASH_ANNUAL:.2%}；"
       "同期买入持有年化相近、回撤约为其三倍，取舍见 `backtest/_v5_gold_score_bt.md` §0。")
     A("> 模拟结果，非投资建议。")
@@ -215,7 +217,7 @@ def main():
         rate_level=round(lvl, 4), gate=gate, rate_asof=str(rate_date),
         target=target, state=state, action=act, dir=dir_, cond=cond,
         blocked=bool(last["blocked"]), hold_override=args.hold,
-        params=dict(target_mode=F.TARGET_MODE, vol_target=F.VOL_TARGET,
+        params=dict(vol_target=F.VOL_TARGET,
                     vol_window=F.VOL_WINDOW, vol_min=F.VOL_MIN,
                     rate_th=F.RATE_LEVEL_TH, rate_band=F.RATE_LEVEL_BAND,
                     rate_low=F.RATE_LEVEL_LOW, step=F.STEP, hyst=F.HYST,

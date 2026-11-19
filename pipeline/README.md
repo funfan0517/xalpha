@@ -102,6 +102,9 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | 4 | dividend_v9 | （空，由 `run_daily_dividend.ps1` 第 2 步带上） | `strategies/dividend/v9_temp5/daily/_v9_signal.md` |
 | 5 | tech_indicators | `run_daily_tech_indicators.ps1`（**一条命令跑全家族**：v9 scan+报告 → v10 scan+报告 → 6 策略汇总表） | `strategies/tech_indicators/daily/_daily_recommend.md` |
 | 6 | bond_cash | `run_daily_bond_cash.ps1` | `strategies/bond_cash/daily/_bond_cash_daily.md` |
+| 6 | bond_cash_v1 | （空，由 `run_daily_bond_cash.ps1` 第 2 步带上） | `strategies/bond_cash/v1_four_factor/daily/_v1_daily.md` |
+| 6 | bond_cash_v2 | （空，`daily.enabled=false` → 只在 runner 第 3 步刷新产物供研究，不进看板） | `strategies/bond_cash/v2_cross_momentum/daily/_v2_daily.md` |
+| 6 | bond_cash_v3 | （空，由 `run_daily_bond_cash.ps1` 第 4 步带上） | `strategies/bond_cash/v3_carry_trend/daily/_v3_daily.md` |
 
 ### 每日操作板块（看板与执行顺序）
 
@@ -116,7 +119,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | **3 风格轮动 · 成长/红利（v0 / v2 / v5 三规则并列）** | 同一份指数缓存、同一个比值 R，三种规则各自给出动作：v0 = R 相对 MA20±1% 缓冲带 + 250 日分位（自适应、主线）；v2 = R 绝对水位 0.35/0.65（复现原图、信号层裸基准）；v5 = R 水位 + 双侧 MA200 闸门 + 18% 波动率目标（风险调整最优）。三卡并列看「同一时刻三种规则分别让你怎么动」 | `growth_div_rotation`、`gd_v2`、`gd_v5`（`gd_v1` 2026-11-02 起 `daily.enabled=false`，不上板） |
 | **4 稳健红利 · V4 RSI14 择时 + V9 估值温度** | 红利底仓的进退节奏（V4：5 只专用池，板块 RSI14 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只）＋「贵不贵」体检（V9：6 只有估值标的的五因子温度，只给额度参考、不调仓位） | `dividend`、`dividend_v9` |
 | **5 技术指标 · 全池 54 只（前四类 · 6 策略并列）** | MACD / V3 / V6 / V7 / V9 右侧 / V10 亮灯 同时对全池每只出信号，看共振 | `tech_indicators` |
-| **6 稳健资产 · 债腿 30pp + 现金腿 10pp** | `data/_universe.md` 第六类（债券 6xx 11 只）+ 第七类（现金 7xx 4 只）合并成一个投资大类：债腿 70% 7-10 年国开 A（003376）+ 30% 3-5 年政金 A（011983）固定哑铃（可选动量开关默认关），现金腿 5pp 货基 + 5pp 存单；全谱系 15 只只监控、5 只动手 | `bond_cash` |
+| **6 稳健资产 · 债腿 30pp + 现金腿 10pp** | `data/_universe.md` 第六类（债券 6xx 11 只）+ 第七类（现金 7xx 4 只）合并成一个投资大类：v0 债腿 70% 7-10 年国开 A（003376）+ 30% 3-5 年政金 A（011983）固定哑铃（可选动量开关默认关），现金腿 5pp 货基 + 5pp 存单；全谱系 15 只只监控、5 只动手。v1 按 `bond_rules.md` 的温度/四因子/情景只改债腿内部的**长端占比**（35%~70%，滞后带 5.25pp）；v2 横截面双动量（回测为负、`enabled=false`，只作对照研究）；v3 用中债曲线的 carry+趋势双票（0/17.5/35/52.5/70%）。三者都不改 40pp 额度 | `bond_cash`、`bond_cash_v1`、`bond_cash_v2`、`bond_cash_v3` |
 
 - 新增策略必须填 `daily.block`（取值 `core` / `vol` / `style` / `dividend` / `tech` / `bond`）。漏填不会丢卡片 —— 看板会把它归入末尾的「其他（未认领板块）」，`run_daily_all.ps1` 也会照跑（排在最后）。
 - 板块是**呈现与执行顺序**，不是新的策略边界：同一板块内的策略可以互相引用（如 `v1_1_ma20` 的腿由 `vol_legs/rule.py::LEGS` 派生），但各自产物与解析器独立。

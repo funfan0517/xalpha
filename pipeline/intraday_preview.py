@@ -432,7 +432,8 @@ def main():
     for key in ("tech_indicators", "vol_variants", "growth_div_rotation", "gd_v5"):
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
-    for key in ("permanent", "vol_legs", "dividend", "dividend_v9", "bond_cash"):
+    for key in ("permanent", "vol_legs", "dividend", "dividend_v9", "bond_cash",
+                "bond_cash_v1", "bond_cash_v2", "bond_cash_v3"):
         if key in entries:
             _mark(entries[key], "🟡", "无盘中数据源（场外净值/月度估值/美股未开盘），沿用上一收盘")
 

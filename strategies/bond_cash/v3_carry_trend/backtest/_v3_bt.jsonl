@@ -1,0 +1,10 @@
+{"name": "V3 Carry+Trend（双票）", "years": 3.47, "cagr": 3.76, "vol": 1.49, "sharpe": 1.58, "mdd": -1.88, "worst_year": -0.1, "total": 13.64}
+{"name": "纯 Carry 票", "years": 3.47, "cagr": 3.14, "vol": 1.33, "sharpe": 1.31, "mdd": -1.73, "worst_year": -0.29, "total": 11.32}
+{"name": "纯 Trend 票", "years": 3.47, "cagr": 3.18, "vol": 1.66, "sharpe": 1.07, "mdd": -2.17, "worst_year": -0.76, "total": 11.47}
+{"name": "v0 固定哑铃 70/30", "years": 3.47, "cagr": 4.39, "vol": 1.8, "sharpe": 1.66, "mdd": -2.38, "worst_year": -0.13, "total": 16.06}
+{"name": "固定中性 35/65", "years": 3.47, "cagr": 3.92, "vol": 1.48, "sharpe": 1.7, "mdd": -1.98, "worst_year": 0.02, "total": 14.27}
+{"name": "全防守 100% 3-5 年", "years": 3.47, "cagr": 3.45, "vol": 1.21, "sharpe": 1.7, "mdd": -1.66, "worst_year": 0.16, "total": 12.5}
+{"name": "全进攻 100% 7-10 年", "years": 3.47, "cagr": 4.79, "vol": 2.09, "sharpe": 1.62, "mdd": -2.8, "worst_year": -0.26, "total": 17.61}
+{"name": "成本0.0", "years": 3.47, "cagr": 4.03, "vol": 1.49, "sharpe": 1.76, "mdd": -1.84, "worst_year": 0.22, "total": 14.68}
+{"name": "成本0.001", "years": 3.47, "cagr": 3.76, "vol": 1.49, "sharpe": 1.58, "mdd": -1.88, "worst_year": -0.1, "total": 13.64}
+{"name": "成本0.004", "years": 3.47, "cagr": 2.94, "vol": 1.54, "sharpe": 1.0, "mdd": -1.98, "worst_year": -1.04, "total": 10.58}

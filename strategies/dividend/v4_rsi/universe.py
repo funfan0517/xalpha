@@ -47,6 +47,7 @@ for _p in (_DIR, _STRAT):
         sys.path.insert(0, _p)
 
 import _single_signal as S  # noqa: E402  pylint: disable=wrong-import-position
+import fit  # noqa: E402  pylint: disable=wrong-import-position
 import pool  # noqa: E402  pylint: disable=wrong-import-position
 import rule as V4  # noqa: E402  pylint: disable=wrong-import-position
 
@@ -62,27 +63,15 @@ BLUE, RED, AMBER = "#1f4e79", "#c0504d", "#e8a33d"
 
 # ------------------------------------------------------------------ 单标的回测
 def run_one(code: str, nav: pd.Series, start: str) -> dict | None:
-    nav = nav.dropna().loc[start:]
-    if len(nav) < 260:
+    """薄适配层：计算在 `fit.py`（唯一实现），这里只把字段名换成页面用的老名字。"""
+    r = fit.run_one(code, nav, start=start)
+    if r is None:
         return None
-    rsi_d = S.rsi_series(nav, V4.WINDOW)
-    me = nav.resample("ME").last().ffill()
-    rets = me.pct_change().dropna()
-    rsi_m = rsi_d.resample("ME").last().reindex(rets.index)
-    mult = S.time_mult(rsi_m / 100.0, V4.Q_OUT, V4.Q_HALF).fillna(1.0)
-
-    pos = mult.shift(1).fillna(1.0)          # 次月生效；首个信号月按满仓处理
-    turn = (pos - pos.shift(1).fillna(0.0)).abs()
-    r_strat = (pos * rets - turn * S.FEE).dropna()
-    r_bh = rets.reindex(r_strat.index)
-
-    st, bh = S.stats(r_strat), S.stats(r_bh)
-    return {"code": code, "rsi_m": rsi_m, "mult": mult, "nav": nav, "rsi_d": rsi_d,
-            "rets": rets, "strat": st, "bh": bh, "pos": float(pos.mean()),
-            "n_cut": int((mult == 0).sum()), "n_half": int(((mult > 0) & (mult < 1)).sum()),
-            "n": len(r_strat), "start": r_strat.index[0], "end": r_strat.index[-1],
-            "dcalmar": st["calmar"] - bh["calmar"],
-            "r_strat": r_strat, "r_bh": r_bh}
+    r["strat"] = {"cagr": r["cagr_rsi"], "dd": r["dd_rsi"], "calmar": r["calmar_rsi"]}
+    r["bh"] = {"cagr": r["cagr_hold"], "dd": r["dd_hold"], "calmar": r["calmar_hold"]}
+    r["n"] = r["months"]
+    r["best"] = r["best"] if "best" in r else fit.best_of(r["dcalmar"])
+    return r
 
 
 def band_next(rsi_m: pd.Series, rets: pd.Series) -> pd.DataFrame:
@@ -247,7 +236,6 @@ def render(rows: list[dict], common: dict, asof: pd.Timestamp) -> str:
 
     longs = [r for r in rows if r["n"] >= MIN_MONTHS]
     long_names = "、".join(f"{r['code']} {r['name']} {r['dcalmar']:+.2f}" for r in longs[:3])
-    ok_codes = " / ".join(r["code"] for r in longs if r["dcalmar"] >= 0.10)
     pos_cut = [(r["code"], r["bands"].loc["清仓", "mean"]) for r in rows
                if "清仓" in r["bands"].index
                and not pd.isna(r["bands"].loc["清仓", "mean"])
@@ -255,10 +243,6 @@ def render(rows: list[dict], common: dict, asof: pd.Timestamp) -> str:
     pos_cut_txt = "、".join(f"{c} {v * 100:+.1f}%" for c, v in pos_cut)
     shorts = [r for r in rows if r["n"] < MIN_MONTHS]
     short_txt = " / ".join(f"{r['code']}({r['n']}m)" for r in shorts)
-    # 实际采用的择时池 = 双窗口 ΔCalmar 都 ≥ +0.10（见 pool.py::TIMING_POOL）
-    ok5 = [r for r in rows if r["dcalmar"] >= 0.10
-           and common["dcalmar"].get(r["code"], -9) >= 0.10]
-    pool_codes = " / ".join(r["code"] for r in ok5)
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -377,10 +361,12 @@ Calmar 的改善主要来自分母（回撤）变小。若目标是绝对收益�
 本身已经很高，ΔCalmar 天花板低，不是择时做错，是没有改善空间。</li>
 
 <li><b>单标的择时 ≠ V4。</b>V4 的组合表现来自「横截面 top2 选品 + 板块 RSI 择时」两半，
-本页只保留后一半。**落地口径**：每日操作（`run_daily_dividend.ps1`）采用的是
-「全区间与共同窗口 ΔCalmar 都 ≥ +0.10」的 {len(ok5)} 只 —— {pool_codes}，写在
-`pool.py::TIMING_POOL`（V4 与 V8 共用）；
-本页其余标的只作对照。若只买一只、又想要更长时间验证，可再收窄到 ≥{MIN_MONTHS} 月的 {ok_codes}。</li>
+本页只保留后一半。**当前落地口径（2026-11-20 起）**：池 = 全 {len(rows)} 只，
+但**每期只持 RSI 最低的 {V4.TOP_K} 只**，其余权重 0；不再按 ΔCalmar 筛池
+（筛池的问题见 `research/_oos_pool.md`：判据换窗口翻号、含选择偏差、检验期无增量）。
+本页的分级只用来回答「池里哪几只不该被择时」—— 标 <b>持有</b> 的那几只是被 RSI 减仓就是负和的，
+旧 5 只筛池（`pool.py::TIMING_POOL`，现供 V8/V11 使用）恰好把它们剔掉，
+同时也剔掉了持有 Calmar 最高的 007467。</li>
 
 <li><b>短样本标的要留保留意见。</b>{short_txt} 都不足 {MIN_MONTHS} 个月，
 清仓档只触发 {min(r['n_cut'] for r in shorts) if shorts else 0}–{max(r['n_cut'] for r in shorts) if shorts else 0} 次，

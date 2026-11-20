@@ -1,9 +1,9 @@
 {
   "strategy": "V7 · 门派风险预算（ERC）",
-  "as_of": "2026-11-18",
-  "generated": "2026-11-19 14:55",
+  "as_of": "2026-11-19",
+  "generated": "2026-11-20 14:50",
   "source_methodology": "等风险贡献（ERC）+ 硬约束；四门派分类对齐《债券种类手册》",
-  "vol": 1.31,
+  "vol": 1.28,
   "held": {
     "rate": 15.0,
     "credit": 13.55,
@@ -11,18 +11,18 @@
   },
   "target": {
     "rate": 15.0,
-    "credit": 13.47,
-    "conv": 1.53
+    "credit": 13.43,
+    "conv": 1.57
   },
   "rc_held": {
-    "rate": 50.4,
-    "credit": 24.7,
-    "conv": 24.9
+    "rate": 51.4,
+    "credit": 25.0,
+    "conv": 23.7
   },
   "rc_target": {
-    "rate": 49.3,
-    "credit": 24.1,
-    "conv": 26.6
+    "rate": 49.8,
+    "credit": 23.9,
+    "conv": 26.3
   },
   "weights_held": {
     "rate": 0.5,
@@ -31,8 +31,8 @@
   },
   "weights_target": {
     "rate": 0.5,
-    "credit": 0.4492,
-    "conv": 0.0508
+    "credit": 0.4477,
+    "conv": 0.0523
   },
   "cash_pp": 10.0,
   "bond_pp": 30.0,
@@ -42,8 +42,8 @@
     "act": "hold",
     "diff_pp": {
       "rate": 0.0,
-      "credit": -0.08,
-      "conv": 0.08
+      "credit": -0.12,
+      "conv": 0.12
     },
     "next_rebalance": "下月最后一个交易日"
   },
@@ -58,7 +58,7 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "目标 50.0% · 风险贡献 50.4%",
+      "note": "目标 50.0% · 风险贡献 51.4%",
       "role": "利率债",
       "theme": "门派"
     },
@@ -72,7 +72,7 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "目标 44.9% · 风险贡献 24.7%",
+      "note": "目标 44.8% · 风险贡献 25.0%",
       "role": "信用债",
       "theme": "门派"
     },
@@ -86,7 +86,7 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "目标 5.1% · 风险贡献 24.9%",
+      "note": "目标 5.2% · 风险贡献 23.7%",
       "role": "可转债",
       "theme": "门派"
     },
@@ -128,13 +128,13 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "债腿波动 1.31%；rate 50% / credit 25% / conv 25%",
+      "note": "债腿波动 1.28%；rate 51% / credit 25% / conv 24%",
       "role": "信号",
       "theme": "信号"
     }
   ],
   "sources": {
-    "003376": "2026-11-18",
+    "003376": "2026-11-19",
     "011983": "2026-11-18",
     "000032": "2026-11-18",
     "470058": "2026-11-18",

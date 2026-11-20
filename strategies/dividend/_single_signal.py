@@ -355,8 +355,9 @@ def render_report(title: str, subtitle: list[str], q: pd.DataFrame, raw: pd.Data
               "**q 用于时间维度（相对自己历史），横截面排名用原始值（跨基金可比）** —— "
               "两者不能用同一个数，否则并列会让选择退化成按列序取。", ""]
 
-    # 二、回测
-    L += ["## 二、回测（2020-01 ~ 2026-10，82 月，成本单边 0.03%）", "",
+    # 二、回测（区间/月数取自实际样本，避免换池/换起点后标题与实际不符）
+    L += [f"## 二、回测（{q.index[0]:%Y-%m} ~ {q.index[-1]:%Y-%m}，"
+          f"{len(q)} 月，成本单边 0.03%）", "",
           "| 方案 | 年化 | 最大回撤 | Calmar | 波动 | 夏普 | 累计 | 平均仓位 |",
           "|---|---:|---:|---:|---:|---:|---:|---:|"]
     if rets is not None:
@@ -372,7 +373,7 @@ def render_report(title: str, subtitle: list[str], q: pd.DataFrame, raw: pd.Data
                  f"{fmt_pct(s['vol'])} | {s['sharpe']:.2f} | {fmt_pct(s['total'], 0)} | "
                  f"{pos:.0%} |")
     n_switch = int((mult.diff().abs() > 1e-9).sum())
-    L += ["", f"- 时间维度仓位倍率变动 **{n_switch} 次** / 82 个月；"
+    L += ["", f"- 时间维度仓位倍率变动 **{n_switch} 次** / {len(mult)} 个月；"
               f"满仓 {int((mult >= 0.99).sum())} 月、减半 {int(((mult > 0.01) & (mult < 0.99)).sum())} 月、"
               f"清仓 {int((mult <= 0.01).sum())} 月。", ""]
 

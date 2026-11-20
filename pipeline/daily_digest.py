@@ -271,9 +271,13 @@ def parse_dividend(_cfg):
             dec = f"预计入选 {float(pv) * 100:.0f}%"
         else:
             dec = "预计落选"
-        # 池子只有 5 只，逐只 RSI 本身就是「为什么选这 2 只」的依据 —— 空仓行的读数也要给全。
+        # 池 10 只只是候选广度，逐只 RSI 才是「为什么选这 2 只」的依据 —— 空仓行的读数也要给全。
         detail = (f"RSI14 {r:.1f}" if r is not None else "RSI14 —（今日无快照）")
-        detail += f" · 权重 {w * 100:.0f}% · 下次 {nd} {dec}"
+        detail += f" · 权重 {w * 100:.0f}%"
+        # best_txt 由 daily.py 按 fit.py 口径生成（含「持平」处理），看板不重复实现
+        if p.get("best_txt"):
+            detail += f" · 最优 {p['best_txt']}"
+        detail += f" · 下次 {nd} {dec}"
         rows.append(_row(code, p.get("name"), act, label, detail))
 
     holds = "、".join(f"`{p.get('code')}` {float(p.get('weight') or 0) * 100:.0f}%"
@@ -298,13 +302,16 @@ def parse_dividend(_cfg):
         [["板块 RSI", str(d.get("board_rsi", "—"))], ["档位", tier],
          ["持仓", f"{len(positions)} 只 · {sum(pos.values()) * 100:.0f}%"],
          ["下次决策", f"{nd} · 预计 {prev_tier}"]],
-        note="V4 · RSI14 择时（月末收盘确认、次日开盘执行；月中为预览）：板块(池内 5 只)RSI 均值 ≥70 清仓 / ≥50 减半，"
-             "横截面取 RSI 最低 2 只等权。2026-10-26 起替代 V0 打分（V0 产物仍在 v0_rank/daily/，可手动重跑）。"
+        note=f"V4 · RSI14 择时（月末收盘确认、次日开盘执行；月中为预览）：板块(池内 {len(pool)} 只)"
+             "RSI 均值 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只等权。"
+             f"**池 {len(pool)} 只只是候选广度 —— 每期只持 RSI 最低 2 只，其余 {len(pool) - 2} 只权重 0**，"
+             "不要按池内只数买入。「最优」= 该标的单独跑同一套 RSI 规则 vs 买入持有（`fit.py`），"
+             "标「买入持有」的标的被 RSI 减仓是负和。2026-11-20 起池由 5 只筛池改为全池。"
              "V9 五因子估值温度已拆成板块4 的第二张卡。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
         data=f"基金累计净值 {as_of} · 生效信号 {d.get('signal_date')} 收盘（月末确认，月中为预览）",
-        cols=["代码", "名称", "本月动作", "RSI / 权重 / 下次预计"],
-        # 池内只有 5 只、且「空仓那 3 只的 RSI」正是横截面选 2 只的依据 —— 这一卡不吃
+        cols=["代码", "名称", "本月动作", "RSI / 权重 / 最优策略 / 下次预计"],
+        # 池 10 只、「空仓那 8 只的 RSI」正是横截面选 2 只的依据 —— 这一卡不吃
         # 「只看有动作」筛选，否则每天只剩 2 行，看不出档位是怎么来的。
         all_rows=True,
     )
@@ -1015,7 +1022,7 @@ _VOL_VARIANTS = [
     ("v15", "V15 沪深300 单腿",
      "strategies/vol_legs/v15_hs300_min2/daily/_v15_daily.json", {"hs300"}),
     ("v16", "V16 纳指100 单腿",
-     "strategies/vol_legs/v16_ndx_v10/daily/_v16_daily.json", {"ndx"}),
+     "strategies/vol_legs/v16_ndx_sw/daily/_v16_daily.json", {"ndx"}),
     ("v17", "V17 标普500 单腿",
      "strategies/vol_legs/v17_spx_v12/daily/_v17_daily.json", {"spx"}),
     ("v18", "V18 科创50 单腿",
@@ -1043,9 +1050,9 @@ _VOL_FIGS = [
     ("strategies/vol_legs/v15_hs300_min2/research/_v15_hs300.png",
      f"**沪深300**（执行 `000051` · {_VOL_PRICE}）· V15 MIN2 双确认：min(V2 BOLL 突破, V12 八态趋势许可)"
      " · 长期图（近三年版在策略目录 research/ 下）"),
-    ("strategies/vol_legs/v16_ndx_v10/research/_v16_ndx.png",
-     f"**纳指100**（执行 `270042` · {_VOL_PRICE}）· V16 V10 ER20/10 自适应波动层 + 5 日死区，当前 ★1；研究确认无提升"
-     " · 长期图（近三年版在策略目录 research/ 下）"),
+    ("strategies/vol_legs/v16_ndx_sw/research/_v16_ndx.png",
+     f"**纳指100**（执行 `270042` · {_VOL_PRICE}）· V16 MA200 切换：上=V10 波动层 / 下=V12 八态趋势"
+     "（★ 研究超越项；MA 100~250 邻域仍过线）· 长期图（近三年版在策略目录 research/ 下）"),
     ("strategies/vol_legs/v17_spx_v12/research/_v17_spx.png",
      f"**标普500**（执行 `017641` · {_VOL_PRICE}）· V17 V12 八态趋势（当前 ★1；研究确认无提升）"
      " · 长期图（近三年版在策略目录 research/ 下）"),
@@ -1320,13 +1327,16 @@ def parse_vol_variants(_cfg):
          ["买入", str(n_buy)], ["卖出", str(n_sell)]],
         note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
              "2026-11-18 起本卡只列 **v14~v20 七个单标的专用策略**（一策略一腿）："
-             "v14 中证A500=E3(V3+V2+V12)、v15 沪深300=MIN2(V12∩V2)、v16 纳指100=V10、"
+             "v14 中证A500=E3(V3+V2+V12)、v15 沪深300=MIN2(V12∩V2)、"
+             "v16 纳指100=MA200 切换（上=V10 波动层 / 下=V12 八态）、"
              "v17 标普500=V12、v18 科创50=E2×TV20、v19 恒生科技=V3、"
              "v20 黄金=V5.1（风险预算 × 实际利率闸门）。"
              "**2026-11-19 研究重跑**：v12 把「慢跌」改到 0% 后，沪深300/标普500/科创50 的 ★1 都换成 V12；"
              "黄金腿纳入重构后的 v5_gold_score 后 ★1 换成 V5.1。"
-             "v14(E3)/v15(MIN2)/v18(E2×TV20) 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
-             "v16/v17/v19 三条是「研究确认无提升、保持当前 ★1」的单标的封装；"
+             "**2026-11-20**：v12 的美股两腿改 C5（无死区）后，纳指 ★2 由 V9 换成 V12，"
+             "`SW MA200→V12` 成为纳指的超越项，v16 据此由「纯 V10」改为「MA200 切换」；"
+             "v14(E3)/v15(MIN2)/v16(SW-v12)/v18(E2×TV20) 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
+             "v17/v19 两条是「研究确认无提升、保持当前 ★1」的单标的封装；"
              "v20 就是 best_by_leg §0 的黄金 ★1 本身（重跑后无候选通过双闸门）。"
              "v21 利弗莫尔关键点（用户视频口径）**未稳定前不进本卡**，"
              "其产物与 7 腿验证只在策略目录。"

@@ -1,25 +1,25 @@
 {
   "strategy": "V5 · 波动率目标",
-  "as_of": "2026-11-18",
-  "generated": "2026-11-19 14:55",
+  "as_of": "2026-11-19",
+  "generated": "2026-11-20 14:49",
   "source_methodology": "Moreira & Muir (2017) vol-managed portfolios + 目标波动率法 + 兴证 VaR 久期择时",
   "vol": {
-    "sigma21": 0.02681,
-    "sigma63": 0.01791,
-    "sigma": 0.02681,
+    "sigma21": 0.02716,
+    "sigma63": 0.01807,
+    "sigma": 0.02716,
     "target": 0.015,
-    "ratio": 1.79,
+    "ratio": 1.81,
     "guard": false,
     "rule": "σ = max(σ21, σ63) 年化；w = 70% × min(1, 1.50%/σ)；σ > 3.00% → 清零"
   },
   "signal": {
-    "w_raw": 39.16,
+    "w_raw": 38.66,
     "cur": 52.58,
     "eff": 52.58,
     "moved": false,
     "is_rebalance": false,
     "act": "hold",
-    "pending": 39.16,
+    "pending": 38.66,
     "next_rebalance": "下月最后一个交易日"
   },
   "held": {
@@ -34,7 +34,7 @@
       "act": "hold",
       "label": "15.8pp",
       "pp": 0,
-      "nav": 1.5133,
+      "nav": 1.5153,
       "r20": null,
       "r250": null,
       "note": "长端占比 52.6%",
@@ -88,18 +88,18 @@
       "name": "已实现波动",
       "short": "σ",
       "act": "none",
-      "label": "2.68%",
+      "label": "2.72%",
       "pp": 0,
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "σ/目标 1.79× → 长端 52.6%",
+      "note": "σ/目标 1.81× → 长端 52.6%",
       "role": "信号",
       "theme": "信号"
     }
   ],
   "sources": {
-    "003376": "2026-11-18",
+    "003376": "2026-11-19",
     "011983": "2026-11-18",
     "000198": "2026-11-18",
     "014437": "2026-11-18"

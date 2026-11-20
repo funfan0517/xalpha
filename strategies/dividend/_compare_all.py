@@ -150,11 +150,11 @@ def build_a() -> tuple[dict, pd.DataFrame]:
     out: dict = {}
     for kind, name, mech in SINGLE:
         if kind == "rsi":
-            # V4/V8 有自己的 5 只池（pool.py::TIMING_POOL），与 V3/V5/V6 的 7 只不同源
+            # V4 有自己的池（2026-11-20 起全池 10 只；此前为 5 只筛池），与 V3/V5/V6 的 7 只不同源
             navs_v4 = pool.load_navs(codes=V4.CODES)
             rets_v4 = S.load_rets(navs_v4)
             raw = S.load_signal("rsi", navs_v4).reindex(rets_v4.index)   # 14 日（RSI_WIN）
-            _add_a(out, rets_v4, name, f"{mech}（5 只专用池）",
+            _add_a(out, rets_v4, name, f"{mech}（V4 的 {len(V4.CODES)} 只池）",
                    (raw / 100.0).loc[S.START:], raw.loc[S.START:], SINGLE_TH[kind],
                    base_label=V4.BASE_LABEL)
             # V8：同池、同横截面，窗口 12 日 + 清仓线 80
@@ -391,7 +391,7 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
     bst = S.stats(base_r)
     b10 = S.stats(base10)
     base5 = S.stats(next(v["sims"][V4.BASE_LABEL] for k, v in a.items() if k.startswith("V4")))
-    # 每行对比自己的同池基准（V4 是 5 只池，其余是 7 只池）
+    # 每行对比自己的同池基准（V4 是自己的池，其余是 7 只池）
     rows = [_row(name, v["mech"], v["sims"][OVERLAY], v["sims"][S.base_key(v["sims"])], v["pos"])
             for name, v in a.items()]
     rows.sort(key=lambda r: -r["calmar"])
@@ -427,9 +427,10 @@ def render(a: dict, rets: pd.DataFrame, b: list[dict], gap: pd.DataFrame,
           f"回撤 {_p(b10['dd'])}、Calmar **{b10['calmar']:.2f}** —— 多出的 3 只"
           "（标普红利低波50 / 标普红利机会 / 港股通高股息）把年化抬高约 "
           f"{(b10['cagr'] - bst['cagr']) * 100:+.1f}pp，所以 V0 的两行要各自对自己的基准读。",
-          f"- 基准 ③：**V4 的 5 只专用池等权** 年化 **{_p(base5['cagr'])}**、回撤 {_p(base5['dd'])}、"
-          f"Calmar **{base5['calmar']:.2f}** —— V4 从 2026-10-26 起只用这 5 只"
-          "（`pool.py::TIMING_POOL`，V4/V8 共用），所以它的 ΔCalmar 要对着这一行读，不是基准 ①。",
+          f"- 基准 ③：**V4 的 {len(V4.CODES)} 只池等权** 年化 **{_p(base5['cagr'])}**、"
+          f"回撤 {_p(base5['dd'])}、Calmar **{base5['calmar']:.2f}** —— V4 自 2026-11-20 起用"
+          f"全池 {len(V4.CODES)} 只（`pool.py::TIMING_POOL_ALL`；此前是按 ΔCalmar 筛出的 5 只，"
+          "供 V8/V11 使用），所以它的 ΔCalmar 要对着这一行读，不是基准 ①。",
           "- `平均仓位` 只对含时间维度的方案有意义（V0 与纯横截面方案始终满仓）；"
           "`剔除 3 月后` = 剔掉相对同池基准贡献最大的 3 个月。",
           "- V7 的 `rsi（单指标对照）` 与 V4 完全等价，已跳过，不重复占一行。", ""]

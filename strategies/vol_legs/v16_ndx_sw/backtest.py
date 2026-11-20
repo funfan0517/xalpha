@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v16 回测：纳指100 · V10 波动层（当前 ★1）。
+"""v16 回测：纳指100 · MA200 切换（上=V10 波动层 / 下=V12 八态趋势）。
 
 产物：`backtest/_<v>_bt.md` / `.jsonl`。机械规则输出，非投资建议。
-用法：`python strategies/vol_legs/v16_ndx_v10/backtest.py`
+用法：`python strategies/vol_legs/v16_ndx_sw/backtest.py`
 """
 import io
 import json
@@ -27,6 +27,12 @@ import engine  # noqa: E402
 OUTDIR = os.path.join(_HERE, "backtest")
 MD = os.path.join(OUTDIR, "_v16_bt.md")
 JSONL = os.path.join(OUTDIR, "_v16_bt.jsonl")
+
+NOTE = ("_beat_best_top3.md（2026-11-20 第三次重跑）：v12 美股两腿改 C5 后，纳指 ★2 由 V9 换成 V12，"
+        "SW 的『下方切换目标』随之变为 V12 → SW MA200→V12 同尺夏普 0.77→0.81、后段 0.94→1.01、"
+        "回撤 −27.38%→−12.97%，PASS 双闸门；MA 100~250 邻域仍全部过线。")
+RULE_TXT = ("MA200 上方用 V10 波动层（ER20/10 自适应 + 5 日死区），下方用 V12 八态趋势许可；"
+            "闸门为 t 日收盘的 px>MA200，T+1 收益生效。")
 
 
 def main():
@@ -54,7 +60,7 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。")
+               note=NOTE)
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -62,13 +68,13 @@ def main():
     # 后段必须先把净值归 1 再算：直接切 nav 会让年化沿用起点之前累积的涨幅，后段夏普被系统性放大
     post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
-        "# v16 回测报告 · 纳指100", "",
-        f"> 由 `strategies/vol_legs/v16_ndx_v10/backtest.py` 生成。**研究确认无提升**。", "",
+        "# v16 回测报告 · 纳指100（MA200 切换）", "",
+        f"> 由 `strategies/vol_legs/v16_ndx_sw/backtest.py` 生成。**★ 研究超越项（最佳）**。", "",
         "## 规则", "",
-        "V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）。", "",
+        RULE_TXT, "",
         f"逐日权重来自原生引擎（`_top3_bridge.py`），t 日收盘决策 → T+1 收益；"
         f"统一单边 {engine.FEE_SIDE:.2%}、空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。", "",
+        f"> 研究出处：`research/beat_best/_beat_best_top3.md`。{NOTE}", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

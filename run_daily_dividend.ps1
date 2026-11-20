@@ -1,7 +1,8 @@
 ﻿# 红利基金每日操作(V4 · RSI14 择时 + V9 · 五因子估值温度) - 双击运行
-# V4 标的池: 择时专用 5 只(按单标的 RSI 择时适配度筛出, 见 strategies/dividend/pool.py::TIMING_POOL)
+# V4 标的池: 全池 10 只(2026-11-20 起, strategies/dividend/pool.py::TIMING_POOL_ALL)
+#  注意 「池 10 只」不等于「持 10 只」: 每期只持 RSI 最低 2 只, 其余权重 0
 #  规则: 板块 RSI14 均值 >=70 清仓 / >=50 减半 / 其余满仓; 横截面取 RSI 最低 2 只等权
-#  输出: 今日该持什么(当前生效信号) + 预览 + 下一个决策点
+#  输出: 今日该持什么(当前生效信号) + 预览 + 下一个决策点 + 逐只最优策略(RSI择时/买入持有)
 # V9 标的池: 6 只(有 etf.run 等权真实 PE/PB 的标的)
 #  规则: 五因子估值温度(利差 35/PE 20/PB 16/乖离 15/位置 14); 只出「逐只档位 + 额度参考」, 不调仓位
 #  输出: _v9_signal.md/json + 逐标的图 + HTML 看板
@@ -23,12 +24,16 @@ function Invoke-Py {
     return $LASTEXITCODE
 }
 
-Write-Host "[1/2] V4 RSI14 timing signal (5-fund dividend pool)..."
+Write-Host "[1/3] V4 RSI14 timing signal (10-fund dividend pool, hold only top-2)..."
 $rc = Invoke-Py strategies\dividend\v4_rsi\daily.py --refresh
 if ($rc -ne 0) { throw "dividend v4 signal failed (exit $rc)" }
+$rc = Invoke-Py strategies\dividend\v4_rsi\chart.py
+if ($rc -ne 0) { throw "dividend v4 charts failed (exit $rc)" }
+$rc = Invoke-Py strategies\dividend\v4_rsi\dashboard.py
+if ($rc -ne 0) { throw "dividend v4 dashboard failed (exit $rc)" }
 
 Write-Host ""
-Write-Host "[2/2] V9 five-factor valuation temperature (6-fund dividend pool)..."
+Write-Host "[2/3] V9 five-factor valuation temperature (6-fund dividend pool)..."
 $rc = Invoke-Py strategies\dividend\v9_temp5\daily.py --refresh
 if ($rc -ne 0) { throw "dividend v9 daily failed (exit $rc)" }
 $rc = Invoke-Py strategies\dividend\v9_temp5\charts.py --refresh
@@ -37,8 +42,14 @@ $rc = Invoke-Py strategies\dividend\v9_temp5\dashboard.py
 if ($rc -ne 0) { throw "dividend v9 dashboard failed (exit $rc)" }
 
 Write-Host ""
+Write-Host "[3/3] V4 per-fund fit (RSI timing vs buy-and-hold)..."
+$rc = Invoke-Py strategies\dividend\v4_rsi\fit.py
+if ($rc -ne 0) { throw "dividend v4 fit failed (exit $rc)" }
+
+Write-Host ""
 Write-Host "Done."
 Write-Host "  V4 signal: strategies\dividend\v4_rsi\daily\_v4_signal.md ; JSON: strategies\dividend\v4_rsi\daily\_v4_signal.json"
+Write-Host "  V4 fit:    strategies\dividend\v4_rsi\daily\_v4_fit.json ; HTML: strategies\dividend\v4_rsi\daily\_v4_dashboard.html"
 Write-Host "  V9 signal: strategies\dividend\v9_temp5\daily\_v9_signal.md ; HTML: strategies\dividend\v9_temp5\daily\_v9_temp.html"
 Write-Host "[i] V4 is a MONTH-END timing strategy: confirmed at month-end close, trade next open; intra-month output is preview only."
 Write-Host "[i] V9 is a 'valuation thermometer' (贵不贵), NOT a timing/position signal; use it for 加/减仓额度参考."

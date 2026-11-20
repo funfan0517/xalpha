@@ -4,7 +4,9 @@
 
 规则（`rule.py` 是参数权威源）
 ----------------------------------------------------------------------
-* 标的池：**择时专用 5 只**（`../pool.py::TIMING_POOL`）—— 单标的 RSI 择时 ΔCalmar 双窗口都为正的那 5 只
+* 标的池：**全池 10 只**（`../pool.py::TIMING_POOL_ALL`，2026-11-20 起；此前为 5 只筛池）。
+  池只是**候选广度**，每期仍只持 RSI 最低的 2 只，其余权重 0 —— 报告与看板都逐只标注
+  「该标的最优策略 = RSI 择时 / 买入持有」（`fit.py`）
 * 时间维度：板块 RSI 均值 ≥ **70** → 清仓；≥ **50** → 减半；< 50 满仓
 * 横截面：在可得标的里选 **RSI 最低的 2 只**等权
 * 执行：**月末收盘**算信号，**下月首个交易日**调仓，单边成本 0.03%
@@ -40,11 +42,16 @@ for _p in (_DIR, _STRAT):
         sys.path.insert(0, _p)
 
 import _single_signal as S  # noqa: E402  pylint: disable=wrong-import-position
+import fit  # noqa: E402  pylint: disable=wrong-import-position
 import pool  # noqa: E402  pylint: disable=wrong-import-position
 import rule as V4  # noqa: E402  pylint: disable=wrong-import-position
 
 OUT_MD = os.path.join(_DIR, "daily", "_v4_signal.md")
 OUT_JSON = os.path.join(_DIR, "daily", "_v4_signal.json")
+
+# 池 ≠ 持仓：这条必须在报告与看板里写死，否则「池 10 只」会被读成「持 10 只」。
+POOL_NOTE = (f"池 {len(V4.CODES)} 只是**候选广度**；每月只在池内取 RSI 最低的 "
+             f"{V4.TOP_K} 只等权，**其余 {len(V4.CODES) - V4.TOP_K} 只权重为 0**。")
 
 
 def _load(refresh: bool) -> pd.DataFrame:
@@ -80,6 +87,7 @@ def build(refresh: bool = False) -> dict:
         0.5 if board_now / 100 >= V4.Q_HALF else 1.0)
     picks_now = list(rsi_now.nsmallest(min(V4.TOP_K, len(rsi_now))).index)
 
+    fit_rows = fit.fit_all(navs=navs)        # 逐只「RSI 择时 vs 买入持有」，与 universe/回测同源
     return {
         "navs": navs, "rets": rets, "rsi_m": rsi_m, "bq": bq, "mult": mult, "w": w,
         "data_asof": navs.index[-1], "today": today, "partial": partial,
@@ -90,7 +98,22 @@ def build(refresh: bool = False) -> dict:
         "prov_ts": last if partial else None, "prov_w": w.iloc[-1] if partial else None,
         "rsi_now": rsi_now, "board_now": board_now, "mult_now": mult_now,
         "picks_now": picks_now,
+        # 逐只「RSI 择时 vs 买入持有」谁更优（fit.py 唯一实现，与 universe/回测同源）
+        "fit_rows": fit_rows,
+        "fit": {r["code"]: {"best": r["best"], "dcalmar": r["dcalmar"],
+                            "calmar_rsi": r["calmar_rsi"], "calmar_hold": r["calmar_hold"],
+                            "cagr_rsi": r["cagr_rsi"], "cagr_hold": r["cagr_hold"],
+                            "dd_rsi": r["dd_rsi"], "dd_hold": r["dd_hold"]}
+                for r in fit_rows},
     }
+
+
+def _best_txt(d: dict, code: str) -> str:
+    """逐只最优策略的短标签（报告/看板/每日看板共用）。"""
+    f = (d.get("fit") or {}).get(code)
+    if not f:
+        return "—"
+    return fit.best_label(f["dcalmar"])
 
 
 def _fmt_w(row: pd.Series) -> list[tuple[str, str, float]]:
@@ -142,32 +165,36 @@ def render(d: dict) -> str:
          f"> 数据截至 **{d['data_asof']:%Y-%m-%d}**（基金累计净值）。"
          f"池 {len(V4.CODES)} 只（{'/'.join(V4.CODES)}）。"
          f"参数：RSI14 · 板块均值 ≥{int(V4.Q_OUT * 100)} 清仓 / ≥{int(V4.Q_HALF * 100)} 减半 · "
-         f"横截面取 RSI 最低 {V4.TOP_K} 只等权。", "",
+         f"横截面取 RSI 最低 {V4.TOP_K} 只等权。",
+         f"> ⚠ {POOL_NOTE}",
+         f"> 「最优策略」= 该标的单独跑同一套 RSI 规则与买入持有的对比（`fit.py`）；"
+         f"标 **买入持有** 的标的被 RSI 减仓是负和，V4 买它只是因为横截面相对超卖。", "",
          "## 一、今天该持什么（当前生效信号）", "",
          f"**{d['cur_ts']:%Y-%m-%d} 收盘**算出的信号，整个 {d['cur_ts'] + pd.offsets.MonthBegin(1):%Y-%m} 持有：", "",
          f"- 板块 RSI 均值 **{d['cur_bq'] * 100:.1f}** → 仓位档位 **{_tier(d['cur_mult'])}**",
          ""]
     if cur:
-        L += ["| 标的 | 名称 | 权重 |", "|---|---|---:|"]
+        L += ["| 标的 | 名称 | 权重 | 该标的最优策略 |", "|---|---|---:|---|"]
         for code, name, v in cur:
-            L.append(f"| {code} | {name} | {v * 100:.0f}% |")
+            L.append(f"| {code} | {name} | {v * 100:.0f}% | {_best_txt(d, code)} |")
     else:
-        L.append("| — | **空仓** | 0% |")
-    L.append("")
+        L.append("| — | **空仓** | 0% | — |")
+    if cur:
+        L.append(f"\n其余 {len(V4.CODES) - len(cur)} 只本月权重 0（候选，不持有）。\n")
 
     L += ["## 二、逐标的 RSI 与预计下次决策（预览，不可执行）", "",
           f"日度 RSI14 快照（至 {d['data_asof']:%Y-%m-%d}）。**预计下次决策** = {prev_tag} 预演 "
           f"**{dec_txt} 收盘** 的判定（板块均值 {d['board_now']:.1f} → 档位 "
           f"{_tier(d['mult_now'])}，横截面取 RSI 最低 {min(V4.TOP_K, len(d['rsi_now']))} 只等权）"
           "；最终以月末收盘值为准。", "",
-          f"| 标的 | 名称 | RSI14 | 当前权重 | 预计下次决策（{dec_txt} 收盘） |",
-          "|---|---|---:|---:|---|"]
+          f"| 标的 | 名称 | RSI14 | 当前权重 | 该标的最优策略 | 预计下次决策（{dec_txt} 收盘） |",
+          "|---|---|---:|---:|---|---|"]
     for code, v in d["rsi_now"].sort_values().items():
         w_cur = float(d["cur_w"].get(code, 0.0))
         w_pre = float(prev_w.get(code, 0.0))
         dec = f"**入选 → {w_pre * 100:.0f}%**" if w_pre > 1e-9 else "落选 → 0%"
         L.append(f"| {code} | {V4.NAME.get(code, code)} | {v:.1f} | "
-                 f"{w_cur * 100:.0f}% | {dec} |")
+                 f"{w_cur * 100:.0f}% | {_best_txt(d, code)} | {dec} |")
     L += ["", f"- 板块均值 **{d['board_now']:.1f}** → 若今天收盘就是月末，档位为 "
               f"**{_tier(d['mult_now'])}**；当前生效档位 {_tier(d['cur_mult'])}。", ""]
 
@@ -201,7 +228,8 @@ def render(d: dict) -> str:
     L += [f"2. 下次动作在 {last_day:%Y-%m-%d} 收盘后；"
           "若届时板块 RSI 均值跨过 50/70，才需要改档位。",
           "3. 这条信号只控仓位，不预测方向：RSI 在强单边趋势里会钝化，"
-          "连续数月在 50–70 之间意味着「长期半仓」，这是本策略的已知代价。", ""]
+          "连续数月在 50–70 之间意味着「长期半仓」，这是本策略的已知代价。",
+          f"4. {POOL_NOTE} 不要按「池里有几只就买几只」执行。", ""]
     return "\n".join(L)
 
 
@@ -209,7 +237,10 @@ def payload(d: dict) -> dict:
     """给 pipeline 每日看板的结构化快照（`_v4_signal.json`）。"""
     last_day = _next_decision(d)
     prev_w, prev_tag = _preview_w(d)
-    cur = [{"code": c, "name": n, "weight": round(v, 4)}
+    fit_ = d.get("fit") or {}
+    cur = [{"code": c, "name": n, "weight": round(v, 4),
+            "best": (fit_.get(c) or {}).get("best"),
+            "dcalmar": round((fit_.get(c) or {}).get("dcalmar", 0.0), 4)}
            for c, n, v in _fmt_w(d["cur_w"])]
     prov = [{"code": c, "name": n, "weight": round(v, 4)}
             for c, n, v in _fmt_w(d["prov_w"])] if d["prov_w"] is not None else []
@@ -242,8 +273,23 @@ def payload(d: dict) -> dict:
                   "weight": round(float(d["cur_w"].get(c, 0)), 4),
                   "rsi": None if d["rsi_now"].get(c) is None
                   else round(float(d["rsi_now"].get(c)), 1),
-                  "preview_weight": round(float(prev_w.get(c, 0.0)), 4)}
+                  "preview_weight": round(float(prev_w.get(c, 0.0)), 4),
+                  "best": (fit_.get(c) or {}).get("best"),
+                  "best_txt": _best_txt(d, c),
+                  "dcalmar": round((fit_.get(c) or {}).get("dcalmar", 0.0), 4),
+                  "best_detail": None if not fit_.get(c) else {
+                      "cagr_rsi": round(fit_[c]["cagr_rsi"], 4),
+                      "dd_rsi": round(fit_[c]["dd_rsi"], 4),
+                      "calmar_rsi": round(fit_[c]["calmar_rsi"], 4),
+                      "cagr_hold": round(fit_[c]["cagr_hold"], 4),
+                      "dd_hold": round(fit_[c]["dd_hold"], 4),
+                      "calmar_hold": round(fit_[c]["calmar_hold"], 4)}}
                  for c in V4.CODES],
+        # 「池 ≠ 持仓」：池 = 候选广度，实际只持 TOP_K 只，其余权重 0
+        "pool_note": POOL_NOTE.replace("**", ""),
+        "pool_size": len(V4.CODES),
+        "hold_k": V4.TOP_K,
+        "pool_mode": V4.POOL_MODE,
         "rule": {
             "window": V4.WINDOW,
             "q_out": V4.Q_OUT,
@@ -259,6 +305,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     d = build("--refresh" in sys.argv)
     S.write(OUT_MD, render(d))
+    fit.write_json(d["fit_rows"])        # 逐只最优策略快照（universe/看板/外部读取共用）
     os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     with open(OUT_JSON, "w", encoding="utf-8") as fh:
         json.dump(payload(d), fh, ensure_ascii=False, indent=2)

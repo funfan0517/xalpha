@@ -14,7 +14,7 @@
 七腿映射（v14~v20，每策略只有一条腿；2026-11-19 第二次重跑后，v12 波动层已按腿）：
     v14 a500  E2 前二等权 (V3+V12)/2 .... ★ 超越项（最佳）；E3 也过闸门但夏普低 0.03
     v15 hs300  MIN2 双确认 (V12∩V2) .... ★ 超越项
-    v16 ndx    V10 波动层 ............. 研究确认无提升，保持当前 ★1
+    v16 ndx    MA200 切换（上=V10 / 下=V12）... ★ 超越项（最佳，2026-11-20）
     v17 spx    V12 八态趋势 ........... 研究确认无提升，保持当前 ★1
     v18 kc50   E2×TV20 波动上限 ....... ★ 超越项
     v19 hkt    V3 MACD+BOLL ........... 研究确认无提升，保持当前 ★1
@@ -77,10 +77,10 @@ _SPECS = {
 # v21 自带 engine.py 且不走 bridge，但它同样会污染 `import engine` 的解析结果，一并摘掉。
 _SHADOW_DIRS = {
     os.path.join(_HERE, d) for d in (
-        "v14_a500_e2", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
+        "v14_a500_e2", "v15_hs300_min2", "v16_ndx_sw", "v17_spx_v12",
         "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")
 } | {os.path.join(_HERE, d, "research") for d in (
-        "v14_a500_e2", "v15_hs300_min2", "v16_ndx_v10", "v17_spx_v12",
+        "v14_a500_e2", "v15_hs300_min2", "v16_ndx_sw", "v17_spx_v12",
         "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")}
 
 

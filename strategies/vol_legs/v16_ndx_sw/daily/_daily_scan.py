@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v16 每日操作：纳指100 · V10 波动层（当前 ★1）。
+"""v16 每日操作：纳指100 · MA200 切换（上=V10 波动层 / 下=V12 八态趋势）。
 
 T 日盘后算决策 → T+1 收盘前执行。只读本地缓存，不联网刷新（与 v2/v13 同纪律）。
 产物：`daily/_<v>_daily.md` / `.json`。机械规则输出，非投资建议。
@@ -26,6 +26,9 @@ import engine  # noqa: E402
 OUT_MD = os.path.join(_HERE, "_v16_daily.md")
 OUT_JSON = os.path.join(_HERE, "_v16_daily.json")
 RECENT = 20
+RULE_TXT = "MA200 上方用 V10 波动层（ER20/10 + 5 日死区），下方用 V12 八态趋势"
+NOTE = ("_beat_best_top3.md（2026-11-20 第三次重跑）：SW MA200→V12 同尺夏普 0.77→0.81、"
+        "后段 0.94→1.01、回撤 −27.38%→−12.97%；MA 100~250 邻域仍全部过线。")
 
 
 def act_of(cur, prev):
@@ -38,10 +41,16 @@ def act_of(cur, prev):
 
 def main():
     px = engine.load()
-    w = engine.weight(px).reindex(px.index).fillna(0.0).clip(0.0, 1.0)
+    d = engine.detail(px)
+    w = d["weight"].reindex(px.index).fillna(0.0).clip(0.0, 1.0)
     cur, prev = float(w.iloc[-1]), float(w.iloc[-2])
     action = act_of(cur, prev)
     date = str(px.index[-1].date())
+    close = float(px.iloc[-1])
+    ma = float(d["ma"].iloc[-1])
+    above = bool(d["gate"].iloc[-1] > 0.5)
+    side = "MA200 上方 → 用 V10 波动层" if above else "MA200 下方 → 用 V12 八态趋势"
+    hi_now, lo_now = float(d["hi"].iloc[-1]), float(d["lo"].iloc[-1])
 
     recent = []
     for i in range(max(1, len(w) - RECENT), len(w)):
@@ -53,25 +62,33 @@ def main():
     leg = dict(leg=engine.LEG, name=engine.LABEL, code="270042",
                action=action, state=round(prev, 4), pending=round(cur, 4),
                pos=round(prev, 4), level_txt=f"当前 {prev:.0%} → 目标 {cur:.0%}",
-               date=date, close=round(float(px.iloc[-1]), 4))
+               date=date, close=round(close, 4))
 
     snap = dict(strategy="v16", name=engine.LABEL, status=engine.STATUS,
                 leg=engine.LEG, as_of=date, generated=str(pd.Timestamp.now().date()),
-                rule=dict(rule="V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）", trade_at="T 日收盘信号 → T+1 收盘成交",
-                          fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL),
+                rule=dict(rule=RULE_TXT, trade_at="T 日收盘信号 → T+1 收盘成交",
+                          fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
+                          ma_win=engine.MA_WIN),
+                gate=dict(side=side, above_ma=above, close=round(close, 4),
+                          ma=round(ma, 4), gap=round(close / ma - 1.0, 4)),
+                branch=dict(v10=round(hi_now, 4), v12=round(lo_now, 4)),
                 current_position=round(prev, 4), next_target=round(cur, 4),
-                action=action, legs=[leg], recent_flow=recent,
-                note="_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。")
+                action=action, legs=[leg], recent_flow=recent, note=NOTE)
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
 
-    L = ["# v16 每日操作 · 纳指100", "",
-         f"> **研究确认无提升** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
+    L = ["# v16 每日操作 · 纳指100（MA200 切换）", "",
+         f"> **{engine.STATUS}** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
          "## 今日动作", "",
          f"- 当前持仓：**{prev:.0%}**；次日目标仓位：**{cur:.0%}**；动作：**{action}**。",
-         f"- 标的：纳指100（`270042`，真实指数口径）；策略：V10 波动层（当前 ★1）。", "",
-         "## 规则", "", "V10 ER20/10 自适应波动层 + 5 日死区（原生 vol_layer.state_daily）。", "",
-         f"> {engine.STATUS}。_beat_best_top3.md：最佳候选 ROT 全样本只赢 0.02（0.79 vs 0.77）、后段 0.93 < 0.94；保持当前 ★1 V10。", "",
+         f"- 标的：纳指100（`270042`，真实指数口径）；策略：MA200 切换（上=V10 / 下=V12）。", "",
+         "## 闸门读数", "",
+         f"- 收盘 {close:.2f} vs MA200 {ma:.2f}（偏离 **{close / ma - 1:+.1%}**）"
+         f" → **{side}**。",
+         f"- 两条腿各自的目标仓位：V10 波动层 **{hi_now:.0%}** · V12 八态趋势 **{lo_now:.0%}**"
+         f"（生效档 = {cur:.0%}，取闸门选中的那条）。", "",
+         "## 规则", "", f"{RULE_TXT}；闸门为 t 日收盘 `px>MA200`，T+1 收益生效。", "",
+         f"> {engine.STATUS}。{NOTE}", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]
     if recent:
@@ -85,7 +102,7 @@ def main():
         f.write("\n".join(L) + "\n")
     print("WROTE", OUT_MD)
     print("WROTE", OUT_JSON)
-    print(f"  {engine.LEG}: {prev:.0%} -> {cur:.0%}  {action}")
+    print(f"  {engine.LEG}: {prev:.0%} -> {cur:.0%}  {action}  [{side}]")
 
 
 if __name__ == "__main__":

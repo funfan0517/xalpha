@@ -505,42 +505,42 @@
       "note": "**★ 研究超越项** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
-    "v16_ndx_v10": {
-      "name": "V16 纳指100 单腿策略 · V10 ER20/10 自适应波动层 + 5 日死区，当前 ★1；研究确认无提升",
-      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
+    "v16_ndx_sw": {
+      "name": "V16 纳指100 单腿策略 · MA200 切换（上=V10 波动层 / 下=V12 八态趋势）· ★超越项最优",
+      "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-20 第三次重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**★ 研究超越项（最佳）**。2026-11-20 用户指定落地，目录 v16_ndx_v10 → v16_ndx_sw。",
       "universe": {
         "signal": "纳指100 真实指数收盘（黄金 = 场内 518880）",
         "exec": "270042",
         "note": "**单标的策略**：目标标的只有 `ndx`，不做跨腿配权、不做 A/B 分级。"
       },
       "rules": [
-        "V10 ER20/10 自适应波动层 + 5 日死区，当前 ★1；研究确认无提升",
+        "MA200 上方用 V10 波动层（ER20/10 自适应 + 5 日死区），下方用 V12 八态趋势许可；闸门 = t 日收盘 px>MA200（未滞后）",
         "T 日收盘出决策，T+1 收盘成交；空仓按货基 1.40% 计息",
         "研究同尺成本：单边 10bp（非该腿原生费率），绝对数不与 best_by_leg.md 对账"
       ],
       "thresholds": {
-        "authoritative": "strategies/vol_legs/v16_ndx_v10/engine.py::LEG / ::weight()，底层参数在各自原生 rule.py",
+        "authoritative": "strategies/vol_legs/v16_ndx_sw/engine.py::LEG / ::MA_WIN / ::weight()，底层参数在各自原生 rule.py",
         "fee_side": 0.001,
         "cash_annual": 0.014,
         "warmup": 300,
         "trade_at": "T+1"
       },
       "backtest": {
-        "engine": "strategies/vol_legs/v16_ndx_v10/backtest.py",
-        "raw_out": "strategies/vol_legs/v16_ndx_v10/backtest/_v16_bt.jsonl",
-        "report": "strategies/vol_legs/v16_ndx_v10/backtest/_v16_bt.md"
+        "engine": "strategies/vol_legs/v16_ndx_sw/backtest.py",
+        "raw_out": "strategies/vol_legs/v16_ndx_sw/backtest/_v16_bt.jsonl",
+        "report": "strategies/vol_legs/v16_ndx_sw/backtest/_v16_bt.md"
       },
       "daily": {
         "block": "vol",
         "codes": [],
         "runner": "",
         "runner_note": "不单列 runner：由 run_daily_vol_legs.ps1 第 2 步每日刷新，留空避免 run_daily_all 把 vol_legs 跑两遍",
-        "signal_report": "strategies/vol_legs/v16_ndx_v10/daily/_v16_daily.md",
-        "signal_json": "strategies/vol_legs/v16_ndx_v10/daily/_v16_daily.json",
+        "signal_report": "strategies/vol_legs/v16_ndx_sw/daily/_v16_daily.md",
+        "signal_json": "strategies/vol_legs/v16_ndx_sw/daily/_v16_daily.json",
         "enabled": false,
         "enabled_note": "并入板块2「变种操作一览」汇总卡，不单独出卡；脚本照常每日刷新产物"
       },
-      "note": "**研究确认无提升** —— 规则与数字来源 research/beat_best/_beat_best_top3.md；回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
+      "note": "**★ 研究超越项（最佳）** —— v12 美股两腿改 C5 后纳指 ★2 由 V9 换成 V12，SW 的『下方切换目标』随之变为 V12：同尺夏普 0.77→0.81、后段 0.94→1.01、回撤 −27.38%→−12.97%，PASS 双闸门；MA 100~250 邻域仍全部过线。2026-11-20 用户指定落地（原 v16_ndx_v10 纯 V10）。回测先在全样本算信号再截预热窗，数字略高于报告（0.83 vs 0.81）。**改 V10/V12 任一参数都会动这条腿，改前先跑本目录 backtest.py 复核**。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
     "v17_spx_v12": {
@@ -747,7 +747,7 @@
     },
     "vol_variants": {
       "name": "波动类变种操作一览 · v14–v20 单标的策略",
-      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v14_a500_e2,v15_hs300_min2,v16_ndx_v10,v17_spx_v12,v18_kc50_e2tv,v19_hkt_v3,v20_gold_v5}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
+      "source_methodology": "汇总卡: 读取 strategies/vol_legs/{v14_a500_e2,v15_hs300_min2,v16_ndx_sw,v17_spx_v12,v18_kc50_e2tv,v19_hkt_v3,v20_gold_v5}/daily 产物; 列法参考板块5 技术指标(一行一个策略: 策略/动作统计/动作/明细)",
       "daily": {
         "enabled": true,
         "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",

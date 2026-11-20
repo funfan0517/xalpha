@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v16 单腿图：纳指100 · V10 波动层（当前 ★1）。
+"""v16 单腿图：纳指100 · MA200 切换（上=V10 波动层 / 下=V12 八态趋势）。
 
 产物：`research/_<v>___leg__.png`（长期）与 `_<v>___leg___3y.png`（近三年）。
 信号与净值在全样本上算，近三年只截末端并归 1。机械规则输出，非投资建议。
@@ -23,8 +23,8 @@ import _plot_leg_core as core  # noqa: E402
 PARAMS = {}
 
 SPEC = dict(
-    mod=engine, tag="v16", short="V10 波动层（当前 ★1）",
-    line="v16 择时（V10 波动层（当前 ★1））",
+    mod=engine, tag="v16", short="MA200 切换（上=V10 / 下=V12）",
+    line="v16 择时（MA200 切换：上=V10 波动层 / 下=V12 八态趋势）",
     warmup=engine.WARMUP,
     signal=lambda px: engine.weight(px),
     mark_signal=lambda px: (engine.weight(px) >= 0.5).astype(float),

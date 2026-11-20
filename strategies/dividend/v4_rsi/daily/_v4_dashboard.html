@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>V4 RSI14 择时看板 · 2026-10-27</title>
+<title>V4 RSI14 择时看板 · 2026-11-19</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -25,6 +25,17 @@
   .chip b { font-size: 18px; font-variant-numeric: tabular-nums; }
   .chip i { font-style: normal; font-size: 11.5px; color: #8a7860; }
   .preview { margin-top: 10px; font-size: 12px; color: #8a6a3a; }
+  .poolnote { margin-top: 9px; padding: 9px 12px; background: #fdf2ea; border: 1px solid #f0d9c8;
+              border-radius: 8px; font-size: 12px; color: #8a4b2a; line-height: 1.7; }
+  .rbest { font-size: 9.5px; border: 1px solid #cfe0c6; color: #4a7a38; border-radius: 4px;
+           padding: 0 3px; margin-left: 4px; background: #f2f8ee; font-weight: 600; }
+  .rbest.bhold { border-color: #e6d2ae; color: #8a6a3a; background: #fdf6e9; }
+  .best { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11.5px;
+          background: #f7f1e3; border-left: 3px solid #e8a33d; color: #6b5a42;
+          display: flex; flex-direction: column; gap: 2px; }
+  .best.bgood { border-left-color: #5c8a4a; }
+  .best.bhold { border-left-color: #c0504d; }
+  .best span { font-size: 10.5px; color: #9a8a70; font-variant-numeric: tabular-nums; }
   .rankbox { background: #fffdf7; border: 1px solid #e6dcc8; border-radius: 14px;
               padding: 18px 24px 10px; margin-bottom: 18px; }
   .sect { font-size: 14px; font-weight: 700; margin: 0 0 12px; color: #4a3d2c; }
@@ -81,20 +92,23 @@
     <div class="eyebrow">V4 · RSI14 单指标红利策略</div>
     <h1>RSI14 择时看板</h1>
     <div class="meta">
-      数据截至 <b>2026-10-27</b> · 生成于 2026-10-29 · 池 5 只（V4 专用池）<br>
-      当前生效信号 <b>2026-09-30</b> 收盘 → 持有期 <b>2026-10</b> ·
+      数据截至 <b>2026-11-19</b> · 生成于 2026-11-20 · 池 <b>10 只（候选广度）</b><br>
+      当前生效信号 <b>2026-10-31</b> 收盘 → 持有期 <b>2026-11</b> ·
       RSI14（基金累计净值，Wilder）· 月末算、下月生效 · 单边 0.03%<br>
       规则：板块 RSI 均值 ≥70 清仓 / ≥50 减半 / 否则满仓；
       横截面取 RSI 最低 2 只等权
     </div>
-    <div class="oneline"><b>一句话</b>：板块 RSI 均值 <b>50.1</b> → <b>减半（50%）</b>；本月（2026-10）持有 大成中证红利指数A 25%、华夏中证红利质量ETF联接C 25%；下次在 <b>2026-10-30</b> 收盘确认。</div>
-    <div class="chips"><div class="chip"><b>50.1</b><i>板块 RSI 均值</i></div><div class="chip"><b>减半（50%）</b><i>仓位档位</i></div><div class="chip"><b>2 只 / 50%</b><i>当前持仓</i></div><div class="chip"><b>2026-10-30</b><i>下次决策</i></div></div>
-    <div class="preview">进行中读数：板块 RSI 50.2 → 减半（50%），若月末就是今天，目标<b>会变</b>（换手 50%）；仅预览，以月末收盘为准。</div>
+    <div class="poolnote"><b>池 ≠ 持仓</b>：池 10 只只是候选广度，
+      <b>每月只持 RSI 最低的 2 只</b>，其余 8 只权重为 0 ——
+      不要按「池里有几只就买几只」执行。</div>
+    <div class="oneline"><b>一句话</b>：板块 RSI 均值 <b>56.4</b> → <b>减半（50%）</b>；本月（2026-11）持有 华夏中证红利质量ETF联接C 25%、华泰柏瑞中证港股通高股息投资ETF联接C 25%；下次在 <b>2026-11-30</b> 收盘确认。</div>
+    <div class="chips"><div class="chip"><b>56.4</b><i>板块 RSI 均值</i></div><div class="chip"><b>减半（50%）</b><i>仓位档位</i></div><div class="chip"><b>2 只 / 50%</b><i>当前持仓</i></div><div class="chip"><b>2026-11-30</b><i>下次决策</i></div></div>
+    <div class="preview">进行中读数：板块 RSI 56.8 → 减半（50%），若月末就是今天，目标<b>不变</b>（换手 0%）；仅预览，以月末收盘为准。</div>
   </div>
 
   <div class="rankbox">
     <div class="sect">RSI 排位<small>越低越超卖 · 「持」= 当前持有 · 灰字为当前权重 · 档位是单只参考（真实仓位看板块均值）</small></div>
-    <div class="rank"><span class="rno">1</span><span class="rname">华夏中证红利质量ETF联接C<i>016441</i><span class="rhold">持</span><em class="rw">25%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:34.7%;background:#5c8a4a"></div></div></div><span class="rval" style="color:#5c8a4a">34.7</span><span class="rtag" style="color:#5c8a4a;border-color:#5c8a4a">满仓</span></div><div class="rank"><span class="rno">2</span><span class="rname">华安中证国有企业红利ETF<i>561060</i><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:48.5%;background:#5c8a4a"></div></div></div><span class="rval" style="color:#5c8a4a">48.5</span><span class="rtag" style="color:#5c8a4a;border-color:#5c8a4a">满仓</span></div><div class="rank"><span class="rno">3</span><span class="rname">大成中证红利指数A<i>090010</i><span class="rhold">持</span><em class="rw">25%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:48.6%;background:#5c8a4a"></div></div></div><span class="rval" style="color:#5c8a4a">48.6</span><span class="rtag" style="color:#5c8a4a;border-color:#5c8a4a">满仓</span></div><div class="rank"><span class="rno">4</span><span class="rname">天弘中证红利低波100C<i>008115</i><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:56.4%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">56.4</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">5</span><span class="rname">南方标普红利低波50A<i>008163</i><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:62.6%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">62.6</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div>
+    <div class="rank"><span class="rno">1</span><span class="rname">华夏中证红利质量ETF联接C<i>016441</i><span class="rhold">持</span><span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span><em class="rw">25%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:34.9%;background:#5c8a4a"></div></div></div><span class="rval" style="color:#5c8a4a">34.9</span><span class="rtag" style="color:#5c8a4a;border-color:#5c8a4a">满仓</span></div><div class="rank"><span class="rno">2</span><span class="rname">华泰柏瑞中证港股通高股息投资ETF联接C<i>018388</i><span class="rhold">持</span><span class="rbest bhold" title="该标的被 RSI 择时是负和">最优 持有</span><em class="rw">25%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:42.8%;background:#5c8a4a"></div></div></div><span class="rval" style="color:#5c8a4a">42.8</span><span class="rtag" style="color:#5c8a4a;border-color:#5c8a4a">满仓</span></div><div class="rank"><span class="rno">3</span><span class="rname">大成中证红利指数A<i>090010</i><span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:50.7%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">50.7</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">4</span><span class="rname">华安中证国有企业红利ETF<i>561060</i><span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:51.4%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">51.4</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">5</span><span class="rname">景顺长城沪港深红利成长低波C<i>007760</i><span class="rbest bhold" title="该标的被 RSI 择时是负和">最优 持有</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:60.0%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">60.0</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">6</span><span class="rname">华泰柏瑞中证中央企业红利ETF<i>561580</i><span class="rbest bhold" title="该标的被 RSI 择时是负和">最优 持有</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:60.8%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">60.8</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">7</span><span class="rname">华宝标普中国A股红利机会ETF联接C<i>005125</i><span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:63.1%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">63.1</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">8</span><span class="rname">天弘中证红利低波100C<i>008115</i><span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:65.2%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">65.2</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">9</span><span class="rname">华泰柏瑞中证红利低波ETF联接C<i>007467</i><span class="rbest bhold" title="该标的被 RSI 择时是负和">最优 持有</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:66.1%;background:#e8a33d"></div></div></div><span class="rval" style="color:#e8a33d">66.1</span><span class="rtag" style="color:#e8a33d;border-color:#e8a33d">减半</span></div><div class="rank"><span class="rno">10</span><span class="rname">南方标普红利低波50A<i>008163</i><span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span><em class="rw">0%</em></span><div class="rbar"><div class="track" style="height:10px"><div class="fill" style="width:72.7%;background:#c0504d"></div></div></div><span class="rval" style="color:#c0504d">72.7</span><span class="rtag" style="color:#c0504d;border-color:#c0504d">清仓</span></div>
   </div>
 
   <div class="grid"><div class="card">
@@ -104,56 +118,146 @@
             <div class="ccode">当前权重 25% · 单只档位仅读图参考</div>
           </div>
           <div class="tempbox" style="color:#5c8a4a">
-            <span class="tnum">34.7</span><span class="tunit">RSI</span>
+            <span class="tnum">34.9</span><span class="tunit">RSI</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:34.7%;background:#5c8a4a"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:34.9%;background:#5c8a4a"></div></div></div>
         <div class="kv">
-          <div><b>34.7</b><i>RSI14</i></div>
+          <div><b>34.9</b><i>RSI14</i></div>
           <div><b>25%</b><i>当前权重</i></div>
           <div><b>满仓</b><i>单只档位</i></div>
           <div><b>50/70</b><i>减半/清仓线</i></div>
         </div>
         <div class="advice" style="background:#e4efe0"><b>满仓</b> · RSI < 50 → 满仓 100%</div>
+        <div class="best bgood"><b>该标的最优：RSI 择时（Δ+0.27）</b>
+          <span>持有 3.1% / -21.5% / Calmar 0.14　·　择时 6.4% / -15.4% / Calmar 0.42</span></div>
         <div class="chartwrap"><img class="chart" src="_v4_016441_chart.png" alt="016441 净值与 RSI"></div>
+      </div><div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">华泰柏瑞中证港股通高股息投资ETF联接C <span class="cfund">018388</span><span class="held">持有</span></div>
+            <div class="ccode">当前权重 25% · 单只档位仅读图参考</div>
+          </div>
+          <div class="tempbox" style="color:#5c8a4a">
+            <span class="tnum">42.8</span><span class="tunit">RSI</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:42.8%;background:#5c8a4a"></div></div></div>
+        <div class="kv">
+          <div><b>42.8</b><i>RSI14</i></div>
+          <div><b>25%</b><i>当前权重</i></div>
+          <div><b>满仓</b><i>单只档位</i></div>
+          <div><b>50/70</b><i>减半/清仓线</i></div>
+        </div>
+        <div class="advice" style="background:#e4efe0"><b>满仓</b> · RSI < 50 → 满仓 100%</div>
+        <div class="best bhold"><b>该标的最优：买入持有（Δ-0.03）</b>
+          <span>持有 9.8% / -13.3% / Calmar 0.74　·　择时 8.6% / -12.1% / Calmar 0.71</span></div>
+        <div class="chartwrap"><img class="chart" src="_v4_018388_chart.png" alt="018388 净值与 RSI"></div>
+      </div><div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">大成中证红利指数A <span class="cfund">090010</span></div>
+            <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
+          </div>
+          <div class="tempbox" style="color:#e8a33d">
+            <span class="tnum">50.7</span><span class="tunit">RSI</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:50.7%;background:#e8a33d"></div></div></div>
+        <div class="kv">
+          <div><b>50.7</b><i>RSI14</i></div>
+          <div><b>0%</b><i>当前权重</i></div>
+          <div><b>减半</b><i>单只档位</i></div>
+          <div><b>50/70</b><i>减半/清仓线</i></div>
+        </div>
+        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bgood"><b>该标的最优：RSI 择时（Δ+0.37）</b>
+          <span>持有 7.1% / -11.7% / Calmar 0.61　·　择时 9.7% / -9.9% / Calmar 0.98</span></div>
+        <div class="chartwrap"><img class="chart" src="_v4_090010_chart.png" alt="090010 净值与 RSI"></div>
       </div><div class="card">
         <div class="card-head">
           <div>
             <div class="cname">华安中证国有企业红利ETF <span class="cfund">561060</span></div>
             <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
           </div>
-          <div class="tempbox" style="color:#5c8a4a">
-            <span class="tnum">48.5</span><span class="tunit">RSI</span>
+          <div class="tempbox" style="color:#e8a33d">
+            <span class="tnum">51.4</span><span class="tunit">RSI</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:48.5%;background:#5c8a4a"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:51.4%;background:#e8a33d"></div></div></div>
         <div class="kv">
-          <div><b>48.5</b><i>RSI14</i></div>
+          <div><b>51.4</b><i>RSI14</i></div>
           <div><b>0%</b><i>当前权重</i></div>
-          <div><b>满仓</b><i>单只档位</i></div>
+          <div><b>减半</b><i>单只档位</i></div>
           <div><b>50/70</b><i>减半/清仓线</i></div>
         </div>
-        <div class="advice" style="background:#e4efe0"><b>满仓</b> · RSI < 50 → 满仓 100%</div>
+        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bgood"><b>该标的最优：RSI 择时（Δ+0.97）</b>
+          <span>持有 6.1% / -11.6% / Calmar 0.53　·　择时 9.7% / -6.5% / Calmar 1.50</span></div>
         <div class="chartwrap"><img class="chart" src="_v4_561060_chart.png" alt="561060 净值与 RSI"></div>
       </div><div class="card">
         <div class="card-head">
           <div>
-            <div class="cname">大成中证红利指数A <span class="cfund">090010</span><span class="held">持有</span></div>
-            <div class="ccode">当前权重 25% · 单只档位仅读图参考</div>
+            <div class="cname">景顺长城沪港深红利成长低波C <span class="cfund">007760</span></div>
+            <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
           </div>
-          <div class="tempbox" style="color:#5c8a4a">
-            <span class="tnum">48.6</span><span class="tunit">RSI</span>
+          <div class="tempbox" style="color:#e8a33d">
+            <span class="tnum">60.0</span><span class="tunit">RSI</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:48.6%;background:#5c8a4a"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:60.0%;background:#e8a33d"></div></div></div>
         <div class="kv">
-          <div><b>48.6</b><i>RSI14</i></div>
-          <div><b>25%</b><i>当前权重</i></div>
-          <div><b>满仓</b><i>单只档位</i></div>
+          <div><b>60.0</b><i>RSI14</i></div>
+          <div><b>0%</b><i>当前权重</i></div>
+          <div><b>减半</b><i>单只档位</i></div>
           <div><b>50/70</b><i>减半/清仓线</i></div>
         </div>
-        <div class="advice" style="background:#e4efe0"><b>满仓</b> · RSI < 50 → 满仓 100%</div>
-        <div class="chartwrap"><img class="chart" src="_v4_090010_chart.png" alt="090010 净值与 RSI"></div>
+        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bhold"><b>该标的最优：买入持有（与择时持平）</b>
+          <span>持有 7.8% / -8.7% / Calmar 0.89　·　择时 6.9% / -7.7% / Calmar 0.89</span></div>
+        <div class="chartwrap"><img class="chart" src="_v4_007760_chart.png" alt="007760 净值与 RSI"></div>
+      </div><div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">华泰柏瑞中证中央企业红利ETF <span class="cfund">561580</span></div>
+            <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
+          </div>
+          <div class="tempbox" style="color:#e8a33d">
+            <span class="tnum">60.8</span><span class="tunit">RSI</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:60.8%;background:#e8a33d"></div></div></div>
+        <div class="kv">
+          <div><b>60.8</b><i>RSI14</i></div>
+          <div><b>0%</b><i>当前权重</i></div>
+          <div><b>减半</b><i>单只档位</i></div>
+          <div><b>50/70</b><i>减半/清仓线</i></div>
+        </div>
+        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bhold"><b>该标的最优：买入持有（Δ-0.07）</b>
+          <span>持有 11.5% / -11.6% / Calmar 1.00　·　择时 10.7% / -11.6% / Calmar 0.92</span></div>
+        <div class="chartwrap"><img class="chart" src="_v4_561580_chart.png" alt="561580 净值与 RSI"></div>
+      </div><div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">华宝标普中国A股红利机会ETF联接C <span class="cfund">005125</span></div>
+            <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
+          </div>
+          <div class="tempbox" style="color:#e8a33d">
+            <span class="tnum">63.1</span><span class="tunit">RSI</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:63.1%;background:#e8a33d"></div></div></div>
+        <div class="kv">
+          <div><b>63.1</b><i>RSI14</i></div>
+          <div><b>0%</b><i>当前权重</i></div>
+          <div><b>减半</b><i>单只档位</i></div>
+          <div><b>50/70</b><i>减半/清仓线</i></div>
+        </div>
+        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bgood"><b>该标的最优：RSI 择时（Δ+0.09）</b>
+          <span>持有 10.2% / -13.0% / Calmar 0.78　·　择时 10.8% / -12.3% / Calmar 0.88</span></div>
+        <div class="chartwrap"><img class="chart" src="_v4_005125_chart.png" alt="005125 净值与 RSI"></div>
       </div><div class="card">
         <div class="card-head">
           <div>
@@ -161,36 +265,61 @@
             <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
           </div>
           <div class="tempbox" style="color:#e8a33d">
-            <span class="tnum">56.4</span><span class="tunit">RSI</span>
+            <span class="tnum">65.2</span><span class="tunit">RSI</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:56.4%;background:#e8a33d"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:65.2%;background:#e8a33d"></div></div></div>
         <div class="kv">
-          <div><b>56.4</b><i>RSI14</i></div>
+          <div><b>65.2</b><i>RSI14</i></div>
           <div><b>0%</b><i>当前权重</i></div>
           <div><b>减半</b><i>单只档位</i></div>
           <div><b>50/70</b><i>减半/清仓线</i></div>
         </div>
         <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bgood"><b>该标的最优：RSI 择时（Δ+0.26）</b>
+          <span>持有 9.8% / -10.2% / Calmar 0.97　·　择时 11.7% / -9.5% / Calmar 1.23</span></div>
         <div class="chartwrap"><img class="chart" src="_v4_008115_chart.png" alt="008115 净值与 RSI"></div>
+      </div><div class="card">
+        <div class="card-head">
+          <div>
+            <div class="cname">华泰柏瑞中证红利低波ETF联接C <span class="cfund">007467</span></div>
+            <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
+          </div>
+          <div class="tempbox" style="color:#e8a33d">
+            <span class="tnum">66.1</span><span class="tunit">RSI</span>
+          </div>
+        </div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:66.1%;background:#e8a33d"></div></div></div>
+        <div class="kv">
+          <div><b>66.1</b><i>RSI14</i></div>
+          <div><b>0%</b><i>当前权重</i></div>
+          <div><b>减半</b><i>单只档位</i></div>
+          <div><b>50/70</b><i>减半/清仓线</i></div>
+        </div>
+        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="best bhold"><b>该标的最优：买入持有（Δ-0.05）</b>
+          <span>持有 10.5% / -9.2% / Calmar 1.15　·　择时 10.5% / -9.5% / Calmar 1.10</span></div>
+        <div class="chartwrap"><img class="chart" src="_v4_007467_chart.png" alt="007467 净值与 RSI"></div>
       </div><div class="card">
         <div class="card-head">
           <div>
             <div class="cname">南方标普红利低波50A <span class="cfund">008163</span></div>
             <div class="ccode">当前权重 0% · 单只档位仅读图参考</div>
           </div>
-          <div class="tempbox" style="color:#e8a33d">
-            <span class="tnum">62.6</span><span class="tunit">RSI</span>
+          <div class="tempbox" style="color:#c0504d">
+            <span class="tnum">72.7</span><span class="tunit">RSI</span>
           </div>
         </div>
-        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:62.6%;background:#e8a33d"></div></div></div>
+        <div class="card-bar"><div class="track" style="height:9px"><div class="fill" style="width:72.7%;background:#c0504d"></div></div></div>
         <div class="kv">
-          <div><b>62.6</b><i>RSI14</i></div>
+          <div><b>72.7</b><i>RSI14</i></div>
           <div><b>0%</b><i>当前权重</i></div>
-          <div><b>减半</b><i>单只档位</i></div>
+          <div><b>清仓</b><i>单只档位</i></div>
           <div><b>50/70</b><i>减半/清仓线</i></div>
         </div>
-        <div class="advice" style="background:#fbeccf"><b>减半</b> · RSI 50–70 → 减半 50%</div>
+        <div class="advice" style="background:#f7dcd9"><b>清仓</b> · RSI ≥ 70 → 清仓 0%</div>
+        <div class="best bgood"><b>该标的最优：RSI 择时（Δ+0.42）</b>
+          <span>持有 9.4% / -11.2% / Calmar 0.84　·　择时 8.5% / -6.8% / Calmar 1.26</span></div>
         <div class="chartwrap"><img class="chart" src="_v4_008163_chart.png" alt="008163 净值与 RSI"></div>
       </div></div>
 
@@ -201,6 +330,12 @@
     背景三档（<span style="color:#5c8a4a">满仓 RSI&lt;50</span> /
     <span style="color:#b8860b">减半 50–70</span> / <span style="color:#c0504d">清仓 ≥70</span>）
     是把<b>单只自己的 RSI</b>套用同一组阈值，仅作读图参考 —— 真实仓位以板块均值为准。<br>
+    <b>池与持仓</b>：池 10 只（2026-11-20 起改为全池，此前为按 ΔCalmar 筛出的 5 只），
+    每期只持 <b>RSI 最低的 2 只</b>，池子大小只影响候选广度。<br>
+    <b>「该标的最优」</b>= 单独跑同一套 RSI 规则与买入持有的对比（`fit.py`）：
+    ΔCalmar ≥ +0.02 记 RSI 择时，否则记买入持有。标<b>买入持有</b>的标的（当前是
+    007467、007760、561580、018388）被 RSI 减仓是负和 —— V4 仍可能因横截面相对超卖而持有它，
+    但别指望它在择时上贡献收益。<br>
     <b>已知失效模式</b>：强单边趋势里 RSI 会钝化，红利慢牛中 RSI 长期在 50–70，
     按阈值减半会持续错配、长期半仓；这是结构性代价，不是参数没调好。<br>
     仅为个人数据记录与研究分析，不构成投资建议；市场有风险，投资需谨慎。

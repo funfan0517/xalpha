@@ -16,12 +16,12 @@
 
 用法::
 
-    python strategies/dividend/v4_rsi/chart.py                # 池内 5 只 · 近一年
+    python strategies/dividend/v4_rsi/chart.py                # 池内各只 · 近一年
     python strategies/dividend/v4_rsi/chart.py --all          # 全样本
     python strategies/dividend/v4_rsi/chart.py --code 090010  # 只画一只
     python strategies/dividend/v4_rsi/chart.py --basis index  # 左轴改指数点位
     python strategies/dividend/v4_rsi/chart.py --refresh      # 先抓最新净值
-    python strategies/dividend/v4_rsi/chart.py --ops          # 五只标的的操作标注总图
+    python strategies/dividend/v4_rsi/chart.py --ops          # 全部标的的操作标注总图
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ matplotlib.use("Agg")
 
 import matplotlib.dates as mdates  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 
@@ -232,7 +233,7 @@ def _band_spans(ax, mult_eff: pd.Series, alpha=0.13, half=False) -> None:
 
 
 def plot_ops(navs: pd.DataFrame | None = None) -> str:
-    """五只标的各一格：累计净值走势 + 该标的实际持仓 + **▲▼ 操作点**；末格画板块 RSI 均值。
+    """池内每只标的各一格：累计净值走势 + 该标的实际持仓 + **▲▼ 操作点**；末格画板块 RSI 均值。
 
     与 `plot()`（单只净值 + RSI 曲线）的区别：这里标的是**真正执行的操作** ——
     权重台阶来自 `top2 × 板块档位`，▲ = 该标的被加仓（含被选进 top2、或板块从减半恢复到满仓），
@@ -242,9 +243,18 @@ def plot_ops(navs: pd.DataFrame | None = None) -> str:
     navs_all, rets, _q, _xs, W_sig, W_eff, mult_eff, bq = v4_state(navs)
     idx = W_eff.index
 
-    fig, axes = plt.subplots(3, 2, figsize=(14.4, 11.8), sharex=True,
-                             gridspec_kw=dict(hspace=0.30, wspace=0.22))
-    cells = [axes[0][0], axes[0][1], axes[1][0], axes[1][1], axes[2][0]]
+    # 格数随池大小走：每行 2 格，最后多留 1 格给「板块 RSI 均值」
+    n = len(V4.CODES)
+    ncol = 2
+    nrow = (n + 1 + ncol - 1) // ncol
+    fig, axes = plt.subplots(nrow, ncol, figsize=(14.4, 2.45 * nrow + 1.2), sharex=True,
+                             gridspec_kw=dict(hspace=0.34, wspace=0.22))
+    axes = np.atleast_2d(axes)
+    flat = list(axes.ravel())
+    cells = flat[:n]
+    axb = flat[n]
+    for ax in flat[n + 1:]:          # 用不到的格子藏掉
+        ax.set_visible(False)
     nav_m = {c: navs_all[c].resample("ME").last() for c in V4.CODES}
 
     for k, (ax, code) in enumerate(zip(cells, V4.CODES)):
@@ -291,8 +301,7 @@ def plot_ops(navs: pd.DataFrame | None = None) -> str:
                      f" · 加 {len(up)} / 减 {len(dn)}", fontsize=8.2, fontweight="bold",
                      loc="left", pad=5)
 
-    # ---- 末格：板块 RSI 均值（五只标的共用的驱动量）----
-    axb = axes[2][1]
+    # ---- 末格：板块 RSI 均值（池内标的共用的驱动量）----
     _band_spans(axb, mult_eff, alpha=0.22, half=True)
     axb.plot(bq.index, bq.to_numpy(), color=RED, lw=1.3, zorder=4,
              label=f"板块 RSI 均值（{len(V4.CODES)} 只）")
@@ -323,12 +332,13 @@ def plot_ops(navs: pd.DataFrame | None = None) -> str:
     axb.set_title("板块 RSI 均值 → 总仓位档位（底色：黄 = 减半、红 = 清仓）",
                   fontsize=8.2, fontweight="bold", loc="left", pad=5)
 
-    axes[2][0].xaxis.set_major_locator(mdates.YearLocator())
-    axes[2][0].xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    for ax in (axes[2][0], axes[2][1]):
+    bottom = [ax for ax in flat[-ncol:] if ax.get_visible()]
+    for ax in bottom:
+        ax.xaxis.set_major_locator(mdates.YearLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
         ax.tick_params(axis="x", labelsize=7.5)
-    for row in axes:                 # 收紧 x 轴，别让自动留白多出一个空的「2027」
-        for ax in row:
+    for ax in flat:                  # 收紧 x 轴，别让自动留白多出一个空的「2027」
+        if ax.get_visible():
             ax.set_xlim(idx[0], idx[-1])
 
     fig.suptitle(f"{V4.TITLE} · 各标的净值走势与操作标注"

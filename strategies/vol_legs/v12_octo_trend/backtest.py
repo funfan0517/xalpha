@@ -125,13 +125,14 @@ def main():
                       for l in rule.LEGS if rule.cap_version(l).startswith("v12.1"))
            + "。§1b 给两版对照，`rule.OPT=False` 可一键回到基线口径。"
            if rule.OPT else "\n> **生效口径 = 规格 CAP**（`rule.OPT=False`）。"),
-        ("> **波动层（2026-11-19 按腿，`rule.VOL_LAYER`）**："
+        ("> **波动层（2026-11-20 按腿，`rule.VOL_LAYER`）**："
          + " · ".join(f"{rule.NAMES[l]} {rule.vol_layer_txt(l)}"
                       for l in rule.LEGS if rule.vol_layer_of(l))
-         + f"；{' · '.join(rule.NAMES[l] for l in rule.LEGS if not rule.vol_layer_of(l))} 不加。"
-         "形态恒为 `min(八态许可, 波动层系数)`，**只压上限**；10pp/5日死区只作用于系数本身"
+         + ("" if all(rule.vol_layer_of(l) for l in rule.LEGS) else
+            "；" + " · ".join(rule.NAMES[l] for l in rule.LEGS if not rule.vol_layer_of(l)) + " 不加")
+         + "。形态恒为 `min(八态许可, 波动层系数)`，**只压上限**；死区只作用于系数本身"
          "（作用在合并后的仓位上会把「降格立即生效」也拖慢，实测更差）。"
-         "证据 `research/er_vol_layer/_er_vol_layer.md`。"
+         "美股两腿走 C5（ER20/10，**无死区**）。证据 `research/er_vol_layer/_er_vol_layer.md`。"
          if rule.OPT else "> 波动层：未启用（`rule.OPT=False`）。"),
         "",
         "## 1. 逐腿（按当前生效口径）",

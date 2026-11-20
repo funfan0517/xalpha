@@ -58,12 +58,28 @@ def _chart(code: str) -> str:
     return '<div class="chartwrap muted">图表未生成（先运行 chart.py）</div>'
 
 
+def best_txt(f: dict) -> str:
+    """该标的最优策略短标签 —— 直接读 `daily.py` 写好的 `best_txt`，看板不重算。"""
+    return f.get("best_txt") or "—"
+
+
+def best_perf(f: dict) -> str:
+    bd = f.get("best_detail") or {}
+    if not bd:
+        return ""
+    return (f"持有 {bd['cagr_hold'] * 100:.1f}% / {bd['dd_hold'] * 100:.1f}% / "
+            f"Calmar {bd['calmar_hold']:.2f}　·　"
+            f"择时 {bd['cagr_rsi'] * 100:.1f}% / {bd['dd_rsi'] * 100:.1f}% / "
+            f"Calmar {bd['calmar_rsi']:.2f}")
+
+
 def _card(f: dict, rsi: float, weight: float, held: bool) -> str:
     tag, tier_txt = tier_of(rsi)
     c, s = color(tag), soft(tag)
     held_tag = '<span class="held">持有</span>' if held else ''
     hint = {"清仓": "RSI ≥ 70 → 清仓 0%", "减半": "RSI 50–70 → 减半 50%",
             "满仓": "RSI < 50 → 满仓 100%"}[tag]
+    bcls = "bgood" if f.get("best") == "rsi" else "bhold"
     return f"""<div class="card">
         <div class="card-head">
           <div>
@@ -82,6 +98,8 @@ def _card(f: dict, rsi: float, weight: float, held: bool) -> str:
           <div><b>{int(V4.Q_HALF * 100)}/{int(V4.Q_OUT * 100)}</b><i>减半/清仓线</i></div>
         </div>
         <div class="advice" style="background:{s}"><b>{tag}</b> · {hint}</div>
+        <div class="best {bcls}"><b>该标的最优：{best_txt(f)}</b>
+          <span>{best_perf(f)}</span></div>
         {_chart(f['code'])}
       </div>"""
 
@@ -100,9 +118,12 @@ def render(d: dict) -> str:
         c = color(tag)
         hold_flag = '<span class="rhold">持</span>' if f["code"] in held else ''
         w = weight_map.get(f["code"], 0.0)
+        bflag = ('<span class="rbest" title="该标的单独跑 RSI 择时 vs 买入持有">最优 RSI</span>'
+                 if f.get("best") == "rsi" else
+                 '<span class="rbest bhold" title="该标的被 RSI 择时是负和">最优 持有</span>')
         rank_rows += (
             f'<div class="rank"><span class="rno">{i}</span>'
-            f'<span class="rname">{f["name"]}<i>{f["code"]}</i>{hold_flag}'
+            f'<span class="rname">{f["name"]}<i>{f["code"]}</i>{hold_flag}{bflag}'
             f'<em class="rw">{w * 100:.0f}%</em></span>'
             f'<div class="rbar">{bar(rsi, c, 10)}</div>'
             f'<span class="rval" style="color:{c}">{rsi:.1f}</span>'
@@ -116,6 +137,8 @@ def render(d: dict) -> str:
                f"下次在 <b>{d['next_decision']}</b> 收盘确认。")
     held_n = len(d["positions"])
     held_w = sum(weight_map.get(c, 0.0) for c in held)
+    # 逐只最优策略 = 买入持有 的标的（被 RSI 减仓是负和），页脚要点名
+    hold_codes = "、".join(f["code"] for f in funds if f.get("best") == "hold") or "无"
 
     chips = "".join([
         f'<div class="chip"><b>{d["board_rsi"]:.1f}</b><i>板块 RSI 均值</i></div>',
@@ -164,6 +187,17 @@ def render(d: dict) -> str:
   .chip b {{ font-size: 18px; font-variant-numeric: tabular-nums; }}
   .chip i {{ font-style: normal; font-size: 11.5px; color: #8a7860; }}
   .preview {{ margin-top: 10px; font-size: 12px; color: #8a6a3a; }}
+  .poolnote {{ margin-top: 9px; padding: 9px 12px; background: #fdf2ea; border: 1px solid #f0d9c8;
+              border-radius: 8px; font-size: 12px; color: #8a4b2a; line-height: 1.7; }}
+  .rbest {{ font-size: 9.5px; border: 1px solid #cfe0c6; color: #4a7a38; border-radius: 4px;
+           padding: 0 3px; margin-left: 4px; background: #f2f8ee; font-weight: 600; }}
+  .rbest.bhold {{ border-color: #e6d2ae; color: #8a6a3a; background: #fdf6e9; }}
+  .best {{ margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11.5px;
+          background: #f7f1e3; border-left: 3px solid #e8a33d; color: #6b5a42;
+          display: flex; flex-direction: column; gap: 2px; }}
+  .best.bgood {{ border-left-color: #5c8a4a; }}
+  .best.bhold {{ border-left-color: #c0504d; }}
+  .best span {{ font-size: 10.5px; color: #9a8a70; font-variant-numeric: tabular-nums; }}
   .rankbox {{ background: #fffdf7; border: 1px solid #e6dcc8; border-radius: 14px;
               padding: 18px 24px 10px; margin-bottom: 18px; }}
   .sect {{ font-size: 14px; font-weight: 700; margin: 0 0 12px; color: #4a3d2c; }}
@@ -220,12 +254,15 @@ def render(d: dict) -> str:
     <div class="eyebrow">V4 · RSI14 单指标红利策略</div>
     <h1>RSI14 择时看板</h1>
     <div class="meta">
-      数据截至 <b>{d['as_of']}</b> · 生成于 {d['today']} · 池 {len(funds)} 只（V4 专用池）<br>
+      数据截至 <b>{d['as_of']}</b> · 生成于 {d['today']} · 池 <b>{len(funds)} 只（候选广度）</b><br>
       当前生效信号 <b>{d['signal_date']}</b> 收盘 → 持有期 <b>{d['hold_month']}</b> ·
       RSI14（基金累计净值，Wilder）· 月末算、下月生效 · 单边 0.03%<br>
       规则：板块 RSI 均值 ≥{int(V4.Q_OUT * 100)} 清仓 / ≥{int(V4.Q_HALF * 100)} 减半 / 否则满仓；
       横截面取 RSI 最低 {V4.TOP_K} 只等权
     </div>
+    <div class="poolnote"><b>池 ≠ 持仓</b>：池 {len(funds)} 只只是候选广度，
+      <b>每月只持 RSI 最低的 {V4.TOP_K} 只</b>，其余 {len(funds) - V4.TOP_K} 只权重为 0 ——
+      不要按「池里有几只就买几只」执行。</div>
     <div class="oneline"><b>一句话</b>：{oneline}</div>
     <div class="chips">{chips}</div>
     <div class="preview">{preview_txt}</div>
@@ -245,6 +282,12 @@ def render(d: dict) -> str:
     背景三档（<span style="color:#5c8a4a">满仓 RSI&lt;50</span> /
     <span style="color:#b8860b">减半 50–70</span> / <span style="color:#c0504d">清仓 ≥70</span>）
     是把<b>单只自己的 RSI</b>套用同一组阈值，仅作读图参考 —— 真实仓位以板块均值为准。<br>
+    <b>池与持仓</b>：池 {len(funds)} 只（2026-11-20 起改为全池，此前为按 ΔCalmar 筛出的 5 只），
+    每期只持 <b>RSI 最低的 {V4.TOP_K} 只</b>，池子大小只影响候选广度。<br>
+    <b>「该标的最优」</b>= 单独跑同一套 RSI 规则与买入持有的对比（`fit.py`）：
+    ΔCalmar ≥ +0.02 记 RSI 择时，否则记买入持有。标<b>买入持有</b>的标的（当前是
+    {hold_codes}）被 RSI 减仓是负和 —— V4 仍可能因横截面相对超卖而持有它，
+    但别指望它在择时上贡献收益。<br>
     <b>已知失效模式</b>：强单边趋势里 RSI 会钝化，红利慢牛中 RSI 长期在 50–70，
     按阈值减半会持续错配、长期半仓；这是结构性代价，不是参数没调好。<br>
     仅为个人数据记录与研究分析，不构成投资建议；市场有风险，投资需谨慎。

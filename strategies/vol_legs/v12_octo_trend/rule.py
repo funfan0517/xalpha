@@ -187,7 +187,11 @@ CAP_OPT = {
 #   a500 / hs300 / hkt -> C1：ER(20) 切 TV 20%/10% 的自适应层（C1−B2 = +0.05 / +0.08 / +0.24）
 #   gold               -> C4：固定 TV10 + 死区（0.81 vs S1 0.62，全表最高）
 #   kc50               -> C3：固定 TV20 + 死区（0.89 vs S1 0.84；**不要 ER**，ER 净贡献 −0.31）
-#   ndx / spx          -> 不加：八态层已把平均许可压到 ~47%，再叠一轮是二次压缩（−0.04 / +0.05）
+# 2026-11-20 用户指定：**美股两腿改走 C5**（ER20/10 自适应 + **无死区**）——
+#   它们是唯一「加了死区反而更差」的两条腿（C1 0.69/0.63 vs S1 0.63/0.66，死区净贡献 −0.01），
+#   而 C5（不加死区）是 0.69 / 0.64：纳指 +0.06、标普 −0.02（标普属噪声，用户仍要求统一 C5）。
+#   代价：换手从 23 次/年涨到 68 / 40 次/年，摩擦 0.50→0.45pp / 0.49→0.47pp（5bp 下单边成本很小）。
+#   判据与数字见 `research/er_vol_layer/_er_vol_layer.md` 的 C5 行与 §落地结果。
 # 形态恒为 `min(八态许可, 波动层系数)`：只压上限，不改判定、不加杠杆、不放大仓位。
 VOL_LAYER = {
     "a500": dict(mode="er", tv=0.20, tv_low=0.10),
@@ -195,12 +199,15 @@ VOL_LAYER = {
     "hkt": dict(mode="er", tv=0.20, tv_low=0.10),
     "gold": dict(mode="fixed", tv=0.10),
     "kc50": dict(mode="fixed", tv=0.20),
+    # C5：与上面三条 ER 腿同形态，只把死区关掉（dead=0 / gap=0）
+    "ndx": dict(mode="er", tv=0.20, tv_low=0.10, dead=0.0, gap=0),
+    "spx": dict(mode="er", tv=0.20, tv_low=0.10, dead=0.0, gap=0),
 }
 VL_ER_N = 20                      # Kaufman 效率比窗口
 VL_ER_HI, VL_ER_LO = 0.40, 0.30   # ER 阈值（带滞回：中间维持原档）
 VL_VOL_WIN = 20                   # 已实现波动窗口（与 z20 / rvol 同口径）
-VL_DEAD = 0.10                    # 幅度死区：|Δ系数| < 10pp 不动手
-VL_DEAD_DAYS = 5                  # 时间死区：距上次调仓 < 5 交易日不动手
+VL_DEAD = 0.10                    # 幅度死区：|Δ系数| < 10pp 不动手（按腿可被 cfg 覆盖）
+VL_DEAD_DAYS = 5                  # 时间死区：距上次调仓 < 5 交易日不动手（同上）
 
 # **历史口径（2026-11-19 前）**：固定 σ 覆盖 `min(w, vt/σ20)`，只有科创50 一条腿。
 # 已**不被回测 / 日报读取**（生效口径是上面的 `VOL_LAYER`）；保留它只有一个用途：
@@ -215,6 +222,12 @@ UP_CONFIRM = 2
 # 日报会把这些行印在「读法与边界」里：许可变了，看板上的「昨日」列仍是按**新参数**重算的，
 # 不写出来就会变成「昨天说 20%、今天说 0% 但显示『无许可变化』」。最近一次在前。
 CHANGELOG = [
+    ("2026-11-20",
+     "**美股两腿（纳指100 / 标普500）加波动层 C5**（用户指定）：ER20/10 自适应、**无死区**"
+     "（`dead=0 / gap=0`）。依据 `research/er_vol_layer/_er_vol_layer.md`：这两条腿是唯一"
+     "「加死区更差」的两条，C5 纳指 0.63→0.69、标普 0.66→0.64（噪声），"
+     "换手 23→68 / 40 次/年。**这会改变这两条腿的目标仓位**（八态许可再乘一层 ≤1 的系数），"
+     "看板/日报的「昨日」列是按新参数重算的。"),
     ("2026-11-19",
      "**波动层改为按腿**（用户指定）：a500/hs300/hkt 上 ER20/10 自适应层 + 10pp/5日死区；"
      "黄金 固定 TV10 + 死区；科创50 固定 TV20 + 死区（**撤掉原 σ覆盖 25%**，也**不用 ER**）；"
@@ -258,9 +271,10 @@ def cap_map(leg=None):
 
 
 def vol_layer_of(leg=None):
-    """该腿生效的波动层配置；None = 不加波动层（美股两腿）。
+    """该腿生效的波动层配置；None = 该腿不加波动层（2026-11-20 起七腿都有，留 None 供回退）。
 
-    返回 `dict(mode="er"|"fixed", tv=..., tv_low=...)`，交给 `engine.vol_layer()` 执行。
+    返回 `dict(mode="er"|"fixed", tv=..., tv_low=..., dead=..., gap=...)`，交给
+    `engine.vol_layer()` 执行；`dead`/`gap` 缺省时取 `VL_DEAD` / `VL_DEAD_DAYS`。
     `OPT=False` 时一律 None（回到规格口径）。
     """
     if not OPT or leg is None:
@@ -274,10 +288,12 @@ def vol_layer_txt(leg=None):
     cfg = vol_layer_of(leg)
     if not cfg:
         return "无"
+    dead = float(cfg.get("dead", VL_DEAD))
+    gap = int(cfg.get("gap", VL_DEAD_DAYS))
+    dz = f" + {dead:.0%}/{gap}日死区" if (dead > 0 or gap > 0) else "（无死区）"
     if str(cfg.get("mode")) == "er":
-        return (f"ER{VL_ER_N} 自适应 {cfg['tv']:.0%}/{cfg.get('tv_low', 0):.0%}"
-                f" + {VL_DEAD:.0%}/{VL_DEAD_DAYS}日死区")
-    return f"固定 TV{cfg['tv']:.0%} + {VL_DEAD:.0%}/{VL_DEAD_DAYS}日死区"
+        return f"ER{VL_ER_N} 自适应 {cfg['tv']:.0%}/{cfg.get('tv_low', 0):.0%}{dz}"
+    return f"固定 TV{cfg['tv']:.0%}{dz}"
 
 
 def vol_target_of(leg=None):

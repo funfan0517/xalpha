@@ -1,14 +1,14 @@
 {
   "strategy": "V1 · 四因子久期档（债券晴雨表）",
-  "as_of": "2026-11-19",
-  "generated": "2026-11-20 14:49",
+  "as_of": "2026-11-20",
+  "generated": "2026-11-21 10:26",
   "source_methodology": "G:/tradingagents/bond_strategy/bond_rules.md v1.0（2026-11-17）",
   "temp": {
-    "valuation": 99.9,
-    "funding": 89.7,
-    "momentum": 100.0,
-    "credit": 43.1,
-    "composite": 89.3,
+    "valuation": 99.7,
+    "funding": 89.5,
+    "momentum": 98.2,
+    "credit": 20.1,
+    "composite": 85.4,
     "band": "过热",
     "coverage": 4,
     "degrade": false
@@ -17,10 +17,10 @@
     "valuation": -1,
     "trend": 1,
     "funding": 1,
-    "credit": 0
+    "credit": -1
   },
   "signal": {
-    "score": 1,
+    "score": 0,
     "side": "震荡观望",
     "conf": "low",
     "conflict": true,
@@ -29,18 +29,18 @@
   },
   "scenario": {
     "ok": true,
-    "p_up": 65.7,
-    "n": 1290,
+    "p_up": 65.8,
+    "n": 1291,
     "bucket": 90.0,
-    "bull": 65.7,
+    "bull": 65.8,
     "flat": 17.1,
     "bear": 17.1,
-    "note": "同桶样本 n=1290（估值温度 90±10）"
+    "note": "同桶样本 n=1291（估值温度 90±10）"
   },
   "position": {
     "cur": 35.0,
-    "target": 39.38,
-    "eff_target": 39.38,
+    "target": 35.0,
+    "eff_target": 35.0,
     "w_long": 35.0,
     "moved": false,
     "act": "hold",
@@ -61,9 +61,9 @@
       "name": "估值/资金/动能/信用",
       "short": "温度",
       "act": "none",
-      "label": "89.3 过热",
+      "label": "85.4 过热",
       "pp": 0,
-      "note": "估值 99.9 · 资金 89.7 · 动能 100.0 · 信用 43.1 · 覆盖 4/4",
+      "note": "估值 99.7 · 资金 89.5 · 动能 98.2 · 信用 20.1 · 覆盖 4/4",
       "r20": null,
       "r250": null,
       "nav": null,
@@ -72,7 +72,7 @@
     },
     {
       "code": "估值因子",
-      "name": "温度 99.9",
+      "name": "温度 99.7",
       "short": "估值因子",
       "act": "sell",
       "label": "-1",
@@ -86,7 +86,7 @@
     },
     {
       "code": "趋势因子",
-      "name": "温度 100.0",
+      "name": "温度 98.2",
       "short": "趋势因子",
       "act": "buy",
       "label": "+1",
@@ -100,7 +100,7 @@
     },
     {
       "code": "资金因子",
-      "name": "温度 89.7",
+      "name": "温度 89.5",
       "short": "资金因子",
       "act": "buy",
       "label": "+1",
@@ -114,10 +114,10 @@
     },
     {
       "code": "信用因子",
-      "name": "温度 43.1",
+      "name": "温度 20.1",
       "short": "信用因子",
-      "act": "none",
-      "label": "+0",
+      "act": "sell",
+      "label": "-1",
       "pp": 0,
       "note": "信用温度 ≥70 / ≤30（利差窄=拥挤）",
       "r20": null,
@@ -133,7 +133,7 @@
       "act": "hold",
       "label": "10.5pp",
       "pp": 0,
-      "note": "长端占比 35.0% → 39.4% · 滞后带内不动",
+      "note": "长端占比 35.0% → 35.0% · 滞后带内不动",
       "r20": null,
       "r250": null,
       "nav": null,
@@ -187,9 +187,9 @@
       "name": "未来20日情景",
       "short": "20D",
       "act": "none",
-      "label": "牛 65.7%",
+      "label": "牛 65.8%",
       "pp": 0,
-      "note": "震荡 17.1% / 熊 17.1% · n=1290 · score +1 震荡观望（低）",
+      "note": "震荡 17.1% / 熊 17.1% · n=1291 · score +0 震荡观望（低）",
       "r20": null,
       "r250": null,
       "nav": null,
@@ -198,10 +198,10 @@
     }
   ],
   "sources": {
-    "10Y国债": "2026-11-19",
+    "10Y国债": "2026-11-20",
     "SHIBOR": "2026-11-13",
-    "收益率曲线": "2026-11-17",
-    "净值": "2026-11-19"
+    "收益率曲线": "2026-11-20",
+    "净值": "2026-11-20"
   },
   "state": {
     "w_long": 0.35,

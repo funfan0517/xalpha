@@ -73,7 +73,7 @@ def main(argv=None):
 
     fixed = {
         "等权 1/3": {"rate": 1 / 3, "credit": 1 / 3, "conv": 1 / 3},
-        "全利率（=v0 口径 70/30 哑铃）": {"rate": 1.0},
+        "全利率（=v0 口径 35/65 哑铃）": {"rate": 1.0},
         "全信用（000032）": {"credit": 1.0},
         "全转债（470058）": {"conv": 1.0},
         "人工静态倾斜 70/20/10": {"rate": 0.70, "credit": 0.20, "conv": 0.10},
@@ -87,7 +87,7 @@ def main(argv=None):
         ("逆波动 + 同约束（机制对照）", engine.backtest(
             navs, start=start, weights=bt_iv_w)["ret"], None),
         ("等权 1/3", fixed_net["等权 1/3"], None),
-        ("全利率（=v0 口径 70/30 哑铃）", fixed_net["全利率（=v0 口径 70/30 哑铃）"], None),
+        ("**全利率（=v0 口径 35/65 哑铃）**", fixed_net["全利率（=v0 口径 35/65 哑铃）"], None),
         ("全信用（000032）", fixed_net["全信用（000032）"], None),
         ("全转债（470058）", fixed_net["全转债（470058）"], None),
         ("人工静态倾斜 70/20/10", fixed_net["人工静态倾斜 70/20/10"], None),
@@ -162,9 +162,9 @@ def main(argv=None):
     A("")
 
     yv = net.groupby(net.index.year).apply(lambda x: (1 + x).prod() - 1)
-    y0s = fixed_net["全利率（=v0 口径 70/30 哑铃）"]
+    y0s = fixed_net["全利率（=v0 口径 35/65 哑铃）"]
     y0 = y0s.groupby(y0s.index.year).apply(lambda x: (1 + x).prod() - 1)
-    A("**逐年（V7 vs 全利率 = v0 口径）**")
+    A("**逐年（V7 vs 全利率 = v0 口径 35/65）**")
     A("")
     A("| 年 | V7 | 全利率 | 差 | 平均转债权重 |")
     A("|---|---:|---:|---:|---:|")

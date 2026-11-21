@@ -58,6 +58,7 @@ def _dd52(daily: pd.DataFrame, asof: pd.Timestamp):
 def collect(refresh: bool = False) -> dict:
     panels = factors.build(refresh=refresh)
     asof, stale = factors.align_asof(panels)
+    sides = factors.build_side(refresh=refresh)
     official = data.official_valuation()
 
     rows = []
@@ -96,6 +97,36 @@ def collect(refresh: bool = False) -> dict:
     if not rows:
         raise RuntimeError("没有任何标的算出温度（数据是否缺失？先跑 data.py）")
 
+    # † 副表：4 只无等权估值的标的，只算价格温度（规则 §4.4），不进排名与动作清单
+    side_rows = []
+    for f in rule.SIDE_FUNDS:
+        p = sides.get(f["code"])
+        if not p:
+            continue
+        t = factors.temp_at(p["daily"], [asof], has_valuation=False)
+        if t.empty:
+            continue
+        r = t.iloc[-1]
+        dd52 = _dd52(p["daily"], r["asof"])
+        meta = p.get("meta") or {}
+        side_rows.append({
+            "code": f["code"], "name": f["short"], "index": f["index"],
+            "index_name": f["index_name"],
+            "temp": round(float(r["temp"]), 1), "temp_kind": r["temp_kind"],
+            "band": "价格温度", "action": "无估值序列，仅参考",
+            "close": round(float(r["close"]), 4),
+            "dev": None if pd.isna(r["dev"]) else round(float(r["dev"]) * 100, 2),
+            "pos": None if pd.isna(r["pos"]) else round(float(r["pos"]), 1),
+            "dd52": None if dd52 is None else round(dd52, 2),
+            "price_src": meta.get("price_src"),
+            "proxy": meta.get("proxy"),
+            "used_fallback": bool(meta.get("used_fallback")),
+            "why": f.get("why"),
+            "asof": r["asof"].strftime("%Y-%m-%d"),
+            "stale": r["asof"] != asof,
+            "has_valuation": False,
+        })
+
     # 板块温度：只用有估值口径的标的；自身历史分位（扩张窗口）仅作信息，不驱动动作
     val = [r for r in rows if r["has_valuation"]]
     board = float(np.mean([r["temp"] for r in val])) if val else float("nan")
@@ -121,6 +152,7 @@ def collect(refresh: bool = False) -> dict:
         "board_temp": round(board, 1),
         "board_pct": None if board_q is None else round(board_q, 3),
         "rows": sorted(rows, key=lambda x: (-x["has_valuation"], x["temp"])),
+        "side": side_rows,
         "hot": [r["code"] for r in hot],
         "warm": [r["code"] for r in warm],
         "cold": [r["code"] for r in cold],
@@ -185,7 +217,7 @@ def render(d: dict) -> str:
           f"- 有估值口径 **{len([r for r in d['rows'] if r['has_valuation']])} 只**的平均温度 "
           f"**{d['board_temp']:.1f}**（60 以上偏热，40 以下偏冷）。",
           f"- 板块温度自身历史分位 **{q_txt}**"
-          "（仅供参考：回测里这个分位**没有**择时增量，见 §四）。",
+          "（仅供参考：回测里这个分位**没有**择时增量，见 §五）。",
           f"- 过热（≥{rule.ABS_OUT:.0f}）**{len(d['hot'])} 只**、偏热（{rule.ABS_CUT:.0f}–{rule.ABS_OUT:.0f}）"
           f"**{len(d['warm'])} 只**、偏冷（<40）**{len(d['cold'])} 只**。",
           "- **本策略不输出仓位倍率**：回测显示横截面选品为负贡献（top2 Calmar 0.72 vs 基准 1.03）、"
@@ -202,10 +234,28 @@ def render(d: dict) -> str:
                  f"{r['band']} | {r['action']} | {sub('spread')} | {sub('pe')} | "
                  f"{sub('dev')} | {sub('pos')} | {dy} |")
     L += ["", "> 子分列已统一成「越高越热」（利差列 = 100 − 利差分位）。"
-              "† = 价格温度（乖离 50% + 位置 50%），**不与五因子温度比大小、不参与排名**。"
-              "股息率取中证《指数估值》官方口径（仅展示，不进温度）。", ""]
+              "股息率取中证《指数估值》官方口径（仅展示，不进温度）。"
+              "本表只放**同源等权估值**的 6 只；无估值的 4 只见 §三 副表。", ""]
 
-    L += ["## 三、可执行清单（额度参考，非择时信号）", ""]
+    if d["side"]:
+        L += ["## 三、† 副表：无等权估值的 4 只（仅价格温度，不参与排名）", "",
+              "| 标的 | 跟踪指数 | 价格温度 † | 年线乖离 | 价格位置 | 52周回撤 | 点位 | 价格来源 |",
+              "|---|---|---:|---:|---:|---:|---:|---|"]
+        for r in d["side"]:
+            src = ("中证指数官网" if r["price_src"] == "csi"
+                   else f"{r['proxy']} 代理" + ("（回退）" if r["used_fallback"] else ""))
+            L.append(f"| {r['code']} {r['name']} † | {r['index_name']} | **{r['temp']:.1f}** | "
+                     f"{_fmt(r['dev'], '%')} | {_fmt(r['pos'], '', 1)} | "
+                     f"{_fmt(r['dd52'], '%')} | {_fmt(r['close'], '', 2)} | {src} |")
+        L += ["",
+              "> 价格温度 = 0.5×年线乖离分位 + 0.5×价格位置分位（规则 §4.4），只有价格维度、没有估值维度。",
+              "> 按规则要求：**不与五因子温度比大小、不参与排名与横截面、不进下方动作清单、不进回测基准**。",
+              "> 缺估值的原因："]
+        for r in d["side"]:
+            L.append(f"> - {r['code']} {r['name']}：{r['why']}")
+        L.append("")
+
+    L += ["## 四、可执行清单（额度参考，非择时信号）", ""]
     if d["hot"]:
         names = "、".join(f"{rule.NAME[c]}({c})" for c in d["hot"])
         L.append(f"- **过热 ≥{rule.ABS_OUT:.0f}**：{names} —— 规则字面动作是「分批减仓」："
@@ -221,7 +271,7 @@ def render(d: dict) -> str:
         L.append("- 全池落在 40–65 中性带，无动作：持有 + 正常定投。")
     L += ["- 上述清单**不改变目标仓位**；仓位节奏请用 `v4_rsi/daily.py`（RSI14 择时）或 `v0_rank/rank.py`（打分）。", ""]
 
-    L += ["## 四、口径与边界（必读）", "",
+    L += ["## 五、口径与边界（必读）", "",
           "1. **股债收益差 = 股息率 − 10Y**（不再是 100/PE）：股息率取 `data/_div_yield_m.csv`（月度）——"
           "000922 / H30269 为真实序列（全收益指数 − 价格指数），"
           "930955 / 931468 / 000824 / 000825 为 000922 变化率代理 + 各自官网快照校准。",
@@ -230,8 +280,9 @@ def render(d: dict) -> str:
           "000922 / H30269 / 930955 / 931468 / 000824 / 000825）；**全池同一口径**，温度可横比。"
           f"PE + PB 仍占 {(rule.W['pe'] + rule.W['pb']) * 100:.0f}% 权重。",
           "3. **温度算在跟踪指数上**（规则 R0-2）：基金有费率与跟踪误差，估值只有指数口径。",
-          "4. **两个标普系列无估值**（008163 / 005125）：中证官网、蛋卷、东财指数库三源皆无条目，"
-          "只算价格温度并标 †，不进排名、不进横截面。价格用 501029（主，2017→）；562060 实测与 501029 "
+          "4. **4 只无等权估值的标的单列 §三 副表**（008163 / 005125 / 007760 / 018388）："
+          "只算价格温度并标 †，不进排名、不进横截面、不进动作清单、不进回测基准。"
+          "两个标普系列的价格代理用 501029（主，2017→）；562060 实测与 501029 "
           "全期日收益 corr≈0.44（仅近 250 日 0.89），长期背离，仅作回退、不替换。",
           f"5. **回测结论**：{_bt_line(d.get('bt') or {})}",
           "6. 数据分位窗口「近 2 年（730 日历日）」，需 ≥300 个日频观测才给分位；"
@@ -261,6 +312,9 @@ def payload(d: dict) -> dict:
         "weights": d["weights"],
         "flags": d["flags"],
         "funds": d["rows"],
+        "side": d.get("side") or [],
+        "side_note": ("† 副表：无 etf.run 等权 PE/PB 的 4 只，只算价格温度"
+                      "（0.5×年线乖离 + 0.5×价格位置），不与五因子温度比大小、不参与排名、不进回测"),
         "lists": {"hot": d["hot"], "warm": d["warm"], "cold": d["cold"]},
         "stale": d["stale"],
         "backtest": {
@@ -297,6 +351,9 @@ def main(argv=None) -> int:
         print(f"[v9] {r['code']} {r['name']:<12s}{mark:<2s} 温度 {r['temp']:5.1f}  "
               f"{r['band']:<6s} {r['action']}")
     print(f"[v9] 过热 {len(d['hot'])} / 偏热 {len(d['warm'])} / 偏冷 {len(d['cold'])}")
+    for r in d.get("side") or []:
+        print(f"[v9] † {r['code']} {r['name']:<12s} 价格温度 {r['temp']:5.1f}  "
+              f"（不参与排名）")
     print(f"[v9] 产物 -> {os.path.relpath(rule.OUT_MD, rule.ROOT)} · "
           f"{os.path.relpath(rule.OUT_JSON, rule.ROOT)}")
     return 0

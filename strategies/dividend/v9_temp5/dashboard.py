@@ -121,6 +121,7 @@ def render(d: dict) -> str:
     funds = d["funds"]
     valued = [m for m in funds if m["temp_kind"] == "五因子温度"]
     px = [m for m in funds if m["temp_kind"] != "五因子温度"]
+    side = d.get("side") or []
     ranked = sorted(valued, key=lambda x: x["temp"])
     cold, hot = (ranked[0], ranked[-1]) if ranked else (None, None)
     q = "—" if d["board_pct"] is None else f"{d['board_pct'] * 100:.0f}%"
@@ -140,6 +141,21 @@ def render(d: dict) -> str:
             f'<div class="rbar">{bar(m["temp"], "#b9ac96", 10)}</div>'
             f'<span class="rval" style="color:#b9ac96">{m["temp"]:.1f}</span>'
             f'<span class="rtag" style="color:#b9ac96;border-color:#b9ac96">价格温度</span></div>')
+
+    def _src(m: dict) -> str:
+        if m.get("price_src") == "csi":
+            return "中证指数官网"
+        return f"{m.get('proxy') or '—'} 代理{ '（回退）' if m.get('used_fallback') else ''}"
+
+    side_rows = "".join(
+        f'<tr><td><b>{m["name"]}</b> <span class="tdim">{m["code"]}†</span></td>'
+        f'<td class="tdim">{m["index_name"]}</td>'
+        f'<td><b style="color:#b9ac96">{m["temp"]:.1f}</b></td>'
+        f'<td>{fmt(m["dev"], "%")}</td>'
+        f'<td>{fmt(m["pos"], "", 1)}</td>'
+        f'<td>{fmt(m["dd52"], "%")}</td>'
+        f'<td class="tdim">{_src(m)}</td></tr>'
+        for m in side) or '<tr><td colspan="7" class="tdim">副表数据缺失（先跑 daily.py）</td></tr>'
 
     buckets = {f"过热 ≥{rule.ABS_OUT:.0f}": 0, f"偏热 {rule.ABS_CUT:.0f}–{rule.ABS_OUT:.0f}": 0,
                "中性 40–65": 0, "偏冷 <40": 0}
@@ -252,6 +268,15 @@ def render(d: dict) -> str:
   .chart {{ width: 100%; height: auto; display: block; border: 1px solid #eee3cf;
             border-radius: 8px; background: #fff; }}
   .chartwrap.muted {{ font-size: 11px; color: #b0a08a; padding: 10px 2px; }}
+  .sidebox {{ background: #fbf8f1; border: 1px dashed #d9cdb6; border-radius: 14px;
+              padding: 16px 22px 14px; margin-top: 18px; }}
+  .stable {{ width: 100%; border-collapse: collapse; font-size: 12.5px; }}
+  .stable th {{ text-align: left; font-weight: 600; color: #8a7860; font-size: 11px;
+                padding: 6px 8px; border-bottom: 1px solid #e6dcc8; white-space: nowrap; }}
+  .stable td {{ padding: 7px 8px; border-bottom: 1px dashed #eee3cf;
+                font-variant-numeric: tabular-nums; }}
+  .stable tr:last-child td {{ border-bottom: none; }}
+  .tdim {{ color: #a08a63; font-size: 11px; }}
   .foot {{ margin-top: 18px; background: #fffdf7; border: 1px solid #e6dcc8; border-radius: 14px;
            padding: 16px 22px; font-size: 11.5px; color: #8a7860; line-height: 1.95; }}
   .foot b {{ color: #5c4a33; }}
@@ -269,8 +294,8 @@ def render(d: dict) -> str:
     <div class="eyebrow">V9 · 红利五因子估值温度</div>
     <h1>红利族估值温度看板</h1>
     <div class="meta">
-      数据截止 <b>{d['as_of']}</b> · 生成于 {d['generated']} · 池 {len(funds)} 只
-      （{len(valued)} 只有估值口径 / {len(px)} 只仅价格温度）<br>
+      数据截止 <b>{d['as_of']}</b> · 生成于 {d['generated']} · 主表 {len(valued)} 只（同源等权估值）
+      · † 副表 {len(side)} 只（仅价格温度）<br>
       温度 = 股债收益差 35% + PE 20% + PB 16% + 年线乖离 15% + 价格位置 14%
       （各取<b>近 2 年</b>日频分位，0 = 冰点，100 = 过热）<br>
       数据滞后标的：{stale_txt}
@@ -288,6 +313,21 @@ def render(d: dict) -> str:
   <div class="grid">{''.join(_card(m) for m in ranked + sorted(px, key=lambda x: x['temp']))}
   </div>
 
+  <div class="sidebox">
+    <div class="sect">† 副表：无等权估值的 {len(side)} 只<small>仅价格温度（乖离 50% + 位置 50%）·
+      不与上表比大小 · 不参与排名与横截面 · 不进动作清单与回测基准</small></div>
+    <table class="stable">
+      <tr><th>标的</th><th>跟踪指数</th><th>价格温度 †</th><th>年线乖离</th><th>价格位置</th>
+          <th>52周回撤</th><th>价格来源</th></tr>
+      {side_rows}
+    </table>
+    <div class="tdim" style="margin-top:9px;line-height:1.8">
+      为什么进不了主表：931157 / 930914 在 etf.run 无「等权日频 PE/PB」条目（中证官网只有加权 PE，
+      混用会让温度不可横比；930914 还须改用美债锚）；两个标普系列在中证 / 蛋卷 / 东财三源皆无估值条目，
+      只能用同标的 ETF/LOF 价格代理。价格温度只有价格维度，<b>不能与五因子温度并列排序</b>。
+    </div>
+  </div>
+
   <div class="foot">
     <b>动作清单</b>：过热（≥{rule.ABS_OUT:.0f}）{act_hot} —— 需要在腾额度时优先减；<br>
     偏冷（&lt;40）{act_cold} —— 新增额度优先给它们，分批建仓。
@@ -300,7 +340,8 @@ def render(d: dict) -> str:
     <b>全部同源、无回退</b>，温度可横比；
     <b>股债收益差 = 股息率 − 10Y</b>（股息率取 `data/_div_yield_m.csv` 月度：000922/H30269 真实，
     其余 4 只 000922 变化率代理）；10Y 中债取东财中债收益率曲线。<br>
-    <b>局限</b>：标普系 008163（标普中国A股大盘红利低波动50）、005125（标普中国A股红利机会）三源皆无等权估值，<b>已剔除出池</b>；若保留则仅能算价格温度（乖离 50% + 位置 50%，价格用 501029 代理、562060 仅作回退），<b>不可与五因子温度比大小</b>；
+    <b>局限</b>：4 只无等权估值的标的（007760 / 018388 / 008163 / 005125）<b>不进主表</b>，只在
+    <b>† 副表</b>出价格温度（乖离 50% + 位置 50%）—— 副表不参与排名、不进动作清单、不进回测基准；
     分位窗口为「近 2 年」（730 日历日），窗口内不足 300 个观测则<b>不给分位、不出温度</b>（不拿全历史冒充）。<br>
     仅为个人数据记录与研究分析，不构成投资建议；市场有风险，投资需谨慎。
   </div>

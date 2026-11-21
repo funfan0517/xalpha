@@ -101,13 +101,15 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | 4 | dividend | `run_daily_dividend.ps1` | `strategies/dividend/v4_rsi/daily/_v4_signal.md` |
 | 4 | dividend_v9 | （空，由 `run_daily_dividend.ps1` 第 2 步带上） | `strategies/dividend/v9_temp5/daily/_v9_signal.md` |
 | 5 | tech_indicators | `run_daily_tech_indicators.ps1`（**一条命令跑全家族**：v9 scan+报告 → v10 scan+报告 → 6 策略汇总表） | `strategies/tech_indicators/daily/_daily_recommend.md` |
-| 6 | bond_cash | `run_daily_bond_cash.ps1` | `strategies/bond_cash/daily/_bond_cash_daily.md` |
-| 6 | bond_cash_v1 | （空，由 `run_daily_bond_cash.ps1` 第 2 步带上） | `strategies/bond_cash/v1_four_factor/daily/_v1_daily.md` |
+| 6 | **bond_cash_v7**（板块默认） | `run_daily_bond_cash.ps1`（**一条命令跑全家族 v0~v8 共 9 步**；调度权在 V7，因为它才是出卡的那一个） | `strategies/bond_cash/v7_risk_budget/daily/_v7_daily.md` |
+| 6 | bond_cash（v0 基准） | （空，`daily.enabled=false` → 2026-11-21 起转为基准、不出卡；由 runner 第 1 步刷新） | `strategies/bond_cash/daily/_bond_cash_daily.md` |
+| 6 | bond_cash_v1 | （空，`daily.enabled=false` → 只在 runner 第 2 步刷新产物供研究，不进看板） | `strategies/bond_cash/v1_four_factor/daily/_v1_daily.md` |
 | 6 | bond_cash_v2 | （空，`daily.enabled=false` → 只在 runner 第 3 步刷新产物供研究，不进看板） | `strategies/bond_cash/v2_cross_momentum/daily/_v2_daily.md` |
-| 6 | bond_cash_v3 | （空，由 `run_daily_bond_cash.ps1` 第 4 步带上） | `strategies/bond_cash/v3_carry_trend/daily/_v3_daily.md` |
+| 6 | bond_cash_v3 | （空，`daily.enabled=false` → 只在 runner 第 4 步刷新产物供研究，不进看板） | `strategies/bond_cash/v3_carry_trend/daily/_v3_daily.md` |
 | 6 | bond_cash_v4 | （空，`daily.enabled=false` → 只在 runner 第 5 步刷新产物供研究，不进看板） | `strategies/bond_cash/v4_stock_hedge/daily/_v4_daily.md` |
 | 6 | bond_cash_v5 | （空，`daily.enabled=false` → 只在 runner 第 6 步刷新产物供研究，不进看板） | `strategies/bond_cash/v5_vol_target/daily/_v5_daily.md` |
 | 6 | bond_cash_v6 | （空，`daily.enabled=false` → 只在 runner 第 7 步刷新产物供研究，不进看板） | `strategies/bond_cash/v6_dual_spread/daily/_v6_daily.md` |
+| 6 | bond_cash_v8 | （空，`daily.enabled=false` → 只在 runner 第 9 步刷新产物供研究，不进看板） | `strategies/bond_cash/v8_duration_ladder/daily/_v8_daily.md` |
 
 ### 每日操作板块（看板与执行顺序）
 
@@ -122,7 +124,7 @@ powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators
 | **3 风格轮动 · 成长/红利（v0 / v2 / v5 三规则并列）** | 同一份指数缓存、同一个比值 R，三种规则各自给出动作：v0 = R 相对 MA20±1% 缓冲带 + 250 日分位（自适应、主线）；v2 = R 绝对水位 0.35/0.65（复现原图、信号层裸基准）；v5 = R 水位 + 双侧 MA200 闸门 + 18% 波动率目标（风险调整最优）。三卡并列看「同一时刻三种规则分别让你怎么动」 | `growth_div_rotation`、`gd_v2`、`gd_v5`（`gd_v1` 2026-11-02 起 `daily.enabled=false`，不上板） |
 | **4 稳健红利 · V4 RSI14 择时 + V9 估值温度** | 红利底仓的进退节奏（V4：5 只专用池，板块 RSI14 ≥70 清仓 / ≥50 减半，横截面取 RSI 最低 2 只）＋「贵不贵」体检（V9：6 只有估值标的的五因子温度，只给额度参考、不调仓位） | `dividend`、`dividend_v9` |
 | **5 技术指标 · 全池 54 只（前四类 · 6 策略并列）** | MACD / V3 / V6 / V7 / V9 右侧 / V10 亮灯 同时对全池每只出信号，看共振 | `tech_indicators` |
-| **6 稳健资产 · 债腿 30pp + 现金腿 10pp** | `data/_universe.md` 第六类（债券 6xx 11 只）+ 第七类（现金 7xx 4 只）合并成一个投资大类：v0 债腿 70% 7-10 年国开 A（003376）+ 30% 3-5 年政金 A（011983）固定哑铃（可选动量开关默认关），现金腿 5pp 货基 + 5pp 存单；全谱系 15 只只监控、5 只动手。v1 按 `bond_rules.md` 的温度/四因子/情景只改债腿内部的**长端占比**（35%~70%，滞后带 5.25pp）；v2 横截面双动量（回测为负、`enabled=false`，只作对照研究）；v3 用中债曲线的 carry+趋势双票（0/17.5/35/52.5/70%）；v4 = v3 + 股票动量 Hedge 票（回测贡献 ≈0，研究）；v5 = 波动率目标（不预测方向，按 σ 缩放敞口，回测与 v0 夏普打平、回撤浅 0.72pp）；v6 = 双利差锚（期限利差定久期 × 信用利差定品种 011983/000032，回测双轴互相抵消）。七个变种都不改 40pp 额度；**看板只展示 v0 / v1 / v3，v2+v4~v6 全部 `daily.enabled=false`（产物照跑、不上报告）** | `bond_cash`、`bond_cash_v1`、`bond_cash_v2`、`bond_cash_v3`、`bond_cash_v4`、`bond_cash_v5`、`bond_cash_v6` |
+| **6 稳健资产 · V7 门派风险预算（默认）** | `data/_universe.md` 第六类（债券 6xx 11 只）+ 第七类（现金 7xx 4 只）合并成「稳健资产」40pp（债腿 30pp + 现金腿 10pp）。**默认策略 = v7**：债腿按四门派等风险贡献（ERC）分配（利率 ≈50% / 信用 ≈45% / 转债 ≈5%）+ 风险贡献分解，月末调仓、平时不动手；现金腿 5pp 货基 + 5pp 存单固定在外。**v0（35% 003376 + 65% 011983 固定中性）保留为基准**。其余变种只作研究：v1 四因子长端占比（35%~70%）、v2 横截面双动量、v3 carry+趋势双票、v4 = v3+Hedge、v5 波动率目标、v6 双利差锚、v8 六腿久期阶梯 —— **全部 `daily.enabled=false`（产物照跑、不上报告）**。全谱系 15 只只监控、5 只动手 | `bond_cash_v7`；`bond_cash`(v0 基准) `bond_cash_v1` `bond_cash_v2` `bond_cash_v3` `bond_cash_v4` `bond_cash_v5` `bond_cash_v6` `bond_cash_v8` 均停用 |
 
 - **新增策略默认 `daily.enabled=false`：未经用户明确同意不得进每日操作报告**（产物照跑、报告不出卡）。上板要改 `enabled: true` 并在 `enabled_note` 留下「YYYY-MM-DD 谁同意」；`python pipeline/check_daily_config.py` 的 E3/E4 会卡住漏写开关与无凭据上板。细则见 `AGENTS.md` §9。
 - 新增策略必须填 `daily.block`（取值 `core` / `vol` / `style` / `dividend` / `tech` / `bond`）。漏填不会丢卡片 —— 看板会把它归入末尾的「其他（未认领板块）」，`run_daily_all.ps1` 也会照跑（排在最后）。

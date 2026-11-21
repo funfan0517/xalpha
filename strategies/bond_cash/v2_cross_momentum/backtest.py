@@ -106,10 +106,13 @@ def main(argv=None):
     r_med, tr_med = _run(df, w_med, CFG["fee_side"], start)
     m_top1, m_med = engine.metrics(r_top1), engine.metrics(r_med)
 
-    # 固定哑铃 v0 / 固定 top2 首仓 / 单只买入持有
-    w_v0 = _const_weights(df, {"003376": 0.7, "011983": 0.3})
+    # 基准 v0（2026-11-20 起固定中性 35/65）/ 旧配比 / 单只买入持有
+    w_v0 = _const_weights(df, {"003376": 0.35, "011983": 0.65})
     r_v0, _ = _run(df, w_v0, 0.0, start)
     m_v0 = engine.metrics(r_v0)
+    w_v0o = _const_weights(df, {"003376": 0.70, "011983": 0.30})
+    r_v0o, _ = _run(df, w_v0o, 0.0, start)
+    m_v0o = engine.metrics(r_v0o)
     w_hold = _const_weights(df, {"003376": 1.0})
     r_hold, _ = _run(df, w_hold, 0.0, start)
     m_hold = engine.metrics(r_hold)
@@ -136,7 +139,8 @@ def main(argv=None):
         (f"**V2 双动量 top{CFG['top_n']}**", m_v2, f"{bt['switches']} 次调仓 / Σ|Δw| {bt['turn']:.1f}"),
         ("双动量 top1", m_top1, f"Σ|Δw| {tr_top1:.1f}"),
         ("中位组 Median(第4名)", m_med, "MDPI 2026 的赢家策略（本市场对照）"),
-        ("v0 固定哑铃 70/30", m_v0, "零换手"),
+        ("**基准 v0 固定中性 35/65**", m_v0, "零换手 · 2026-11-20 起"),
+        ("v0 旧配比 70/30（2026-11-20 前）", m_v0o, "零换手"),
         ("满仓 003376", m_hold, "零换手"),
         ("满仓 002864 短债", m_def, "零换手"),
     ]

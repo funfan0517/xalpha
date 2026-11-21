@@ -78,8 +78,8 @@ def main(argv=None):
     bt_noh = engine.backtest(navs, start=start, hysteresis_pp=0.0)
 
     fixed = {
-        "v0 固定哑铃 70/30": pd.Series(0.70, index=idx),
-        "固定中性 35/65": pd.Series(0.35, index=idx),
+        "**基准 v0 固定中性 35/65**": pd.Series(0.35, index=idx),
+        "v0 旧配比 70/30（2026-11-20 前）": pd.Series(0.70, index=idx),
         "全防守 100% 3-5 年": pd.Series(0.00, index=idx),
         "全进攻 100% 7-10 年": pd.Series(1.00, index=idx),
     }
@@ -96,8 +96,8 @@ def main(argv=None):
         (f"V5 波动率目标（每 {CFG['every_n']} 日 / 双周）", bt_2w["ret"], bt_2w["turn"]),
         ("V5 波动率目标（无滞后带）", bt_noh["ret"], bt_noh["turn"]),
         ("反面：高波动加久期（机制对照）", inv_net, inv_turn),
-        ("v0 固定哑铃 70/30", fixed_net["v0 固定哑铃 70/30"], None),
-        ("固定中性 35/65", fixed_net["固定中性 35/65"], None),
+        ("**基准 v0 固定中性 35/65**", fixed_net["**基准 v0 固定中性 35/65**"], None),
+        ("v0 旧配比 70/30（2026-11-20 前）", fixed_net["v0 旧配比 70/30（2026-11-20 前）"], None),
         ("全防守 100% 3-5 年", fixed_net["全防守 100% 3-5 年"], None),
         ("全进攻 100% 7-10 年", fixed_net["全进攻 100% 7-10 年"], None),
     ]
@@ -163,11 +163,11 @@ def main(argv=None):
     A("")
 
     yv = net.groupby(net.index.year).apply(lambda x: (1 + x).prod() - 1)
-    y0 = fixed_net["v0 固定哑铃 70/30"].groupby(
-        fixed_net["v0 固定哑铃 70/30"].index.year).apply(lambda x: (1 + x).prod() - 1)
-    A("**逐年（V5 vs v0 固定哑铃）**")
+    y0 = fixed_net["**基准 v0 固定中性 35/65**"].groupby(
+        fixed_net["**基准 v0 固定中性 35/65**"].index.year).apply(lambda x: (1 + x).prod() - 1)
+    A("**逐年（V5 vs 基准 v0 固定中性 35/65）**")
     A("")
-    A("| 年 | V5 | v0 | 差 | 平均长端 |")
+    A("| 年 | V5 | v0 35/65 | 差 | 平均长端 |")
     A("|---|---:|---:|---:|---:|")
     for y in sorted(set(yv.index) | set(y0.index)):
         a, b = float(yv.get(y, 0)) * 100, float(y0.get(y, 0)) * 100
@@ -178,15 +178,15 @@ def main(argv=None):
 
     m_2w = engine.metrics(bt_2w["ret"])
     m_inv = engine.metrics(inv_net)
-    m_v0 = engine.metrics(fixed_net["v0 固定哑铃 70/30"])
-    m_neu = engine.metrics(fixed_net["固定中性 35/65"])
+    m_v0 = engine.metrics(fixed_net["**基准 v0 固定中性 35/65**"])
+    m_v0o = engine.metrics(fixed_net["v0 旧配比 70/30（2026-11-20 前）"])
     A("## 结论与边界")
     A("")
     A(f"- V5（月末）年化 **{m_v5['cagr']:+.2f}%** / 回撤 **{m_v5['mdd']:+.2f}%** / 夏普 "
       f"{m_v5['sharpe']:.2f}；双周口径 {m_2w['cagr']:+.2f}% / {m_2w['mdd']:+.2f}% / "
       f"{m_2w['sharpe']:.2f}。")
-    A(f"- 基准：v0 固定哑铃 {m_v0['cagr']:+.2f}% / {m_v0['mdd']:+.2f}% / {m_v0['sharpe']:.2f}；"
-      f"固定中性 35/65 {m_neu['cagr']:+.2f}% / {m_neu['mdd']:+.2f}% / {m_neu['sharpe']:.2f}。")
+    A(f"- 基准：v0 固定中性 35/65 {m_v0['cagr']:+.2f}% / {m_v0['mdd']:+.2f}% / {m_v0['sharpe']:.2f}；"
+      f"旧配比 70/30 {m_v0o['cagr']:+.2f}% / {m_v0o['mdd']:+.2f}% / {m_v0o['sharpe']:.2f}。")
     A(f"- **机制对照**：反向口径（高波动加久期）{m_inv['cagr']:+.2f}% / {m_inv['mdd']:+.2f}% / "
       f"{m_inv['sharpe']:.2f}。若反向与正向差距很小，说明这段样本的胜负主要由「平均敞口高低」"
       "决定，而不是「按波动缩放」这个机制本身。")

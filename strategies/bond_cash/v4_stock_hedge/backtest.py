@@ -97,8 +97,8 @@ def main(argv=None):
         ("**V4 三票（Carry+Trend+Hedge）**", net, bt["turn"]),
         ("V3 口径双票（无 Hedge）", net_v3, turn_v3),
         ("纯 Hedge 票", net_hedge, turn_hedge),
-        ("v0 固定哑铃 70/30", _net(navs, curve, stock, start, w=0.70, fee=0)[0], None),
-        ("固定中性 35/65", _net(navs, curve, stock, start, w=0.35, fee=0)[0], None),
+        ("**基准 v0 固定中性 35/65**", _net(navs, curve, stock, start, w=0.35, fee=0)[0], None),
+        ("v0 旧配比 70/30（2026-11-20 前）", _net(navs, curve, stock, start, w=0.70, fee=0)[0], None),
         ("全防守 100% 3-5 年", _net(navs, curve, stock, start, w=0.0, fee=0)[0], None),
         ("全进攻 100% 7-10 年", _net(navs, curve, stock, start, w=1.0, fee=0)[0], None),
     ]

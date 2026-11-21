@@ -1,7 +1,7 @@
 {
  "strategy": "growth_div_rotation/v2_absolute_bands",
  "as_of": "2026-11-20",
- "generated": "2026-11-20 14:46",
+ "generated": "2026-11-21 10:24",
  "bars": 4000,
  "start": "2010-06-01",
  "R": 0.4048,

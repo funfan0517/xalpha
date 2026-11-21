@@ -1355,13 +1355,16 @@ def parse_vol_variants(_cfg):
 
 
 def parse_bond_cash(_cfg):
-    """板块6 稳健资产：债腿 30pp（70/30 固定哑铃）+ 现金腿 10pp（5+5）。
+    """板块6 稳健资产：债腿 30pp（**35/65 固定中性**）+ 现金腿 10pp（5+5）。
 
     全部读数取自 ``strategies/bond_cash/daily/_bond_cash_daily.json``（阈值与档位由
     ``_daily_scan.py`` 算，看板**不复刻**任何判断，避免两边漂移）。
 
-    动作口径：默认 ``gate_on=False`` —— 债腿固定哑铃**每天都是「持有」**，不做择时。
+    动作口径：默认 ``gate_on=False`` —— 债腿固定配比**每天都是「持有」**，不做择时。
     动量开关只作「影子档位」列出来（若开议会处于哪一档），不产生买卖动作。
+
+    配比文字全部取自产物的 ``config.core_w`` / ``config.base_w``，不在这里写死比例
+    （2026-11-20 由 70/30 改为 35/65 时，就是靠这一点避免看板与规则源漂移）。
     """
     daily = _cfg["daily"]
     path = os.path.join(_ROOT, daily["signal_json"])
@@ -1370,6 +1373,11 @@ def parse_bond_cash(_cfg):
     g = d.get("gate") or {}
     bond = d.get("bond") or {}
     cash = d.get("cash") or {}
+    cf = d.get("config") or {}
+    cw = float(cf.get("core_w") or 0.35)
+    bw = float(cf.get("base_w") or (1.0 - cw))
+    tilt = ("固定中性" if abs(cw - 0.35) < 1e-9
+            else "固定哑铃" if abs(cw - 0.70) < 1e-9 else "固定配比")
 
     def _pp(m):
         return " + ".join(f"{float(v):.0f}" for v in (m.get("items") or {}).values())
@@ -1396,22 +1404,25 @@ def parse_bond_cash(_cfg):
     on = bool(g.get("on"))
     gate_txt = (f"动量 {float(mom):+.3f}%（{g.get('win')} 日）· 影子**{shadow}**"
                 if mom is not None else "动量 —")
-    gate_txt += " · 开关**未启用**（固定哑铃）" if not on else " · 开关**已启用**"
+    gate_txt += f" · 开关**未启用**（{tilt}）" if not on else " · 开关**已启用**"
 
     summary = (f"债腿 {float(bond.get('pp') or 0):.0f}pp = {_pp(bond)}"
-               f"（70% 003376 / 30% 011983）· 现金腿 {float(cash.get('pp') or 0):.0f}pp = {_pp(cash)}"
+               f"（{cw:.0%} 003376 / {bw:.0%} 011983）· 现金腿 {float(cash.get('pp') or 0):.0f}pp = {_pp(cash)}"
                f"（余额宝 / 存单）· {gate_txt}")
 
     return _entry(
         "bond_cash", "稳健资产 · 债腿 30pp + 现金腿 10pp", as_of,
-        "固定哑铃" if not on else f"开关·{shadow}", "none", summary, rows,
+        tilt if not on else f"开关·{shadow}", "none", summary, rows,
         [["债腿", f"{float(bond.get('pp') or 0):.0f}pp（{_pp(bond)}）"],
          ["现金腿", f"{float(cash.get('pp') or 0):.0f}pp（{_pp(cash)}）"],
          ["动量(参考)", f"{float(mom):+.2f}% · {shadow}" if mom is not None else "—"],
          ["连跌纪律", f"{(d.get('discipline') or {}).get('down_days', 0)} 日"]],
         note="债腿与现金腿**分格不混用**：债腿只用 6xx（久期来源）、现金腿只用 7xx（存单/短融不算久期）。"
-             "债腿 = 70% 7-10 年国开 A（`003376`）+ 30% 3-5 年政金 A（`011983`），"
-             "**固定哑铃、每天不动手** —— 文档 §0 的主口径。"
+             f"债腿 = {cw:.0%} 7-10 年国开 A（`003376`）+ {bw:.0%} 3-5 年政金 A（`011983`），"
+             f"**{tilt}、每天不动手**。"
+             "**2026-11-20 由 70/30 改为 35/65**（用户指令）：35% 是家族里 v1/v3 的「中性」长端档，"
+             "改后 v0 是纯中性基准，回测（2021-12~2026-11）由 +4.54%/−2.38%/夏普 1.80 "
+             "变为 +4.20%/−1.98%/**1.87** —— 少赚 0.34pp，回撤浅 0.40pp，夏普反而更高。"
              "动量开关（中债 7-10 近 63 日累计收益符号）默认**关闭**：本仓库用真实壳复现不出文档"
              "的正增量（零死区 10 年翻 50+ 次 vs 文档 20 次，成本吃穿毛 alpha；且文档的价值集中在"
              "2016-11 债灾，003376 成立 2016-09-26 + 63 日预热后首个信号已在债灾中段），"
@@ -1649,6 +1660,174 @@ def parse_bond_cash_v6(_cfg):
     )
 
 
+def parse_bond_cash_v8(_cfg):
+    """板块6 V8 卡片：久期阶梯结构预算 + 同档择一 + 进攻档煞车 + 长端趋势闸门。
+
+    读 ``strategies/bond_cash/v8_duration_ladder/daily/_v8_daily.json``；权重、择壳、
+    闸门状态都在 v8 的 engine 里算完，看板只展示。
+
+    **口径提示**：v8 的 30pp 债腿内部是**六腿权重**（0~100%，和 = 100%），与 v0/v1/v3 的
+    「长端占比」不是同一个量；闸门离场时长端那部分退到货基，会在卡里单独标出来。
+    """
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    tg = d.get("trend_gate") or {}
+    sig = d.get("signal") or {}
+    wh = d.get("weights_held") or {}
+    pick = d.get("pick") or "—"
+
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+
+    mom = tg.get("mom")
+    mom_txt = f"{mom:+.2f}%" if mom is not None else "—"
+    gate_txt = ("未启用" if not tg else
+                (f"长端在仓（{tg.get('mom_win')} 日动量 {mom_txt}）"
+                 if tg.get("state") else
+                 f"长端离场 → 退 {tg.get('to')}（动量 {mom_txt}）"))
+    long_w = float(wh.get("003376") or 0.0)
+    summary = (f"六腿权重：长端 `003376` **{long_w:.0%}** · 中端持 `{pick}` · "
+               f"债腿波动 {d.get('vol')}% · 长端闸门 {gate_txt} · "
+               f"{'今日调仓' if sig.get('moved') else '不动手'}"
+               f"（{sig.get('next_rebalance') or '—'}）")
+
+    return _entry(
+        "bond_cash_v8", "V8 · 久期阶梯风险预算（六腿 0~100%）", d.get("as_of"),
+        f"长端 {long_w:.0%}", "hold",
+        summary, rows,
+        [["债腿额度", f"{d.get('bond_pp')}pp（现金 {d.get('cash_pp')}pp 固定）"],
+         ["中端择壳", f"{pick}"],
+         ["长端闸门", gate_txt],
+         ["债腿波动", f"{d.get('vol')}%（60 日年化）"]],
+        note="**V8 与 v0/v1/v3 的区别：它解的是「六条腿各配多少」（0~100%，和 100%），"
+             "不是「长端占债腿几成」。** 结构预算长端 20% / 中端 45%（同档择一）/ 短端 5% / "
+             "信用 30%（2/3 + 1/3），现金 10pp 仍固定在外。动态只两处：中端按 504 日夏普换壳"
+             "（死区 0.15）、长端按 σ252/σ60 只煞车不追高。"
+             "**回测（2021-12~2026-11，债腿内部）夏普 1.83 vs v0 固定中性 35/65 的 1.87** —— "
+             "⚠ 2026-11-20 v0 由 70/30 改成 35/65 后基准变强，v8 已**不跑赢基准**（对旧 70/30 是 1.80，"
+             "当初只赢 0.03）。真正起作用的是「长端降到 20%」的结构，不是择时（关掉两项动态是 1.85）；"
+             "而 35/65 用一个数字就做到了同一件事。长窗（2019-06 起，中端只能用 `001512`）1.58 vs 1.41，"
+             "长窗反而跑赢 —— 对底仓壳质量敏感，两个窗口结论相反，别只引一个。"
+             "长端趋势闸门（2026-11-20 装）在**费前**把夏普抬到 1.98，但按 A 类真实赎回费阶梯"
+             "（<7 日 1.50% / 7~30 日 0.50% / 30~365 日 0.10%）逐笔计后只有 1.65，"
+             "**低于不开闸门**；它买的是「回撤更浅」，不是更高夏普。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["腿", "标的/信号", "动作", "占总资产"],
+        all_rows=True,
+    )
+
+
+def parse_bond_cash_v7(_cfg):
+    """板块6 **默认策略**卡片：四门派 ERC 风险预算（利率 / 信用 / 转债）+ 风险贡献分解。
+
+    读 ``strategies/bond_cash/v7_risk_budget/daily/_v7_daily.json``；配比、ERC 不动点解、
+    风险贡献全在 v7 的 engine 里算完，看板只展示（不复刻规则，避免两边漂移）。
+
+    2026-11-21 起 V7 是板块6 的默认策略、v0（35/65 固定中性）转为基准 —— 卡面同时给
+    「债腿怎么分」与「谁在偷风险」，与基准的相对表现（短窗落后、长窗领先）写在 note 里。
+    """
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    sig = d.get("signal") or {}
+    wh = d.get("weights_held") or {}
+    held = d.get("held") or {}
+    tgt = d.get("target") or {}
+    rc = d.get("rc_held") or {}
+    diff = sig.get("diff_pp") or {}
+    nm = {"rate": "利率", "credit": "信用", "conv": "转债"}
+
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+
+    wtxt = " / ".join(f"{nm.get(k, k)} {float(v):.0%}" for k, v in wh.items())
+    rctxt = " / ".join(f"{nm.get(k, k)} {float(v):.0f}%" for k, v in rc.items())
+    top = max(rc, key=rc.get) if rc else None
+    summary = (f"债腿权重 {wtxt} · 风险贡献 {rctxt}"
+               f"（最吃风险：**{nm.get(top, top)}**）· 债腿波动 {d.get('vol')}% · "
+               f"{'今日调仓' if sig.get('moved') else '不动手'}"
+               f"（{sig.get('next_rebalance') or '—'}）")
+
+    return _entry(
+        "bond_cash_v7", "V7 · 门派风险预算（ERC，板块默认）", d.get("as_of"),
+        f"利率 {float(wh.get('rate') or 0):.0%}", "hold",
+        summary, rows,
+        [["债腿额度", f"{float(d.get('bond_pp') or 0):.0f}pp"
+                     f"（现金 {float(d.get('cash_pp') or 0):.0f}pp 固定、不进 ERC）"],
+         ["当前→目标",
+          " / ".join(f"{nm.get(k, k)} {float(held.get(k) or 0):.2f}→"
+                     f"{float(tgt.get(k) or 0):.2f}" for k in ("rate", "credit", "conv"))],
+         ["偏差", " / ".join(f"{nm.get(k, k)} {float(v):+.2f}pp"
+                            for k, v in diff.items()) or "—"],
+         ["债腿波动", f"{d.get('vol')}%（60 日年化）"]],
+        note="**2026-11-21 起这是板块6 的默认策略**：债腿 30pp 按四门派等风险贡献（ERC）分配，"
+             "现金 10pp 固定在外，月末调仓、平时不动手；v0（35% `003376` + 65% `011983` 固定中性）"
+             "转为**基准**，不再单独出卡。"
+             "它的产出有三件：① 目标配比；② **风险贡献分解**（谁在偷风险 —— 利率债受下限 50% 绑定，"
+             "风险贡献长期高于其权重；转债权重只有 5% 却能贡献 17~26%）；③ 与基准的相对位置。"
+             "**相对基准 v0 35/65**：短窗（近 5 年）夏普 **1.77 < 1.87**，"
+             "长窗（9.9 年）**1.92 vs 1.31、回撤 −2.03% vs −4.26%、最差年 +0.33% vs −1.78%** —— "
+             "两类窗口结论相反，选它靠的是长窗与「最差年不亏」，不是短期更强。"
+             "⚠ 转债腿只有 `470058` 一只主动型壳（中证转债指数接口未落地），信用腿 `000032` 是主动信用纯债；"
+             "协方差窗 60 日、收缩 δ=0.30，参数为样本内标定。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {v}" for k, v in (d.get("sources") or {}).items()),
+        cols=["门派/腿", "标的", "动作", "占总资产"],
+        all_rows=True,
+    )
+
+
+def parse_bond_cash_v5(_cfg):
+    """板块6 V5 卡片：按已实现波动缩放长端敞口（目标 1.5%，上限 70%，σ>3% 清零）。
+
+    读 ``strategies/bond_cash/v5_vol_target/daily/_v5_daily.json``。与 v0/v1/v3 同样的
+    「长端占比」口径（0~100%），只是这个占比由波动反推，不由方向票决定。
+
+    **口径提示**：2026-11-20 v0 基准改为 35/65 后，V5 的夏普（1.80）低于基准（1.87）——
+    它用动态缩放复制了基准的敞口位置，多付换手却没抬夏普。卡里如实标注。
+    """
+    path = os.path.join(_ROOT, _cfg["daily"]["signal_json"])
+    d = json.loads(_read(path))
+    v = d.get("vol") or {}
+    sig = d.get("signal") or {}
+    eff = float(sig.get("eff") or 0)
+    pending = sig.get("pending")
+    ratio = float(v.get("ratio") or 0)
+    guard = bool(v.get("guard"))
+
+    rows = [_row(r["code"], r.get("short") or r.get("name"), r.get("act", "none"),
+                 r.get("label") or "—", r.get("note") or "") for r in d.get("rows") or []]
+
+    summary = (f"已实现波动 **{float(v.get('sigma') or 0) * 100:.2f}%**（目标 "
+               f"{float(v.get('target') or 0) * 100:.2f}% 的 **{ratio:.2f}×**）→ 长端 "
+               f"**{eff:.1f}%**"
+               + (" · ⛔ 熔断清零" if guard else "")
+               + f" · {'今日调仓' if sig.get('moved') else '不动手'}"
+               f"（{sig.get('next_rebalance') or '—'}）")
+
+    return _entry(
+        "bond_cash_v5", "V5 · 波动率目标（长端占比由 σ 反推）", d.get("as_of"),
+        f"长端 {eff:.0f}%", sig.get("act", "none"), summary, rows,
+        [["σ21 / σ63", f"{float(v.get('sigma21') or 0) * 100:.2f}% / "
+                       f"{float(v.get('sigma63') or 0) * 100:.2f}%"],
+         ["当前 / 目标", f"{eff:.1f}% → {float(pending or 0):.1f}%"],
+         ["熔断", "⛔ 已触发（σ>3% 清零）" if guard else "未触发（σ≤3%）"],
+         ["调仓", "月末最后一个交易日" if not sig.get("is_rebalance") else "今天"]],
+        note="**口径与 v8 不同：V5 解的是「长端占债腿几成」（0~70%），v8 解的是六条腿各配多少。** "
+             "规则：σ = max(σ21, σ63) 年化；`w = 70% × min(1, 1.50%/σ)`，clip 到 [0,70%]，"
+             "σ>3% 直接清零；月末调仓 + 滞后带（避免噪声来回切）。"
+             "**回测（2021-12~2026-11）**：+4.15% / −1.66% / 夏普 **1.80**，"
+             "vs 基准 v0 35/65 **+4.15% / −1.98% / 1.87** —— ⚠ 年化相同、**夏普低 0.07，跑不赢基准**。"
+             "机制对照（反过来「高波动加久期」）+4.25% / −2.38% / 1.66：收益几乎相同、回撤差 0.72pp，"
+             "说明「回撤更浅」确实来自按波动缩放，不是运气；但也说明**它只是在复制敞口位置**，"
+             "而 35/65 用固定配比免费拿到了同样的位置。定位是**风险预算**，不是 alpha。",
+        src=_rel(path),
+        data=" · ".join(f"{k} {n}" for k, n in (d.get("sources") or {}).items()),
+        cols=["腿", "标的/信号", "动作", "占总资产"],
+        all_rows=True,
+    )
+
+
 PARSERS = {
     "dividend": parse_dividend,
     "vol_variants": parse_vol_variants,
@@ -1670,6 +1849,8 @@ PARSERS = {
     "bond_cash_v4": parse_bond_cash_v4,
     "bond_cash_v5": parse_bond_cash_v5,
     "bond_cash_v6": parse_bond_cash_v6,
+    "bond_cash_v7": parse_bond_cash_v7,
+    "bond_cash_v8": parse_bond_cash_v8,
 }
 
 

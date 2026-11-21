@@ -432,9 +432,11 @@ def main():
     for key in ("tech_indicators", "vol_variants", "growth_div_rotation", "gd_v5"):
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
+    # 板块6 只有 V7 上板（2026-11-21 起）；其余变种停用后不会出现在 entries 里，
+    # 这里仍一并列出 —— 万一哪天重新上板，口径标注不会漏。
     for key in ("permanent", "vol_legs", "dividend", "dividend_v9", "bond_cash",
                 "bond_cash_v1", "bond_cash_v2", "bond_cash_v3", "bond_cash_v4",
-                "bond_cash_v5", "bond_cash_v6"):
+                "bond_cash_v5", "bond_cash_v6", "bond_cash_v7", "bond_cash_v8"):
         if key in entries:
             _mark(entries[key], "🟡", "无盘中数据源（场外净值/月度估值/美股未开盘），沿用上一收盘")
 

@@ -29,7 +29,8 @@
 `backtest.py` 每次都会同时跑两种口径做对照（报告 §〇）；蛋卷周频版的独立检验见
 `research/_pb_real_check.md`（ROE 变异系数 9.4%~11.1%，Δ(PB−PE) 对 13 周收益 t=2.32）。
 
-当前池内全部有等权估值，**无价格温度标的**；`temp_at` 仍保留价格温度分支（`TEMP_KIND_PX`）供未来加回无估值标的时复用。
+主表 6 只全部有等权估值；`rule.SIDE_FUNDS` 的 4 只走 `build_side()` 的**价格温度分支**
+（`TEMP_KIND_PX`，`has_valuation=False`），只出副表、不进回测与排名。
 
 无前视：分位只用 `≤ asof` 的观测；温度在月末算出，下月才用于决策。
 """
@@ -103,6 +104,65 @@ def fund_daily(f: dict, cn: pd.Series, refresh: bool = False,
         d["dy"] = np.nan
         d["spread"] = 100.0 / d["pe"] - d["y10"]
     return d
+
+
+# ------------------------------------------------------------------ † 副表（只价格，无估值）
+def px_daily(f: dict, refresh: bool = False) -> tuple[pd.DataFrame, dict]:
+    """副表标的日频面板（**只算价格因子**）-> (DataFrame, meta)。
+
+    * `src="csi"`：中证官网日频（931157 / 930914）；
+    * `src="sina"`：同标的 ETF/LOF 价格代理（两个标普系列），取历史最长的候选。
+    只填 close/high/low/dev/pos；pe/pb/spread 一律 NaN —— 没有估值就不填，
+    由 `temp_at(..., has_valuation=False)` 走价格温度分支，**不拿加权 PE 冒充等权**。
+    meta = {price_src, proxy, used_fallback}
+    """
+    meta = {"price_src": f["src"], "proxy": None, "used_fallback": False}
+    if f["src"] == "sina":
+        raw, info = data.load_proxy_best(f.get("proxies") or [], refresh=refresh)
+        meta.update(proxy=info.get("chosen"), used_fallback=bool(info.get("used_fallback")))
+        if raw.empty:
+            return pd.DataFrame(), meta
+        d = raw.set_index("date")[["close", "high", "low"]].sort_index()
+    else:
+        raw = data.load_index(f["index"], refresh=refresh)
+        if raw.empty:
+            return pd.DataFrame(), meta
+        d = raw.set_index("date")[["close", "high", "low"]].sort_index()
+    d = d[~d.index.duplicated(keep="last")]
+    for c in ("close", "high", "low"):
+        d[c] = pd.to_numeric(d[c], errors="coerce")
+    d = d.dropna(subset=["close"])
+    if d.empty:
+        return pd.DataFrame(), meta
+
+    ma = d["close"].rolling(rule.MA_WIN, min_periods=rule.MA_WIN).mean()
+    hi = d["high"].rolling(rule.POS_WIN, min_periods=rule.POS_WIN).max()
+    lo = d["low"].rolling(rule.POS_WIN, min_periods=rule.POS_WIN).min()
+    d["dev"] = d["close"] / ma - 1
+    d["pos"] = (d["close"] - lo) / (hi - lo) * 100
+    d["pe"] = np.nan
+    d["pb"] = np.nan
+    d["dy"] = np.nan
+    d["spread"] = np.nan
+    d["y10"] = np.nan
+    return d, meta
+
+
+def build_side(refresh: bool = False) -> dict[str, dict]:
+    """副表（`rule.SIDE_FUNDS`）面板 -> {code: {daily, monthly, fund, meta}}。
+
+    只服务 `daily.py` 与 `charts.py`；**不进 `backtest.py`**，避免价格温度混入回测池。
+    """
+    out = {}
+    for f in rule.SIDE_FUNDS:
+        daily, meta = px_daily(f, refresh=refresh)
+        if daily.empty:
+            print(f"[v9:warn] 副表 {f['code']}({f['index']}) 无价格数据，跳过", file=sys.stderr)
+            continue
+        # fund 里带上 has_valuation=False，charts/看板据此把标签写成「价格温度†」
+        out[f["code"]] = {"daily": daily, "fund": dict(f, has_valuation=False), "meta": meta,
+                          "monthly": temp_at(daily, month_ends(daily.index), has_valuation=False)}
+    return out
 
 
 # ------------------------------------------------------------------ 分位

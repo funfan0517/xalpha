@@ -14,6 +14,9 @@
    不要与外部「按加权 PE 分位」的说法直接对照。
 3. **权重原样保留** 35/20/16/15/14（外部规则 R0-1，禁改）。
 
+**主表 6 只 vs † 副表 4 只**：`FUNDS` 只放有 etf.run 等权 PE/PB 的 6 只（温度可横比）；
+`SIDE_FUNDS` 是 2026-11-20 按用户要求单列出来的 4 只，只算价格温度、不参与排名、不进回测。
+
 方向：分位一律折算成「越高越热」。股债收益差反号（利差宽 = 便宜 = 低分位 = 冷）。
 """
 from __future__ import annotations
@@ -91,6 +94,31 @@ BY_CODE = {f["code"]: f for f in FUNDS}
 VALUED = CODES                    # 全池都有估值口径（入选条件）
 INDEX_OF = {f["code"]: f["index"] for f in FUNDS}
 
+# ------------------------------------------------------------------ † 副表（只读，不进主表）
+# 2026-10-29 剔出主表的 4 只（原因见 RULES.md §三）。它们**拿不到 etf.run 等权 PE/PB**，
+# 因此只能算「价格温度 = 0.5×年线乖离 + 0.5×价格位置」（外部规则 §4.4），并按该节要求：
+#   * 标 †，**不与五因子温度比大小、不参与排名与横截面、不进 hot/warm/cold 清单**；
+#   * 不写入 backtest（回测池仍是 6 只），只出现在 `daily.py` 的副表与看板。
+# 用途：回答「这 4 只我拿着，现在贵不贵」—— 只做价格维度的体检，不给档位动作。
+SIDE_FUNDS = [
+    # code, 短名, 指数键, 跟踪指数, 价格源, 代理候选, 为什么进不了主表
+    dict(code="007760", short="沪港深红利低波", index="931157", index_name="沪港深红利成长低波",
+         src="csi", proxies=[],
+         why="etf.run 未收录该指数（无等权 PE/PB），中证官网只有加权 PE"),
+    dict(code="018388", short="港股通高股息", index="930914", index_name="中证港股通高股息投资",
+         src="csi", proxies=[],
+         why="etf.run 未收录；且港股要用美债锚，中债 10Y 会把利差长期判成极宽"),
+    dict(code="008163", short="标普红利低波50", index="SPCALVHD50",
+         index_name="标普中国A股大盘红利低波动50",
+         src="sina", proxies=["sh515450"],
+         why="中证/蛋卷/东财三源皆无估值，只能用同标的 ETF 价格代理（515450）"),
+    dict(code="005125", short="标普红利机会", index="CSPSADRP", index_name="标普中国A股红利机会",
+         src="sina", proxies=["sh501029", "sh562060"],
+         why="三源皆无估值；价格用 LOF 代理（501029 主，562060 仅回退）"),
+]
+SIDE_CODES = [f["code"] for f in SIDE_FUNDS]
+SIDE_BY_CODE = {f["code"]: f for f in SIDE_FUNDS}
+
 BASE_LABEL = f"基准：{len(CODES)} 只等权"
 UNIT = ""
 
@@ -110,6 +138,7 @@ def band_of(temp: float):
 # ------------------------------------------------------------------ 路径
 DATA_DIR = os.path.join(_DIR, "data")
 IDX_DIR = os.path.join(DATA_DIR, "_idx")            # 中证指数日频（close/high/low）
+SINA_DIR = os.path.join(DATA_DIR, "_sina")          # 标普系 ETF/LOF 价格代理（仅 † 副表用）
 BT_DIR = os.path.join(_DIR, "backtest")
 DAILY_DIR = os.path.join(_DIR, "daily")
 

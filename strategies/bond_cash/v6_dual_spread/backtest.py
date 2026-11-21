@@ -70,11 +70,11 @@ def main(argv=None):
 
     rets = df.pct_change().dropna()
     fixed = {
-        "v0 固定哑铃 70/30": {long_c: 0.70, rate_c: 0.30},
-        "固定中性 35/65": {long_c: 0.35, rate_c: 0.65},
+        "**基准 v0 固定中性 35/65**": {long_c: 0.35, rate_c: 0.65},
+        "v0 旧配比 70/30（2026-11-20 前）": {long_c: 0.70, rate_c: 0.30},
         "全防守 100% 3-5 政金": {rate_c: 1.00},
         "全进攻 100% 7-10 国开": {long_c: 1.00},
-        "固定 70/30 但底仓用信用债": {long_c: 0.70, credit_c: 0.30},
+        "固定 35/65 但底仓用信用债": {long_c: 0.35, credit_c: 0.65},
         "满仓信用债 000032": {credit_c: 1.00},
     }
     fixed_net = {}
@@ -86,11 +86,11 @@ def main(argv=None):
         ("**V6 双轴（期限利差 × 信用利差）**", net, bt["turn"]),
         ("只久期轴（底仓固定 011983）", bt_dur["ret"], bt_dur["turn"]),
         ("只品种轴（长端固定 70%）", bt_cr["ret"], bt_cr["turn"]),
-        ("v0 固定哑铃 70/30", fixed_net["v0 固定哑铃 70/30"], None),
-        ("固定中性 35/65", fixed_net["固定中性 35/65"], None),
+        ("**基准 v0 固定中性 35/65**", fixed_net["**基准 v0 固定中性 35/65**"], None),
+        ("v0 旧配比 70/30（2026-11-20 前）", fixed_net["v0 旧配比 70/30（2026-11-20 前）"], None),
         ("全防守 100% 3-5 政金", fixed_net["全防守 100% 3-5 政金"], None),
         ("全进攻 100% 7-10 国开", fixed_net["全进攻 100% 7-10 国开"], None),
-        ("固定 70/30 但底仓用信用债", fixed_net["固定 70/30 但底仓用信用债"], None),
+        ("固定 35/65 但底仓用信用债", fixed_net["固定 35/65 但底仓用信用债"], None),
         ("满仓信用债 000032", fixed_net["满仓信用债 000032"], None),
     ]
 
@@ -157,11 +157,11 @@ def main(argv=None):
     A("")
 
     yv = net.groupby(net.index.year).apply(lambda x: (1 + x).prod() - 1)
-    y0s = fixed_net["v0 固定哑铃 70/30"]
+    y0s = fixed_net["**基准 v0 固定中性 35/65**"]
     y0 = y0s.groupby(y0s.index.year).apply(lambda x: (1 + x).prod() - 1)
-    A("**逐年（V6 vs v0 固定哑铃）**")
+    A("**逐年（V6 vs 基准 v0 固定中性 35/65）**")
     A("")
-    A("| 年 | V6 | v0 | 差 |")
+    A("| 年 | V6 | v0 35/65 | 差 |")
     A("|---|---:|---:|---:|")
     for y in sorted(set(yv.index) | set(y0.index)):
         a, b = float(yv.get(y, 0)) * 100, float(y0.get(y, 0)) * 100
@@ -171,17 +171,17 @@ def main(argv=None):
     m_dur = engine.metrics(bt_dur["ret"])
     m_cr = engine.metrics(bt_cr["ret"])
     m_v0 = engine.metrics(y0s)
-    m_neu = engine.metrics(fixed_net["固定中性 35/65"])
-    m_fixcr = engine.metrics(fixed_net["固定 70/30 但底仓用信用债"])
+    m_v0o = engine.metrics(fixed_net["v0 旧配比 70/30（2026-11-20 前）"])
+    m_fixcr = engine.metrics(fixed_net["固定 35/65 但底仓用信用债"])
     A("## 结论与边界")
     A("")
     A(f"- V6 双轴 年化 **{m_v6['cagr']:+.2f}%** / 回撤 **{m_v6['mdd']:+.2f}%** / 夏普 "
       f"{m_v6['sharpe']:.2f}；只久期轴 {m_dur['cagr']:+.2f}% / {m_dur['mdd']:+.2f}% / "
       f"{m_dur['sharpe']:.2f}；只品种轴 {m_cr['cagr']:+.2f}% / {m_cr['mdd']:+.2f}% / "
       f"{m_cr['sharpe']:.2f}。")
-    A(f"- 基准：v0 固定哑铃 {m_v0['cagr']:+.2f}% / {m_v0['mdd']:+.2f}% / {m_v0['sharpe']:.2f}；"
-      f"固定中性 {m_neu['cagr']:+.2f}% / {m_neu['mdd']:+.2f}% / {m_neu['sharpe']:.2f}；"
-      f"固定 70/30 但底仓换信用债 {m_fixcr['cagr']:+.2f}% / {m_fixcr['mdd']:+.2f}% / "
+    A(f"- 基准：v0 固定中性 35/65 {m_v0['cagr']:+.2f}% / {m_v0['mdd']:+.2f}% / {m_v0['sharpe']:.2f}；"
+      f"旧配比 70/30 {m_v0o['cagr']:+.2f}% / {m_v0o['mdd']:+.2f}% / {m_v0o['sharpe']:.2f}；"
+      f"固定 35/65 但底仓换信用债 {m_fixcr['cagr']:+.2f}% / {m_fixcr['mdd']:+.2f}% / "
       f"{m_fixcr['sharpe']:.2f}。")
     A("- 「只久期轴」与「只品种轴」两行用来分离贡献：双轴若跑不过任一单轴，说明两轴在互相抵消"
       "（和 v3 里 carry 与 trend 常常抵消是同一个病）。")

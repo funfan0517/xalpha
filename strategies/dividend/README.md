@@ -208,6 +208,7 @@ strategies/dividend/
 | ⑤ V10 每日状态机读数 | `v10_resonance/daily.py` → `daily/_v10_signal.{md,json}`（**不进每日流程**；只出状态、三条买点条件、三条卖线、分批计划） |
 | ③ **V11** | `v11_gate/`（**闸门**：V9 板块温度只修饰 V4 的仓位档位深度）→ `backtest/_v11_report.md`（消融 / 冷热闸网格 / 暴露对照 / 剔除与分窗 / 置换 / 触发诊断）· `data/_board_temp.csv`（板块温度月频，跨策略数据类） |
 | ⑤ V11 读数 | `v11_gate/daily.py` → `daily/_v11_signal.{md,json}`（**不进每日流程**、不出仓位建议；闸门状态 + 「为什么不采纳」） |
+| ③ **V12** | `v12_pe_gate/`（**PE 闸门**：只把「自身 PE 分位」接到 V4 的仓位深度上，标的级 / 板块级两种口径）→ `backtest/_v12_report.md`（覆盖诊断 / 阈值网格 / 分年度 / 等暴露去杠杆对照 / 子样本）。**结论：不接**（等暴露对照 1.41 ≥ V12 1.33 → 只是降仓位），`daily.enabled=false` |
 | ⑤ V4 今日信号 | `v4_rsi/daily.py`（当前档位 + 持仓 + 下个决策点）→ `v4_rsi/daily/_v4_signal.md` |
 | ⑤ V4 读数图 + 看板 | `v4_rsi/chart.py`（逐标的：左轴累计净值 / 右轴 RSI14，背景按满仓/减半/清仓三档着色并标注操作；默认池内 5 只近一年，`--all` 全样本、`--basis index` 改指数点位、**`--ops` 出五只标的的操作标注总图** → `daily/_v4_ops_all.png`：净值走势 + 该标的实际仓位台阶 0/25/50% + ▲▼ 每次加/减仓点 + 板块 RSI 均值档位格）→ `v4_rsi/daily/_v4_<code>_chart[_all][_index].png`；`v4_rsi/dashboard.py` → `daily/_v4_dashboard.html`（卡片式看板，内嵌上述小图） |
 | ③ V7 | `v7_combo/`（组合搜索 + 最终优选）→ `v7_combo/backtest/_v7_report.md` |
@@ -218,6 +219,8 @@ strategies/dividend/
 | ④ **超越搜索（2026-11-19）** | `research/beat_best/_beat_best.py` → `_beat_best.md`：以每只标的的 ★1 为基线，10 档固定候选（含 C10「RSI14+RSI12 各 50%」集成）+ 后段闸门 + 邻域检验。对应 vol_legs 的 `research/beat_best` |
 | ④ **温度档位配权（2026-11-19）** | `v9_temp5/research/temp_weight/_temp_weight.py` → `_temp_weight.md`：把红利资金看成 100%，按 V9 温度档位在 6 只标的间分配（不降总仓位）。**结论：+0.5pp/年、Calmar +0.13，两段窗口同向但只踩在 95% 边缘**；增量来自动态调权（静态倾斜 ≈ 等权），落地建议 λ=0.5 半强度 + 只在大档位动 |
 | ④ **V4×V9 结合（2026-11-19）** | `research/v4_v9_combo/_v4_v9_combo.py` → `_v4_v9_combo.md`：四种结合方式（RSI 选品×温度定时、温度选品×RSI 定时、双倍率取保守、资金各半）同尺实测。**结论：都不如 V4 自己**（1.61/1.55 vs 最好 1.57/1.56），因为温度与 RSI 的月度收益相关性 0.93、减仓时点高度重叠；V9 保持体检表定位，不进每日流程 |
+| ④ **V4 核心-卫星（2026-11-20）** | `v4_rsi/research/core_satellite/_core_satellite.py` → `_core_satellite.{md,json}`：把「最优=买入持有」的标的当固定比例底仓（30/50/70%）、剩余只给择时组按 V4 规则分配；底仓再试「滚动夏普前 2 / 波动最低 2 只」筛选。**结论：不采纳** —— 底仓越大夏普越低（0.95→0.92→0.87→0.82→0.73，单调），连事后固定底仓（含前视）也只有 0.85 < V4 0.99；唯一不低于 V4 的「50% 底仓 + 档位作用于整体」（1.00/Calmar 1.51）本质是权重倾斜，夏普差在噪声内 |
+| ④ **权重分配（2026-11-20）** | `research/weight_opt/_weight_opt.py` → `_weight_opt.{md,json}`：10 只标的的 0–100 权重怎么摆（合计 100）。三段 —— A 静态最优（含前视=上限）· B 24 月滚动样本外（逆波动率/ERC/最小方差/最大夏普，协方差收缩 50% + 单只 2%–25%）· C 信号倾斜（RSI/股息率/PE 分位/择时适配度）+ 叠加 V4 板块档位。**结论：纯调权重最好 +0.05 夏普（0.66→0.71，标准误 ±0.50 内），收益全在降波动；V4 top2 的 0.84 仍最高。** |
 | 启动 | `run_daily_dividend.ps1`（仓库根） |
 
 ### 版本谱系与结论（2026-10-26）
@@ -338,6 +341,7 @@ python strategies/dividend/v10_resonance/chart.py         # V10 净值+股息率
 python strategies/dividend/v11_gate/_temp_board.py        # V11 板块温度(6只/4只中位) → data/_board_temp.csv
 python strategies/dividend/v11_gate/backtest.py           # V11 闸门消融+网格+三把刀 → backtest/_v11_report.md
 python strategies/dividend/v11_gate/daily.py              # V11 今日读数(闸门状态, 不出仓位建议) → daily/_v11_signal.md
+python strategies/dividend/v12_pe_gate/backtest.py        # V12 PE 分位闸门 × V4 RSI14（结论：不接）→ backtest/_v12_report.md
 python strategies/dividend/v0_rank/rank.py --refresh      # V0 打分排序 + 推荐操作(已退出每日流程)
 python strategies/dividend/v0_rank/backtest_rank.py       # V0 打分窗权 walk-forward 调优回测
 python strategies/dividend/pool_rule_v1.py                # v1.0 利差读数卡（不替换 V0）
@@ -358,6 +362,8 @@ python strategies/dividend/research/best_by_fund/_best_by_fund.py  # 每只标�
 python strategies/dividend/research/beat_best/_beat_best.py        # 超越搜索（读上一步的 jsonl 当基线）
 python strategies/dividend/v9_temp5/research/temp_weight/_temp_weight.py  # 温度档位配权（满仓、按档位分权重）
 python strategies/dividend/research/v4_v9_combo/_v4_v9_combo.py    # V4×V9 结合（四种结合方式同尺对照）
+python strategies/dividend/research/weight_opt/_weight_opt.py      # 10 只权重分配研究（静态上限/滚动样本外/信号倾斜 + 下月建议权重）
+python strategies/dividend/v4_rsi/research/core_satellite/_core_satellite.py  # V4 核心-卫星（持有组固定底仓 + 择时组再分配；结论：不采纳）
 python strategies/dividend/_compare_all.py       # V0–V10 总对比（§一 V0–V8 全景 + §三 原生口径含 V9/V10）
 powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1
 # 或走 pipeline:

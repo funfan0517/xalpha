@@ -12,7 +12,7 @@
 口径
   - 收益一律场外**累计净值**日收益（含分红再投），不用场内行情涨跌幅；
   - T 日收盘算动量，T+1 起承担仓位（``shift(1)``）；
-  - 成本：切换一次 = 核心段 70% × 单边 × 2（默认单边 10bp，另给 0 / 40bp 敏感性）；
+  - 成本：切换一次 = 核心段 35% × 单边 × 2（默认单边 10bp，另给 0 / 40bp 敏感性）；
   - 夏普无风险利率 1.40%（货基）。
 
 用法
@@ -66,7 +66,7 @@ def _common_start(navs, codes, win):
     return df.index[win] if len(df) > win else df.index[-1]
 
 
-def _scenario(navs, name, on, off, base, win, fee_side, gate, start=None, base_w=0.30,
+def _scenario(navs, name, on, off, base, win, fee_side, gate, start=None, base_w=None,
               deadband=0.0):
     bt = engine.backtest_leg(navs, on, off, base, win=win, base_w=base_w,
                              fee_side=fee_side, gate=gate, deadband=deadband)
@@ -118,17 +118,19 @@ def main(argv=None):
                                win, fee, True, start_b, deadband=db)
     m_gate0, r_gate0 = _scenario(navs, "开关 死区0", "003376", "011983", "011983",
                                  win, fee, True, start_b, deadband=0.0)
-    m_static, r_static = _scenario(navs, "**默认：固定哑铃 70/30**", "003376", "011983", "011983",
+    m_static, r_static = _scenario(navs, "**默认：固定中性 35/65**", "003376", "011983", "011983",
                                    win, fee, False, start_b)
-    m_defs, _ = _scenario(navs, "开关(死区0)+短端防守档 70%→002864", "003376", "002864", "011983",
+    m_old, r_old = _scenario(navs, "旧默认 70%003376+30%011983（2026-11-20 前）",
+                             "003376", "011983", "011983", win, fee, False, start_b, base_w=0.30)
+    m_defs, _ = _scenario(navs, "开关(死区0)+短端防守档 35%→002864", "003376", "002864", "011983",
                           win, fee, True, start_b, deadband=0.0)
-    m_short, _ = _scenario(navs, "底仓改短端 70%003376+30%002864", "003376", "002864", "002864",
+    m_short, _ = _scenario(navs, "底仓改短端 35%003376+65%002864", "003376", "002864", "002864",
                            win, fee, False, start_b)
     m_c, _ = _scenario(navs, "旧默认 70%003377C+30%001512", "003377", "003377", "001512",
-                       win, fee, False, start_b)
+                       win, fee, False, start_b, base_w=0.30)
     m_all_in, _ = _scenario(navs, "满仓 003376（不再平衡）", "003376", "003376", "003376",
                             win, fee, False, start_b)
-    for m in (m_static, m_gate, m_gate0, m_defs, m_short, m_c, m_all_in):
+    for m in (m_static, m_old, m_gate, m_gate0, m_defs, m_short, m_c, m_all_in):
         rows.append(dict(window="现行", **m))
         A(_row_md(m["name"], m))
     A("")
@@ -170,24 +172,26 @@ def main(argv=None):
                                  win, fee, True, start_a, deadband=db)
     m_agate0, _ = _scenario(navs, "开关 死区0", "003376", "001512", "001512",
                             win, fee, True, start_a, deadband=0.0)
-    m_astatic, r_astatic = _scenario(navs, "**默认：固定哑铃 70/30**", "003376", "001512", "001512",
+    m_astatic, r_astatic = _scenario(navs, "**默认：固定中性 35/65**", "003376", "001512", "001512",
                                      win, fee, False, start_a)
-    m_adefs, _ = _scenario(navs, "开关(死区0)+短端防守档 70%→002864", "003376", "002864", "001512",
+    m_aold, _ = _scenario(navs, "旧默认 70%003376+30%001512（2026-11-20 前）",
+                          "003376", "001512", "001512", win, fee, False, start_a, base_w=0.30)
+    m_adefs, _ = _scenario(navs, "开关(死区0)+短端防守档 35%→002864", "003376", "002864", "001512",
                            win, fee, True, start_a, deadband=0.0)
     m_ac, _ = _scenario(navs, "旧默认 70%003377C+30%001512", "003377", "003377", "001512",
-                        win, fee, False, start_a)
+                        win, fee, False, start_a, base_w=0.30)
     m_aoff, _ = _scenario(navs, "全防守 100% 001512", "001512", "001512", "001512",
                           win, fee, False, start_a)
     m_aon, _ = _scenario(navs, "全进攻 100% 003376", "003376", "003376", "003376",
                          win, fee, False, start_a)
-    for m in (m_astatic, m_agate, m_agate0, m_adefs, m_ac, m_aoff, m_aon):
+    for m in (m_astatic, m_aold, m_agate, m_agate0, m_adefs, m_ac, m_aoff, m_aon):
         rows.append(dict(window="长窗", **m))
         A(_row_md(m["name"], m))
     A("")
 
-    A("**逐年收益**（长窗：开关 死区 0.5% vs 固定哑铃）")
+    A("**逐年收益**（长窗：开关 死区 0.5% vs 固定中性 35/65）")
     A("")
-    A("| 年 | 开关 | 固定哑铃 | 差 |")
+    A("| 年 | 开关 | 固定中性 35/65 | 差 |")
     A("|---|---:|---:|---:|")
     yg = r_agate.groupby(r_agate.index.year).apply(lambda x: (1 + x).prod() - 1)
     ys = r_astatic.groupby(r_astatic.index.year).apply(lambda x: (1 + x).prod() - 1)
@@ -226,7 +230,7 @@ def main(argv=None):
     A("")
     A("| 40pp 组合 | 年化 | 波动 | 夏普 | 最大回撤 | 最差单年 |")
     A("|---|---:|---:|---:|---:|---:|")
-    for nm, branch in (("债腿固定哑铃 + 现金 50/50", r_static),
+    for nm, branch in (("债腿固定中性 + 现金 50/50", r_static),
                        ("债腿开关(死区0.5%) + 现金 50/50", r_gate),
                        ("纯现金（50/50）", None)):
         idx = (branch if branch is not None else rc1).index
@@ -247,12 +251,12 @@ def main(argv=None):
     # ---------------- 结论
     A("## 五、结论（比文档保守，原因写在下面）")
     A("")
-    A(f"- **默认不动手**：固定哑铃在现行窗 {_pct(m_static['cagr'])} / 回撤 {_pct(m_static['mdd'])}，"
+    A(f"- **默认不动手**：固定中性 35/65 在现行窗 {_pct(m_static['cagr'])} / 回撤 {_pct(m_static['mdd'])}，"
       f"长窗 {_pct(m_astatic['cagr'])} / {_pct(m_astatic['mdd'])}。")
     A(f"- **动量开关在本仓库的复现里没有增量**：死区 0 时长窗 {_pct(m_agate0['cagr'])} / "
       f"{_pct(m_agate0['mdd'])}（{m_agate0['switches']} 次换手），死区 0.5% 时 "
       f"{_pct(m_agate['cagr'])} / {_pct(m_agate['mdd'])}（{m_agate['switches']} 次）。"
-      "开与不开都在固定哑铃 ±0.5pp 内，但换手与成本是真的。")
+      "开与不开都在固定中性基准 ±0.5pp 内，但换手与成本是真的。")
     A("- **为什么复现不出文档 §3-1 的 +1.39pp / 回撤改善 7.89pp**：")
     A("  1. 文档的信号源是**中债 7-10 财富指数**（2002 起），本仓库只有基金净值。"
       "用 003376 净值替代后，10 年符号翻转 **53~54 次**（A/C 份额噪声不同），"
@@ -264,7 +268,7 @@ def main(argv=None):
       "本回测按单边 10bp 保守计。见 §一 成本敏感性：40bp 时开关直接变成负收益。")
     A("- **开关防得住什么、防不住什么**（文档 §8 原话）：防利率趋势反转，防不住负债端踩踏"
       "（2022-11 赎回潮起止均为进攻档、区间内 49% 在进攻）。")
-    A("- **死区曲线怎么读**：0→1% 单调收敛回固定哑铃（年化抬升、回撤收窄、换手锐减），"
+    A("- **死区曲线怎么读**：0→1% 单调收敛回固定中性（年化抬升、回撤收窄、换手锐减），"
       "说明开关的全部作用就是「少交易」—— 它没找到比「不做」更好的买卖点。"
       "这也解释了文档的正结论为什么依赖指数级信号：信号越干净，穿越越少，成本才不反噬。")
     A("- **样本内标定**：63 日窗口、0.5% 死区、5/7 日连跌阈值都取自同一份历史，不构成严格样本外。")

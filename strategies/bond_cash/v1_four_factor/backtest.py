@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V1 · 四因子久期档 回测（对照 v0 固定哑铃）。
+"""V1 · 四因子久期档 回测（对照基准 v0 固定中性 35/65，2026-11-20 起）。
 
 产物
   ``backtest/_v1_bt.jsonl``  逐档指标
@@ -124,14 +124,14 @@ def main(argv=None):
         A("| 方案 | 年化 | 波动 | 夏普 | 最大回撤 | 最差单年 | 均长端占比 |")
         A("|---|---:|---:|---:|---:|---:|---:|")
         m_v1, r_v1 = _scenario(rets, w_v1, CFG["fee_side"])
-        m_v0, r_v0 = _scenario(rets, _const(idx, CFG["long_cap"]), CFG["fee_side"])
-        m_neu, _ = _scenario(rets, _const(idx, CFG["long_base"]), CFG["fee_side"])
+        m_v0, r_v0 = _scenario(rets, _const(idx, CFG["bench_long"]), CFG["fee_side"])
+        m_old, _ = _scenario(rets, _const(idx, CFG["long_cap"]), CFG["fee_side"])
         m_def, _ = _scenario(rets, _const(idx, 0.0), CFG["fee_side"])
         m_all, _ = _scenario(rets, _const(idx, 1.0), CFG["fee_side"])
         for nm, m in ((f"**V1 四因子（滞后带 {CFG['hysteresis_pp']:.2f}pp）**", m_v1),
-                      (f"v0 固定哑铃 {CFG['long_cap']:.0%}/{1 - CFG['long_cap']:.0%}", m_v0),
-                      (f"固定中性 {CFG['long_base']:.0%}/{1 - CFG['long_base']:.0%}", m_neu),
-                      ("全防守 100% 3-5 年", m_def),
+                      (f"**基准 v0 固定中性 {CFG['bench_long']:.0%}/{1 - CFG['bench_long']:.0%}**", m_v0),
+                      (f"v0 旧配比 {CFG['long_cap']:.0%}/{1 - CFG['long_cap']:.0%}（2026-11-20 前）", m_old),
+                      (f"全防守 100% 3-5 年", m_def),
                       ("全进攻 100% 7-10 年", m_all)):
             rows.append(dict(window=title[:6], name=nm.strip("*"), **m))
             A(_row(nm, m, m["avg_w"]))
@@ -162,7 +162,7 @@ def main(argv=None):
         A("")
         yv = r_v1.groupby(r_v1.index.year).apply(lambda x: (1 + x).prod() - 1)
         y0 = r_v0.groupby(r_v0.index.year).apply(lambda x: (1 + x).prod() - 1)
-        A("**逐年（V1 vs v0 固定哑铃）**")
+        A(f"**逐年（V1 vs 基准 v0 固定中性 {CFG['bench_long']:.0%}/{1 - CFG['bench_long']:.0%}）**")
         A("")
         A("| 年 | V1 | v0 | 差 |")
         A("|---|---:|---:|---:|")

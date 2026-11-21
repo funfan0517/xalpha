@@ -158,7 +158,7 @@ def evaluate(navs, asof=None, gate_on=None):
                   mom=round(mom * 100, 3), win=cfg["mom_win"],
                   deadband=round(cfg["gate_deadband"] * 100, 3),
                   down_days=down_days, action=core_act,
-                  text=("进攻档（70% 7-10 国开 + 30% 3-5 政金）" if eff
+                  text=(f"进攻档（{cfg['core_w']:.0%} 7-10 国开 + {cfg['base_w']:.0%} 3-5 政金）" if eff
                         else "防守档（100% 3-5 政金）")),
         discipline=dict(no_add=bool(no_add), no_catch=bool(no_catch), down_days=down_days,
                         text=_disc_text(down_days, no_add, no_catch, cfg)),
@@ -205,15 +205,19 @@ def _disc_text(down_days, no_add, no_catch, cfg):
 
 
 # ---------------------------------------------------------------- 回测记账
-def backtest_leg(navs, on, off, base, win=63, base_w=0.30, fee_side=0.0010,
+def backtest_leg(navs, on, off, base, win=63, base_w=None, fee_side=0.0010,
                  gate=True, deadband=0.0):
     """债腿（30pp 归一到 100%）回测。
 
     ``gate=True``  core 段（``1-base_w``）在 ``on``/``off`` 之间按动量符号切换
     ``gate=False`` 静态哑铃：``on``/``off`` 不切换（只用 ``on``）
+    ``base_w=None`` 时取 ``rule.CFG["base_w"]``（2026-11-20 起 0.65 = 中性 35/65）。
 
     -> dict(ret=每日净收益 Series, switches=int, exposure=平均核心段仓位, ...)
     """
+    if base_w is None:
+        import rule  # noqa: PLC0415 - 避免模块级循环导入
+        base_w = float(rule.CFG["base_w"])
     # 用角色名当列名：on/off/base 可能是同一只（如「全防守」档），用代码当列名会撞列
     df = pd.concat({"on": navs[on], "off": navs[off], "base": navs[base]},
                    axis=1, join="inner").dropna()

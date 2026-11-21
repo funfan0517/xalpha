@@ -1,11 +1,11 @@
 {"name": "V6 双轴（期限利差 × 信用利差）", "years": 3.47, "cagr": 3.14, "vol": 1.14, "sharpe": 1.52, "mdd": -1.58, "worst_year": 0.65, "total": 11.31}
 {"name": "只久期轴（底仓固定 011983）", "years": 3.47, "cagr": 3.79, "vol": 1.41, "sharpe": 1.69, "mdd": -1.98, "worst_year": 0.19, "total": 13.77}
 {"name": "只品种轴（长端固定 70%）", "years": 3.47, "cagr": 4.13, "vol": 1.67, "sharpe": 1.63, "mdd": -2.21, "worst_year": 0.06, "total": 15.07}
-{"name": "v0 固定哑铃 70/30", "years": 3.47, "cagr": 4.39, "vol": 1.79, "sharpe": 1.67, "mdd": -2.38, "worst_year": -0.13, "total": 16.09}
-{"name": "固定中性 35/65", "years": 3.47, "cagr": 3.93, "vol": 1.48, "sharpe": 1.71, "mdd": -1.98, "worst_year": 0.02, "total": 14.31}
+{"name": "基准 v0 固定中性 35/65", "years": 3.47, "cagr": 3.93, "vol": 1.48, "sharpe": 1.71, "mdd": -1.98, "worst_year": 0.02, "total": 14.31}
+{"name": "v0 旧配比 70/30（2026-11-20 前）", "years": 3.47, "cagr": 4.39, "vol": 1.79, "sharpe": 1.67, "mdd": -2.38, "worst_year": -0.13, "total": 16.09}
 {"name": "全防守 100% 3-5 政金", "years": 3.47, "cagr": 3.46, "vol": 1.21, "sharpe": 1.71, "mdd": -1.66, "worst_year": 0.16, "total": 12.55}
 {"name": "全进攻 100% 7-10 国开", "years": 3.47, "cagr": 4.79, "vol": 2.09, "sharpe": 1.62, "mdd": -2.8, "worst_year": -0.26, "total": 17.63}
-{"name": "固定 70/30 但底仓用信用债", "years": 3.47, "cagr": 4.12, "vol": 1.64, "sharpe": 1.66, "mdd": -2.21, "worst_year": 0.02, "total": 15.05}
+{"name": "固定 35/65 但底仓用信用债", "years": 3.47, "cagr": 3.35, "vol": 1.15, "sharpe": 1.7, "mdd": -1.58, "worst_year": 0.34, "total": 12.11}
 {"name": "满仓信用债 000032", "years": 3.47, "cagr": 2.57, "vol": 0.73, "sharpe": 1.62, "mdd": -0.97, "worst_year": 0.66, "total": 9.22}
 {"name": "死区 5/5", "years": 3.47, "cagr": 3.07, "vol": 1.13, "sharpe": 1.48, "mdd": -1.58, "worst_year": 0.65, "total": 11.08}
 {"name": "死区 10/5", "years": 3.47, "cagr": 3.14, "vol": 1.14, "sharpe": 1.52, "mdd": -1.58, "worst_year": 0.65, "total": 11.31}

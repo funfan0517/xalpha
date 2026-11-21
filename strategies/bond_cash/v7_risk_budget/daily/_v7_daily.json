@@ -1,38 +1,38 @@
 {
   "strategy": "V7 · 门派风险预算（ERC）",
-  "as_of": "2026-11-19",
-  "generated": "2026-11-20 14:50",
+  "as_of": "2026-11-20",
+  "generated": "2026-11-21 10:27",
   "source_methodology": "等风险贡献（ERC）+ 硬约束；四门派分类对齐《债券种类手册》",
-  "vol": 1.28,
+  "vol": 1.11,
   "held": {
     "rate": 15.0,
-    "credit": 13.55,
-    "conv": 1.45
+    "credit": 13.69,
+    "conv": 1.31
   },
   "target": {
     "rate": 15.0,
-    "credit": 13.43,
-    "conv": 1.57
+    "credit": 13.57,
+    "conv": 1.43
   },
   "rc_held": {
-    "rate": 51.4,
-    "credit": 25.0,
-    "conv": 23.7
+    "rate": 44.8,
+    "credit": 29.6,
+    "conv": 25.6
   },
   "rc_target": {
-    "rate": 49.8,
-    "credit": 23.9,
-    "conv": 26.3
+    "rate": 43.1,
+    "credit": 28.2,
+    "conv": 28.7
   },
   "weights_held": {
     "rate": 0.5,
-    "credit": 0.4518,
-    "conv": 0.0482
+    "credit": 0.4564,
+    "conv": 0.0436
   },
   "weights_target": {
     "rate": 0.5,
-    "credit": 0.4477,
-    "conv": 0.0523
+    "credit": 0.4522,
+    "conv": 0.0478
   },
   "cash_pp": 10.0,
   "bond_pp": 30.0,
@@ -42,8 +42,8 @@
     "act": "hold",
     "diff_pp": {
       "rate": 0.0,
-      "credit": -0.12,
-      "conv": 0.12
+      "credit": -0.13,
+      "conv": 0.13
     },
     "next_rebalance": "下月最后一个交易日"
   },
@@ -58,7 +58,7 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "目标 50.0% · 风险贡献 51.4%",
+      "note": "目标 50.0% · 风险贡献 44.8%",
       "role": "利率债",
       "theme": "门派"
     },
@@ -67,12 +67,12 @@
       "name": "易方达信用债A",
       "short": "易方达信用债A",
       "act": "hold",
-      "label": "13.6pp",
-      "pp": 13.55,
+      "label": "13.7pp",
+      "pp": 13.69,
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "目标 44.8% · 风险贡献 25.0%",
+      "note": "目标 45.2% · 风险贡献 29.6%",
       "role": "信用债",
       "theme": "门派"
     },
@@ -81,12 +81,12 @@
       "name": "汇添富可转债A",
       "short": "汇添富可转债A",
       "act": "hold",
-      "label": "1.4pp",
-      "pp": 1.45,
+      "label": "1.3pp",
+      "pp": 1.31,
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "目标 5.2% · 风险贡献 23.7%",
+      "note": "目标 4.8% · 风险贡献 25.6%",
       "role": "可转债",
       "theme": "门派"
     },
@@ -128,13 +128,13 @@
       "nav": null,
       "r20": null,
       "r250": null,
-      "note": "债腿波动 1.28%；rate 51% / credit 25% / conv 24%",
+      "note": "债腿波动 1.11%；rate 45% / credit 30% / conv 26%",
       "role": "信号",
       "theme": "信号"
     }
   ],
   "sources": {
-    "003376": "2026-11-19",
+    "003376": "2026-11-20",
     "011983": "2026-11-18",
     "000032": "2026-11-18",
     "470058": "2026-11-18",

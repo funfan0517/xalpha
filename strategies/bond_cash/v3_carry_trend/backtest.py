@@ -91,8 +91,8 @@ def main(argv=None):
         ("**V3 Carry+Trend（双票）**", _run(navs, curve, start)[0], bt["turn"], bt["switches"]),
         ("纯 Carry 票", _run(navs, curve, start, field="carry")[0], None, None),
         ("纯 Trend 票", _run(navs, curve, start, field="trend")[0], None, None),
-        ("v0 固定哑铃 70/30", _run(navs, curve, start, w_override=0.70, fee=0)[0], None, None),
-        ("固定中性 35/65", _run(navs, curve, start, w_override=0.35, fee=0)[0], None, None),
+        ("**基准 v0 固定中性 35/65**", _run(navs, curve, start, w_override=0.35, fee=0)[0], None, None),
+        ("v0 旧配比 70/30（2026-11-20 前）", _run(navs, curve, start, w_override=0.70, fee=0)[0], None, None),
         ("全防守 100% 3-5 年", _run(navs, curve, start, w_override=0.0, fee=0)[0], None, None),
         ("全进攻 100% 7-10 年", _run(navs, curve, start, w_override=1.0, fee=0)[0], None, None),
     ]

@@ -1,7 +1,7 @@
 {
   "strategy": "dividend/v4_rsi",
-  "as_of": "2026-11-19",
-  "today": "2026-11-20",
+  "as_of": "2026-11-20",
+  "today": "2026-11-21",
   "signal_date": "2026-10-31",
   "hold_month": "2026-11",
   "board_rsi": 56.4,
@@ -13,72 +13,72 @@
       "name": "华夏中证红利质量ETF联接C",
       "weight": 0.25,
       "best": "rsi",
-      "dcalmar": 0.2741
+      "dcalmar": 0.2639
     },
     {
       "code": "018388",
       "name": "华泰柏瑞中证港股通高股息投资ETF联接C",
       "weight": 0.25,
       "best": "hold",
-      "dcalmar": -0.0252
+      "dcalmar": -0.0139
     }
   ],
   "next_decision": "2026-11-30",
   "preview_basis": "按未走完的本月数据",
   "preview": {
-    "board_rsi": 56.8,
+    "board_rsi": 53.8,
     "tier": "减半（50%）",
     "mult": 0.5,
     "picks": [
       {
         "code": "016441",
         "name": "华夏中证红利质量ETF联接C",
-        "rsi": 34.9
+        "rsi": 29.0
       },
       {
         "code": "018388",
         "name": "华泰柏瑞中证港股通高股息投资ETF联接C",
-        "rsi": 42.8
+        "rsi": 37.4
       },
       {
         "code": "090010",
         "name": "大成中证红利指数A",
-        "rsi": 50.7
+        "rsi": 48.6
       },
       {
         "code": "561060",
         "name": "华安中证国有企业红利ETF",
-        "rsi": 51.4
+        "rsi": 49.3
       },
       {
         "code": "007760",
         "name": "景顺长城沪港深红利成长低波C",
-        "rsi": 60.0
-      },
-      {
-        "code": "561580",
-        "name": "华泰柏瑞中证中央企业红利ETF",
-        "rsi": 60.8
+        "rsi": 52.8
       },
       {
         "code": "005125",
         "name": "华宝标普中国A股红利机会ETF联接C",
-        "rsi": 63.1
+        "rsi": 53.7
       },
       {
         "code": "008115",
         "name": "天弘中证红利低波100C",
-        "rsi": 65.2
+        "rsi": 62.0
+      },
+      {
+        "code": "561580",
+        "name": "华泰柏瑞中证中央企业红利ETF",
+        "rsi": 63.6
       },
       {
         "code": "007467",
         "name": "华泰柏瑞中证红利低波ETF联接C",
-        "rsi": 66.1
+        "rsi": 67.5
       },
       {
         "code": "008163",
         "name": "南方标普红利低波50A",
-        "rsi": 72.7
+        "rsi": 74.6
       }
     ],
     "target": [
@@ -101,180 +101,180 @@
       "code": "008163",
       "name": "南方标普红利低波50A",
       "weight": 0.0,
-      "rsi": 72.7,
+      "rsi": 74.6,
       "preview_weight": 0.0,
       "best": "rsi",
       "best_txt": "RSI 择时（Δ+0.42）",
-      "dcalmar": 0.4223,
+      "dcalmar": 0.4214,
       "best_detail": {
-        "cagr_rsi": 0.0851,
+        "cagr_rsi": 0.0854,
         "dd_rsi": -0.0676,
-        "calmar_rsi": 1.2589,
-        "cagr_hold": 0.0938,
+        "calmar_rsi": 1.2634,
+        "cagr_hold": 0.0944,
         "dd_hold": -0.1121,
-        "calmar_hold": 0.8366
+        "calmar_hold": 0.842
       }
     },
     {
       "code": "008115",
       "name": "天弘中证红利低波100C",
       "weight": 0.0,
-      "rsi": 65.2,
+      "rsi": 62.0,
       "preview_weight": 0.0,
       "best": "rsi",
       "best_txt": "RSI 择时（Δ+0.26）",
-      "dcalmar": 0.2556,
+      "dcalmar": 0.2581,
       "best_detail": {
-        "cagr_rsi": 0.1169,
+        "cagr_rsi": 0.1166,
         "dd_rsi": -0.0954,
-        "calmar_rsi": 1.2252,
-        "cagr_hold": 0.0985,
+        "calmar_rsi": 1.2222,
+        "cagr_hold": 0.098,
         "dd_hold": -0.1016,
-        "calmar_hold": 0.9696
+        "calmar_hold": 0.9641
       }
     },
     {
       "code": "007467",
       "name": "华泰柏瑞中证红利低波ETF联接C",
       "weight": 0.0,
-      "rsi": 66.1,
+      "rsi": 67.5,
       "preview_weight": 0.0,
       "best": "hold",
       "best_txt": "买入持有（Δ-0.05）",
-      "dcalmar": -0.0494,
+      "dcalmar": -0.052,
       "best_detail": {
-        "cagr_rsi": 0.1051,
+        "cagr_rsi": 0.1054,
         "dd_rsi": -0.0953,
-        "calmar_rsi": 1.1028,
-        "cagr_hold": 0.1054,
+        "calmar_rsi": 1.1052,
+        "cagr_hold": 0.1059,
         "dd_hold": -0.0915,
-        "calmar_hold": 1.1522
+        "calmar_hold": 1.1572
       }
     },
     {
       "code": "007760",
       "name": "景顺长城沪港深红利成长低波C",
       "weight": 0.0,
-      "rsi": 60.0,
+      "rsi": 52.8,
       "preview_weight": 0.0,
       "best": "hold",
       "best_txt": "买入持有（与择时持平）",
-      "dcalmar": 0.0019,
+      "dcalmar": 0.0067,
       "best_detail": {
-        "cagr_rsi": 0.0688,
+        "cagr_rsi": 0.0684,
         "dd_rsi": -0.0773,
-        "calmar_rsi": 0.8911,
-        "cagr_hold": 0.0775,
+        "calmar_rsi": 0.885,
+        "cagr_hold": 0.0766,
         "dd_hold": -0.0872,
-        "calmar_hold": 0.8891
+        "calmar_hold": 0.8783
       }
     },
     {
       "code": "090010",
       "name": "大成中证红利指数A",
       "weight": 0.0,
-      "rsi": 50.7,
+      "rsi": 48.6,
       "preview_weight": 0.0,
       "best": "rsi",
       "best_txt": "RSI 择时（Δ+0.37）",
-      "dcalmar": 0.3733,
+      "dcalmar": 0.3748,
       "best_detail": {
-        "cagr_rsi": 0.0971,
+        "cagr_rsi": 0.0969,
         "dd_rsi": -0.0988,
-        "calmar_rsi": 0.9831,
-        "cagr_hold": 0.071,
+        "calmar_rsi": 0.9808,
+        "cagr_hold": 0.0706,
         "dd_hold": -0.1165,
-        "calmar_hold": 0.6098
+        "calmar_hold": 0.606
       }
     },
     {
       "code": "005125",
       "name": "华宝标普中国A股红利机会ETF联接C",
       "weight": 0.0,
-      "rsi": 63.1,
+      "rsi": 53.7,
       "preview_weight": 0.0,
       "best": "rsi",
-      "best_txt": "RSI 择时（Δ+0.09）",
-      "dcalmar": 0.0934,
+      "best_txt": "RSI 择时（Δ+0.10）",
+      "dcalmar": 0.1,
       "best_detail": {
-        "cagr_rsi": 0.1075,
+        "cagr_rsi": 0.1065,
         "dd_rsi": -0.1226,
-        "calmar_rsi": 0.8767,
-        "cagr_hold": 0.1017,
+        "calmar_rsi": 0.8689,
+        "cagr_hold": 0.0998,
         "dd_hold": -0.1298,
-        "calmar_hold": 0.7832
+        "calmar_hold": 0.7689
       }
     },
     {
       "code": "016441",
       "name": "华夏中证红利质量ETF联接C",
       "weight": 0.25,
-      "rsi": 34.9,
+      "rsi": 29.0,
       "preview_weight": 0.25,
       "best": "rsi",
-      "best_txt": "RSI 择时（Δ+0.27）",
-      "dcalmar": 0.2741,
+      "best_txt": "RSI 择时（Δ+0.26）",
+      "dcalmar": 0.2639,
       "best_detail": {
-        "cagr_rsi": 0.064,
+        "cagr_rsi": 0.0589,
         "dd_rsi": -0.1537,
-        "calmar_rsi": 0.4167,
-        "cagr_hold": 0.0306,
+        "calmar_rsi": 0.3835,
+        "cagr_hold": 0.0257,
         "dd_hold": -0.2147,
-        "calmar_hold": 0.1426
+        "calmar_hold": 0.1196
       }
     },
     {
       "code": "561060",
       "name": "华安中证国有企业红利ETF",
       "weight": 0.0,
-      "rsi": 51.4,
+      "rsi": 49.3,
       "preview_weight": 0.0,
       "best": "rsi",
       "best_txt": "RSI 择时（Δ+0.97）",
-      "dcalmar": 0.9701,
+      "dcalmar": 0.9708,
       "best_detail": {
-        "cagr_rsi": 0.0966,
+        "cagr_rsi": 0.0961,
         "dd_rsi": -0.0646,
-        "calmar_rsi": 1.4953,
-        "cagr_hold": 0.0611,
+        "calmar_rsi": 1.4873,
+        "cagr_hold": 0.0601,
         "dd_hold": -0.1163,
-        "calmar_hold": 0.5251
+        "calmar_hold": 0.5165
       }
     },
     {
       "code": "561580",
       "name": "华泰柏瑞中证中央企业红利ETF",
       "weight": 0.0,
-      "rsi": 60.8,
+      "rsi": 63.6,
       "preview_weight": 0.0,
       "best": "hold",
-      "best_txt": "买入持有（Δ-0.07）",
-      "dcalmar": -0.0745,
+      "best_txt": "买入持有（Δ-0.08）",
+      "dcalmar": -0.082,
       "best_detail": {
-        "cagr_rsi": 0.1065,
+        "cagr_rsi": 0.1074,
         "dd_rsi": -0.1156,
-        "calmar_rsi": 0.9215,
-        "cagr_hold": 0.115,
+        "calmar_rsi": 0.9289,
+        "cagr_hold": 0.1167,
         "dd_hold": -0.1155,
-        "calmar_hold": 0.996
+        "calmar_hold": 1.0109
       }
     },
     {
       "code": "018388",
       "name": "华泰柏瑞中证港股通高股息投资ETF联接C",
       "weight": 0.25,
-      "rsi": 42.8,
+      "rsi": 37.4,
       "preview_weight": 0.25,
       "best": "hold",
-      "best_txt": "买入持有（Δ-0.03）",
-      "dcalmar": -0.0252,
+      "best_txt": "买入持有（与择时持平）",
+      "dcalmar": -0.0139,
       "best_detail": {
-        "cagr_rsi": 0.0862,
+        "cagr_rsi": 0.0845,
         "dd_rsi": -0.1208,
-        "calmar_rsi": 0.7132,
-        "cagr_hold": 0.0984,
+        "calmar_rsi": 0.6999,
+        "cagr_hold": 0.0951,
         "dd_hold": -0.1333,
-        "calmar_hold": 0.7385
+        "calmar_hold": 0.7138
       }
     }
   ],

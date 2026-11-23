@@ -811,77 +811,108 @@ def parse_v3_macd_boll(_cfg):
     )
 
 
-def parse_permanent(_cfg):
-    """永久投资组合：8 项目标权重（基准 × ±50% 倾斜）。
+# 板块1：每项标的的「基准 × 最优策略」映射 —— README §9.1 在看板侧的唯一实现处。
+# 换某条腿的执行策略时，这里、README §9.1、strategies.json 的 note 三处一起改。
+# (key, 标的, 场外代码, 最优策略短名, 该策略的 daily 产物仓库相对路径)
+_PERM_BEST = {
+    "bond":  ("短中长期国债", "012265/001512/003377", "v7_risk_budget",
+              "strategies/bond_cash/v7_risk_budget/daily/_v7_daily.json"),
+    "divlv": ("红利低波", "", "v4_rsi",
+              "strategies/dividend/v4_rsi/daily/_v4_signal.json"),
+    "ndx":   ("纳指100", "270042", "v16_ndx_sw",
+              "strategies/vol_legs/v16_ndx_sw/daily/_v16_daily.json"),
+    "spx":   ("标普500", "017641", "v17_spx_v12",
+              "strategies/vol_legs/v17_spx_v12/daily/_v17_daily.json"),
+    "gold":  ("黄金", "000216", "v20_gold_v5",
+              "strategies/vol_legs/v20_gold_v5/daily/_v20_daily.json"),
+    "cash":  ("货币基金", "自选", "现金腿", ""),
+    "a500":  ("中证A500", "023299", "v14_a500_e2",
+              "strategies/vol_legs/v14_a500_e2/daily/_v14_daily.json"),
+    "kc":    ("科创50", "011609", "v18_kc50_e2tv",
+              "strategies/vol_legs/v18_kc50_e2tv/daily/_v18_daily.json"),
+    "hs300": ("沪深300", "006131", "v15_hs300_min2",
+              "strategies/vol_legs/v15_hs300_min2/daily/_v15_daily.json"),
+}
 
-    json 只给权重/得分（键是 bond/divlv/... 无中文名），名称、场外代码、允许区间
-    只在自产 markdown 的「当前最佳百分比」表里 —— 所以两者合起来读。
+
+def _perm_leg_pos(key, rel):
+    """-> (当前倍率, 目标倍率, 信号日, 细节)。倍率 0~1，乘基准 pp 即组合层仓位。
+
+    只读各策略自己的 `daily/_*_daily.json`，看板不重算策略。
     """
-    json_path = os.path.join(_ROOT, "strategies", "permanent", "daily", "_permanent_signal.json")
-    md_path = os.path.join(_ROOT, "strategies", "permanent", "daily", "_permanent_report.md")
-    d = json.loads(_read(json_path))
-    table = _table(_section(_read(md_path).splitlines(), "当前最佳百分比"))
-    if not table:
-        raise ValueError("markdown 最佳百分比表解析为空")
-    as_of = d.get("as_of") or _first_date(d.get("generated"))
+    if key == "cash":
+        return 1.0, 1.0, None, "无价格信号，恒 100%"
+    d = json.loads(_read(os.path.join(_ROOT, rel)))
+    as_of = d.get("as_of")
+    if key == "bond":       # v7 只做债腿内部风险预算，整体恒满仓
+        return 1.0, 1.0, as_of, "债腿内部 ERC，整体满仓"
+    if key == "divlv":      # v4 是月度信号：mult 即当前生效档位，当前=目标
+        m = float(d.get("mult") or 0)
+        codes = "/".join(str(p.get("code", "")) for p in (d.get("positions") or []))
+        return m, m, as_of, f"{d.get('tier', '—')} · {codes}"
+    cur = float(d.get("current_position") or 0)
+    tgt = d.get("next_target")
+    tgt = cur if tgt is None else float(tgt)
+    return cur, tgt, as_of, str(d.get("action") or "")
 
-    rows, n_buy, n_sell, worst = [], 0, 0, None
-    for cells in table:
-        if len(cells) < 9:
-            continue
-        name = cells[1]
-        code = cells[2].replace("`", "").replace(" ", "") or "—"
-        b, w, diff = _num(cells[3]), _num(cells[4]), _num(cells[6])
-        k, sc = _num(cells[7]), _num(cells[8])
-        if b is None or w is None:
-            continue
-        if diff is None:
-            act, label = "hold", f"持有 {w:.1f}%"
-        elif diff >= 0.5:
-            act, label = "buy", f"加至 {w:.1f}%"
-            n_buy += 1
-        elif diff <= -0.5:
-            act, label = "sell", f"减至 {w:.1f}%"
-            n_sell += 1
-            if worst is None or diff < worst[1]:
-                worst = (name, diff)
-        else:
-            act, label = "hold", f"维持 {w:.1f}%"
-        detail = f"基准 {b:.1f}%"
-        if diff is not None:
-            detail += f" · 偏离 {diff:+.1f}pp"
-        if k is not None:
-            detail += f" · ×{k:.2f}"
-        if sc is not None:
-            detail += f" · 得分 {sc:+.2f}"
-        rows.append(_row(name, code, act, label, detail))
 
-    short = {"bond": "债", "divlv": "红利", "ndx": "纳指", "spx": "标普",
-             "gold": "黄金", "cash": "现金", "a500": "A500", "kc": "科创"}
-    wtxt = " / ".join(f"{short.get(k, k)} {float(v):.1f}%"
-                      for k, v in (d.get("weights") or {}).items())
-    # 各腿净值截止日差很多（QDII 滞后、债券中长端走场外披露更慢）—— 卡片上逐个最旧源点名
-    da = {str(k): str(v) for k, v in (d.get("data_asof") or {}).items() if v}
+def parse_permanent(_cfg):
+    """板块1：9 项标的的「基准 pp × 最优策略仓位」= 目标仓位。
+
+    **2026-11-23 改版（用户要求）**：本卡不再显示 §2 的 ±50% 倾斜权重，改为
+    「基准 / 最优策略 / 策略仓位（当前→目标）/ 组合 pp（当前→目标）」。
+    §2 倾斜权重仍由 `_signal.py` 算并写在 `_permanent_report.md`，只是不在此卡显示。
+
+    基准取 `_permanent_signal.json::base`（`rule.RAW` 的快照），策略仓位取各策略
+    自己的 `daily/_*_daily.json`；两者相乘即该项占组合的目标 pp。
+    """
+    sig = json.loads(_read(os.path.join(
+        _ROOT, "strategies", "permanent", "daily", "_permanent_signal.json")))
+    base = sig.get("base") or {}
+    rows, cur_tot, tgt_tot, n_empty, dates = [], 0.0, 0.0, 0, []
+    for key, (name, code, strat, rel) in _PERM_BEST.items():
+        b = float(base.get(key) or 0)
+        if b <= 0:
+            continue
+        cur, tgt, as_of, detail = _perm_leg_pos(key, rel)
+        if as_of:
+            dates.append(str(as_of))
+        cpp, tpp = b * cur, b * tgt
+        cur_tot += cpp
+        tgt_tot += tpp
+        if key != "cash" and tgt <= 0:
+            n_empty += 1
+        act = "buy" if tpp - cpp >= 0.05 else ("sell" if cpp - tpp >= 0.05 else "hold")
+        rows.append(_row(
+            f"{name}（{code}）" if code else name,
+            f"{b:g}pp · {strat}",
+            act,
+            f"{cur:.0%} → {tgt:.0%}",
+            f"{cpp:.2f} → {tpp:.2f} pp" + (f" · {detail}" if detail else ""),
+        ))
+    cash_pp = float(base.get("cash") or 0)
     data = ""
-    if da:
-        lo, hi = min(da.values()), max(da.values())
-        nm = {"bond_s": "短债", "bond_m": "中债", "bond_l": "长债", "divlv": "红利低波",
-              "ndx": "纳指", "spx": "标普", "gold": "黄金", "a500": "A500", "kc": "科创"}
-        old = "/".join(nm.get(k, k) for k, v in da.items() if v == lo)
-        data = (f"净值 {hi}" if lo == hi
-                else f"净值 {lo} ~ {hi}（最旧 {old} {lo}）")
+    if dates:
+        lo, hi = min(dates), max(dates)
+        data = f"各腿信号日 {hi}" if lo == hi else f"各腿信号日 {lo} ~ {hi}（最旧 {lo}）"
     return _entry(
-        "permanent", "永久组合", as_of, f"加 {n_buy} / 减 {n_sell}", "watch",
-        f"8 项基准 ±50% 倾斜：加 {n_buy} 项、减 {n_sell} 项 · 目标 {wtxt}",
+        "permanent", "永久组合 · 基准 / 最优策略 / 仓位", max(dates) if dates else None,
+        f"投入 {cur_tot:.0f}pp", "watch",
+        f"{len(rows)} 项：基准 pp × 最优策略仓位 = 目标仓位 · 当前投入 {cur_tot:.1f}pp / "
+        f"目标 {tgt_tot:.1f}pp · {n_empty} 条策略腿空仓",
         rows,
-        [["加仓项", str(n_buy)], ["减仓项", str(n_sell)],
-         ["最大减仓", f"{worst[0]} {worst[1]:+.1f}pp" if worst else "—"],
-         ["净值截止", as_of or "—"]],
-        note="这是**目标权重**不是当日买卖：单项偏离基准 >5pp 才动，半年检查一次。"
-             "信号用累计净值(totvalue, 分红再投复权)，QDII(270042/017641) 净值滞后 1-2 日。",
-        src=_rel(md_path),
+        [["风险敞口", f"{cur_tot - cash_pp:.1f}pp"],
+         ["当前投入", f"{cur_tot:.1f}pp"],
+         ["目标投入", f"{tgt_tot:.1f}pp"],
+         ["未投资现金", f"{100 - cur_tot:.1f}pp"]],
+        note="**目标仓位 = 基准 pp × 策略仓位**，不是当日买卖：任一项偏离目标 >5pp 才调，半年检查一次。"
+             "策略映射与实测见 `strategies/permanent/README.md` §9.1；"
+             "§2 的 ±50% 倾斜权重不在此卡显示（见 `strategies/permanent/daily/_permanent_report.md`）。"
+             "各腿信号日不同（QDII 净值滞后 1-2 日、红利与 V7 是月度信号），以卡片首列为准。",
+        src=_rel(os.path.join(_ROOT, "strategies", "permanent", "README.md")),
         data=data,
-        cols=["资产", "场外代码", "建议", "基准/偏离/倍数/得分"],
+        cols=["标的", "基准 · 最优策略", "策略仓位（当前→目标）", "组合 pp（当前→目标）"],
+        all_rows=True,
     )
 
 
@@ -2149,7 +2180,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       var hit = !q || (r.c + ' ' + r.n + ' ' + r.a + ' ' + r.d).toLowerCase().indexOf(q) >= 0;
       if(!hit) return false;
       if(q) return true;                      // 搜索时忽略「只看有动作」
-      // 小表不筛选：池子固定的策略（7 腿 / 5 只红利 / 8 项基准）空仓行的读数本身就是
+      // 小表不筛选：池子固定的策略（7 腿 / 5 只红利 / 9 项基准）空仓行的读数本身就是
       // 决策依据，且一共才几行；老归档没有 all_rows 字段也按小表处理。
       // 大表（如 54 只全池）才需要「只看有动作」把噪声收起来。
       if(onlyAct.checked && r.act === 'none' && !s.all_rows && (s.rows || []).length > 10) return false;

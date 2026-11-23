@@ -1,8 +1,9 @@
 # 波动资产 · 各标的策略表现与前三名
 
-> 生成 2026-11-20 · 本文件由 `strategies/vol_legs/research/best_by_leg/_best_by_leg.py` **只读各变种回测产物**汇编，不重跑回测。
+> 生成 2026-11-23 · 本文件由 `strategies/vol_legs/research/best_by_leg/_best_by_leg.py` **只读各变种回测产物**汇编，不重跑回测。
 > 重跑：`python strategies/vol_legs/research/best_by_leg/_best_by_leg.py`（任一变种回测产物更新后重跑一次即可）
 > 七条腿的定义与执行代码见 `strategies/vol_legs/README.md` §2.1；本文件 = 该家族**所有变种的横向汇编**（§0 前三名 / §1 全量明细）。模拟结果，非投资建议。
+> **近三年窗口**的同一份榜单见同目录 `_best_by_leg_3y.md`（窗口 2023-11 起、调各变种原生引擎重算，回答「近三年谁最好」）——本文件是长期结论，两份要一起看。
 
 ## 0. 一页结论 · 每只标的的前三名策略
 

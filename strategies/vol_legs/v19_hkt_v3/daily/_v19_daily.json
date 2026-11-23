@@ -4,7 +4,7 @@
   "status": "研究确认无提升",
   "leg": "hkt",
   "as_of": "2026-11-20",
-  "generated": "2026-11-21",
+  "generated": "2026-11-23",
   "rule": {
     "rule": "V3 MACD+BOLL 开口突破（原生 macd_boll.weight）+ 波动上限 TV20%",
     "trade_at": "T 日收盘信号 → T+1 收盘成交",

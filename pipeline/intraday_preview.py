@@ -449,11 +449,15 @@ def main():
             _note(f"{key} 收盘口径解析失败：{type(exc).__name__}: {exc}")
 
     # 用临时树覆盖可预演板块的卡片
+    # 板块3 自 2026-11-23 起只出 v5 一张卡（v0 已下板）：v0 产物仍在临时树里重算，
+    # 但**不回填 entries** —— 否则已撤掉的卡会被覆盖回来。
     with _rooted(_TMP):
         for key, block in (("tech_indicators", "板块5 技术指标"),
                            ("vol_variants", "板块2 变种"),
-                           ("growth_div_rotation", "板块3 风格轮动")):
+                           ("gd_v5", "板块3 风格轮动")):
             if not ok.get(block):
+                continue
+            if key not in entries:      # 收盘口径没出这张卡（daily.enabled=false）→ 预演也不许加回来
                 continue
             try:
                 entries[key] = dd.PARSERS[key](cfg[key])
@@ -462,7 +466,7 @@ def main():
 
     # 口径标注
     t = datetime.now().strftime("%H:%M")
-    for key in ("tech_indicators", "vol_variants", "growth_div_rotation", "gd_v5"):
+    for key in ("tech_indicators", "vol_variants", "gd_v5"):
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
     if "tech_indicators" in entries:

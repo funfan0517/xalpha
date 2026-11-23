@@ -69,9 +69,12 @@ def check(cfg):
             errors.append(f"{sid}: daily 段缺显式 enabled —— 新策略默认不进每日操作报告，"
                           f"必须显式写 \"enabled\": false；上板须经用户同意")
         enabled = daily.get("enabled") is True   # 缺键按「不上板」算（与 daily_digest._card_on 一致）
+        # 「不出卡但照跑」：card=false 时 runner 仍执行（变种产物靠家族 runner 生成），
+        # 只是 daily_digest 不渲染这张卡 —— 与 _card_on 同口径，避免统计把两张卡算成上板。
+        on_board = enabled and daily.get("card") is not False
 
         # E4：上板要留凭据（日期 + 谁同意），否则没人知道它为什么在报告里。
-        if enabled:
+        if on_board:
             note = (daily.get("enabled_note") or "").strip()
             if not note:
                 errors.append(f"{sid}: daily.enabled=true 但缺 enabled_note —— "
@@ -82,7 +85,7 @@ def check(cfg):
         block = daily.get("block")
         if block not in blocks:
             errors.append(f"{sid}: daily.block={block!r} 不在 blocks {blocks}")
-        if enabled:
+        if on_board:
             n_enabled += 1
             if block in enabled_by_block:
                 enabled_by_block[block] += 1
@@ -112,7 +115,11 @@ def check(cfg):
     stats = {"strategies": len(strategies), "enabled": n_enabled,
              "runners": len(runner_users), "blocks": len(blocks),
              "on_board": [sid for sid, st in strategies.items()
-                          if ((st or {}).get("daily") or {}).get("enabled") is True]}
+                          if ((st or {}).get("daily") or {}).get("enabled") is True
+                          and ((st or {}).get("daily") or {}).get("card") is not False],
+             "card_off": [sid for sid, st in strategies.items()
+                          if ((st or {}).get("daily") or {}).get("enabled") is True
+                          and ((st or {}).get("daily") or {}).get("card") is False]}
     return errors, warns, stats
 
 
@@ -128,6 +135,9 @@ def main(argv=None):
     print(f"  策略 {stats['strategies']} · enabled {stats['enabled']} · "
           f"唯一 runner {stats['runners']} 个 · 板块 {stats['blocks']} 个")
     print(f"  每日操作报告收录 {len(stats['on_board'])} 个：{', '.join(stats['on_board'])}")
+    if stats.get("card_off"):
+        print(f"  不出卡但照跑 {len(stats['card_off'])} 个：{', '.join(stats['card_off'])}"
+              f"（card=false，runner 仍刷新产物）")
     print(f"  未上板 {stats['strategies'] - stats['enabled']} 个（产物照跑、不进报告；"
           f"上板需用户同意并在 enabled_note 留日期）")
 

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """永久投资组合 · 每日最佳百分比报告。
 
-输入: 8 项固定基准(rule.RAW) + 各腿场外净值(data.load_universe)
+输入: 9 项基准(rule.RAW, 含 10pp 现金腿) + 各腿场外净值(data.load_universe)
 处理: rule.leg_scores -> rule.item_scores -> rule.target_weights(±50% 硬边界)
 输出:
   strategies/permanent/daily/_permanent_report.md   人读报告(核心=每项最佳百分比表)
   strategies/permanent/daily/_permanent_signal.json  机器可读快照
-  strategies/permanent/daily/_universe_permanent_active.{md,json}  8 项固定名单
+  strategies/permanent/daily/_universe_permanent_active.{md,json}  固定 9 项名单
 
 用法:
   python strategies/permanent/_signal.py              # 当日(有当日缓存则秒出)
@@ -97,21 +97,27 @@ def render(ctx):
     A = L.append
     A("# 永久投资组合 · 每日最佳百分比")
     A("")
+    n_item = len(rule.ITEM_ORDER)
+    n_inv = len([k for k in rule.ITEM_ORDER if k != "cash"])
     A(f"> 生成 {now} · 净值数据截止 **{data_asof}**(场外口径, QDII 滞后 1-2 日) · "
-      f"8 项基准 → ±{int(rule.TILT * 100)}% 倾斜 · 机械规则输出, 非投资建议。")
+      f"{n_item} 项基准 → ±{int(rule.TILT * 100)}% 倾斜 · 机械规则输出, 非投资建议。")
     A("")
 
     # ---- 摘要表
     A("## 一、当前最佳百分比")
     A("")
-    if rule.CASH_OUTSIDE:
-        A(f"> 口径: 8 项基准合计 {sum(rule.RAW.values()):.0f}%。投资池 7 项"
+    if rule.RAW.get("cash", 0.0) <= 0:
+        A(f"> 口径: {n_item} 项基准合计 {sum(rule.RAW.values()):.0f}%, **货币基金基准 0%** —— "
+          "现金由各择时腿的空仓承担(2026-11-23 用户决定, 见 README §1/§9.5), 故表中该行恒为 0。"
+          f"倾斜后互相归一化, 建议值合计恒为 **{ctx['total']:.1f}%**(投资池 {n_inv} 项)。")
+    elif rule.CASH_OUTSIDE:
+        A(f"> 口径: {n_item} 项基准合计 {sum(rule.RAW.values()):.0f}%。投资池 {n_inv} 项"
           f"每项在基准 ×[0.5, 1.5] 内倾斜、互相归一化, 合计 **{ctx['invest']:.1f}%**; "
           f"货币基金单独计 **{w['cash']:.1f}%** → 两者相加 "
           f"**{ctx['total']:.1f}%**。")
     else:
-        A(f"> 口径: 8 项基准合计 {sum(rule.RAW.values()):.0f}%(你的原始设定), 倾斜后互相"
-          f"归一化, 建议值合计恒为 **{ctx['total']:.1f}%**。当前投资池 7 项 "
+        A(f"> 口径: {n_item} 项基准合计 {sum(rule.RAW.values()):.0f}%(你的原始设定), 倾斜后互相"
+          f"归一化, 建议值合计恒为 **{ctx['total']:.1f}%**。当前投资池 {n_inv} 项 "
           f"{ctx['invest']:.1f}% + 货币基金 {w['cash']:.1f}%。")
     A("")
     A("| # | 资产 | 场外代码 | 基准 | **建议** | 允许区间 | 相对基准 | 倾斜倍数 | 得分 |")
@@ -132,7 +138,7 @@ def render(ctx):
     if cap:
         A("## 二、按总资产折算")
         A("")
-        A(f"以总资产 **{cap:,.0f}** 元按上表比例折算(8 项比例合计 "
+        A(f"以总资产 **{cap:,.0f}** 元按上表比例折算({len(rule.ITEM_ORDER)} 项比例合计 "
           f"{ctx['total']:.1f} 份):")
         A("")
         A("| 资产 | 场外代码 | 比例 | 金额(元) |")
@@ -179,7 +185,8 @@ def render(ctx):
       "用未复权净值会把每次分红当成下跌，持续误判「跌破均线」。")
     A("")
     A("> 货币基金无有效价格序列(万份收益口径), 不参与价格信号; "
-      f"回测按年化 {rule.CASH_ANNUAL:.2%} 常数计。")
+      f"回测按年化 {rule.CASH_ANNUAL:.2%} 常数计。2026-11-23 起其基准为 0% —— "
+      "现金不再是独立一项, 而是由各择时腿的空仓承担(与各策略的空仓假设同为 1.40%)。")
     A("")
 
     # ---- 规则边界
@@ -196,7 +203,7 @@ def render(ctx):
     A("- 触发顺序：先按 k 缩放 → 再归一化 → 再对越界项做 water-filling 投影，"
       "保证任何信号下都不破边界。")
     A("")
-    A("> 判断口径说明：本策略**不使用估值分位**做权重驱动（8 项里仅 4 项有免费可回测的"
+    A(f"> 判断口径说明：本策略**不使用估值分位**做权重驱动（{len(rule.ITEM_ORDER)} 项里仅 4 项有免费可回测的"
       "估值序列，标普 Forward PE / 黄金实际利率无历史源），只用同口径的价格趋势。"
       "估值/拥挤度请作为人工复核项叠加。")
     A("")
@@ -209,7 +216,7 @@ def spec_name(item):
 
 
 def active_md(ctx):
-    L = ["# 永久投资组合 · 固定 8 项名单", "",
+    L = [f"# 永久投资组合 · 固定 {len(rule.ITEM_ORDER)} 项名单", "",
          f"> 生成 {datetime.now():%Y-%m-%d} · 由《永久投资组合》设定直接定档（非回测 select）。",
          "> 场外代码为唯一执行通道；具体比例每日由 `_signal.py` 按 ±50% 边界给出。", "",
          "| # | 资产 | 执行代码(场外) | 基准权重 |", "|---|---|---|---:|"]

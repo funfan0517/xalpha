@@ -9,8 +9,8 @@
 数据口径(代理延长历史, 见 README §5):
   A500 联接 023299 成立于 2025-03 → 用中证A500 指数 SH000510 代理
   标普 联接 017641 成立于 2023-04 → 用标普500ETF 513500 代理
-  货基无有效净值         → 按 rule.CASH_ANNUAL 常数计
-  其余腿一律用场外真实净值(与执行口径一致)
+  沪深300 联接 006131 2018-07 起   → 场外真实净值, 无需代理
+  货基无有效净值                   → 按 rule.CASH_ANNUAL 常数计(2026-11-23 起基准 0)
 
 用法:
   python strategies/permanent/_backtest.py            # 主口径(SCORE_GAIN=rule 值)
@@ -208,7 +208,7 @@ def main():
     A("|---|---:|---:|---:|---:|---:|")
     A(_tbl("**策略(±50% 倾斜)**", results["tilt"]))
     A(_tbl("静态基准(每月回锚)", results["static"]))
-    A(_tbl("8 项等权", results["equal"]))
+    A(_tbl(f"{len(rule.ITEM_ORDER)} 项等权", results["equal"]))
     A(_tbl("买入持有(首月建仓后不动)", results["hold"]))
     A("")
 
@@ -235,10 +235,14 @@ def main():
     A("|---|---:|---:|---:|---:|---:|---:|")
     bd = rule.bounds()
     for it in items:
+        if rule.base_weights()[it] <= 0:
+            continue
         lo_n = sum(1 for w in wlog if w[it] <= bd[it][0] + 1e-6)
         hi_n = sum(1 for w in wlog if w[it] >= bd[it][1] - 1e-6)
         A(f"| {rule.ITEMS[it]['name']} | {rule.base_weights()[it]:.1f}% | {avg[it]:.1f}% | "
           f"{mn[it]:.1f}% | {mx[it]:.1f}% | {lo_n} | {hi_n} |")
+    A("")
+    A("> 基准 0 的项(货币基金, 2026-11-23 起)不参与倾斜, 已略去。")
     A("")
 
     sec_n = "四" if sweep else "三"
@@ -246,7 +250,7 @@ def main():
     A("")
     d_ann = results["tilt"]["ann"] - results["static"]["ann"]
     d_mdd = results["tilt"]["mdd"] - results["static"]["mdd"]
-    A(f"- 倾斜相对静态基准: 年化 {d_ann:+.2%}, 最大回撤 {d_mdd:+.2%}。")
+    A(f"- 倾斜相对静态基准: 年化 {d_ann:+.2%}, 最大回撤 {d_mdd:+.2%}(正=回撤更浅)。")
     A(f"- 相对买入持有: 年化 {results['tilt']['ann'] - results['hold']['ann']:+.2%}。")
     A("- 样本仅 "
       f"{n} 个月, 覆盖 2022 熊市 / 2023-24 震荡 / 2025-26 上行各一段, "

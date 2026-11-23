@@ -1,7 +1,7 @@
 {
   "strategy": "稳健资产 · 债腿30pp+现金腿10pp",
   "as_of": "2026-11-20",
-  "generated": "2026-11-21 10:26",
+  "generated": "2026-11-23 14:44",
   "config": {
     "gate_on": false,
     "deadband": 0.005,

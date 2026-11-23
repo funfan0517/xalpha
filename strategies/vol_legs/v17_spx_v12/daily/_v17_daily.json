@@ -4,7 +4,7 @@
   "status": "研究确认无提升",
   "leg": "spx",
   "as_of": "2026-11-20",
-  "generated": "2026-11-21",
+  "generated": "2026-11-23",
   "rule": {
     "rule": "V12 八态趋势 → 带内仓位许可上限（原生 engine.backtest_leg，v12.1 生效口径）",
     "trade_at": "T 日收盘信号 → T+1 收盘成交",

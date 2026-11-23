@@ -1,7 +1,7 @@
 {
   "strategy": "dividend/v4_rsi",
   "as_of": "2026-11-20",
-  "today": "2026-11-21",
+  "today": "2026-11-23",
   "signal_date": "2026-10-31",
   "hold_month": "2026-11",
   "board_rsi": 56.4,

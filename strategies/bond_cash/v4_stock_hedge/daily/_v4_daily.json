@@ -1,7 +1,7 @@
 {
   "strategy": "V4 · 股债对冲三票",
   "as_of": "2026-11-20",
-  "generated": "2026-11-21 10:26",
+  "generated": "2026-11-23 14:45",
   "source_methodology": "Newfound Research (2018) carry-trend-hedge + 国泰海通 (2026-06) 股债增强",
   "carry": {
     "spread": 0.405,

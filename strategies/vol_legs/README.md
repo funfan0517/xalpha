@@ -265,9 +265,12 @@ strategies/vol_legs/
 ├── scan.py        # 每日操作报告 + 信号 JSON + 固定 7 腿名单
 ├── _plot_leg_core.py  # 跨变种共享的单腿图渲染器（各变种 research/_plot_leg.py 只传 SPEC）
 ├── research/      # 跨变种专项研究，**每个研究一个子目录**（脚本 + 该研究的 md/png/jsonl 同放一处）：
-│                  #   2026-11-18 起只保留两项对比研究：
+│                  #   全历史口径：
 │                  #   best_by_leg/（**各标的策略表现 × 前三名**：只读各变种产物汇编，含年化/回撤/夏普）、
-│                  #   beat_best/（**单标的「超过当前最优」搜索**：重写四条基线 + 15 档候选 + 邻域检验）
+│                  #   beat_best/（**单标的「超过当前最优」搜索**：原生引擎基线 + 组合层候选 + 双闸门）；
+│                  #   窗口口径（2026-11-23 新增，调原生引擎重算净值再切窗）：
+│                  #   best_by_leg_5y/（近 5 年榜，薄壳复用 3y 逻辑；3y 版在同目录 _best_by_leg_3y.py）、
+│                  #   beat_best_5y/（近 5 年窗口下的超越项，基线取自 5y 榜）
 ├── data/          # _val_inputs.json(人工回填: FOMC、PB/ERP 分位、保险丝、QDII 额度)
 ├── backtest/      # _vol_legs_bt.md / .json
 ├── daily/         # _vol_legs_report.md / _vol_legs_signal.json / _universe_vol_legs_active.{md,json}
@@ -732,6 +735,32 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > 其余三条毛夏普同步抬升（0.74→0.96 / 0.98→1.01 / 0.81→0.89），属信号层面的改进。
 > 落地形态即下方 §v14–v20：**V14 = E2、V15 = MIN2、V16 = SW、V18 = E2×TV20，V17 / V19 / V20 取 ★1 原样**。
 > 以上均为**同尺重算值**，与 `best_by_leg.md` 里各变种**原生费率**的含费数字不可逐位对账。
+
+> **窗口敏感性：同一批策略换成近 3 年 / 近 5 年窗口再排一次** ——
+> [`research/best_by_leg/_best_by_leg_3y.md`](research/best_by_leg/_best_by_leg_3y.md)、
+> [`research/best_by_leg_5y/_best_by_leg_5y.md`](research/best_by_leg_5y/_best_by_leg_5y.md)。
+> 各变种产物只落**汇总指标、没有净值序列**，无法从 20 年汇总里扣出 3/5 年，所以这两份
+> **调各变种原生引擎重算全历史单腿净值再切窗**（信号全历史算、统计只截窗口，窗口首日收益计入）。
+> 费率与滞后**沿用各自原生口径** → 与上面全历史榜的差异**只来自窗口**，可以直接对照。
+> 5 年窗口含 2022 年熊市（A 股与美股同步大跌、港股续跌），3 年窗口不含 —— 排名会互换，
+> **两榜都进前三的才算稳**（V12 在 6 条腿上稳、V2/V3 各 2 条）。样本仅 3/5 年，
+> 夏普标准误 ≈ ±0.3 / ±0.22，0.05 以内视为并列。
+> 跑一次：`python strategies/vol_legs/research/best_by_leg/_best_by_leg_3y.py` 与
+> `python strategies/vol_legs/research/best_by_leg_5y/_best_by_leg_5y.py`
+> （5y 是薄壳，只覆盖窗口参数，逻辑复用 3y，避免两份脚本各跑偏一套）。
+
+> **窗口版的超越项研究** ——
+> [`research/beat_best_5y/_beat_best_5y.md`](research/beat_best_5y/_beat_best_5y.md)：
+> 基线与候选评估都放进近 5 年窗口，同尺单边 10bp、**与全历史版完全同一套候选与双闸门**。
+> ⚠ 定位是「**窗口敏感性检验**」，不是落地建议 —— ★1 与超越项用的是同一段数据（双重使用），
+> 后段 40%（约 2 年）也仍在窗口内，挡不住整段过拟合。
+> 价值在于跨窗口比对：**纳指100（MA200→V12）与科创50（E2×TV20）两个技法跨窗口复现**；
+> A500 / 沪深300 的超越技法在两窗口不同（MAX2 vs E2、E3 vs MIN2）→ 组合结论不稳定；
+> 黄金的 SW→V12 只在 5 年窗口成立（吃了 2022 加息段）。两条腿（标普、恒科）两窗口都无空间。
+> ⚠ 统一 10bp 会重罚零费 C 类腿（A500/科创50/恒科的 V1~V3）与 V12/V13（原生 5bp），
+> 报告的「同尺夏普」列会明显低于 5y 榜的含费数字；这类伪超越在表里标 `·成本效应`。
+> 跑一次：`python strategies/vol_legs/research/beat_best_5y/_beat_best_5y.py`
+> （先跑 5y 榜，它读那里的 jsonl 当基线）。
 
 > **单标的 × 多策略的同尺对比（沪深300；原 `hs300_five_compare` 研究，脚本与产物已删除）**
 > （2026-11-13）。当时把 **V2 / V4 / V12 / V13** 拉到**同一份 `SH000300` 收盘 + 同一个成本模型**

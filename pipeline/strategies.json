@@ -762,6 +762,23 @@
       "note": "2026-11-18 起本卡只列 v14~v20 七个单标的专用策略（一策略一腿），v2/v3/v4/v6/v9/v12 已从看板移除；其 daily 产物与 PNG 仍由 run_daily_vol_legs.ps1 照常生成，只是不再进这张卡。v15/v17/v18 来自 research/beat_best/_beat_best_top3.md 的研究超越项，其余四条是研究确认无提升、保持当前 ★1 的单标的封装。**v21（利弗莫尔关键点，2026-11-19）未稳定前不进本卡，也不进每日流程**：规则与 7 腿样本仍在验证，产物只留在策略目录。",
       "pipeline_mode": "summary"
     },
+    "vol_5y": {
+      "name": "波动类 · 近五年口径（每条腿的最优组合与仓位）",
+      "source_methodology": "研究对照卡: 读 strategies/vol_legs/research/beat_best_5y/_daily_positions_5y.json；基线=best_by_leg_5y 前三名，超越项=beat_best_5y 双闸门结果；逐日权重来自各变种原生引擎，同尺单边 10bp",
+      "daily": {
+        "enabled": true,
+        "enabled_note": "2026-11-23 用户要求（原话：在板块2中再加一个5y口径的卡片，显示每个标的最优策略及仓位占比）",
+        "block": "vol",
+        "codes": [],
+        "runner": "",
+        "runner_note": "研究对照卡，不并入 run_daily_all：数据由 research/beat_best_5y/_daily_positions_5y.py 手跑刷新（需先跑 _beat_best_5y.py 更新落地清单）；看板只读取 json",
+        "signal_json": "strategies/vol_legs/research/beat_best_5y/_daily_positions_5y.json",
+        "signal_report": "strategies/vol_legs/research/beat_best_5y/_daily_positions_5y.md",
+        "automation": "(未创建)"
+      },
+      "note": "**研究对照卡**，不是落地封装：窗口 2021-11 起（含 2022 熊市），基线=近五年前三名，超越项经双闸门。与 v14~v20 冲突时以 v14~v20 为准（全历史口径）。A500/沪深300 的超越技法跨窗口不复现。数据需手跑，卡上「数据」行显示生成时间，过期即为旧仓位。",
+      "pipeline_mode": "summary"
+    },
     "v6_gold": {
       "name": "波动资产 V6 变种 · 黄金 ETF 三口径（A 长期配置 / B 控回撤 / C 低仓位占坑）",
       "source_methodology": "用户 2026-11-07 要求：删除原 v6_pe_band（沪深300/A500 PE 分位带），重建 v6 专门研究黄金 ETF 的投资策略，纳入 A/B/C 三个子策略 · 参数权威源 strategies/vol_legs/v6_gold/gold.py（顶部常量 + params()） · 回测脚本 backtest.py · 每日读数 daily/_daily_scan.py",

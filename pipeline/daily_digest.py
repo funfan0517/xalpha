@@ -1348,6 +1348,97 @@ def parse_vol_variants(_cfg):
     )
 
 
+# ---------------------------------------------------------------- 波动类 · 近五年口径
+# 2026-11-23 用户要求：板块2 再挂一张「近五年口径」卡，显示每个标的最优策略与仓位占比。
+# 数据来自研究产物 `research/beat_best_5y/_daily_positions_5y.json`（由
+# `_daily_positions_5y.py` 手跑生成），看板**不解析 md**（列宽/文案一改就断）。
+_VOL_5Y_JSON = "strategies/vol_legs/research/beat_best_5y/_daily_positions_5y.json"
+
+
+def parse_vol_5y(_cfg):
+    """板块2 · 近五年口径：每标的最优组合 + 今日目标仓位。
+
+    与 `parse_vol_variants` 的分工：同板块的第二张卡，**对照用** ——
+    第一张（v14~v20）是**落地封装**（全历史 ★1 + 跨窗口复现的超越项），
+    本卡是**近五年窗口内排出来的组合**。两者在 A500 / 沪深300 上技法不同，
+    冲突时以 v14~v20 为准（那套以全历史为准）。
+    """
+    full = os.path.join(_ROOT, _VOL_5Y_JSON)
+    if not os.path.exists(full):
+        return _entry(
+            "vol_5y", "波动类 · 近五年口径（研究对照）", None, "待刷新", "none",
+            "未找到近五年口径产物", [],
+            note="需手跑 `python strategies/vol_legs/research/beat_best_5y/"
+                 "_daily_positions_5y.py` 生成 json 后在看板显示",
+            error=f"missing {_VOL_5Y_JSON}")
+    d = json.loads(_read(full))
+    legs = d.get("legs") or []
+    rows, n_buy, n_sell, held, held_now = [], 0, 0, [], []
+    for item in legs:
+        tgt = float(item.get("target") or 0.0)
+        now = float(item.get("now") or 0.0)
+        diff = float(item.get("diff") or 0.0)
+        if diff > 0.005:
+            act, alab, n_buy = "buy", f"加 {diff:.0%}", n_buy + 1
+        elif diff < -0.005:
+            act, alab, n_sell = "sell", f"减 {-diff:.0%}", n_sell + 1
+        else:
+            act, alab = "hold", "维持"
+        if tgt > 0.005:
+            held.append(f"{item.get('name')} {tgt:.0%}")
+        if now > 0.005:
+            held_now.append(f"{item.get('name')} {now:.0%}")
+        ret5 = item.get("ret5")
+        code = item.get("code")
+        # 各市场收盘时间不同（A 股 15:00 / 港股 16:00 / 美股次日凌晨），
+        # 只写一个 as_of 会把这种差异藏掉 —— 每行标出自己的信号日。
+        asof = item.get("last_date")
+        pre = f"`{asof}` 收盘 · " if asof else ""
+        rows.append(_row(
+            f"{item.get('name')} `{code}`" if code else str(item.get("name") or "—"),
+            item.get("adopted") or "—", act, alab,
+            pre + f"当前 {now:.0%} → 目标 **{tgt:.0%}**"
+            + (f"；近 5 日 {ret5:+.1%}" if isinstance(ret5, (int, float)) else "")
+            + f"；{item.get('why') or ''}"))
+    tone = "buy" if n_buy else ("sell" if n_sell else "none")
+    total = float(d.get("total_target") or 0)
+    if held:
+        brief = "近五年口径：目标仍有仓位 " + "、".join(held)
+    else:
+        brief = "近五年口径：目标七腿全空"
+        if held_now:
+            brief += ("（当前仍持 " + "、".join(held_now)
+                      + "，按最新收盘决策清掉）")
+    brief += f"；合计 {total:.0%}"
+    # 数据过期提醒：这张卡不在每日自动流程里，as_of 落后太多就必须显式说明
+    badge = f"加 {n_buy} / 减 {n_sell}"
+    try:
+        gap = (datetime.now().date()
+               - datetime.strptime(str(d.get("as_of")), "%Y-%m-%d").date()).days
+        if gap > 4:
+            badge = f"⚠ 过期 {gap} 天 · {badge}"
+    except (TypeError, ValueError):
+        pass
+    return _entry(
+        "vol_5y", "波动类 · 近五年口径（每条腿的最优组合与仓位）", d.get("as_of"),
+        badge, tone, brief,
+        rows,
+        [["腿", str(len(rows))], ["合计目标", f"{total:.0%}"],
+         ["加仓", str(n_buy)], ["减仓", str(n_sell)]],
+        note="**研究对照卡**：窗口 2021-11 起（含 2022 熊市），基线=近五年前三名，"
+             "超越项经同尺单边 10bp + 双闸门筛选。与上一张 v14~v20 冲突时**以 v14~v20 为准**"
+             "（那是全历史口径的落地封装）；本卡只用于观察「近五年口径会选什么、今天留多少」。"
+             "A500 / 沪深300 的超越技法跨窗口不复现，不宜单独作为执行依据。"
+             "仓位是**单腿目标**（每腿上限 100%），不是账户组合权重。"
+             "数据由 `_daily_positions_5y.py` 手跑刷新，**不在每日自动流程里**——"
+             "看「数据」行的生成时间，过期就是旧仓位。",
+        src=_rel(full),
+        data=f"研究产物 {d.get('generated')}（行情 {d.get('as_of')}）",
+        cols=["标的", "近五年最优策略", "动作", "仓位与依据"],
+        all_rows=True,
+    )
+
+
 def parse_bond_cash(_cfg):
     """板块6 稳健资产：债腿 30pp（**35/65 固定中性**）+ 现金腿 10pp（5+5）。
 
@@ -1825,6 +1916,7 @@ def parse_bond_cash_v5(_cfg):
 PARSERS = {
     "dividend": parse_dividend,
     "vol_variants": parse_vol_variants,
+    "vol_5y": parse_vol_5y,
     "dividend_v9": parse_dividend_v9,
     "growth_div_rotation": parse_growth_div,
     "gd_v1": parse_gd_v1,

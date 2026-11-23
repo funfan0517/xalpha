@@ -1,6 +1,10 @@
 # 波动资产操作规则 v1.3(A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10 = 40pp) · 每日操作 - 双击运行
 
 # 口径: 信号 + 回测 + 记账 **全部用该市场真实指数收盘**; 黄金用场内 518880; 无口径开关
+# ⚠ 必须在 **15:05 之后** 跑: 指数库 `_idxcache` 的 `trim_partial` 在 15:05 前会把当天 bar 当作
+#    盘中半成品丢掉, 于是六条指数腿停在上一交易日(黄金走 `_long_klines.json` 不受影响) ——
+#    2026-11-23 14:43 跑过一次, 看板就出现「黄金 11-23 / 其余 11-20」的混排。
+#    15:05 前若确实要跑, 收盘后补跑 `python strategies\vol_legs\_idxcache.py --refresh` 再重跑本脚本。
 # 盘后运行: 刷新指数库(SH000510/SH000300/.NDX/.INX/SH000688/HKHSTECH/518880) -> 复算七腿状态
 #          (回撤阶梯/趋势闸门/季度再平衡) -> 输出「下一交易日该下单的那一笔」
 # 第 2 步: 变种每日产物 —— v2 BOLL突破 / v3 MACD+BOLL / v4 ERP股债通道 / v6 黄金三口径 / v9 波动率目标 / v12 八态趋势
@@ -177,6 +181,14 @@ Write-Host "  - v12_octo_trend\research\_v12_state_hs300.png ..."
 # --leg hs300: 执行范围 2026-11-18 已扩到七腿, 但看板只嵌标定腿这一张; 不传 --leg 会画全部七张(慢且无用)
 python -W ignore strategies\vol_legs\v12_octo_trend\research\_plot_state.py --leg hs300
 if ($LASTEXITCODE -ne 0) { Write-Warning "v12 plot_state failed (exit $LASTEXITCODE) - 保留上次的图" }
+
+# ---- 板块2「近五年口径」对照卡：只刷「今日目标仓位」，**不重跑排名研究** ----
+# 重跑 `_beat_best_5y.py` 要 ~40s 且会改写研究产物；落地清单沿用上次的 `_beat_best_5y.jsonl`。
+# 卡片（pipeline/daily_digest.py::parse_vol_5y）读 `_daily_positions_5y.json`，
+# 该 json 里带生成时间与行情日，过期会在卡片 badge 上标「⚠ 过期 N 天」。
+Write-Host "  - beat_best_5y 今日目标仓位（看板板块2 5y 对照卡）..."
+python -W ignore (Join-Path $PSScriptRoot "strategies\vol_legs\research\beat_best_5y\_daily_positions_5y.py")
+if ($LASTEXITCODE -ne 0) { Write-Warning "5y 仓位快照失败（exit $LASTEXITCODE）— 看板将沿用上次 json" }
 
 Write-Host ""
 Write-Host "Done."

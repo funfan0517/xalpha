@@ -30,6 +30,7 @@
 > 模拟结果，非投资建议。
 """
 import contextlib
+import datetime
 import importlib
 import importlib.util
 import io
@@ -82,6 +83,33 @@ _LABEL = {"v1": "V1 MA20", "v2": "V2 BOLL", "v3": "V3 MACD+BOLL", "v5": "V5.1 �
 _SHADOW = {os.path.join(_VL, d) for d in (
     "v14_a500_e2", "v15_hs300_min2", "v16_ndx_sw", "v17_spx_v12",
     "v18_kc50_e2tv", "v19_hkt_v3", "v20_gold_v5", "v21_livermore_keypoint")}
+
+
+# ---------------------------------------------------------------- 盘中半成品 bar
+# 各市场的收盘时刻（含 5 分钟缓冲）：A 股/场内黄金 15:00，港股 16:00。
+# 美股（ndx/spx）的 bar 日期是美东交易日，北京白天时它不会等于「今天」，走默认分支即可。
+_CLOSE_AT = {"a500": (15, 5), "hs300": (15, 5), "kc50": (15, 5), "gold": (15, 5),
+             "hkt": (16, 15)}
+
+
+def closed_series(px, leg=None):
+    """去掉「今天且未收盘」的最后一根 bar。
+
+    `data.series_for_leg` 在盘中会带出当天的半成品 K 线：用它算「今日决策」会得到
+    一个随盘中价乱跳的仓位（2026-11-23 14:4x 实测：黄金 V12 的当日档位在 0 与 0.40
+    之间来回切）。**信号与仓位一律只用已收盘的 bar**，所以按 leg 的收盘时刻丢最后一根。
+    """
+    if len(px) == 0:
+        return px
+    last = px.index[-1]
+    if getattr(last, "date", lambda: None)() != datetime.date.today():
+        return px
+    now = datetime.datetime.now()
+    hh, mm = _CLOSE_AT.get(leg or "", (15, 5))
+    if (now.hour, now.minute) < (hh, mm):
+        print(f"  [未收盘] {leg or '—'} 丢掉 {last.date()} 的半成品 bar（现在 {now:%H:%M}）")
+        return px.iloc[:-1]
+    return px
 
 
 # ---------------------------------------------------------------- 加载旧研究的纯函数
@@ -172,6 +200,7 @@ def read_top3():
             if rk in (1, 2, 3):
                 ranks.setdefault(r["leg"], {})[rk] = r
     top3, meta = {}, {}
+    snap = None
     for leg in LEGS:
         got = ranks.get(leg) or {}
         rows = [got[k] for k in (1, 2, 3) if k in got]
@@ -183,7 +212,13 @@ def read_top3():
         meta[leg] = [dict(vx=r["vx"], sharpe=r.get("sharpe"), ann=r.get("ann"),
                           mdd=r.get("mdd"), src_start=r.get("start"), src_end=r.get("end"))
                      for r in rows]
-    return top3, meta
+        # 基线快照日：评估窗口必须与排名所用窗口一致，否则自检会差出一天。
+        # `_best_by_leg_3y.py` 每行带 `start`/`end`（该腿窗口的起止），取各腿 end 的最大值。
+        e = rows[0].get("end")
+        if e:
+            ts = pd.Timestamp(e)
+            snap = max([snap, ts]) if snap is not None else ts
+    return top3, meta, snap
 
 
 # ---------------------------------------------------------------- hold 桥
@@ -228,8 +263,8 @@ class Holds:
                     h = m.weight(px, m.signal(px))
                 elif key == "v5":
                     F = importlib.import_module("factors")
-                    full = self.bb.vdata.series_for_leg(leg).dropna().astype("float64")
-                    df5 = m.run(pd.DataFrame({"close": full}), F.read_rate())
+                    # 用调用方的 px（已截掉盘中 bar），别再去 data 里取一份原始序列
+                    df5 = m.run(pd.DataFrame({"close": px}), F.read_rate())
                     h = df5["state"]
                 elif key == "v6b":
                     h = m.state_b(px)["state"]
@@ -270,7 +305,7 @@ def fmt(x, kind="pct"):
 
 def main():
     bb = _load_bb()
-    top3, meta = read_top3()
+    top3, meta, snap = read_top3()
     holds = Holds(bb)
 
     vdata = bb.vdata
@@ -283,16 +318,25 @@ def main():
     for r in rows_5y:
         pub[(r["leg"], r["vx"])] = r.get("sharpe")
 
-    # 全局窗口（各腿末交易日取最大者，与 best_by_leg 5y 版一致的口径）
-    ends = [vdata.series_for_leg(leg).dropna().index[-1] for leg in LEGS]
-    end = max(ends)
+    # 全局窗口：**必须等于基线快照日**（`best_by_leg_5y.jsonl` 里的 window[1]）——
+    # 基线排名是在那个窗口上排的，评估窗口再往后延一天，自检和「超越」判定都会错期。
+    # 快照之后的新数据不进评估；要看最新仓位另跑 `_daily_positions_5y.py`（它不切历史窗）。
+    PX = {leg: closed_series(vdata.series_for_leg(leg).dropna().astype("float64"), leg)
+          for leg in LEGS}
+    if snap is not None:
+        PX = {leg: px.loc[:snap] for leg, px in PX.items()}
+        end = snap
+        print(f"  评估窗口对齐基线快照：截至 {pd.Timestamp(snap).date()}")
+    else:
+        ends = [px.index[-1] for px in PX.values() if len(px)]
+        end = max(ends)
     w0 = (pd.Timestamp(end) - pd.DateOffset(years=WINDOW_YEARS)).normalize()
 
     detail, checks, sections, wins = {}, [], [], []
     for leg in LEGS:
         if leg not in top3:
             continue
-        px_full = vdata.series_for_leg(leg).dropna().astype("float64")
+        px_full = PX[leg]
         before = px_full.index[px_full.index <= w0]
         if len(before) == 0:
             print(f"  [WARN] {NAMES[leg]} 样本不足 {WINDOW_YEARS} 年，跳过")

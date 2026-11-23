@@ -366,7 +366,10 @@ python strategies/vol_legs/v12_octo_trend/daily/_daily_scan.py --no-refresh   # 
 # 回测（逐腿 + Δ夏普排序 + 组合 + 八态后验 + 当前状态）
 python strategies/vol_legs/v12_octo_trend/backtest.py
 
-# 图（默认出执行范围=七腿；看板只嵌标定腿那一张，用 --leg hs300）
+# 图（默认出执行范围=七腿逐腿图 + 七腿总览 `_v12_grid_all.png`；
+#     看板只嵌标定腿那一张，用 --leg hs300，此时不画总览）
+python strategies/vol_legs/v12_octo_trend/research/_plot_state.py                 # 全样本
+python strategies/vol_legs/v12_octo_trend/research/_plot_state.py --years 5       # 近 5 年（文件名加 _5y）
 python strategies/vol_legs/v12_octo_trend/research/_plot_state.py --leg hs300
 python strategies/vol_legs/v12_octo_trend/research/_plot_state.py --all
 
@@ -399,7 +402,8 @@ strategies/vol_legs/v12_octo_trend/
 ├── daily/_daily_scan.py   # 每日操作 → _v12_daily.md / _v12_daily.json
 ├── backtest/        # _v12_octo_trend_bt.md / .jsonl
 └── research/
-    ├── _plot_state.py           # _v12_state_{leg}.png + _v12_states.png（八态后验）
+    ├── _plot_state.py           # _v12_state_{leg}.png（逐腿价态）· _v12_grid_all.png（七腿总览）
+    │                             #   · _v12_states.png（八态后验）；`--years 5` 出末端 5 年版，文件名加 _5y
     ├── _sweep.py                # _v12_sweep.md（升格确认 + 映射反证 + 曝光匹配）
     ├── probe_volume/_probe_volume.py   # _probe_volume.md（ETF量 vs 指数量）
     ├── probe_spec_port/_probe_spec_port.py  # _probe_spec_port.md（与规格参考实现逐日比对）

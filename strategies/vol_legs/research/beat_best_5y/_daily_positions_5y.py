@@ -45,6 +45,9 @@ except Exception:  # noqa: BLE001
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_MD = os.path.join(_HERE, "_daily_positions_5y.md")
+# 机读版：`pipeline/daily_digest.py::parse_vol_5y` 读它渲染板块2 的 5y 卡片。
+# 看板**不解析 md**（列宽/文案一改就断），产物结构变更要同步那边的字段名。
+OUT_JSON = os.path.join(_HERE, "_daily_positions_5y.json")
 REC_JSONL = os.path.join(_HERE, "_beat_best_5y.jsonl")
 
 
@@ -88,7 +91,9 @@ def explain(rec, legs_dec, px, LAST):
         used = ks[0] if above else ks[1]
         return (f"MA200 **{'上方' if above else '下方'}**（前一日判断）→ 用 {lab[used]}；"
                 f"{part}")
-    if kind == "E2×TV20":
+    # `_beat_best_5y.py::cand_kind` 归类别时只保留 "E2×TV"（不带 20），故两种写法都要认，
+    # 否则这一支永不命中，科创50 的解释会退化成裸的「分项 / 分项」。
+    if kind in ("E2×TV", "E2×TV20"):
         avg = (LAST[ks[0]] + LAST[ks[1]]) / 2.0
         cap = _last(legs_dec["__tv20__"])
         return (f"{lab[ks[0]]} + {lab[ks[1]]} 平均 {_pct(avg)}，过 TV20 上限 "
@@ -106,13 +111,26 @@ def main():
     bb = m._load_bb()
     holds = m.Holds(bb)
 
+    # 黄金的当日 bar 来自 `_long_klines.json`，盘中跑流程时写进去的是**盘中快照**。
+    # `_refresh_data.ensure_fresh` 自带「最后写入 < 当日 15:00 且现在已过 15:00 → 强制修正」
+    # 的判据，这里先兜底一次（幂等：已是最新时只读文件日期，不联网）。
+    try:
+        _dd = os.path.join(m._ROOT, "data")
+        if _dd not in sys.path:
+            sys.path.insert(0, _dd)
+        import _refresh_data                        # noqa: PLC0415
+        _refresh_data.ensure_fresh(verbose=False)
+    except Exception as exc:                        # noqa: BLE001
+        print(f"  [warn] 行情兜底刷新跳过：{type(exc).__name__}: {exc}")
+
     with io.open(REC_JSONL, encoding="utf-8") as f:
         recs = [json.loads(line) for line in f if line.strip()]
 
     rows = []
     for rec in recs:
         leg = rec["leg"]
-        px = bb.vdata.series_for_leg(leg).dropna().astype("float64")
+        # 盘中会带出当天半成品 bar —— 必须截掉，否则「今日目标」随盘中价乱跳
+        px = m.closed_series(bb.vdata.series_for_leg(leg).dropna().astype("float64"), leg)
         dec, hold = {}, {}
         for t in rec["top3"]:
             hold[t["key"]] = holds.get(t["key"], leg, px, lag=True)
@@ -136,13 +154,35 @@ def main():
             diff=(tgt - now) if (tgt is not None and now is not None) else None,
             last_date=px.index[-1].date(),
             lag=("T+2" if any(t["key"] in ("v9", "v10") for t in rec["top3"]) else "T+1"),
-            why=(explain(rec, dec, px, LAST) if rec["adopted_kind"] != "BASE" else
-                 explain(rec, dec, px, LAST)),
+            why=explain(rec, dec, px, LAST),
         ))
         print(f"  {rec['leg_name']:8s} 当前 {_pct(now):>5s} → 今日目标 {_pct(tgt):>5s}"
               f"  ({rec['adopted']})")
 
     dates = sorted({r["last_date"] for r in rows})
+
+    # ---------------- 机读产物（看板卡片读它，不解析 md）
+    try:
+        if m._VL not in sys.path:
+            sys.path.insert(0, m._VL)
+        import rule as _rule                       # noqa: PLC0415
+        codes = {lg: (_rule.LEGS.get(lg) or {}).get("exec", "") for lg in _rule.LEGS}
+    except Exception:                              # noqa: BLE001
+        codes = {}
+    payload = dict(
+        as_of=str(max(dates)) if dates else None,
+        generated=pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"),
+        window=list(recs[0].get("window") or []) if recs else [],
+        total_target=round(float(sum(r["tgt"] for r in rows if r["tgt"] is not None)), 4),
+        legs=[dict(leg=r["leg"], name=r["name"], code=codes.get(r["leg"], ""),
+                   adopted=r["adopted"], kind=r["kind"], attr=r.get("attr"),
+                   now=r["now"], target=r["tgt"], diff=r["diff"], ret5=r["ret5"],
+                   lag=r["lag"], last_date=str(r["last_date"]), why=r["why"])
+              for r in rows],
+    )
+    with io.open(OUT_JSON, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=1)
+
     held = [r for r in rows if (r["tgt"] or 0) > 0]
     worst = sorted([r for r in rows if r["ret5"] is not None], key=lambda r: r["ret5"])[:3]
     brief = ""

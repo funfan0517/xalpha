@@ -761,6 +761,12 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > 报告的「同尺夏普」列会明显低于 5y 榜的含费数字；这类伪超越在表里标 `·成本效应`。
 > 跑一次：`python strategies/vol_legs/research/beat_best_5y/_beat_best_5y.py`
 > （先跑 5y 榜，它读那里的 jsonl 当基线）。
+>
+> **看板（2026-11-23 用户要求）**：每日操作报告板块2 已挂一张「近五年口径」对照卡 ——
+> `pipeline/daily_digest.py::parse_vol_5y` 读 `_daily_positions_5y.json`（机读版，
+> 看板**不解析 md**），显示每腿的最优策略与今日目标仓位。数据由
+> `_daily_positions_5y.py` 生成，`run_daily_vol_legs.ps1` 尾部每天刷一次
+> （**只刷仓位、不重跑排名研究**，否则会改写研究产物）。与 v14~v20 卡冲突时以 v14~v20 为准。
 
 > **单标的 × 多策略的同尺对比（沪深300；原 `hs300_five_compare` 研究，脚本与产物已删除）**
 > （2026-11-13）。当时把 **V2 / V4 / V12 / V13** 拉到**同一份 `SH000300` 收盘 + 同一个成本模型**

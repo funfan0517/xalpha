@@ -13,7 +13,8 @@ V9 与 V11 各自都有 `data.py` / `rule.py`，同进程里 `import factors`（
     date, board6_med, board6_mean, board4_med, 以及 6 只标的的逐只温度
 
 * `board6_*` = V9 全池 6 只（都有 etf.run 等权 PE/PB）—— 主口径
-* `board4_*` = 只取 V4 池内有温度的那 4 只（008163 无等权估值被排除）—— 敏感性
+* `board4_*` = 只取 **V11 当前交易池**内有温度的标的（列名沿用历史，语义是「池内子集中位数」）。
+  2026-11-23 起 V11 交易池就是这 6 只，故本列与 `board6_med` 相同；保留它是为了不打断 CSV 既有读取方。
 
 口径继承 V9：五因子 35/20/16/15/14、分位近 730 日历日、最少 300 观测、股息率−10Y。
 本脚本不改任何 V9 参数，只做聚合。
@@ -38,7 +39,21 @@ if _V9 not in sys.path:
 import factors as F  # noqa: E402  pylint: disable=wrong-import-position
 
 OUT = os.path.join(_HERE, "data", "_board_temp.csv")
-V4 = ("561060", "008163", "090010", "008115", "016441")
+
+
+def pool_codes() -> tuple:
+    """V11 当前交易池 —— 从 `rule.CODES` 取，保证「交易池内温度」这个口径永远跟策略同步。
+
+    2026-11-23 起 V11 的交易池就是「既有温度又有 RSI 的 6 只」，所以 `board4_med`
+    （池内子集中位数）与 `board6_med` 相同；列名保留是为了不打断 CSV 的既有读取方。
+    """
+    try:
+        import rule as R  # noqa: PLC0415 - 只读常量，不 import V9 的任何模块
+        return tuple(R.CODES)
+    except Exception as e:  # noqa: BLE001 - 独立运行时退回旧 5 只口径
+        print(f"[warn] 读 rule.CODES 失败，退回旧 5 只池: {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return ("561060", "008163", "090010", "008115", "016441")
 
 
 def main(refresh: bool = False) -> int:
@@ -54,7 +69,7 @@ def main(refresh: bool = False) -> int:
     board["asof"] = asof.reindex(temp.index)
     board["board6_med"] = temp.median(axis=1)
     board["board6_mean"] = temp.mean(axis=1)
-    in_v4 = [c for c in temp.columns if c in V4]
+    in_v4 = [c for c in temp.columns if c in pool_codes()]
     board["board4_med"] = temp[in_v4].median(axis=1)
     board = board.join(temp, how="left").dropna(subset=["board6_med"])
 

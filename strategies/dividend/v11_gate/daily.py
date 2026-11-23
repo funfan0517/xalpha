@@ -72,8 +72,10 @@ def main(refresh: bool = False) -> int:
     L = [f"# {rule.TITLE} · 今日读数", "",
          "> **闸门未采纳**（`rule.GATE_ENABLED = False`）：下面的「闸门动作」是**假设它开着会怎样**，"
          "不是今天的操作。今天的仓位仍按 V4（`v4_rsi/daily.py`）。",
-         f"> 生成 {pd.Timestamp.today():%Y-%m-%d %H:%M} · 温度池 {len(rule.TEMP_CODES)} 只（V4 池内 "
-         f"{len(rule.TEMP_IN_V4)} 只）· 交易池 {len(rule.CODES)} 只", ""]
+         f"> 生成 {pd.Timestamp.today():%Y-%m-%d %H:%M} · **交易池 {len(rule.CODES)} 只 = 温度池**"
+         f"（既有温度又有 RSI："
+         + "、".join(rule.NAME_SHORT.get(c, c) for c in rule.CODES)
+         + "）", ""]
 
     L += ["## 一、读数", "",
           "| 项 | 值 | 说明 |", "|---|---:|---|",
@@ -99,10 +101,12 @@ def main(refresh: bool = False) -> int:
               f"**闸门{'会' if (cold_hit or hot_hit) else '不会'}改档**。", ""]
 
     L += ["## 三、为什么不采纳", "",
-          "1. 冷闸全样本 Calmar 1.44 → 1.54，但**剔除贡献最大 3 个月后年化 12.2% → 9.2%**（V4 同口径 13.1%）。",
-          "2. 减半档内（n=42）温度对下月收益的相关系数 −0.09（t=−0.57）—— 闸门要作用的那一段，温度没有判别力。",
-          "3. 热闸在 55–70 每个阈值上都更差（Calmar 1.34–1.37），却只压 3 个月。",
-          "", "> 细节与全部网格见 `backtest/_v11_report.md`；结论与边界见 `RULES.md`。", ""]
+          "1. 冷闸全样本能把 Calmar 抬高 0.1 上下，但**剔除贡献最大 3 个月后一律低于同池 V4**"
+          "（三个池都试过：5 旧 / 6 同源 / 10 当前 V4）。",
+          "2. 减半档内温度对下月收益的相关系数为负但 **|t| < 2** —— 闸门要作用的那一段，温度没有判别力。",
+          "3. 热闸在每个阈值上都更差（或接近中性），却要以牺牲满仓月的收益为代价。",
+          "", "> 具体数字见 `backtest/_v11_report.md`（§一·补 三池对照 / §四 三把刀 / §五 置换）；"
+          "结论与边界见 `RULES.md`。", ""]
 
     os.makedirs(rule.DAILY_DIR, exist_ok=True)
     with open(rule.OUT_MD, "w", encoding="utf-8") as fh:

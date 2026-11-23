@@ -51,10 +51,15 @@ def load_board(refresh: bool = False) -> pd.DataFrame:
     return df
 
 
-def load(refresh: bool = False) -> dict:
-    """-> 回测所需的一切（全部在 [START, END] 内、月末刻度）。"""
+def load(refresh: bool = False, codes=None) -> dict:
+    """-> 回测所需的一切（全部在 [START, END] 内、月末刻度）。
+
+    `codes` 默认取 `rule.CODES`（V11 的旧 5 只池，用于与历史结论对账）；
+    传 `rule.CODES_V4NOW` 则得到「当前 V4（10 只全池）」的一整套口径，
+    供报告 §一·补 的复核节使用。
+    """
     end = sample_end()
-    navs = pool.load_navs(codes=rule.CODES)
+    navs = pool.load_navs(codes=codes or rule.CODES)
     rets = S.load_rets(navs).loc[rule.START:end]
     raw = S.load_signal("rsi", navs).reindex(rets.index).loc[rule.START:end]
     q = raw / 100.0
@@ -75,7 +80,7 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8")
     d = load(refresh="--refresh" in sys.argv)
     print(f"[v11:data] 样本 {d['rets'].index[0]:%Y-%m}~{d['rets'].index[-1]:%Y-%m} "
-          f"({len(d['rets'])} 月) · 池 {len(rule.CODES)} 只")
+          f"({len(d['rets'])} 月) · 池 {d['rets'].shape[1]} 只")
     print(f"[v11:data] 温度可用 {d['temp6'].notna().sum()} 月 · 最新 "
           f"{d['temp6'].dropna().iloc[-1]:.1f}（{d['temp6'].dropna().index[-1]:%Y-%m}）")
     print(f"[v11:data] 板块 RSI 均值 {d['bq'].iloc[-1] * 100:.1f}")

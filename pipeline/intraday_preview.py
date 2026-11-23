@@ -150,8 +150,41 @@ def rt_prices(codes):
 
 
 # ---------------------------------------------------------------- 板块5 技术指标
+_V17_DAILY = (
+    "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.json",
+    "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.md",
+)
+
+
+def _stage_v17():
+    """把 V17 的每日产物搬进临时树（**不重算**）。
+
+    V17 八态不能盘中重算：强弱回调/反弹由 `rvol`（完整日成交量比）判定，盘中量是半成品，
+    硬换实时量会把「弱回调 ↔ 强回调」系统性判反。所以只搬上一收盘的产物并在卡片里标 🟡。
+    复制是必须的 —— `parse_tech_indicators` 在 `_rooted(_TMP)` 下按临时树找 signal_json，
+    不复制就会显示「无 V17 行」。
+    """
+    hit = 0
+    for rel in _V17_DAILY:
+        src = os.path.join(_ROOT, rel)
+        if os.path.exists(src):
+            shutil.copy2(src, _tpath(rel))
+            hit += 1
+    _note(f"V17 八态：搬上一收盘产物 {hit}/{len(_V17_DAILY)} 个（盘中量能不全，不重算）")
+    return hit
+
+
+def _mark_v17(entry):
+    """给技术指标卡里的 V17 行打 🟡（卡片整体是 🟢，这一行不是）。"""
+    for r in entry.get("rows") or []:
+        if r.get("c") == "V17 八态":
+            r["d"] = ("🟡 上一收盘口径（盘中量能不全，八态不重算）｜"
+                      + str(r.get("d") or ""))
+
+
 def preview_tech(rt):
     """用实时价替换 54 只 ETF 的末根并重算指标，再跑一遍 _daily_recommend.py。"""
+    _stage_v17()
     rec = _mp("ip_tech", os.path.join(_ROOT, "strategies", "tech_indicators",
                                       "daily", "_daily_recommend.py"))
     # 1) 关掉刷新（ensure_fresh 会写 _long_klines.json / _indicators_hist.json）
@@ -432,6 +465,12 @@ def main():
     for key in ("tech_indicators", "vol_variants", "growth_div_rotation", "gd_v5"):
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
+    if "tech_indicators" in entries:
+        entries["tech_indicators"]["note"] += (
+            "\n\n> 本卡最后一行的 **V17 八态** 是 🟡 上一收盘口径：强弱回调/反弹依赖完整日成交量 "
+            "`rvol`，盘中量是半成品，重算会把「弱回调 ↔ 强回调」系统性判反 —— 所以盘中不重算，"
+            "只沿用上一收盘产物（今日加减/持有许可都按上一收盘）。")
+        _mark_v17(entries["tech_indicators"])
     # 板块6 只有 V7 上板（2026-11-21 起）；其余变种停用后不会出现在 entries 里，
     # 这里仍一并列出 —— 万一哪天重新上板，口径标注不会漏。
     for key in ("permanent", "vol_legs", "dividend", "dividend_v9", "bond_cash",

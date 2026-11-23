@@ -1642,23 +1642,23 @@
       "note": "2026-09-28 接入 pipeline: 每日操作固定为 MACD/V3/V6/V7 四策略各跑一遍, 唯一入口 strategies/tech_indicators/daily/_daily_recommend.py（先刷新行情 data/_refresh_data.py, 再基于最新一根 K 线出动作: 买入/卖出/持有/空仓 + 四策略共振名单, 陈旧/失败数据标注）。pipeline_mode=full_pool 表示全池出信号、不做逐码分级。V6 于 2026-09-28 由 7 票改为 4 票（去掉「价触及/跌破 BOLL 下轨」票, 该项与「价>MA20且>MA60」天然互斥导致曝光仅 9%）, 阈值由参数网格取最优 4/2。 2026-10-28 并入两策略成为变种: v9 = 原 right_side（五票确认右侧买点）, v10 = 原 lights（门槛+灯评分）, 两者池统一为全池 55 只、随本族每日一起跑; 看板解析按 daily.strategies 动态取列。",
       "pipeline_mode": "full_pool"
     },
-    "v17_trend_gate": {
-      "name": "技术指标 V17 · 趋势四象限闸门（年线位置 × 年线斜率）",
-      "source_methodology": "strategies/tech_indicators/v17_trend_gate/（README.md + trend_gate.py + backtest.py + daily/_daily_scan.py）；规则沿用 vol_legs 的趋势四象限闸门（原 v5 变种，现为共享模块 strategies/vol_legs/_trend_gate.py），仅数据源从「七腿真实指数收盘」换成家族 54 只场内 ETF 收盘价（data/_long_klines.json + _pool.py / _universe.md 前四类）",
+    "v17_octo_trend": {
+      "name": "技术指标 V17 · 八态趋势（急涨/慢涨/弱回调/强回调 ｜ 急跌/慢跌/弱反弹/强反弹）",
+      "source_methodology": "strategies/tech_indicators/v17_octo_trend/（README.md + rule.py + engine.py + data.py + backtest.py + daily/_daily_scan.py）；规则 = vol_legs/v12_octo_trend 的八态趋势（规格 v1.1，2026-11-21 按用户要求复制进本家族），标的池由「七腿」扩到 tech_indicators 家族 54 只场内 ETF（_pool.py 前四类），价格与量能改用 ETF 日线（data/_etf_cv_klines.json，收盘 + 成交量；无指数量能，宽基 ETF 自身量含做市噪声）",
       "daily": {
         "enabled": true,
-        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
+        "enabled_note": "2026-11-21 用户同意上板（原话：「参考之前的v17，将现在的v17加入到每日报告中」）；不单独出卡，挂在板块5 技术指标卡片 6 策略表下面（daily.card=false）",
         "block": "tech",
         "codes": [],
         "runner": "",
-        "runner_note": "留空: V17 不进 run_daily_tech_indicators.ps1 默认流程（每日 6 策略表是 MACD/V3/V6/V7/V9/V10），也不进 run_daily_all；手跑 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py 后，由 pipeline/daily_digest.py 把结果缩成板块5 技术指标卡片里 V10 下面的一行（**不单独出卡**，见 daily.card）",
-        "signal_report": "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.md",
-        "signal_json": "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.json",
+        "runner_note": "run_daily_tech_indicators.ps1 第 6 步跑 daily/_daily_scan.py（联网增量；54 只 6 路并发刷新约 45s），产出 daily/_v17_octo_daily.md/.json；pipeline/daily_digest.py 的 parse_tech_indicators 读该 JSON 内嵌成一行",
+        "signal_report": "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.md",
+        "signal_json": "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.json",
         "card": false,
-        "card_note": "不单独出卡: 54 只逐只象限会把板块5 的 6 策略表压没。改由 parse_tech_indicators 读本策略 JSON，在 V10 行下面加一行「今日加减仓 + 处于上涨趋势的标的」；要看逐只要点 _v17_trend_gate_daily.md/.html",
+        "card_note": "不单独出卡: 54 只逐只八态会把板块5 压没。改为在技术指标卡片 6 策略表下面加一行「今日加减 + 八态分布 + 平均仓位」，徽标仍只统计 6 个指标策略；逐只见 _v17_octo_daily.md",
         "automation": "(未创建, 随手跑)"
       },
-      "note": "2026-11-04 落地: 照搬 vol_legs 的趋势四象限闸门规则（现为共享模块 _trend_gate.py）、换 54 只场内 ETF 收盘价口径（详见 v17 README 与 tech_indicators README）。单标的分档（满仓/半仓/观察仓，非 0/1 择时），目标仓位直接作为该 ETF 露出比例；无风险利率按家族惯例取 0。口径与五基线 / 每日 6 策略表不同，故不进 compare.py、不进每日 6 策略表。**2026-11-04 起不单独出卡**（daily.card=false）: 原先是板块5 的第二张 54 行卡，读起来与 6 策略表并列但口径不同、噪声大；改为在技术指标卡片 V10 行下面加一行 —— 只展示今日加减仓标的 + 处于上涨趋势（满仓维持）的标的，逐只象限仍留在 v17 自己的 md/html。回测结论（10.7 年样本, 全池等权）: 闸门年化 +3.30% / 回撤 -15.59% / 夏普 0.37 vs 买入持有 +3.97% / -25.23% —— 降回撤、不增收益；闸门价值与资产「阴跌倾向」正相关。",
+      "note": "2026-11-21 落地（用户要求）：把 vol_legs 的 v12 八态趋势整套（rule/engine/data/backtest/daily）复制进技术指标家族作为新 V17，并把标的从七腿扩到家族 54 只场内 ETF。**口径差异必须知道**：v12 用「真实指数收盘 + 同源指数量能」，本变种没有指数量能，只能退到 ETF 自身成交量 —— 宽基（510300/563360）与 QDII（513100/513500）的量由做市与申赎套利主导，v12 实测会把「弱回调−强回调」分离度做成负值，回测报告 §3 会如实体现。成本口径沿用 v12（单边 5bp、空仓计货基 1.40%），与家族「零成本/零利率」口径不可横比。原 v17（趋势四象限闸门）同日删除，其看板行一并撤掉；新 V17 于同日按用户要求上板 —— 不单独出卡，在板块5 技术指标卡片 6 策略表下面加一行（今日加减 + 八态分布 + 平均仓位）。",
       "pipeline_mode": "full_pool"
     },
     "bond_cash": {

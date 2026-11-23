@@ -1,13 +1,13 @@
 {
   "signal": "gate",
-  "asof": "2026-11-17",
+  "asof": "2026-11-20",
   "month": "2026-11-30",
-  "temp6": 63.98,
+  "temp6": 58.91,
   "temp_effective": 60.62,
-  "temp_rank": 0.8438,
+  "temp_rank": 0.7969,
   "band": "中性偏热",
   "band_action": "不再新增，持有观望",
-  "rsi_board": 56.99,
+  "rsi_board": 53.34,
   "v4_mult": 0.5,
   "v4_picks": [
     "016441",

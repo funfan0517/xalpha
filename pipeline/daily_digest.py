@@ -19,7 +19,7 @@ HTML 渲染时按路径读一次、base64 内嵌（按路径去重），这样 `
 未认领的归入末尾「其他」。板块定义里不存策略清单，加策略只改那一处 ``daily.block``。
 
 ``daily.enabled=false`` → 整卡撤掉（含历史归档）；``daily.card=false`` → 数据仍取、但不单独出卡，
-由所属卡片内嵌展示（板块5 的 V17 趋势闸门就缩成技术指标卡片里 V10 下面的一行）。
+由所属卡片内嵌展示（只在所属卡片里占一行，不单独出卡）。
 
 产物格式优先读结构化文件（json / jsonl）；``tech_indicators`` 目前只落 markdown，
 则解析其自产表格（格式由本仓库脚本生成，稳定且简单）。
@@ -49,7 +49,7 @@ CFG = os.path.join(_DIR, "strategies.json")
 DB = os.path.join(_ROOT, "data", "_daily_digest.json")
 HTML = os.path.join(_ROOT, "data", "_daily_digest.html")
 # strategies.json 原文（collect() 时载入）：个别卡片要跨策略读产物路径，
-# 例如板块5 的技术指标卡片把 V17 闸门缩成一行，需按 v17_trend_gate.daily.signal_json 取数。
+# 例如板块2 的「变种操作一览」按 vol_variants 的路径取各变种 JSON。
 _DOC = {}
 # 看板卡片图的同目录副本（部分预览器只 serve 与 HTML 同目录的文件）
 _IMG_DIR = os.path.join(_ROOT, "data", "_daily_digest_assets")
@@ -164,7 +164,7 @@ def _card_on(meta):
     - ``daily.enabled`` **必须显式为 true** 才出卡（缺键 = 不上板，fail-safe）——
       新策略默认不得进每日操作报告，未经用户同意不许出现在看板上（AGENTS.md §9）；
     - ``daily.enabled=false`` → 整卡撤掉（策略已移出每日操作，历史归档也不再渲染）；
-    - ``daily.card=false``   → 数据仍取、但不单独出卡（如 V17 缩成板块5 技术指标卡片的一行）。
+    - ``daily.card=false``   → 数据仍取、但不单独出卡（只在所属卡片里占一行）。
     """
     daily = (meta or {}).get("daily") or {}
     return daily.get("enabled") is True and daily.get("card") is not False
@@ -188,7 +188,7 @@ def _blocks(doc):
             "desc": b.get("desc") or "",
             "note": b.get("note") or "",
             # daily.enabled=false 的策略不进本板块（否则看板会渲染早已撤掉的卡）；
-            # daily.card=false 表示「数据仍要、但不单独出卡」（如 V17 缩成板块5 的一行）
+            # daily.card=false 表示「数据仍要、但不单独出卡」（只在所属卡片里占一行）
             "keys": [k for k, m in cfg.items()
                      if ((m.get("daily") or {}).get("block") or "") == key
                      and _card_on(m)],
@@ -499,16 +499,16 @@ def parse_gd_v5(_cfg):
 
 
 def _v17_row():
-    """V17 趋势闸门的一行摘要（**不单独出卡**，挂在板块5「技术指标」的 V10 行下面）。
+    """V17 八态趋势的一行摘要（**不单独出卡**，挂在板块5 技术指标卡的 6 策略表下面）。
 
-    只保留两件读得懂的事：今天的加减仓标的、以及处于上涨趋势（= 满仓维持）的标的。
-    全池 54 只逐只象限在 ``v17_trend_gate/daily/_v17_trend_gate_daily.md/.html``，
-    详情不搬进汇总看板 —— 54 行会把 6 策略表压没。
+    只保留四件读得懂的事：今天加减了谁、**允许持有的标的**（急涨/慢涨/弱回调）、
+    全池八态分布、平均仓位。
+    54 只逐只状态在 ``v17_octo_trend/daily/_v17_octo_daily.md``，不搬进汇总看板。
     产物缺失时返回 ``None``（卡片照常出，不因 V17 缺数而失败）。
     """
-    meta = ((_DOC.get("strategies") or {}).get("v17_trend_gate") or {})
+    meta = ((_DOC.get("strategies") or {}).get("v17_octo_trend") or {})
     rel = ((meta.get("daily") or {}).get("signal_json")
-           or "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.json")
+           or "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.json")
     path = os.path.join(_ROOT, rel.replace("/", os.sep))
     if not os.path.exists(path):
         return None
@@ -516,23 +516,32 @@ def _v17_row():
         d = json.loads(_read(path))
     except json.JSONDecodeError:
         return None
-    etfs = d.get("etfs") or []
-    if not etfs:
+    legs = d.get("legs") or []
+    if not legs:
         return None
-    buys = [x for x in etfs if x.get("decide") == "buy"]
-    sells = [x for x in etfs if x.get("decide") == "sell"]
-    ups = [x for x in etfs if x.get("quad") == "上涨趋势"]
-    quads = (d.get("summary") or {}).get("quads") or {}
+    buys = [x for x in legs if x.get("action") == "加仓" and float(x.get("act") or 0) > 0]
+    sells = [x for x in legs if x.get("action") == "减仓" and float(x.get("act") or 0) < 0]
+    ups = [x for x in legs if x.get("state") == "急涨"]
+    # 允许持有的三个态（急涨 100% / 慢涨 50% / 弱回调 100%）—— 新产物直接给 hold_ok，
+    # 老产物没有这个键就从 legs 反推，避免产物版本不一致时整行消失。
+    hold = d.get("hold_ok")
+    if hold is None:
+        hold = [dict(code=x.get("code"), name=x.get("name"), state=x.get("state"),
+                     cap=float(x.get("cap") or 0), pos=float(x.get("pos") or 0))
+                for x in legs if x.get("state") in ("急涨", "慢涨", "弱回调")]
+    hold = sorted(hold, key=lambda y: (-float(y.get("pos") or 0), str(y.get("name"))))
+    avg = sum(float(x.get("pos") or 0) for x in legs) / len(legs)
+    cnt = {}
+    for x in legs:
+        cnt[str(x.get("state"))] = cnt.get(str(x.get("state")), 0) + 1
+    dist = " / ".join(f"{k} {v}" for k, v in
+                      sorted(((k, v) for k, v in cnt.items() if k != "暖机"),
+                             key=lambda kv: -kv[1]))
 
     def _tag(x):
-        return f"{x.get('code')} {x.get('name')}"
+        return (f"{x.get('name')}(`{x.get('code')}`) "
+                f"{float(x.get('pos_prev') or 0):.0%}→{float(x.get('pos') or 0):.0%}")
 
-    if buys:
-        act, label = "buy", f"加 {len(buys)}"
-    elif sells:
-        act, label = "sell", f"减 {len(sells)}"
-    else:
-        act, label = "hold", "无动作"
     parts = []
     if buys:
         parts.append("加仓：" + "、".join(_tag(x) for x in buys))
@@ -540,13 +549,24 @@ def _v17_row():
         parts.append("减仓：" + "、".join(_tag(x) for x in sells))
     if not (buys or sells):
         parts.append("今日无调仓")
-    tail = f"**处于上涨趋势（满仓维持 · {len(ups)} 只）**：" + ("、".join(_tag(x) for x in ups) or "（无）")
-    if quads:
-        tail += (f" · 全池 {len(etfs)} 只 = 上涨 {quads.get('上涨趋势', 0)} / 反弹 {quads.get('反弹', 0)} / "
-                 f"高位回调 {quads.get('高位回调', 0)} / 下跌 {quads.get('下跌趋势', 0)}")
-    parts.append(tail)
-    return (_row("V17 闸门", f"加 {len(buys)} · 减 {len(sells)} · 上涨 {len(ups)}", act, label,
-                 "；".join(parts)), len(ups))
+    if hold:
+        items = "、".join(f"{h.get('name')}(`{h.get('code')}`) {h.get('state')}" for h in hold[:12])
+        parts.append("**允许持有（急涨/慢涨/弱回调）：" + items
+                     + (f" 等 {len(hold)} 只" if len(hold) > 12 else "") + "**")
+    else:
+        parts.append("**允许持有（急涨/慢涨/弱回调）：无**")
+    if dist:
+        parts.append("八态：" + dist)
+    parts.append(f"平均仓位 **{avg:.0%}**")
+    if buys:
+        act, label = "buy", f"加 {len(buys)}"
+    elif sells:
+        act, label = "sell", f"减 {len(sells)}"
+    else:
+        act, label = "hold", "无动作"
+    return (_row("V17 八态", f"加 {len(buys)} · 减 {len(sells)} · 满仓 {len(ups)}", act, label,
+                 "；".join(parts)),
+            len(buys), len(sells), avg, d.get("as_of"), len(hold))
 
 
 def parse_tech_indicators(_cfg):
@@ -616,17 +636,14 @@ def parse_tech_indicators(_cfg):
                                 f"持 {len(g['hold'])} · 空 {len(g['none'])}", act, label,
                          detail))
 
-    # V17 不单独出卡：只在 V10（最后一行）下面加一行 —— 今日加减仓 + 处于上涨趋势的标的。
-    v17 = _v17_row()
-    n_up = 0
-    if v17:
-        rows.append(v17[0])
-        n_up = v17[1]
-
     n_buy = sum(len(group[n]["buy"]) for n in names)
     n_sell = sum(len(group[n]["sell"]) for n in names)
-    # 徽标只统计上面 6 个指标策略（V17 是趋势闸门、口径不同，混进来会让「买 N/卖 M」失真）
-    active = [r for r in rows if r["act"] in ("buy", "sell") and r["c"] != "V17 闸门"]
+    # V17 八态趋势不单独出卡（daily.card=false），只在 6 策略表下面加一行。
+    # 徽标仍只统计上面 6 个指标策略 —— V17 是仓位分档、口径不同，混进来会让「买 N / 卖 M」失真。
+    v17 = _v17_row()
+    active = [r for r in rows if r["act"] in ("buy", "sell")]
+    if v17:
+        rows.append(v17[0])
     if active:
         badge = f"买 {n_buy} / 卖 {n_sell}"
         tone = "buy" if n_buy else "sell"
@@ -635,7 +652,7 @@ def parse_tech_indicators(_cfg):
         badge, tone = "无动作", "none"
         summary = f"{ncol} 策略对全池 {pool} 只均无买入/卖出信号"
     if v17:
-        summary += f" · V17 趋势闸门 {v17[0]['n']}"
+        summary += f" · V17 八态 加 {v17[1]} · 减 {v17[2]}"
     # 六列的数据日并不相同：MACD/V3/V6/V7 用当日行情，V9/V10 是状态机型、各自 scan 的落盘日
     head_txt = "\n".join(lines[:8])
     m9 = re.search(r"v9\s*数据日\D*(\d{4}-\d{2}-\d{2})", head_txt, re.I)
@@ -644,87 +661,33 @@ def parse_tech_indicators(_cfg):
     data = f"ETF 行情 {as_of}"
     if v9d or v10d:
         data += f" · V9 {v9d or '—'} / V10 {v10d or as_of}"
+    if v17 and v17[4]:
+        data += f" · V17 {v17[4]}"
     mis_note = _proxy_mismatch_note(pool_codes)
+    stats = [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)],
+             ["策略", str(ncol)]]
+    v17_note = ""
+    if v17:
+        stats += [["V17 八态 加/减", f"{v17[1]} / {v17[2]}"],
+                  ["V17 持有许可", f"{v17[5]} 只"],
+                  ["V17 平均仓位", f"{v17[3]:.0%}"]]
+        v17_note = ("最后一行「V17 八态」是 vol_legs v12 八态趋势的扩池版（54 只场内 ETF，"
+                    "**ETF 自身量能**口径）：八态 → 仓位比例（非 0/1 择时）。"
+                    "「允许持有」= 急涨/慢涨/弱回调（许可 100%/50%/100%），只表示**可以拿**，"
+                    "不是买入指令，实际仓位还要过波动层与升格确认。"
+                    "与上面 6 个指标策略口径不同，读数不可直接互比；逐只状态见 "
+                    "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.md。")
     return _entry(
         "tech_indicators", f"技术指标（{ncol} 策略）", as_of, badge, tone, summary, rows,
-        [["全池", str(pool)], ["买入", str(n_buy)], ["卖出", str(n_sell)],
-         ["策略", str(ncol)], ["V17 上涨趋势", f"{n_up} / 54"]],
+        stats,
         note="解析自 _daily_recommend.md（该策略只落 markdown）；每行是一个指标策略对全池的操作汇总。"
              "⚠ V6/V7 的样本外检验不通过（WF 夏普 0.14 / 真实 OOS 0.41，均低于 MACD 0.54），"
              "保留在表里只为观察，**不要与 MACD 等权使用**；「N 策略共振」把这两列剔除后才有意义。"
-             "最后一行「V17 闸门」是趋势四象限（年线位置 × 年线斜率）的缩影：只列今日加减仓标的"
-             "与处于上涨趋势（满仓维持）的标的，54 只逐只象限见 "
-             "strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.md —— "
-             "它与上面 6 个指标策略口径不同（单标的分档，非 0/1 择时），读数不可直接互比。"
+             + v17_note
              + mis_note,
         src=_rel(path),
         data=data,
         cols=["策略", "动作统计", "动作", "该策略的操作明细"],
-    )
-
-
-def parse_v17(_cfg):
-    """V17 趋势四象限闸门：54 只场内 ETF 逐只档位（满仓/半仓/观察仓）。
-
-    读 v17 每日扫描的 JSON（结构见 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py
-    的 build_html/json 产物）：每个 ETF 有 quad / state / level_txt / dev / slope_up /
-    below_days / lack_short / decide / action。
-    卡片列出全池（all_rows=True，让「上涨趋势 = 满仓维持」的标的也出现，不被「只看有动作」收掉），
-    动作列 = 今日调仓（加仓/减仓）或当前目标仓位（满仓/半仓/观察仓）。
-    """
-    daily = _cfg["daily"]
-    json_path = os.path.join(_ROOT, daily["signal_json"])
-    if not os.path.exists(json_path):
-        raise ValueError("产物缺失：请先跑 strategies/tech_indicators/v17_trend_gate/daily/_daily_scan.py")
-    d = json.loads(_read(json_path))
-    as_of = d.get("as_of")
-    etfs = d.get("etfs") or []
-    summ = d.get("summary") or {}
-    quads = summ.get("quads") or {}
-    n_buy = summ.get("buy", 0)
-    n_sell = summ.get("sell", 0)
-
-    quad_order = ["上涨趋势", "反弹", "高位回调", "下跌趋势"]
-    rows = []
-    for x in sorted(etfs, key=lambda z: (quad_order.index(z["quad"])
-                                        if z["quad"] in quad_order else 9, z["name"])):
-        decide = x.get("decide")
-        if decide == "buy":
-            act, label = "buy", "加仓"
-        elif decide == "sell":
-            act, label = "sell", "减仓"
-        else:
-            act, label = "none", x.get("level") or "—"
-        detail = (f"{x['quad']} · 档位 {x.get('level_txt', '—')} · 距年线 {x['dev']:+.1%} · "
-                  f"年线斜率 {'↑' if x.get('slope_up') else '↓'} · "
-                  f"连续在年线下 {x.get('below_days', 0)} 日 · 还缺 {x.get('lack_short', '—')}")
-        rows.append(_row(x.get("code"), x.get("name"), act, label, detail))
-
-    qtxt = (f"上涨趋势 {quads.get('上涨趋势', 0)} · 反弹 {quads.get('反弹', 0)} · "
-            f"高位回调 {quads.get('高位回调', 0)} · 下跌趋势 {quads.get('下跌趋势', 0)}")
-    if n_buy or n_sell:
-        tone, badge = ("buy" if n_buy else "sell"), f"加 {n_buy} / 减 {n_sell}"
-        summary = qtxt + f" · 今日加仓 {n_buy} / 减仓 {n_sell}"
-    else:
-        tone, badge = "none", "无动作"
-        summary = qtxt + " · 今日无调仓"
-    return _entry(
-        "v17_trend_gate", "技术指标 V17 · 趋势四象限闸门", as_of, badge, tone, summary, rows,
-        [["全池", str(len(etfs))],
-         ["上涨趋势", str(quads.get("上涨趋势", 0))],
-         ["反弹", str(quads.get("反弹", 0))],
-         ["高位回调", str(quads.get("高位回调", 0))],
-         ["下跌趋势", str(quads.get("下跌趋势", 0))],
-         ["今日加仓", str(n_buy)], ["今日减仓", str(n_sell)]],
-        note="V17 · 趋势四象限闸门（年线位置 × 年线斜率 → 满仓/半仓/观察仓）：close 在 MA250 上/下 × "
-             "MA250 近 20 日朝上/朝下，两个都朝上才是上涨趋势（满仓），其余三格都不给加仓许可。"
-             "规则沿用 vol_legs 的趋势四象限闸门（现为共享模块 _trend_gate.py）、数据源换成家族 54 只场内 ETF 收盘价。"
-             "它是单标的分档（非 0/1 择时），压低各标的仓位、换回撤，不保证增收益；"
-             "滞后是设计特性（年线确认进入下跌趋势时价格通常已跌掉两位数）。"
-             "明细见 strategies/tech_indicators/v17_trend_gate/daily/_v17_trend_gate_daily.html。",
-        src=_rel(os.path.join(_ROOT, daily["signal_report"])),
-        cols=["代码", "名称", "动作 / 仓位", "象限 / 档位 / 距年线 / 斜率 / 还缺什么"],
-        all_rows=True,
     )
 
 
@@ -1837,7 +1800,6 @@ PARSERS = {
     "gd_v2": parse_gd_v2,
     "gd_v5": parse_gd_v5,
     "tech_indicators": parse_tech_indicators,
-    "v17_trend_gate": parse_v17,
     "v1_1_ma20": parse_v1_1_ma20,
     "v3_macd_boll": parse_v3_macd_boll,
     "permanent": parse_permanent,

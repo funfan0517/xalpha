@@ -107,8 +107,11 @@ python strategies\permanent\_signal.py --capital 2000000     # 按总资产换�
 
 **已接入每日操作（2026-10-27）**：`run_daily_all.ps1` 按 `pipeline/strategies.json` 的 `daily.runner` 自动带上本策略；
 每日产物进跨策略看板 `data/_daily_digest.html`（解析器 `pipeline/daily_digest.py::parse_permanent`，
-权重读 `_permanent_signal.json`、资产名与场外代码读 `_permanent_report.md` 的「当前最佳百分比」表）。
-看板卡片语义：**「加至 / 减至」是目标权重**，不是当日买卖指令（§8.1 第 4 条：偏离 >5pp 才调）。
+基准读 `_permanent_signal.json::base`，资产名 / 场外代码 / 该腿最优策略读 `daily_digest.py::_PERM_BEST`，
+各腿仓位读该策略自己的 `daily/_*_daily.json`）。
+看板卡片（2026-11-24 版）五列：**标的 / 基准百分比 / 最优策略 / 当前资产最优占比 / 总资产最优占比**，
+单位一律用 %，不再用 pp；**总资产最优占比 = 基准% × 该资产最优策略仓位%**，合计不足 100% 的部分是空仓现金。
+箭头后的值是**目标**，不是当日买卖指令（§8.1 第 4 条：偏离超过 5 个百分点才调）。
 
 产物（按职能分子目录，见 `AGENTS.md §8.4`）：
 

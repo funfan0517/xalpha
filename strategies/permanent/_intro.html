@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>永久投资组合 · 一页看懂（10万示例）</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#141a21; --ink2:#3d4a58; --muted:#6b7785;
+    --line:#e5e8ee; --line2:#eef1f5;
+    --brand:#2f6fed; --brand-soft:#eaf0ff;
+    --good:#0f9d70; --good-soft:#e6f7f1;
+    --warn:#c8811a; --warn-soft:#fdf3e3;
+    --bad:#cf4634; --bad-soft:#fdecea;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(20,26,33,.05), 0 8px 24px -12px rgba(20,26,33,.12);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px; line-height:1.72; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px 80px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+       background:#f0f2f6; border:1px solid var(--line2); border-radius:5px; padding:1px 5px; color:#2b3440}
+  a{color:var(--brand); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---------- hero ---------- */
+  header.hero{
+    background:linear-gradient(160deg,#1c2b46 0%,#243c66 55%,#2c4a7d 100%);
+    color:#fff; padding:52px 0 44px; margin-bottom:28px;
+  }
+  header.hero .wrap{padding-bottom:0}
+  .eyebrow{font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; opacity:.68; font-weight:600}
+  header.hero h1{margin:10px 0 12px; font-size:31px; line-height:1.32; font-weight:700; letter-spacing:-.01em}
+  header.hero p.lead{margin:0; font-size:16.5px; line-height:1.8; color:#d7e2f4; max-width:820px}
+  header.hero p.lead b{color:#fff; background:rgba(255,255,255,.14); padding:1px 6px; border-radius:5px; font-weight:600}
+  .badges{display:flex; flex-wrap:wrap; gap:10px; margin-top:24px}
+  .badge{
+    background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18);
+    border-radius:10px; padding:9px 14px; font-size:13px; color:#cfdcf0;
+  }
+  .badge b{display:block; font-size:19px; color:#fff; font-weight:700; letter-spacing:-.01em; margin-top:2px}
+
+  /* ---------- nav ---------- */
+  nav.toc{
+    position:sticky; top:0; z-index:20; background:rgba(245,246,248,.92);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line); margin-bottom:26px;
+  }
+  nav.toc .wrap{display:flex; gap:6px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+  nav.toc .wrap::-webkit-scrollbar{display:none}
+  nav.toc a{
+    flex:0 0 auto; font-size:13.5px; color:var(--ink2); padding:5px 11px; border-radius:8px; white-space:nowrap;
+  }
+  nav.toc a:hover{background:#fff; text-decoration:none; color:var(--brand)}
+
+  /* ---------- section / card ---------- */
+  section{margin:0 0 34px}
+  h2{
+    font-size:20px; margin:0 0 6px; letter-spacing:-.01em; display:flex; align-items:baseline; gap:10px;
+  }
+  h2 .num{
+    font-size:12.5px; font-weight:700; color:var(--brand); background:var(--brand-soft);
+    border-radius:6px; padding:2px 7px; letter-spacing:.04em; flex:0 0 auto;
+  }
+  .sub{color:var(--muted); font-size:14px; margin:0 0 16px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px 24px}
+  .card + .card{margin-top:14px}
+
+  /* ---------- tables ---------- */
+  .tblwrap{overflow-x:auto; margin:0 -4px}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--line2); vertical-align:middle}
+  th{font-size:12.5px; font-weight:600; color:var(--muted); letter-spacing:.02em; white-space:nowrap;
+     border-bottom:1px solid var(--line); background:#fbfcfd}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafbfd}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .mono{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+  .dim{color:var(--muted)}
+  .strong{font-weight:600}
+  .pos{color:var(--good); font-weight:600}
+  .neg{color:var(--bad); font-weight:600}
+  .neu{color:var(--ink2); font-weight:600}
+
+  /* ---------- pills ---------- */
+  .pill{display:inline-block; font-size:11.5px; font-weight:600; padding:1.5px 8px; border-radius:99px;
+        letter-spacing:.02em; white-space:nowrap; vertical-align:1px}
+  .pill.up{background:var(--good-soft); color:var(--good)}
+  .pill.down{background:var(--bad-soft); color:var(--bad)}
+  .pill.flat{background:#eef1f5; color:#5b6775}
+  .pill.info{background:var(--brand-soft); color:var(--brand)}
+  .pill.warn{background:var(--warn-soft); color:var(--warn)}
+
+  /* ---------- bars ---------- */
+  .bars{display:flex; flex-direction:column; gap:11px; margin-top:4px}
+  .bar-row{display:grid; grid-template-columns:104px 1fr 92px; gap:12px; align-items:center}
+  .bar-name{font-size:13.5px; color:var(--ink2); text-align:right; white-space:nowrap}
+  .track{position:relative; height:22px; background:#f3f5f8; border-radius:6px; overflow:hidden}
+  .fill{position:absolute; inset:0 auto 0 0; border-radius:6px; background:var(--brand)}
+  .fill.base{background:#c3d2f2}
+  .fill.down{background:#e8a9a1}
+  .fill.up{background:#79c7ad}
+  .mark{position:absolute; top:-2px; bottom:-2px; width:2px; background:#8a97a8; opacity:.85}
+  .bar-val{font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink2); white-space:nowrap}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); margin-top:14px}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px}
+
+  /* ---------- flow ---------- */
+  .flow{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; align-items:stretch}
+  .step{background:#fbfcfd; border:1px solid var(--line); border-radius:11px; padding:14px 15px}
+  .step .t{font-size:12px; color:var(--brand); font-weight:700; letter-spacing:.06em; margin-bottom:6px}
+  .step .v{font-size:14px; color:var(--ink); line-height:1.65}
+  .step .v b{font-variant-numeric:tabular-nums}
+  .formula{
+    margin-top:16px; background:#1c2b46; color:#dce6f6; border-radius:11px; padding:16px 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13.5px; line-height:2; overflow-x:auto;
+  }
+  .formula em{color:#8fb4ff; font-style:normal}
+  .formula .cm{color:#7f8ea6}
+
+  /* ---------- layers ---------- */
+  .layers{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  .layer{border:1px solid var(--line); border-radius:12px; padding:16px 17px; background:#fbfcfd; position:relative}
+  .layer .lbl{font-size:11.5px; font-weight:700; letter-spacing:.08em; color:var(--brand); margin-bottom:7px}
+  .layer h3{margin:0 0 6px; font-size:15px}
+  .layer p{margin:0; font-size:13.5px; color:var(--muted); line-height:1.7}
+  .layer.disabled{background:#fafafa; border-style:dashed}
+  .layer.disabled .lbl{color:var(--warn)}
+
+  /* ---------- callouts ---------- */
+  .callout{border-left:3px solid var(--brand); background:var(--brand-soft); border-radius:0 10px 10px 0;
+           padding:13px 16px; font-size:14px; color:#22385e; margin:14px 0 0}
+  .callout.warn{border-color:var(--warn); background:var(--warn-soft); color:#6b4508}
+  .callout.bad{border-color:var(--bad); background:var(--bad-soft); color:#6e2a20}
+  .callout b{font-weight:600}
+
+  /* ---------- grid cards ---------- */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  .mini{background:#fbfcfd; border:1px solid var(--line); border-radius:12px; padding:15px 16px}
+  .mini .k{font-size:12px; color:var(--muted); margin-bottom:5px}
+  .mini .big{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+  .mini .note{font-size:12.5px; color:var(--muted); margin-top:4px; line-height:1.55}
+  .mini h4{margin:0 0 7px; font-size:14.5px}
+  .mini p{margin:0; font-size:13.5px; color:var(--ink2); line-height:1.72}
+
+  ol.steps{margin:0; padding-left:22px}
+  ol.steps li{margin-bottom:11px; font-size:14px; line-height:1.75}
+  ol.steps li b{font-weight:600}
+
+  footer{margin-top:44px; padding-top:20px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); line-height:1.9}
+  footer code{font-size:11.5px}
+
+  @media (max-width:820px){
+    header.hero{padding:38px 0 32px}
+    header.hero h1{font-size:24px}
+    .flow{grid-template-columns:1fr 1fr}
+    .layers,.grid2,.grid3{grid-template-columns:1fr}
+    .bar-row{grid-template-columns:82px 1fr 78px; gap:8px}
+    .card{padding:18px 16px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Permanent Portfolio · 组合层资产配置</div>
+    <h1>永久投资组合：九项基准 + 每项 ±50% 月度浮动</h1>
+    <p class="lead">
+      一句话：<b>九个大类先按固定比例钉住</b>（债券 30% + 红利低波 20% 是压舱骨架），
+      每月按「离 200 日均线多远 + 过去一年涨多少」两条信号，让每项在<b>基准上下浮动最多 50%</b>。
+      不预测、不用估值分位、不做行业轮动 —— 目标是睡得着，不是抓涨停。
+    </p>
+    <div class="badges">
+      <div class="badge">现行基准（第二版）<b>30 / 20 / 10 / 10 / 10 / 10 / 2.5 / 5 / 2.5</b></div>
+      <div class="badge">固定比例回测夏普<b>1.09</b></div>
+      <div class="badge">叠加单腿择时年化<b>+8.18%</b></div>
+      <div class="badge">最大回撤（择时口径）<b>-1.27%</b></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#split">① 10万怎么分</a>
+    <a href="#layers">② 三层结构</a>
+    <a href="#tilt">③ 本月怎么浮动</a>
+    <a href="#rule">④ 打分规则</a>
+    <a href="#legs">⑤ 每项用什么策略</a>
+    <a href="#backtest">⑥ 回测说了什么</a>
+    <a href="#exec">⑦ 实操六条</a>
+    <a href="#risk">⑧ 边界与风险</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ============ 1 ============ -->
+<section id="split">
+  <h2><span class="num">01</span>10 万怎么分：先钉住基准</h2>
+  <p class="sub">合计恰好 100%，没有归一化歧义 —— 任一项加仓，必然由其余项让出。</p>
+
+  <div class="card">
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th>资产</th><th class="num">基准</th><th class="num">10 万对应</th>
+            <th>场外执行</th><th>为什么给它这么多</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="strong">短中长期国债</td><td class="num">30%</td><td class="num strong">3.0 万</td>
+            <td><code>012265</code> / <code>001512</code> / <code>003377</code></td>
+            <td class="dim">项内三等分各 1 万；纯压波动，风险贡献 ≈ 0%</td>
+          </tr>
+          <tr>
+            <td class="strong">红利低波</td><td class="num">20%</td><td class="num strong">2.0 万</td>
+            <td><code>008163</code></td>
+            <td class="dim">性价比最高的 A 股权益腿（与权益篮子相关仅 +0.12）</td>
+          </tr>
+          <tr>
+            <td class="strong">纳指100</td><td class="num">10%</td><td class="num strong">1.0 万</td>
+            <td><code>270042</code></td>
+            <td class="dim">收益王，但与标普相关 0.84 —— 所以两份不各给 10%+</td>
+          </tr>
+          <tr>
+            <td class="strong">标普500</td><td class="num">10%</td><td class="num strong">1.0 万</td>
+            <td><code>017641</code></td>
+            <td class="dim">同上，美股整体 20%，不再往上加</td>
+          </tr>
+          <tr>
+            <td class="strong">黄金</td><td class="num">10%</td><td class="num strong">1.0 万</td>
+            <td><code>000216</code></td>
+            <td class="dim">唯一真分散器（与权益相关 0.18），但不要给到 25%</td>
+          </tr>
+          <tr>
+            <td class="strong">货币基金</td><td class="num">10%</td><td class="num strong">1.0 万</td>
+            <td>自选（建议拆 2 只）</td>
+            <td class="dim">真流动性；单只快速赎回上限 1 万/日</td>
+          </tr>
+          <tr>
+            <td class="strong">中证A500</td><td class="num">2.5%</td><td class="num strong">2,500</td>
+            <td><code>023299</code></td>
+            <td class="dim">A 股大盘 5pp 的一半壳（2026-11-23 由 5% 降到 2.5%）</td>
+          </tr>
+          <tr>
+            <td class="strong">科创50</td><td class="num">5%</td><td class="num strong">5,000</td>
+            <td><code>011609</code></td>
+            <td class="dim">波动 34.6%，零收益容忍上限就 5pp</td>
+          </tr>
+          <tr>
+            <td class="strong">沪深300</td><td class="num">2.5%</td><td class="num strong">2,500</td>
+            <td><code>006131</code></td>
+            <td class="dim">A 股大盘的另一半壳，与 A500 相关 0.73</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b>最容易误解的一条：</b>A500 2.5% + 沪深300 2.5% <b>不是两个独立赌注</b>。
+      两条腿成分重叠约八成、月收益相关 0.73，合起来就是「一份 A 股大盘 beta 5pp 拆成两个壳」。
+      判断超配/低配时按 <b>合计 5pp</b> 看，别在两个壳上各加一次。
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="layers">
+  <h2><span class="num">02</span>三层结构：谁管什么，别混着用</h2>
+  <p class="sub">三层互不替代。改一层不改另一层。</p>
+
+  <div class="layers">
+    <div class="layer">
+      <div class="lbl">第一层 · §1 基准</div>
+      <h3>每项配多少</h3>
+      <p>30/20/10/10/10/10/2.5/5/2.5。这一层决定组合的性格 —— 固定比例本身的夏普 1.09，是所有收益风险比的来源。</p>
+    </div>
+    <div class="layer">
+      <div class="lbl">第二层 · §2 倾斜</div>
+      <h3>月度微调多少</h3>
+      <p>按趋势 + 动量打分，每项在 ±50% 内浮动后归一化。实测只贡献年化 +0.10pp、夏普 +0.00 —— 是修饰，不是引擎。</p>
+    </div>
+    <div class="layer disabled">
+      <div class="lbl">第三层 · §9 单腿择时</div>
+      <h3>每项内部怎么买卖</h3>
+      <p>每条腿指定一支择时策略。叠加后年化 +8.18%、回撤 -1.27%、夏普 1.96。<b>但目前尚未自动接进信号脚本</b>，见第 ⑤ 节。</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <b>优先级提醒：</b>执行准不准（卡片、盘后复算、偏离 &gt;5pp 才再平衡），比在 5pp 的配比上掰手腕值钱得多。
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="tilt">
+  <h2><span class="num">03</span>本月怎么浮动：以 2026-11-20 快照为例</h2>
+  <p class="sub">快照来源 <code>daily/_permanent_signal.json</code>。「加至/减至」是<b>目标权重</b>，不是当日买卖指令。</p>
+
+  <div class="card">
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th>资产</th><th class="num">基准</th><th class="num">倍率 k</th>
+            <th class="num">建议权重</th><th class="num">10 万对应</th><th>方向</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>短中长期国债</td><td class="num">30%</td><td class="num">1.07</td><td class="num strong">31.5%</td><td class="num">约 3.15 万</td><td><span class="pill up">加</span></td></tr>
+          <tr><td>红利低波</td><td class="num">20%</td><td class="num">1.10</td><td class="num strong">21.6%</td><td class="num">约 2.16 万</td><td><span class="pill up">加</span></td></tr>
+          <tr><td>纳指100</td><td class="num">10%</td><td class="num">1.14</td><td class="num strong">11.2%</td><td class="num">约 1.12 万</td><td><span class="pill up">加</span></td></tr>
+          <tr><td>标普500</td><td class="num">10%</td><td class="num">1.18</td><td class="num strong">11.6%</td><td class="num">约 1.16 万</td><td><span class="pill up">加</span></td></tr>
+          <tr><td>黄金</td><td class="num">10%</td><td class="num">0.68</td><td class="num strong">6.7%</td><td class="num">约 0.67 万</td><td><span class="pill down">减</span></td></tr>
+          <tr><td>货币基金</td><td class="num">10%</td><td class="num">1.03</td><td class="num strong">10.1%</td><td class="num">约 1.01 万</td><td><span class="pill flat">基本不动</span></td></tr>
+          <tr><td>中证A500</td><td class="num">2.5%</td><td class="num">0.76</td><td class="num strong">1.9%</td><td class="num">约 1,900</td><td><span class="pill down">减</span></td></tr>
+          <tr><td>科创50</td><td class="num">5%</td><td class="num">0.71</td><td class="num strong">3.5%</td><td class="num">约 3,500</td><td><span class="pill down">减</span></td></tr>
+          <tr><td>沪深300</td><td class="num">2.5%</td><td class="num">0.75</td><td class="num strong">1.8%</td><td class="num">约 1,800</td><td><span class="pill down">减</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bars" style="margin-top:22px">
+      <div class="bar-row"><div class="bar-name">国债</div><div class="track"><div class="fill up" style="width:98%"></div><div class="mark" style="left:93.75%"></div></div><div class="bar-val">31.5 / 30</div></div>
+      <div class="bar-row"><div class="bar-name">红利低波</div><div class="track"><div class="fill up" style="width:67.5%"></div><div class="mark" style="left:62.5%"></div></div><div class="bar-val">21.6 / 20</div></div>
+      <div class="bar-row"><div class="bar-name">纳指100</div><div class="track"><div class="fill up" style="width:35%"></div><div class="mark" style="left:31.25%"></div></div><div class="bar-val">11.2 / 10</div></div>
+      <div class="bar-row"><div class="bar-name">标普500</div><div class="track"><div class="fill up" style="width:36.2%"></div><div class="mark" style="left:31.25%"></div></div><div class="bar-val">11.6 / 10</div></div>
+      <div class="bar-row"><div class="bar-name">黄金</div><div class="track"><div class="fill down" style="width:21%"></div><div class="mark" style="left:31.25%"></div></div><div class="bar-val">6.7 / 10</div></div>
+      <div class="bar-row"><div class="bar-name">货币基金</div><div class="track"><div class="fill" style="width:31.6%"></div><div class="mark" style="left:31.25%"></div></div><div class="bar-val">10.1 / 10</div></div>
+      <div class="bar-row"><div class="bar-name">中证A500</div><div class="track"><div class="fill down" style="width:5.8%"></div><div class="mark" style="left:7.8%"></div></div><div class="bar-val">1.9 / 2.5</div></div>
+      <div class="bar-row"><div class="bar-name">科创50</div><div class="track"><div class="fill down" style="width:11%"></div><div class="mark" style="left:15.6%"></div></div><div class="bar-val">3.5 / 5</div></div>
+      <div class="bar-row"><div class="bar-name">沪深300</div><div class="track"><div class="fill down" style="width:5.6%"></div><div class="mark" style="left:7.8%"></div></div><div class="bar-val">1.8 / 2.5</div></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#79c7ad"></i>高于基准</span>
+      <span><i style="background:#e8a9a1"></i>低于基准</span>
+      <span><i style="background:#2f6fed"></i>与基准持平</span>
+      <span><i style="background:#8a97a8"></i>竖线 = 基准位置</span>
+    </div>
+
+    <div class="callout">
+      <b>这次的钱从哪来、到哪去：</b>黄金、A500、科创、沪深300 四条弱腿被减到基准的 7 成左右，
+      让出来的额度给了美股、红利和债券。这就是「任一项加仓必然由其余项让出」的实际样子。
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="rule">
+  <h2><span class="num">04</span>打分规则：只有两条信号</h2>
+  <p class="sub">全部由净值序列本地算出，零外部接口依赖。唯一权威源是 <code>rule.py</code>。</p>
+
+  <div class="card">
+    <div class="flow">
+      <div class="step">
+        <div class="t">信号 A · 趋势</div>
+        <div class="v">现价 / 200 日均线 − 1<br><span class="dim">±10% 即打满分</span></div>
+      </div>
+      <div class="step">
+        <div class="t">信号 B · 动量</div>
+        <div class="v">过去 12 个月涨幅<br><span class="dim">±20% 即打满分</span></div>
+      </div>
+      <div class="step">
+        <div class="t">合成得分</div>
+        <div class="v">0.55 × 趋势 + 0.45 × 动量<br><span class="dim">再过一个 tanh 压到 ±1</span></div>
+      </div>
+      <div class="step">
+        <div class="t">转成倍率</div>
+        <div class="v">k = 1 + 0.5 × 得分<br><span class="dim">→ 永远落在 0.5 ~ 1.5 倍</span></div>
+      </div>
+    </div>
+
+    <div class="formula">
+      <span class="cm"># 得分 → 权重</span><br>
+      趋势 = clip((close/MA200 − 1) / 10%, −1, +1)<br>
+      动量 = clip(12个月收益 / 20%, −1, +1)<br>
+      score = tanh( 0.55×趋势 + 0.45×动量 )  <em>∈ (−1, +1)</em><br>
+      k = 1 + 0.5 × score  <em>∈ [0.5, 1.5]</em>   <span class="cm">← 「±50%」硬边界</span><br>
+      w = 基准 × k  → 归一化到 100  → 投影回 [0.5×基准, 1.5×基准]<br>
+      <span class="cm"># 现金腿</span><br>
+      score_cash = tanh( −0.40 × 权益组平均得分 )
+    </div>
+
+    <div class="callout">
+      <b>现金腿为什么反向：</b>货基净值恒为 1.0000（收益走万份收益），没有有效价格序列，压根不参与趋势/动量打分。
+      它做的是「保险」—— 股票整体看好就减现金，整体转弱就加现金。回测按 <code>1.40%</code> 年化常数计息。
+    </div>
+
+    <div class="callout warn">
+      <b>两边都是百分比量纲，才能横比。</b>特意<b>不用</b>组内 z-score（会把债券/货基的天然低波误判成"看好"、长期顶在上限），
+      也<b>不用</b>估值分位（9 项里只有 4 项有免费可回溯的估值序列，会让"可回测"和"口径一致"同时失效）。
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="legs">
+  <h2><span class="num">05</span>每项内部用哪支策略（§9）</h2>
+  <p class="sub">数字全部取自各策略自己的回测产物，未在本页重跑。「一直拿着」= 不择时、满仓到底。</p>
+
+  <div class="card">
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th>资产</th><th>最优策略</th>
+            <th class="num">年化</th><th class="num">最大回撤</th><th class="num">夏普</th>
+            <th class="num">一直拿着（年化 / 回撤 / 夏普）</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>国债（30%）</td><td><code>bond_cash/v7_risk_budget</code></td>
+            <td class="num pos">+3.31%</td><td class="num">-1.46%</td><td class="num strong">1.77</td>
+            <td class="num dim">+4.18% / -1.98% / 1.86</td></tr>
+          <tr><td>红利低波（20%）</td><td><code>dividend/v4_rsi</code></td>
+            <td class="num pos">+11.5%</td><td class="num">-8.1%</td><td class="num strong">0.99</td>
+            <td class="num dim">+8.9% / -9.3% / 0.71</td></tr>
+          <tr><td>纳指100（10%）</td><td><code>vol_legs/v16_ndx_sw</code></td>
+            <td class="num pos">+10.62%</td><td class="num">-12.97%</td><td class="num strong">0.83</td>
+            <td class="num dim">+14.41% / -53.71% / 0.58</td></tr>
+          <tr><td>标普500（10%）</td><td><code>vol_legs/v17_spx_v12</code></td>
+            <td class="num pos">+5.45%</td><td class="num">-11.48%</td><td class="num strong">0.56</td>
+            <td class="num dim">+8.74% / -56.78% / 0.38</td></tr>
+          <tr><td>黄金（10%）</td><td><code>vol_legs/v20_gold_v5</code></td>
+            <td class="num pos">+9.90%</td><td class="num">-12.36%</td><td class="num strong">1.04</td>
+            <td class="num dim">+10.35% / -35.25% / 0.58</td></tr>
+          <tr><td>货币基金（10%）</td><td class="dim">无（现金腿）</td>
+            <td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td>
+            <td class="num dim">按 1.40% 常数计息</td></tr>
+          <tr><td>中证A500（2.5%）</td><td><code>vol_legs/v14_a500_e2</code></td>
+            <td class="num pos">+9.16%</td><td class="num">-13.85%</td><td class="num strong">0.89</td>
+            <td class="num dim">+7.81% / -70.91% / 0.25</td></tr>
+          <tr><td>科创50（5%）</td><td><code>vol_legs/v18_kc50_e2tv</code></td>
+            <td class="num pos">+11.26%</td><td class="num">-8.87%</td><td class="num strong">0.90</td>
+            <td class="num dim">-0.41% / -60.08% / -0.06</td></tr>
+          <tr><td>沪深300（2.5%）</td><td><code>vol_legs/v15_hs300_min2</code></td>
+            <td class="num pos">+10.03%</td><td class="num">-11.46%</td><td class="num strong">1.01</td>
+            <td class="num dim">+6.68% / -72.30% / 0.21</td></tr>
+          <tr><td class="dim">附：恒生科技（不在池内）</td><td class="dim"><code>vol_legs/v19_hkt_v3</code></td>
+            <td class="num dim">+4.15%</td><td class="num dim">-13.97%</td><td class="num dim">0.28</td>
+            <td class="num dim">-9.58% / -58.52% / -0.28</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <b>这一层还没自动接上。</b><code>_signal.py</code> 目前只按第 ④ 节给出权重，<b>不读</b>这些策略的产物。
+      要接起来必须先定「谁优先」—— 组合层说加、单腿策略说清仓时听谁的 —— 否则两套指令会打架。
+      另外「满额 100% 择时」的成绩不能当组合预期：这 9 项在组合里只分到 2.5~30pp，贡献要按权重折算。
+    </div>
+    <div class="callout">
+      <b>两条口径缺口，别逐位对账：</b>① 成本档不同（v14~v20 单边 10bp、v4 单边 3bp、v7 单边 10bp）；
+      ② 价格口径不同（v14~v20 用真实指数收盘，本组合的执行是场外联接/QDII，有 1~2 日滞后与汇率、跟踪误差）。
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="backtest">
+  <h2><span class="num">06</span>回测说了什么：两个口径分开看</h2>
+  <p class="sub">未计申赎费与 C 类年费。样本短，结论要谨慎。</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin:0 0 4px; font-size:15.5px">口径 A · 只做月度倾斜（各腿买着不动）</h3>
+      <p class="sub" style="margin-bottom:12px">2021-05 ~ 2026-11，66 个月</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>组合</th><th class="num">年化</th><th class="num">回撤</th><th class="num">夏普</th></tr></thead>
+          <tbody>
+            <tr><td>策略（±50% 倾斜）</td><td class="num strong">7.38%</td><td class="num">-7.1%</td><td class="num strong">1.09</td></tr>
+            <tr><td>静态基准（每月回锚）</td><td class="num">7.28%</td><td class="num">-7.0%</td><td class="num">1.09</td></tr>
+            <tr><td>9 项等权</td><td class="num">6.09%</td><td class="num">-12.1%</td><td class="num">0.54</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout" style="margin-top:14px">
+        倾斜相对静态基准只 <b>+0.10pp 年化、夏普 +0.00</b>。
+        真正拉开差距的是「等权 → 基准」那一步（夏普 0.54 → 1.09）——
+        <b>基准怎么定比倾斜怎么算重要得多。</b>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px; font-size:15.5px">口径 B · 按 §9 叠加单腿择时</h3>
+      <p class="sub" style="margin-bottom:12px">2021-10 ~ 2026-10，61 个月，每月回锚</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>口径</th><th class="num">年化</th><th class="num">波动</th><th class="num">回撤</th><th class="num">夏普</th></tr></thead>
+          <tbody>
+            <tr><td>一直拿着</td><td class="num">+7.53%</td><td class="num">6.50%</td><td class="num">-7.97%</td><td class="num">0.94</td></tr>
+            <tr><td class="strong">按 §9 择时</td><td class="num strong pos">+8.18%</td><td class="num strong">3.45%</td><td class="num strong pos">-1.27%</td><td class="num strong">1.96</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mini" style="margin-top:14px">
+        <div class="k">实际投入（择时口径）</div>
+        <div class="big">均值 79% <span class="dim" style="font-size:13px; font-weight:500">区间 65% ~ 91%</span></div>
+        <div class="note">21% 的钱被动躺在货基里 = 10pp 独立现金腿 + 各腿空仓。所以绝对收益没暴涨是设计使然，不是择时无效。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px; font-size:15.5px">分年度：它到底在买什么</h3>
+    <p class="sub" style="margin-bottom:10px">一句话 —— 这是一张 2022 年的看跌期权。</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>年份</th><th class="num">一直拿着</th><th class="num">按 §9 择时</th><th class="num">差额</th><th>读法</th></tr></thead>
+        <tbody>
+          <tr><td>2021</td><td class="num">+3.37%</td><td class="num">+2.65%</td><td class="num neg">-0.72%</td><td class="dim">付保费</td></tr>
+          <tr><td>2022</td><td class="num">-6.04%</td><td class="num">+2.07%</td><td class="num pos">+8.11%</td><td class="dim"><b>熊市兑现，主要证据</b></td></tr>
+          <tr><td>2023</td><td class="num">+10.68%</td><td class="num">+8.26%</td><td class="num neg">-2.42%</td><td class="dim">付保费</td></tr>
+          <tr><td>2024</td><td class="num">+15.85%</td><td class="num">+13.31%</td><td class="num neg">-2.54%</td><td class="dim">付保费</td></tr>
+          <tr><td>2025</td><td class="num">+13.28%</td><td class="num">+9.73%</td><td class="num neg">-3.55%</td><td class="dim">付保费</td></tr>
+          <tr><td>2026（至10月）</td><td class="num">+2.51%</td><td class="num">+5.73%</td><td class="num pos">+3.22%</td><td class="dim">再次兑现</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      五年里只有 2022（熊市）和 2026（截至 10 月）赢过，<b>不是每年都赢</b>。
+      换来的是波动从 6.50% 压到 3.45%、回撤从 -7.97% 压到 -1.27%。
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px; font-size:15.5px">组合风险贡献：钱在哪，风险在哪</h3>
+    <p class="sub" style="margin-bottom:14px">择时口径。注意红利低波一项就吃掉过半风险 —— 这不是分散得很均匀的组合。</p>
+    <div class="bars">
+      <div class="bar-row"><div class="bar-name">红利低波</div><div class="track"><div class="fill down" style="width:100%"></div></div><div class="bar-val">54.2%</div></div>
+      <div class="bar-row"><div class="bar-name">纳指100</div><div class="track"><div class="fill" style="width:23.4%"></div></div><div class="bar-val">12.7%</div></div>
+      <div class="bar-row"><div class="bar-name">科创50</div><div class="track"><div class="fill" style="width:18.1%"></div></div><div class="bar-val">9.8%</div></div>
+      <div class="bar-row"><div class="bar-name">黄金</div><div class="track"><div class="fill" style="width:18.1%"></div></div><div class="bar-val">9.8%</div></div>
+      <div class="bar-row"><div class="bar-name">标普500</div><div class="track"><div class="fill" style="width:14.2%"></div></div><div class="bar-val">7.7%</div></div>
+      <div class="bar-row"><div class="bar-name">国债</div><div class="track"><div class="fill" style="width:4.2%"></div></div><div class="bar-val">2.3%</div></div>
+      <div class="bar-row"><div class="bar-name">中证A500</div><div class="track"><div class="fill" style="width:3.3%"></div></div><div class="bar-val">1.8%</div></div>
+      <div class="bar-row"><div class="bar-name">沪深300</div><div class="track"><div class="fill" style="width:3.1%"></div></div><div class="bar-val">1.7%</div></div>
+      <div class="bar-row"><div class="bar-name">货币基金</div><div class="track"><div class="fill" style="width:0%"></div></div><div class="bar-val">0%</div></div>
+    </div>
+    <div class="callout warn">
+      <b>为什么明知集中还留着？</b>红利腿的定位不是收益放大器，而是「A 股里波动最低的权益」。20pp 已是合理上限；
+      真要拆掉它，组合就只剩美股 + 黄金 + 债券三条腿。剩下的取舍见第 ⑧ 节。
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="exec">
+  <h2><span class="num">07</span>实操六条：比配比更值钱</h2>
+  <p class="sub">标的已足够，边际收益在「执行」不在「选品」。</p>
+
+  <div class="grid2">
+    <div class="mini">
+      <h4>1. 别每月都调仓</h4>
+      <p>按「单项偏离基准 &gt;5pp 才动」执行，半年检查一次即可。5% 的仓位调 1pp，申赎费就把收益吃掉了。
+        第二层的月度倾斜是<b>建议值</b>，不是「每月必调」。</p>
+    </div>
+    <div class="mini">
+      <h4>2. 分红方式一律选「红利再投」</h4>
+      <p>这不是洁癖。红利低波单位净值涨幅 +7.2%、累计净值涨幅 <b>+78.3%</b> ——
+        用未复权净值记账，每次分红都会变成一次「跌破均线」，把真实年化 8.6% 压成 1.3%。</p>
+    </div>
+    <div class="mini">
+      <h4>3. 持有 &gt;2 年优先 A 类份额</h4>
+      <p>C 类每年扣 0.2~0.5% 销售服务费，是持续成本。同基金 A 类代码通常与 C 类相邻
+        （如 <code>011609</code> C 对应 <code>011608</code> A），<b>申购前在平台核对</b>。</p>
+    </div>
+    <div class="mini">
+      <h4>4. QDII 只走场外，且盯限购</h4>
+      <p><code>270042</code> / <code>017641</code> 场内溢价常年在 1~3%，溢价 &gt;2% 时买场内等于先亏掉一年股息；
+        场外有限购额度，需提前分批。</p>
+    </div>
+    <div class="mini">
+      <h4>5. 货基拆 2 只</h4>
+      <p>单只货基快速赎回上限 1 万元/日，10 万组合里 1 万现金全押一只，急用钱时不够。
+        如果叠加择时，各腿空仓那部分也是现金，同样要拆。</p>
+    </div>
+    <div class="mini">
+      <h4>6. 短债不能当活期</h4>
+      <p><code>012265</code> 是 30 天滚动持有、不可随时赎回。真正的流动性由那 10pp 货基承担 ——
+        <b>不要把这两层当成同一笔钱</b>。</p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:14px">
+    <b>跑一次只需一行：</b><code>python strategies\permanent\_signal.py --capital 100000</code>
+    —— 按 10 万总资产直接换算金额。<code>--force</code> 强制重抓净值。
+    每日产物进跨策略看板 <code>data/_daily_digest.html</code>。
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="risk">
+  <h2><span class="num">08</span>边界与风险：别把这些数字当承诺</h2>
+
+  <div class="card">
+    <div class="grid3">
+      <div class="mini">
+        <div class="k">样本长度</div>
+        <div class="big">66 个月</div>
+        <div class="note">共同起点受 <code>012265</code>（2021-05）限制，单一市场周期。「趋势在长横盘里反复打脸」这个典型失效模式检验力不足。</div>
+      </div>
+      <div class="mini">
+        <div class="k">选择偏差</div>
+        <div class="big">存在</div>
+        <div class="note">各腿策略是在<b>含这 5 年</b>的样本上选出来的（best_by_leg / beat_best），不是事前选定的。</div>
+      </div>
+      <div class="mini">
+        <div class="k">成本</div>
+        <div class="big">未计入</div>
+        <div class="note">回测不计申赎费与 C 类年费（约 0.3~0.5%/年）。倾斜会提高换手，实际成本高于静态基准。</div>
+      </div>
+    </div>
+
+    <div class="tblwrap" style="margin-top:16px">
+      <table>
+        <thead><tr><th>已知边界</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">A500 信号历史短</td><td><code>023299</code> 净值仅 1.5 年，250 日动量恰好够用，再早只能靠指数代理。</td></tr>
+          <tr><td class="strong">沪深300 与 A500 重复</td><td>成分重叠约八成、月收益相关 0.73。各 2.5pp 本质是同一份 beta 两个壳，不是两个独立因子。</td></tr>
+          <tr><td class="strong">货基靠假设</td><td>收益按 1.40% 常数计，利率环境变化需改 <code>rule.CASH_ANNUAL</code>。</td></tr>
+          <tr><td class="strong">QDII 滞后</td><td>纳指/标普净值滞后 1~2 个交易日，趋势信号会略钝。</td></tr>
+          <tr><td class="strong">择时腿价格口径</td><td>v14~v20 用真实指数收盘（无分红再投、无汇率、无跟踪误差），与场外实盘有差异。</td></tr>
+          <tr><td class="strong">2022 是主要证据</td><td>换成长期横盘 / 慢牛阴跌，结论可能翻转。</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout bad" style="margin-top:16px">
+      <b>它不做的事：</b>不预测、不用估值分位、不做行业/风格轮动、不给 A/B 分级、不补标的不增加因子。
+      加中证500 / 1000 / 创业板只会把 A 股 beta 加杠杆；加行业主题等于赌赛道，与「不预测」的立场冲突。
+      真要区域分散，做法是<b>替换</b>而非净增（如美股 20% 拆成美股 15% + 日经 5%）。
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>本页由 <code>strategies/permanent/_intro.html</code> 手动维护，内容对应 <code>README.md</code>（2026-11-23 第二版基准）与 <code>rule.py</code> 现行参数。</div>
+  <div>倾斜快照：<code>daily/_permanent_signal.json</code>（as_of 2026-11-20）· 单腿策略数字：<code>strategies/*/backtest/_*_bt.md</code>、<code>dividend/v4_rsi/backtest/_v4_report.md</code> · 组合层复算：<code>research/combo_timed/_combo_timed.py</code></div>
+  <div style="margin-top:8px"><b>免责声明：</b>机械规则输出仅供研究参考，不构成投资建议；市场有风险，投资需谨慎。</div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -147,3 +147,26 @@ python pipeline/check_daily_config.py          # E3 缺显式 enabled / E4 上�
 ```
 
 校验通过时会打印**当前上板清单**，改完 `strategies.json` 顺手看一眼，比翻 JSON 靠谱。
+
+## 10. 看板双版本必须同步
+
+**规则（2026-11-24 定）：改 `data/_daily_digest.html`（正式版）时，必须顺手同步 `data/_daily_digest_intraday.html`（盘中预演版）。两版除「数据源是盘中数据」外，结构、列名、文案、样式保持一致。**
+
+改动落在哪、两版怎么同步：
+
+| 改动位置 | 预演版是否自动跟上 | 要做什么 |
+|---|---|---|
+| `pipeline/daily_digest.py` 的 `_HTML_TMPL`（CSS / JS / 渲染器） | **是** —— 预演版共用同一份模板（`dd._HTML_TMPL`）与板块定义（`dd._blocks`） | 仍要**重跑**才有新 HTML |
+| `pipeline/daily_digest.py` 的 `parse_*`（列 / 摘要 / 说明） | **是** —— 预演版直接复用 `dd.PARSERS` | 同上 |
+| `pipeline/strategies.json` 的 `blocks`（标题 / desc / note） | **是** | 同上 |
+| `intraday_preview.py` 里硬编码的口径说明（`_BANNER` / `_mark*` 文案） | 否 | 手工同步 |
+
+```powershell
+python pipeline/daily_digest.py         # 正式版：归档 + 重绘 data/_daily_digest.html
+python pipeline/intraday_preview.py     # 预演版：只写 data/_daily_digest_intraday.html
+```
+
+验收：两版都 grep 一遍新列名 / 新文案（例如 `总资产最优占比`、`col_cls`），并确认板块1 卡片的 `cols` 与 `col_cls` 一致。
+
+> 不要用 `--html-only` 假装同步 —— 它只重绘正式版，预演版还是旧的，`generated` 时间会露馅（预演版首行数据里带 `"intraday": true`，日期只有当天一天）。
+> 预演版**不写任何数据文件**：策略产物进 `G:\xalpha_preview_*` 临时树、跑完即删，不碰 `data/_daily_digest.json`、不归档历史、不复制 assets（见 §1 的既有约定）。

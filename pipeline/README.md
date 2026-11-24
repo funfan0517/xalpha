@@ -145,9 +145,10 @@ python pipeline/daily_digest.py --date 2026-10-21   # 指定归档日（内容�
 ```
 
 - 产物：历史库 `data/_daily_digest.json`、看板 `data/_daily_digest.html`（单文件、无外链，双击可看；支持日期切换 / 搜索 / 「只看有动作」）。
+- **双版本必须同步**（`AGENTS.md` §10）：正式版 `data/_daily_digest.html`（收盘口径，归档）与预演版 `data/_daily_digest_intraday.html`（`intraday_preview.py`，把最新盘中快照当收盘价重算、不写数据文件）。两版共用 `_HTML_TMPL` 与 `_blocks()`，所以改渲染 / 列 / 板块文案一处两版同源 —— 但**改完正式版必须再跑一次 `python pipeline/intraday_preview.py`**，否则预演版还是旧 HTML。`--html-only` 只重绘正式版，不算同步。
 - **卡片可带图**：策略在 `daily.chart` 填产物图的**仓库相对路径**，看板就在该卡片的表格下方内嵌显示（带图卡片默认展开）。图片按原产物路径引用、不复制不进历史库 —— 图由策略自己的脚本每日重画（当前只有 `gd_v5` 用：`backtest/_v5_alloc.png`，由 `v5_vol_target/scan.py` 每日重画）。HTML 在 `data/` 下，渲染时用 `payload.root` 换算相对路径，换机器/换盘符仍能打开。
 - 看板按 **每日操作板块 1→5** 分节（见上文「每日操作板块」），每节标题旁给出该板块的买/卖/观察计数与策略数；老归档无需重建 —— 板块定义每次渲染都从 `strategies.json` 读，按策略 key 重新归组。
-- 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格（**列宽按 `daily.strategies` 动态取**，增删策略只改 json）；`v1_1_ma20` / `v3_macd_boll` 读各自的 `_*_daily.json`（`as_of` / `summary` / `legs`，v3 的 leg 多带 `dif`/`dea`/`er`/`window`/`dist_kind`）；`permanent` 权重/得分读 json、资产名与场外代码读自产 markdown 表（json 里只有 `bond/divlv/...` 这类键名）。单个策略解析失败只影响本卡片，不中断汇总。
+- 解析口径：优先读结构化产物（json / jsonl）；`tech_indicators` 只落 markdown，由脚本解析其自产表格（**列宽按 `daily.strategies` 动态取**，增删策略只改 json）；`v1_1_ma20` / `v3_macd_boll` 读各自的 `_*_daily.json`（`as_of` / `summary` / `legs`，v3 的 leg 多带 `dif`/`dea`/`er`/`window`/`dist_kind`）；`permanent` 基准读 `_permanent_signal.json::base`、资产名/场外代码/该腿最优策略读 `daily_digest.py::_PERM_BEST`、各腿仓位读该腿策略自己的 `daily/_*_daily.json`（json 里只有 `bond/divlv/...` 这类键名，所以名字与代码是常量表而不是产物）。单个策略解析失败只影响本卡片，不中断汇总。
 - **历史从首次归档起累积**：各策略产物都是当日覆盖写，此前的日期无法回溯。
 - 新增策略时在 `pipeline/daily_digest.py::PARSERS` 补一个解析器，否则该卡片显示「未支持」。
 

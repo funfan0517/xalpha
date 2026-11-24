@@ -45,6 +45,9 @@ from datetime import datetime
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_DIR)
+# 真实仓库根（导入时定格）：预演版 `intraday_preview.py::_rooted()` 会把 `_ROOT` 临时
+# 指到临时树，但研究产物 / 未被重算的 daily 仍只存在于仓库里，需要能退回来读。
+_REPO_ROOT = _ROOT
 CFG = os.path.join(_DIR, "strategies.json")
 DB = os.path.join(_ROOT, "data", "_daily_digest.json")
 HTML = os.path.join(_ROOT, "data", "_daily_digest.html")
@@ -198,9 +201,12 @@ def _blocks(doc):
 
 def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
            note="", src="", error="", cols=None, img="", img_cap="", all_rows=False,
-           imgs=None, data=""):
+           imgs=None, data="", col_cls=None):
     """``all_rows=True``: 该卡不受看板「只看有动作」筛选影响 —— 用于「池子本身就小、
     空仓标的的读数（RSI/温度）也是决策依据」的卡片，例如红利 V4 的 5 只择时池。
+
+    ``cols`` / ``col_cls``: 表头文案与逐列 CSS 类（长度须一致；``col_cls`` 缺省则全部左对齐）。
+    配合 ``row["cells"]`` 支持**非固定 4 列**的卡片（见 ``_row``）。
 
     ``as_of``: 该策略的**信号日**（决策依据的那根收盘）。
     ``data``: 该策略**依赖的各数据源最新时点**（如「净值 11-04~11-05（QDII 11-04）」）——
@@ -221,6 +227,7 @@ def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
         "stats": stats or [],
         "rows": rows,
         "cols": cols or ["代码", "名称", "动作", "说明"],
+        "col_cls": col_cls or [],
         "note": note,
         "src": src,
         "error": error,
@@ -231,9 +238,17 @@ def _entry(key, name, as_of, badge, tone, summary, rows, stats=None,
     }
 
 
-def _row(code, name, act, label, detail=""):
-    return {"c": code or "—", "n": name or "—", "act": act if act in ACT else "none",
-            "a": label or "", "d": detail or ""}
+def _row(code, name, act, label, detail="", cells=None):
+    """``cells``: 显式逐格内容 —— 元素为字符串，或 ``{"v": 文本, "cls": CSS 类}``。
+
+    给了 ``cells`` 的行，前端按 ``cells`` 逐格渲染（列数由 ``entry["cols"]`` 决定，可以不是 4 列）；
+    没给的行走老的 4 格路径（``c`` / ``n`` / ``a`` / ``d``），老归档不受影响。
+    """
+    r = {"c": code or "—", "n": name or "—", "act": act if act in ACT else "none",
+         "a": label or "", "d": detail or ""}
+    if cells:
+        r["cells"] = list(cells)
+    return r
 
 
 # ---------------------------------------------------------------- 各策略解析
@@ -498,11 +513,17 @@ def parse_gd_v5(_cfg):
     )
 
 
+# V17 八态里「允许持有」的态（各自许可上限）：急涨 100% / 慢涨 50% / 弱回调 100% / 强反弹 50%。
+# 规则源 `strategies/tech_indicators/v17_octo_trend/rule.py::CAP`（基线 8 态映射）；
+# 强反弹在向下 regime 里但给 50% 许可（放量反弹有效），所以算「可以拿」而不是「要减」。
+_V17_HOLD_STATES = ("急涨", "慢涨", "弱回调", "强反弹")
+
+
 def _v17_row():
     """V17 八态趋势的一行摘要（**不单独出卡**，挂在板块5 技术指标卡的 6 策略表下面）。
 
-    只保留四件读得懂的事：今天加减了谁、**允许持有的标的**（急涨/慢涨/弱回调）、
-    全池八态分布、平均仓位。
+    明细**分四行**（2026-11-24 用户要求，`td.d` 用 `white-space:pre-line` 渲染）：
+    加仓 / 减仓 / 允许持有（急涨/慢涨/弱回调/强反弹）/ 八态统计（含平均仓位）。
     54 只逐只状态在 ``v17_octo_trend/daily/_v17_octo_daily.md``，不搬进汇总看板。
     产物缺失时返回 ``None``（卡片照常出，不因 V17 缺数而失败）。
     """
@@ -522,13 +543,12 @@ def _v17_row():
     buys = [x for x in legs if x.get("action") == "加仓" and float(x.get("act") or 0) > 0]
     sells = [x for x in legs if x.get("action") == "减仓" and float(x.get("act") or 0) < 0]
     ups = [x for x in legs if x.get("state") == "急涨"]
-    # 允许持有的三个态（急涨 100% / 慢涨 50% / 弱回调 100%）—— 新产物直接给 hold_ok，
-    # 老产物没有这个键就从 legs 反推，避免产物版本不一致时整行消失。
-    hold = d.get("hold_ok")
-    if hold is None:
-        hold = [dict(code=x.get("code"), name=x.get("name"), state=x.get("state"),
-                     cap=float(x.get("cap") or 0), pos=float(x.get("pos") or 0))
-                for x in legs if x.get("state") in ("急涨", "慢涨", "弱回调")]
+    # 「允许持有」的四个态：急涨 100% / 慢涨 50% / 弱回调 100% / 强反弹 50%
+    # （2026-11-24 用户要求把 强反弹 也纳入）。直接由 legs 反推，不再只吃产物里的
+    # `hold_ok` —— 那只含前三个态，读取它会让 强反弹 永远缺席。
+    hold = [dict(code=x.get("code"), name=x.get("name"), state=x.get("state"),
+                 cap=float(x.get("cap") or 0), pos=float(x.get("pos") or 0))
+            for x in legs if x.get("state") in _V17_HOLD_STATES]
     hold = sorted(hold, key=lambda y: (-float(y.get("pos") or 0), str(y.get("name"))))
     avg = sum(float(x.get("pos") or 0) for x in legs) / len(legs)
     cnt = {}
@@ -542,22 +562,18 @@ def _v17_row():
         return (f"{x.get('name')}(`{x.get('code')}`) "
                 f"{float(x.get('pos_prev') or 0):.0%}→{float(x.get('pos') or 0):.0%}")
 
+    # 明细固定四行（顺序 = 加仓 / 减仓 / 允许持有 / 八态统计），空的时候写「无」，
+    # 保证同一张表逐行对齐、不会因为哪天没有加仓就少一行。
     parts = []
-    if buys:
-        parts.append("加仓：" + "、".join(_tag(x) for x in buys))
-    if sells:
-        parts.append("减仓：" + "、".join(_tag(x) for x in sells))
-    if not (buys or sells):
-        parts.append("今日无调仓")
+    parts.append("**加仓：**" + ("、".join(_tag(x) for x in buys) if buys else "无"))
+    parts.append("**减仓：**" + ("、".join(_tag(x) for x in sells) if sells else "无"))
     if hold:
         items = "、".join(f"{h.get('name')}(`{h.get('code')}`) {h.get('state')}" for h in hold[:12])
-        parts.append("**允许持有（急涨/慢涨/弱回调）：" + items
-                     + (f" 等 {len(hold)} 只" if len(hold) > 12 else "") + "**")
+        parts.append("**允许持有（急涨/慢涨/弱回调/强反弹）：**" + items
+                     + (f" 等 {len(hold)} 只" if len(hold) > 12 else ""))
     else:
-        parts.append("**允许持有（急涨/慢涨/弱回调）：无**")
-    if dist:
-        parts.append("八态：" + dist)
-    parts.append(f"平均仓位 **{avg:.0%}**")
+        parts.append("**允许持有（急涨/慢涨/弱回调/强反弹）：**无")
+    parts.append("**八态统计：**" + (dist or "—") + f" · 平均仓位 {avg:.0%}")
     if buys:
         act, label = "buy", f"加 {len(buys)}"
     elif sells:
@@ -565,7 +581,7 @@ def _v17_row():
     else:
         act, label = "hold", "无动作"
     return (_row("V17 八态", f"加 {len(buys)} · 减 {len(sells)} · 满仓 {len(ups)}", act, label,
-                 "；".join(parts)),
+                 "\n".join(parts)),
             len(buys), len(sells), avg, d.get("as_of"), len(hold))
 
 
@@ -673,7 +689,8 @@ def parse_tech_indicators(_cfg):
                   ["V17 平均仓位", f"{v17[3]:.0%}"]]
         v17_note = ("最后一行「V17 八态」是 vol_legs v12 八态趋势的扩池版（54 只场内 ETF，"
                     "**ETF 自身量能**口径）：八态 → 仓位比例（非 0/1 择时）。"
-                    "「允许持有」= 急涨/慢涨/弱回调（许可 100%/50%/100%），只表示**可以拿**，"
+                    "明细分四行：加仓 / 减仓 / 允许持有（急涨 100% / 慢涨 50% / 弱回调 100% / "
+                    "强反弹 50%）/ 八态统计。「允许持有」只表示**可以拿**，"
                     "不是买入指令，实际仓位还要过波动层与升格确认。"
                     "与上面 6 个指标策略口径不同，读数不可直接互比；逐只状态见 "
                     "strategies/tech_indicators/v17_octo_trend/daily/_v17_octo_daily.md。")
@@ -857,18 +874,23 @@ def _perm_leg_pos(key, rel):
 
 
 def parse_permanent(_cfg):
-    """板块1：9 项标的的「基准 pp × 最优策略仓位」= 目标仓位。
+    """板块1：9 项标的 —— 标的 / 基准% / 最优策略 / 当前资产最优占比% / 总资产最优占比%。
 
-    **2026-11-23 改版（用户要求）**：本卡不再显示 §2 的 ±50% 倾斜权重，改为
-    「基准 / 最优策略 / 策略仓位（当前→目标）/ 组合 pp（当前→目标）」。
-    §2 倾斜权重仍由 `_signal.py` 算并写在 `_permanent_report.md`，只是不在此卡显示。
+    **2026-11-24 改版（用户要求）**：五列，单位一律用 %，不再用 pp。
+    「当前资产最优占比」= 该标的自己的最优策略给出的仓位（0~100%）；
+    「总资产最优占比」= 基准% × 该仓位%，合计不足 100% 的部分是空仓现金。
+    2026-11-23 起本卡也不再显示 §2 的 ±50% 倾斜权重（仍由 `_signal.py` 算，
+    写在 `_permanent_report.md`）。
 
     基准取 `_permanent_signal.json::base`（`rule.RAW` 的快照），策略仓位取各策略
-    自己的 `daily/_*_daily.json`；两者相乘即该项占组合的目标 pp。
+    自己的 `daily/_*_daily.json`；两者相乘即该项占总资产的比例。
     """
     sig = json.loads(_read(os.path.join(
         _ROOT, "strategies", "permanent", "daily", "_permanent_signal.json")))
     base = sig.get("base") or {}
+    # 各腿 detail 里只有「动作词」时是冗余的（百分比已说明一切），只留有信息量的备注
+    # （债腿「整体满仓」、红利「减半（50%）· 008163/515080」、现金「恒 100%」）。
+    trivial = {"", "none", "空仓", "持有", "买入", "卖出", "加仓", "减仓", "无动作"}
     rows, cur_tot, tgt_tot, n_empty, dates = [], 0.0, 0.0, 0, []
     for key, (name, code, strat, rel) in _PERM_BEST.items():
         b = float(base.get(key) or 0)
@@ -883,35 +905,44 @@ def parse_permanent(_cfg):
         if key != "cash" and tgt <= 0:
             n_empty += 1
         act = "buy" if tpp - cpp >= 0.05 else ("sell" if cpp - tpp >= 0.05 else "hold")
+        tip = str(detail or "").strip()
+        strat_txt = strat if tip in trivial else f"{strat}（{tip}）"
+        # 列4/列5 的主值一律是「当前」，目标只在确实要动时才跟在后面
+        chg = abs(tgt - cur) >= 0.005
+        pos_txt = f"{cur:.0%}" if not chg else f"{cur:.0%} → **{tgt:.0%}**"
+        tot_txt = (f"{b * cur:.1f}%" if not chg
+                   else f"{b * cur:.1f}% → **{b * tgt:.1f}%**")
+        label = f"{name}（{code}）" if code else name
         rows.append(_row(
-            f"{name}（{code}）" if code else name,
-            f"{b:g}pp · {strat}",
-            act,
-            f"{cur:.0%} → {tgt:.0%}",
-            f"{cpp:.2f} → {tpp:.2f} pp" + (f" · {detail}" if detail else ""),
+            label, f"{b:g}%", act, strat_txt, tot_txt,
+            cells=[label, f"{b:g}%", {"v": strat_txt, "cls": "opt"},
+                   {"v": pos_txt, "cls": f"num {act}"},
+                   {"v": tot_txt, "cls": "num"}],
         ))
-    cash_pp = float(base.get("cash") or 0)
+    cash_pct = float(base.get("cash") or 0)
     data = ""
     if dates:
         lo, hi = min(dates), max(dates)
         data = f"各腿信号日 {hi}" if lo == hi else f"各腿信号日 {lo} ~ {hi}（最旧 {lo}）"
     return _entry(
         "permanent", "永久组合 · 基准 / 最优策略 / 仓位", max(dates) if dates else None,
-        f"投入 {cur_tot:.0f}pp", "watch",
-        f"{len(rows)} 项：基准 pp × 最优策略仓位 = 目标仓位 · 当前投入 {cur_tot:.1f}pp / "
-        f"目标 {tgt_tot:.1f}pp · {n_empty} 条策略腿空仓",
+        f"投入 {cur_tot:.0f}%", "watch",
+        f"{len(rows)} 项：基准% × 最优策略仓位% = 占总资产% · 当前投入 {cur_tot:.1f}% / "
+        f"目标 {tgt_tot:.1f}% · {n_empty} 条策略腿空仓",
         rows,
-        [["风险敞口", f"{cur_tot - cash_pp:.1f}pp"],
-         ["当前投入", f"{cur_tot:.1f}pp"],
-         ["目标投入", f"{tgt_tot:.1f}pp"],
-         ["未投资现金", f"{100 - cur_tot:.1f}pp"]],
-        note="**目标仓位 = 基准 pp × 策略仓位**，不是当日买卖：任一项偏离目标 >5pp 才调，半年检查一次。"
-             "策略映射与实测见 `strategies/permanent/README.md` §9.1；"
+        [["风险敞口", f"{cur_tot - cash_pct:.1f}%"],
+         ["当前投入", f"{cur_tot:.1f}%"],
+         ["目标投入", f"{tgt_tot:.1f}%"],
+         ["未投资现金", f"{100 - cur_tot:.1f}%"]],
+        note="**总资产最优占比 = 基准% × 该标的自己的最优策略仓位%**，不是当日买卖："
+             "任一项偏离目标超过 5 个百分点才调，半年检查一次。合计不足 100% 的部分是空仓现金"
+             "（各策略腿空仓 + 现金腿本身）。策略映射与实测见 `strategies/permanent/README.md` §9.1；"
              "§2 的 ±50% 倾斜权重不在此卡显示（见 `strategies/permanent/daily/_permanent_report.md`）。"
-             "各腿信号日不同（QDII 净值滞后 1-2 日、红利与 V7 是月度信号），以卡片首列为准。",
+             "各腿信号日不同（QDII 净值滞后 1-2 日、红利与 V7 是月度信号）。",
         src=_rel(os.path.join(_ROOT, "strategies", "permanent", "README.md")),
         data=data,
-        cols=["标的", "基准 · 最优策略", "策略仓位（当前→目标）", "组合 pp（当前→目标）"],
+        cols=["标的", "基准百分比", "最优策略", "当前资产最优占比", "总资产最优占比"],
+        col_cls=["", "num", "opt", "num", "num"],
         all_rows=True,
     )
 
@@ -1062,6 +1093,105 @@ _VOL_FIGS = [
 ]
 
 
+# ---------------------------------------------------------------- 前三组合策略参考
+# 板块2 第 4 列「前三组合策略操作参考」= 该腿**当前前三名**（★1~★3）各自今天的仓位。
+# 两个数据源：
+#   ① 前三名 = `_best_by_leg.jsonl` 的 `rank` 字段，由 `best_by_leg/_best_by_leg.py` 生成，
+#      与 `_best_by_leg.md` §0 同源 —— 这里**不自己按夏普排序**，免得和研究报告出现两套口径；
+#   ② 各基础引擎今日在该腿的仓位 = 各变种自己的 `daily/_*_daily.json`。
+# 前三名会随研究重跑而换号（2026-11-19 改 v12 口径后沪深300/标普/科创的 ★1 都翻过），
+# 所以映射从产物读，不写死在代码里。
+_BEST_BY_LEG = "strategies/vol_legs/research/best_by_leg/_best_by_leg.jsonl"
+
+# 基础引擎 -> (daily 产物, 用哪个字段当「仓位」)。口径差异是历史遗留，逐个注明：
+#   v1 / v2 / v3  直接给 pos（0~1）
+#   v9 / v10      状态机，仓位在 state；pending 才是次一目标
+#   v12           用 pos，另有 state 是八态文字
+#   v13           target 是该腿在组合内的目标权重；cap 只是上限，别拿它当仓位
+#   黄金两条腿没有 legs 列表：v5 仓位在顶层 state，v6-B 取 B 分支的 state
+_VOL_BASE_POS = {
+    "v1": ("strategies/vol_legs/v1_price_volume/v1_1_ma20/daily/_v1_1_ma20_daily.json", "pos"),
+    "v2": ("strategies/vol_legs/v2_boll_breakout/daily/_v2_boll_daily.json", "pos"),
+    "v3": ("strategies/vol_legs/v3_macd_boll/daily/_v3_macd_boll_daily.json", "pos"),
+    "v9": ("strategies/vol_legs/v9_vol_target/daily/_v9_vol_target_daily.json", "state"),
+    "v10": ("strategies/vol_legs/v10_vol_layer/daily/_v10_vol_layer_daily.json", "state"),
+    "v12": ("strategies/vol_legs/v12_octo_trend/daily/_v12_daily.json", "pos"),
+    "v13": ("strategies/vol_legs/v13_quad_9grid/daily/_v13_daily.json", "target"),
+    "v5": ("strategies/vol_legs/v5_gold_score/daily/_v5_gold_score_daily.json", "@state"),
+    "v6B": ("strategies/vol_legs/v6_gold/daily/_v6_gold_daily.json", "@B.state"),
+}
+
+# 按 (根目录, 相对路径) 分键缓存：预演版会用 `_rooted(_TMP)` 临时把 `_ROOT` 指到临时树，
+# 跨根复用缓存会读到错误的一棵树。
+_VOL_FILE_CACHE = {}
+
+
+def _vol_file(rel):
+    """读一个产物（json / jsonl）：先按当前 `_ROOT`，读不到再退回**真实仓库根**。
+
+    预演版只把「会被盘中重算」的产物搬进临时树，`research/best_by_leg/_best_by_leg.jsonl`
+    这类研究产物和没被重算的基础引擎 daily 都还在仓库里 —— 只认 `_ROOT` 会让第 4 列整列
+    变成「—」（2026-11-24 首次预演就是这样）。不存在返回 None。
+    """
+    roots = [_ROOT] + ([_REPO_ROOT] if _REPO_ROOT != _ROOT else [])
+    for root in roots:
+        p = os.path.join(root, rel.replace("/", os.sep))
+        if not os.path.exists(p):
+            continue
+        key = (root, rel)
+        if key not in _VOL_FILE_CACHE:
+            _VOL_FILE_CACHE[key] = (_rows_of_jsonl(p) if rel.endswith(".jsonl")
+                                    else json.loads(_read(p)))
+        return _VOL_FILE_CACHE[key]
+    return None
+
+
+def _fnum(v):
+    """0~1 的仓位数值；None / 非数字 -> None（前端显示「—」）。"""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _vol_top3(leg):
+    """-> [(前三名标签, 引擎 key)]，按 rank 1→3。缺产物时返回空列表。"""
+    rows = _vol_file(_BEST_BY_LEG) or []
+    got = [r for r in rows if r.get("leg") == leg and r.get("rank") in (1, 2, 3)]
+    got.sort(key=lambda r: r["rank"])
+    return [(str(r.get("label") or r.get("vx")), str(r.get("vx"))) for r in got]
+
+
+def _vol_base_pos(vx, leg):
+    """某基础引擎今天在该腿上的仓位（0~1）；拿不到返回 None。"""
+    spec = _VOL_BASE_POS.get(vx)
+    if not spec:
+        return None
+    rel, fld = spec
+    d = _vol_file(rel)
+    if not d:
+        return None
+    if fld.startswith("@"):                     # 黄金腿：字段在顶层（@state）或某个分支下（@B.state）
+        path = fld[1:].split(".")
+        blk = d
+        for k in path[:-1]:
+            blk = (blk or {}).get(k) or {}
+        return _fnum(blk.get(path[-1])) if isinstance(blk, dict) else None
+    for x in d.get("legs") or []:
+        if x.get("leg") == leg:
+            return _fnum(x.get(fld))
+    return None
+
+
+def _vol_ref_txt(leg):
+    """「V3 MACD + BOLL 开口突破 0% / V12 八态趋势（许可上限） 0% / …」。"""
+    parts = []
+    for label, vx in _vol_top3(leg):
+        p = _vol_base_pos(vx, leg)
+        parts.append(f"{label} " + ("—" if p is None else f"{p:.0%}"))
+    return " / ".join(parts) or "—"
+
+
 def _vol_classify(x):
     """逐腿动作归一：买入 / 卖出 / 持有 / 空仓（兼容带档位口径的 '维持' + state）。"""
     t = str(x.get("action") or "")
@@ -1114,43 +1244,47 @@ def _vol_level(x):
     return f"（{lvl}）"
 
 
+def _vol_leg_pcts(x, d):
+    """单腿的 (当前仓位, 目标仓位)：pos/state 找不到就退回卡片顶层的
+    current_position / next_target（v14~v20 两处写的是同一对数）。"""
+    cur = _fnum(x.get("pos"))
+    if cur is None:
+        cur = _fnum(x.get("state"))
+    if cur is None:
+        cur = _fnum(d.get("current_position")) or 0.0
+    tgt = _fnum(x.get("pending"))
+    if tgt is None:
+        tgt = _fnum(d.get("next_target"))
+    return cur, (cur if tgt is None else tgt)
+
+
 def _vol_variant_row(label, d, emph):
-    """七腿变种（v2/v3）-> 一行。"""
+    """单标的变种（v14~v20，一策略一腿）-> 一行（2026-11-24 用户要求的四列）。
+
+    列：变种策略 / 动作 / 目标仓位 / 前三组合策略操作参考。
+    「动作」只说今天有没有待成交（买入 / 卖出 / 无动作），仓位现状在「目标仓位」列里
+    写成 `空仓（当前 0% → 目标 0%）`——两列分工，不重复。
+    """
     legs = d.get("legs") or []
-    by = {"买入": [], "卖出": [], "持有": [], "空仓": []}
-    for x in legs:
-        by[_vol_classify(x)].append(x)
+    x = legs[0] if legs else {}
+    cls = _vol_classify(x) if x else str(d.get("action") or "—")
+    act = "buy" if cls == "买入" else ("sell" if cls == "卖出" else "hold")
+    act_txt = "买入" if act == "buy" else ("卖出" if act == "sell" else "无动作")
 
-    emph_parts = [f"**{x.get('name')}** {_vol_classify(x)}{_vol_level(x)}"
-                  for x in legs if x.get("leg") in emph]
-    # 单标的策略（v14~v20，一策略一腿）写成「★目标腿」；多腿变种才用「★重点 / ★全七腿」
-    # —— 否则单腿卡会显示成「★全七腿（均执行）」，既误导又是旧口径的残留。
-    if len(legs) == 1:
-        head = "★目标腿："
-    elif len(emph_parts) < len(legs):
-        head = "★重点："
-    else:
-        head = "★全七腿（均执行）："
-    detail = head + ("、".join(emph_parts) or "—")
+    cur, tgt = _vol_leg_pcts(x, d)
+    level = str(x.get("level_txt") or f"当前 {cur:.0%} → 目标 {tgt:.0%}")
+    target_txt = f"{cls}（{level}）"
 
-    # 其余腿也带上各自的仓位状态（v2/v3 空仓·持有、v6/v9 带档位/带内仓位），仅供参考 ——
-    # 用户要看的是「今天这些腿各是什么位置」，只列名字看不出仓位（2026-11-05 提出）。
-    # 写成「名称 状态（档位）」，与 ★ 重点腿同一副样子，读起来对得上。
-    rest = [f"{x.get('name')} {_vol_classify(x)}{_vol_level(x)}"
-            for cls in ("买入", "卖出", "持有", "空仓") for x in by[cls]
-            if x.get("leg") not in emph]
-    if rest:
-        detail += " ｜ 其余（仅供参考）：" + "、".join(rest)
+    leg = str(x.get("leg") or (sorted(emph)[0] if emph else ""))
+    ref = _vol_ref_txt(leg)
 
-    nb, ns = len(by["买入"]), len(by["卖出"])
-    if nb:
-        act, alabel = "buy", f"买入 {nb}"
-    elif ns:
-        act, alabel = "sell", f"卖出 {ns}"
-    else:
-        act, alabel = "hold", "无动作"
-    stats = f"买{nb}·卖{ns}·持{len(by['持有'])}·空{len(by['空仓'])}"
-    return _row(label, stats, act, alabel, detail), act
+    name = str(d.get("name") or label)      # 「v14 中证A500 · E2 前二等权融合（V3+V12）」
+    row = _row(
+        label, act_txt, act, target_txt, ref,
+        cells=[name, {"v": act_txt, "cls": f"a {act}"}, target_txt,
+               {"v": ref, "cls": "d"}],
+    )
+    return row, act
 
 
 def _vol_v4_row(label, d):
@@ -1270,6 +1404,10 @@ def _vol_v6_row(label, d):
 def parse_vol_variants(_cfg):
     """板块2 的变种操作一览：v14~v20（七个单标的专用策略，一行一条腿）。
 
+    **2026-11-24 改版（用户要求）**：四列 =
+    变种策略 / 动作 / 目标仓位 / 前三组合策略操作参考。原「动作统计」列撤掉
+    （一行一腿，统计恒为 1/0，没有信息量）。
+
     2026-11-18 起 v2 / v3 / v4 / v6 / v9 / v12 从看板移除；
     其 daily 产物与 PNG 仍由 run_daily_vol_legs.ps1 照常生成，只是不再进这张卡。
     v21（利弗莫尔关键点）**不进本卡**：规则与 7 腿样本仍在验证，产物只留在策略目录。
@@ -1277,12 +1415,15 @@ def parse_vol_variants(_cfg):
     rows, srcs, as_ofs = [], [], []
     n_buy = n_sell = 0
     dt = {}                    # 各策略产物日
+    ops = []                   # 摘要：一行一条腿的「v14 无动作」
     for vx, label, rel, emph in _VOL_VARIANTS:
         full = os.path.join(_ROOT, rel)
         srcs.append(_rel(full))
         if not os.path.exists(full):
-            rows.append(_row(label, "产物缺失", "none", "—",
-                             f"未找到 `{rel}`，请先跑该变种 daily 扫描"))
+            msg = f"未找到 `{rel}`，请先跑该变种 daily 扫描"
+            rows.append(_row(label, "产物缺失", "none", "—", msg,
+                             cells=[label, "产物缺失", "—", msg]))
+            ops.append(f"{vx} 产物缺失")
             continue
         d = json.loads(_read(full))
         if d.get("as_of"):
@@ -1291,9 +1432,12 @@ def parse_vol_variants(_cfg):
         try:
             row, act = _vol_variant_row(label, d, emph)
         except Exception as exc:  # noqa: BLE001
-            row = _row(label, "解析失败", "none", "—", f"{type(exc).__name__}: {exc}")
+            msg = f"{type(exc).__name__}: {exc}"
+            row = _row(label, "解析失败", "none", "—", msg,
+                       cells=[label, "解析失败", "—", msg])
             act = "none"
         rows.append(row)
+        ops.append(f"{vx} {row['n']}")
         if act == "buy":
             n_buy += 1
         elif act == "sell":
@@ -1307,8 +1451,7 @@ def parse_vol_variants(_cfg):
         data = ("/".join(dt) + f" 数据 {vals[0]}" if len(vals) == 1
                 else " · ".join(f"{k} {v}" for k, v in dt.items() if v))
     tone = "buy" if n_buy else ("sell" if n_sell else "none")
-    summary = "v14–v20 今日操作（★=该腿）：" + "；".join(
-        f"{r['c']} {r['a']}" for r in rows)
+    summary = "v14–v20 今日操作：" + " · ".join(ops)
     # 图墙：只收「文件确实存在」的图，缺图不至于在看板上留破图框。
     figs = [{"path": rel, "cap": cap} for rel, cap in _VOL_FIGS
             if os.path.exists(os.path.join(_ROOT, rel.replace("/", os.sep)))]
@@ -1319,9 +1462,15 @@ def parse_vol_variants(_cfg):
          ["目标腿", "v14 A500 · v15 沪深300 · v16 纳指100 · v17 标普500 · "
                     "v18 科创50 · v19 恒生科技 · v20 黄金（一策略一腿）"],
          ["买入", str(n_buy)], ["卖出", str(n_sell)]],
-        note="参考板块5「技术指标」的列法（一行一个策略，列=策略/动作统计/动作/明细）。"
+        note="**列口径（2026-11-24）**：①变种策略 = 该策略自己的封装名（读 `daily/_*_daily.json::name`）；"
+             "②动作 = 今日有无待成交（买入 / 卖出 / 无动作）；"
+             "③目标仓位 = 动作状态 + 「当前 → 目标」（`level_txt`）；"
+             "④前三组合策略操作参考 = 该腿**当前前三名**（★1~★3，按含费夏普，读 "
+             "`research/best_by_leg/_best_by_leg.jsonl` 的 `rank`）各自今天在该腿的仓位。"
+             "**第 ④ 列只作对照、不叠加**：本卡的实际仓位是第 ②③ 列的变种，"
+             "不是这三支的算术平均；前三名会随研究报告重跑而换号，所以从产物读、不写死。"
              "2026-11-18 起本卡只列 **v14~v20 七个单标的专用策略**（一策略一腿）："
-             "v14 中证A500=E3(V3+V2+V12)、v15 沪深300=MIN2(V12∩V2)、"
+             "v14 中证A500=E2(V3+V12)、v15 沪深300=MIN2(V12∩V2)、"
              "v16 纳指100=MA200 切换（上=V10 波动层 / 下=V12 八态）、"
              "v17 标普500=V12、v18 科创50=E2×TV20、v19 恒生科技=V3、"
              "v20 黄金=V5.1（风险预算 × 实际利率闸门）。"
@@ -1329,7 +1478,7 @@ def parse_vol_variants(_cfg):
              "黄金腿纳入重构后的 v5_gold_score 后 ★1 换成 V5.1。"
              "**2026-11-20**：v12 的美股两腿改 C5（无死区）后，纳指 ★2 由 V9 换成 V12，"
              "`SW MA200→V12` 成为纳指的超越项，v16 据此由「纯 V10」改为「MA200 切换」；"
-             "v14(E3)/v15(MIN2)/v16(SW-v12)/v18(E2×TV20) 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
+             "v14(E2)/v15(MIN2)/v16(SW-v12)/v18(E2×TV20) 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
              "v17/v19 两条是「研究确认无提升、保持当前 ★1」的单标的封装；"
              "v20 就是 best_by_leg §0 的黄金 ★1 本身（重跑后无候选通过双闸门）。"
              "v21 利弗莫尔关键点（用户视频口径）**未稳定前不进本卡**，"
@@ -1342,7 +1491,8 @@ def parse_vol_variants(_cfg):
              " `run_daily_vol_legs.ps1` 第 3 步每日重画（近三年版在各自策略 research/ 下）。",
         src=" · ".join(srcs),
         data=data,
-        cols=["变种", "动作统计", "动作", "操作明细（★=重点标的，其余仅供参考）"],
+        cols=["变种策略", "动作", "目标仓位", "前三组合策略操作参考"],
+        col_cls=["", "", "", "h-d"],
         all_rows=True,
         imgs=figs,
     )
@@ -1960,9 +2110,16 @@ def _normalize_vol_history(db, entries):
         if allow_figs:
             card["imgs"] = [x for x in (card.get("imgs") or [])
                             if (x.get("path") or "") in allow_figs]
-        for fld in ("name", "summary", "note", "data", "src", "cols", "stats"):
+        for fld in ("name", "summary", "note", "data", "src", "stats"):
             if fld in cur:
                 card[fld] = cur[fld]
+        # cols / col_cls 只在**历史行已是新格式**（带 cells）时跟着换。
+        # 老归档行还是旧 4 格语义（变种 / 动作统计 / 动作 / 明细），
+        # 直接换表头会让「买0·卖0·持0·空1」落到「目标仓位」列下 —— 2026-11-24 改列时踩到的坑。
+        if any("cells" in r for r in (card.get("rows") or [])):
+            if "cols" in cur:
+                card["cols"] = cur["cols"]
+            card["col_cls"] = cur.get("col_cls") or []
 
 
 def collect():
@@ -2172,7 +2329,12 @@ td.n{white-space:nowrap}
 td.a{white-space:nowrap;font-weight:600;font-size:12.5px}
 td.a.buy{color:var(--buy)} td.a.sell{color:var(--sell)} td.a.hold{color:var(--hold)}
 td.a.watch{color:var(--watch)} td.a.avoid{color:var(--avoid)} td.a.none{color:var(--none)}
-td.d{color:#5f6b80;font-size:12.5px}
+/* pre-line：明细里带 \n 的行（板块5 V17 四行）按行显示，单行文本不受影响 */
+td.d{color:#5f6b80;font-size:12.5px;white-space:pre-line}
+/* 数字列（entry["col_cls"] 指定）：右对齐 + 等宽数字，方便纵向对账 */
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.num.buy{color:var(--buy);font-weight:600}
+td.num.sell{color:var(--sell);font-weight:600}
 code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f2f5fa;
   border-radius:4px;padding:0 4px;font-size:12px}
 .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
@@ -2204,6 +2366,10 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
   .sum{min-width:100%}
   td.d{display:none}
   thead th.h-d{display:none}
+  /* 板块1 五列在窄屏收掉「最优策略」列（策略名在 README §9.1 也有一份），
+     否则百分比列会被挤到换行 */
+  td.opt{display:none}
+  thead th.opt{display:none}
 }
 </style>
 </head>
@@ -2267,9 +2433,18 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>')
                 .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   }
+  function cellText(c){
+    return (c && typeof c === 'object') ? String(c.v == null ? '' : c.v) : String(c == null ? '' : c);
+  }
+  function rowText(r){
+    // 搜索口径：老 4 格行用 c/n/a/d，新 cells 行把每一格都算进来
+    var base = (r.c || '') + ' ' + (r.n || '') + ' ' + (r.a || '') + ' ' + (r.d || '');
+    if (r.cells && r.cells.length) base += ' ' + r.cells.map(cellText).join(' ');
+    return base;
+  }
   function visibleRows(s, q){
     var rows = (s.rows || []).filter(function(r){
-      var hit = !q || (r.c + ' ' + r.n + ' ' + r.a + ' ' + r.d).toLowerCase().indexOf(q) >= 0;
+      var hit = !q || rowText(r).toLowerCase().indexOf(q) >= 0;
       if(!hit) return false;
       if(q) return true;                      // 搜索时忽略「只看有动作」
       // 小表不筛选：池子固定的策略（7 腿 / 5 只红利 / 9 项基准）空仓行的读数本身就是
@@ -2286,12 +2461,22 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       return '<span class="chip">' + esc(kv[0]) + ' <b>' + esc(kv[1]) + '</b></span>';
     }).join('');
     var cols = s.cols || ['代码', '名称', '动作', '说明'];
+    var ccls = s.col_cls || [];
     var ths = cols.map(function(c, i){
-      return '<th' + (i === cols.length - 1 ? ' class="h-d"' : '') + '>' + esc(c) + '</th>';
+      // 4 列老卡片沿用「末列在窄屏隐藏」；列数更多的卡片（板块1 的五列）不隐藏任何列
+      var tc = ccls[i] || (i === cols.length - 1 && cols.length <= 4 ? 'h-d' : '');
+      return '<th' + (tc ? ' class="' + esc(tc) + '"' : '') + '>' + esc(c) + '</th>';
     }).join('');
     var body = rows.length ? '<div class="tbwrap"><table><thead><tr>' + ths +
         '</tr></thead><tbody>' +
         rows.map(function(r){
+          if (r.cells && r.cells.length) {   // 显式逐格（列数不限）
+            return '<tr>' + r.cells.map(function(c){
+              var cc = (c && typeof c === 'object') ? (c.cls || '') : '';
+              return '<td' + (cc ? ' class="' + esc(cc) + '"' : '') + '>' +
+                     md(cellText(c)) + '</td>';
+            }).join('') + '</tr>';
+          }
           return '<tr><td class="c">' + esc(r.c) + '</td><td class="n">' + esc(r.n) +
                  '</td><td class="a ' + esc(r.act) + '">' + esc(r.a) +
                  '</td><td class="d">' + md(r.d) + '</td></tr>';

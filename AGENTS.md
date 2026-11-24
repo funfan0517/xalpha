@@ -115,12 +115,14 @@ Set-Location g:\xalpha          # 禁止
 
 **规则（2026-11-19 定）：新策略 / 新变种默认 `daily.enabled = false`。未经用户明确同意，不得写进每日操作报告（看板）。**
 
-「跑产物」与「进报告」是两件事，必须分开决定：
+「跑产物」与「进报告」是两件事，但**不出报告就不随每日操作跑**（2026-11-24 用户规则）：
 
 | | 由什么控制 | 新策略的默认 |
 |---|---|---|
-| 每日脚本跑不跑、产物刷不刷新 | `pipeline/strategies.json` 的 `daily.runner` / 家族 `run_daily_*.ps1` | **照跑**（产物要能复核） |
-| 看板（每日操作报告）里出不出这张卡 | `daily.enabled`（`daily_digest.py::_card_on`） | **false**（不进报告） |
+| 看板（每日操作报告）里出不出这张卡 | `daily.enabled` 且 `daily.card != false`（`daily_digest.py::_card_on`） | **false**（不进报告） |
+| 每日脚本跑不跑、产物刷不刷新 | 同一判据：**上板才调度**。`run_daily_all.ps1` 只遍历出卡的策略，并按 `daily.runner` 去重（同一 .ps1 只跑一次） | **不跑** |
+
+> 2026-11-24 之前是「card=false 仍照跑」，靠 card=false 的家族条目（vol_legs / growth_div_rotation）持有调度权。该口径已作废：**不上看板 = 不跑**。必须刷新的产物，把调度权挂到**出卡的家族卡**上（vol_variants / gd_v5 / dividend / tech_indicators / bond_cash_v7），由 `run_daily_all.ps1` 的 runner 去重保证只执行一次。
 
 ### 9.1 上板（进每日操作报告）的流程
 
@@ -132,7 +134,9 @@ Set-Location g:\xalpha          # 禁止
 ### 9.2 下板（撤出报告）同样留痕
 
 `daily.enabled = false` + `enabled_note` 写清「date 用户要求撤出/为什么撤出/产物去哪看」。
-**产物脚本不要一起删** —— 下板只是不出卡，研究数据要能继续刷新（参考 v2 / v4~v6 的写法）。
+**产物脚本不要一起删** —— 下板只是不出卡、不进每日调度，研究数据仍可手动跑（参考 v2 / v4~v6 的写法）。
+
+只撤卡片、保留条目（`enabled=true` + `card=false`）也可以，但该条目**不能配 `daily.runner`**（`check_daily_config.py` 的 E5 会拦）：它的产物必须由某张出卡的家族卡代跑，否则永远不会刷新。
 
 ### 9.3 为什么要有这条
 
@@ -143,10 +147,17 @@ Set-Location g:\xalpha          # 禁止
 ### 9.4 强制校验（写进 CI 习惯）
 
 ```powershell
-python pipeline/check_daily_config.py          # E3 缺显式 enabled / E4 上板无凭据，任一即失败
+python pipeline/check_daily_config.py          # E3 缺显式 enabled / E4 上板无凭据 / E5 不出卡却配 runner，任一即失败
 ```
 
-校验通过时会打印**当前上板清单**，改完 `strategies.json` 顺手看一眼，比翻 JSON 靠谱。
+校验通过时会打印**当前上板清单 + 不跑的清单 + 共享 runner 提示**，改完 `strategies.json` 顺手看一眼，比翻 JSON 靠谱。
+
+### 9.5 不出卡就不跑（2026-11-24 用户规则）
+
+- `run_daily_all.ps1` 的调度名单 = 上板策略（`enabled=true` 且 `card != false`），其余一律不执行，只在头部打印一行清单。
+- 同一 `daily.runner` 被多张出卡卡共享时**去重执行一次**（家族脚本一次跑完 v0 七腿 + 全部变种，不可能也不该按卡重复跑）。
+- 想刷新某个不出卡的策略/变种：直接手动跑它自己的 `run_daily_*.ps1`，或跑持有调度权的家族卡对应的脚本；不要重新给它配 `daily.runner`。
+- 家族调度权的现行归属：板块2 `vol_variants` → `run_daily_vol_legs.ps1`；板块3 `gd_v5` → `run_daily_growth_div_rotation.ps1`；板块4 `dividend` → `run_daily_dividend.ps1`；板块5 `tech_indicators` → `run_daily_tech_indicators.ps1`；板块6 `bond_cash_v7` → `run_daily_bond_cash.ps1`；板块1 `permanent` → `run_daily_permanent.ps1`。
 
 ## 10. 看板双版本必须同步
 

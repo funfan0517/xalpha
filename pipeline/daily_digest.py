@@ -333,7 +333,7 @@ def parse_dividend(_cfg):
 
 
 def parse_dividend_v9(_cfg):
-    """V9 五因子估值温度：6 只有估值标的的逐只档位，不调仓位（体检表）。"""
+    """V9 五因子估值温度：6 只有估值标的的逐只档位 + † 副表 4 只价格温度（都不调仓位）。"""
     daily = _cfg["daily"]
     d = json.loads(_read(os.path.join(_ROOT, daily["signal_json"])))
     funds = sorted(d.get("funds") or [], key=lambda f: -(float(f.get("temp") or 0)))
@@ -351,6 +351,21 @@ def parse_dividend_v9(_cfg):
                          f"温度 {temp:.1f} · {f.get('action', '')} · "
                          f"{f.get('index_name') or f.get('index', '')}"))
 
+    # † 副表（2026-11-24 用户要求）：无等权 PE/PB 的 4 只只算价格温度，
+    # 空一行后**单独按温度排序**；不参与板块温度、偏热/偏冷计数与排名。
+    sides = sorted(d.get("side") or [], key=lambda s: -(float(s.get("temp") or 0)))
+    if sides:
+        rows.append({"sep": True, "c": "", "n": "", "act": "none", "a": "", "d": ""})
+        for s in sides:
+            temp = float(s.get("temp") or 0)
+            src = ("中证指数官网" if s.get("price_src") == "csi"
+                   else f"{s.get('proxy')} 代理" + ("（回退）" if s.get("used_fallback") else ""))
+            rows.append(_row(
+                s.get("code"), f"{s.get('name')} †", "none", f"价格温度 {temp:.1f}",
+                f"仅价格维度（无估值） · 年线乖离 {float(s.get('dev') or 0):+.2f}% · "
+                f"位置 {float(s.get('pos') or 0):.1f} · {src}",
+            ))
+
     bt, bp = d.get("board_temp"), d.get("board_pct")
     tone = "sell" if len(hot) > len(cold) else ("buy" if len(cold) > len(hot) else "hold")
     badge = f"板块温度 {float(bt):.1f}" if bt is not None else "—"
@@ -358,7 +373,9 @@ def parse_dividend_v9(_cfg):
         "dividend_v9", "红利 V9 · 五因子估值温度", d.get("as_of"), badge, tone,
         f"{len(funds)} 只有估值标的 · 板块温度 {badge}"
         + (f"（自身分位 {float(bp) * 100:.0f}%）" if bp is not None else "")
-        + f" · 偏热 {len(hot)} / 偏冷 {len(cold)} · 只给额度参考，不调仓位",
+        + f" · 偏热 {len(hot)} / 偏冷 {len(cold)}"
+        + (f" · † 价格温度另列 {len(sides)} 只（单独排序、不参与排名）" if sides else "")
+        + " · 只给额度参考，不调仓位",
         rows,
         [["板块温度", "—" if bt is None else f"{float(bt):.1f}"],
          ["板块自身分位", "—" if bp is None else f"{float(bp) * 100:.0f}%"],
@@ -366,9 +383,15 @@ def parse_dividend_v9(_cfg):
         note="V9 · 五因子温度（利差 35 / PE 20 / PB 16 / 乖离 15 / 位置 14，各取近 2 年分位）："
              "档位 危险≥85 / 过热≥75 / 偏热≥65 / 中性偏热≥55 / 中性≥40 / 偏冷≥20 / 冰点<20。"
              "回测显示横截面选品与分位减仓均无 alpha，故**只当估值体温计用，不输出仓位倍率**；"
-             "仓位节奏看板块4 的 V4 卡。完整温度表见 strategies/dividend/v9_temp5/daily/_v9_temp.html。",
+             "仓位节奏看板块4 的 V4 卡。完整温度表见 strategies/dividend/v9_temp5/daily/_v9_temp.html。"
+             "† 副表（表末空一行后的 4 行）无 etf.run 等权 PE/PB，只算价格温度 = "
+             "0.5×年线乖离分位 + 0.5×价格位置分位，**与五因子温度不可比、不参与排名与计数**；"
+             "标普两只的价格用 ETF/LOF 代理（说明里的「点位」是基金价格，不是指数点位）。",
         src=_rel(os.path.join(_ROOT, daily["signal_md"])),
         data=f"指数估值 + 基金净值 {d.get('as_of')}（分位窗口近 2 年）",
+        # 10 只全池（6 估值 + 4 价格）本身就不大，读数即信息：
+        # 不设 all_rows 会因行数 > 10 被默认勾选的「只看有动作」把 † 副表 4 行全筛掉（2026-11-24 踩到）。
+        all_rows=True,
     )
 
 
@@ -2312,6 +2335,10 @@ main{max-width:1440px;margin:0 auto;padding:20px 22px 60px}
 .sum{color:#4a5568;font-size:13px;flex:1;min-width:260px}
 .meta{font-size:12px;color:var(--muted);white-space:nowrap}
 .chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 6px}
+/* 「预演版与正式版不一致」提示条：只由 intraday_preview 填 entry["diff"]，正式版永远没有这个字段 */
+.diffbar{margin:6px 18px 2px;padding:8px 12px;border:1px solid #ff9c92;background:#fff1f0;
+  border-radius:8px;color:#c62828;font-size:13px;font-weight:800;line-height:1.6}
+.diffbar .ditem{display:inline-block;margin-right:14px;white-space:normal}
 .chip{font-size:12px;color:#5b6478;background:#f7f9fd;border:1px solid var(--line);
   border-radius:8px;padding:2px 9px}
 .chip b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -2324,6 +2351,9 @@ thead th{position:sticky;top:0;background:#fafbfe;z-index:1;color:var(--muted);f
 tbody td{padding:8px 14px;border-bottom:1px solid #f2f5fa;vertical-align:top}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#fafcff}
+/* 表内分组分隔行（板块4 红利 V9 的 † 副表）：一行空白，把估值温度与价格温度分开 */
+tbody tr.rowsep td{padding:0;border-bottom:none;height:12px}
+tbody tr.rowsep:hover{background:none}
 td.c{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;white-space:nowrap}
 td.n{white-space:nowrap}
 td.a{white-space:nowrap;font-weight:600;font-size:12.5px}
@@ -2444,6 +2474,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
   }
   function visibleRows(s, q){
     var rows = (s.rows || []).filter(function(r){
+      if(r.sep) return true;                  // 分组空行：不参与搜索与「只看有动作」，下面统一清理
       var hit = !q || rowText(r).toLowerCase().indexOf(q) >= 0;
       if(!hit) return false;
       if(q) return true;                      // 搜索时忽略「只看有动作」
@@ -2453,7 +2484,8 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
       if(onlyAct.checked && r.act === 'none' && !s.all_rows && (s.rows || []).length > 10) return false;
       return true;
     });
-    return rows;
+    // 分组空行只在前后都还有可见行时保留：首行 / 末行 / 被筛选挤成孤立的分隔行都会显出一条空带
+    return rows.filter(function(r, i){ return !r.sep || (i > 0 && i < rows.length - 1); });
   }
   function card(key, s, q){
     var rows = visibleRows(s, q);
@@ -2470,6 +2502,9 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     var body = rows.length ? '<div class="tbwrap"><table><thead><tr>' + ths +
         '</tr></thead><tbody>' +
         rows.map(function(r){
+          if (r.sep) {   // 分组空行（板块4 红利 V9 的主表 / † 副表之间）
+            return '<tr class="rowsep"><td colspan="' + cols.length + '"></td></tr>';
+          }
           if (r.cells && r.cells.length) {   // 显式逐格（列数不限）
             return '<tr>' + r.cells.map(function(c){
               var cc = (c && typeof c === 'object') ? (c.cls || '') : '';
@@ -2517,10 +2552,16 @@ footer{max-width:1440px;margin:0 auto;padding:0 22px 40px;color:var(--muted);fon
     var open = (q || figs.length || (s.rows || []).some(function(r){ return r.act !== 'none'; }))
       ? ' open' : '';
     var cls = s.error ? ' card err' : ' card';
+    // 预演版与正式版的**操作不一致**提示（只有 intraday_preview 会填 s.diff）
+    var diffbar = (s.diff && s.diff.length)
+      ? '<div class="diffbar">⚠ 与正式版不一致（' + s.diff.length + ' 处）：' +
+        s.diff.map(function(x){ return '<span class="ditem">' + esc(x) + '</span>'; }).join('') +
+        '</div>'
+      : '';
     return '<div class="' + cls.trim() + '"><details' + open + '>' +
       '<summary><div class="ttl"><h2>' + esc(s.name) + '</h2>' +
       '<span class="badge ' + esc(s.tone) + '">' + esc(s.badge) + '</span></div>' +
-      '<div class="sum">' + md(s.summary) + '</div>' +
+      '<div class="sum">' + md(s.summary) + '</div>' + diffbar +
       '<div class="meta">' + (s.as_of ? ('数据日 ' + esc(s.as_of)) : '无数据') +
       (s.data ? (' · 源数据 ' + esc(s.data)) : '') +
       (s.rows ? (' · ' + s.rows.length + ' 行') : '') + '</div></summary>' +

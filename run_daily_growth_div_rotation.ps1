@@ -1,7 +1,8 @@
 ﻿# 成长/红利风格轮动 每日信号 - 双击运行
 # 盘后运行: 增量刷新指数行情 -> 计算风格比值/均线/分位 -> 输出次日开盘操作信号
-# 板块3 的每日看板展示 v0 / v2 / v5 三张卡, 各自落一份产物:
-#   v0 (MA20 缓冲带 + 250日分位) / v2 (绝对水位 0.35/0.65) / v5 (水位 + 双 MA200 + 18% 波动目标)
+# 板块3 的每日看板只出 v5 一张卡(gd_v5), 但本脚本仍一次跑 v0 / v2 / v5 三份产物:
+#   v0 (MA20 缓冲带 + 250日分位, card=false 仅留产物) / v2 (绝对水位 0.35/0.65) / v5 (水位 + 双 MA200 + 18% 波动目标)
+# 调度权在出卡的 gd_v5 上(run_daily_all 按 runner 去重, 只执行一次); v0 条目 card=false, 不随每日操作跑
 # v1 (绝对阈值 0.20/0.31 + 5期分批) 2026-11-02 起退出看板, 不再每日跑; 需要时手跑 v1_ratio_bands/scan.py
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_growth_div_rotation.ps1
 $ErrorActionPreference = "Stop"

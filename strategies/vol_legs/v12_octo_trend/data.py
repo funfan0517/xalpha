@@ -104,17 +104,13 @@ def _write(path, lib):
 
 
 def _trim_partial(lib):
-    """丢掉「今天还没收盘」的那根 bar（盘中刷新会写入半成品量能）。15:05 之后视为已收盘。"""
-    now = pd.Timestamp.now()
-    if now.hour * 60 + now.minute >= 15 * 60 + 5:
-        return lib
-    today = now.strftime("%Y-%m-%d")
-    for node in lib.values():
-        if (node.get("dates") or [""])[-1] == today:
-            for col in ("dates", "open", "high", "low", "close", "volume"):
-                if node.get(col):
-                    node[col] = node[col][:-1]
-    return lib
+    """丢掉每个代码末尾「尚未收盘」的 bar（盘中刷新会写入半成品量能）。
+
+    判据统一在 `data/_market_clock.py`（逐市场收盘时刻）—— 本库全是**A 股场内 ETF**
+    （含 QDII `513100`/`513500` 与黄金 `518880`，都随 A 股 15:00 收盘），所以走的是 `CN` 分支
+    15:05；保留本函数只是为了让 `refresh_etf` 的调用点不改，判据不要再抄第二份。
+    """
+    return _idxcache.trim_partial(lib)
 
 
 def sh(code):
@@ -175,6 +171,7 @@ def refresh_etf(codes=None):
                     add = _node_etf(df[df["date"] > dates[-1]])
                     for col in ("dates", "open", "high", "low", "close", "volume"):
                         node[col] = list(node[col]) + add[col]
+            _trim_partial({code: lib[code]})    # 未收盘的尾部 bar 不入库、也不上报
             latest[code] = lib[code]["dates"][-1]
         except Exception as exc:  # noqa: BLE001
             fails[code] = f"{type(exc).__name__}: {exc}"

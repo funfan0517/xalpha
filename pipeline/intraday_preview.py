@@ -10,29 +10,44 @@
 1. **只读仓库数据**。唯一写出的文件 = `data/_daily_digest_intraday.html`（看板本身）；
    各策略产物一律写进系统临时目录（跑完即删），绝不覆盖 `daily/` 下的 md / json / png。
 2. **不碰网络库以外的状态**：所有 `refresh_*` / `ensure_fresh` / `append_latest` 都被替换成
-   空操作，避免盘中半成品 bar 污染 `_long_klines.json`、`_global_index_klines.json`、`_gd_index_klines.json`。
-3. **口径必须写明**：每张卡标注 🟢（盘中价入信号）/ 🟡（无盘中源，沿用上一收盘）。
+   空操作；进程内另设 `XALPHA_PREVIEW=1`，让会自更新缓存的模块（v5 的 FRED `_dfii10.csv`）也停手。
+3. **口径必须写明**：每张卡标注 🟢（盘中价入信号）/ 🟠（盘中价 + 量能按进度折算）/ 🟡（无盘中源）。
+   **操作与正式版不一致时，卡片顶部出红色加粗提示条**（`entry["diff"]`）。
 
-接入口径与各板块的可预演性：
+用户口径（2026-11-24 定）：**A股/港股取 T+0 盘中数据，美股仍用 T+0 凌晨收盘**。
 
 | 板块 | 预演方式 | 数据 |
 |---|---|---|
 | 1 永久组合 | 🟡 无盘中源 | 场外累计净值（T 日盘后披露，QDII 滞后 1~2 日） |
-| 2 波动类主策略 | 🟡 无盘中源 | 真实指数收盘（黄金 `518880`），指数没有稳定盘中源 |
 | 2 近五年口径 | 🟡 无盘中源 | 研究产物 `_daily_positions_5y.json`（收盘后跑出的排名 + 上一收盘决策），不重算 |
-| 2 变种 v2/v3 | 🟢 用跟踪 ETF 的实时涨幅外推指数末根（代理口径） | 真实指数库 + `xa.get_rt` |
-| 2 变种 v6 | 🟢 三条口径共用 `518880`，末根直接换实时价 | 黄金 `518880` 行情 + `xa.get_rt` |
-| 2 变种 v4 | 🟡 无盘中源 | 沪深300×10Y 国债 ERP（月度序列） |
-| 2 变种 v9 | 🟡 美股未开盘 | `.NDX/.INX` 收盘（美东 11-05） |
-| 3 风格轮动 v0/v5 | 🟢 指数按跟踪 ETF 的实时涨幅外推末根 | 科创50/创业板指/中证红利 |
+| **2 变种卡（v14~v20）** | 🟠 A股/港股 5 腿重算 · 🟢 美股 2 腿 | 见下「盘中注入」 |
+| 3 风格轮动 v0/v5 | 🟢 三个指数用**自己的实时点位**接成今日 bar | `get_rt("SH000688"/"SZ399006"/"SH000922")` |
 | 4 红利 V4/V9 | 🟡 无盘中源 | 场外累计净值 + 月度估值分位 |
-| 5 技术指标 | 🟢 54 只 ETF 末根换成实时价 + 重算全套指标 | `_long_klines.json` + `xa.get_rt` |
+| 5 技术指标 | 🟢 54 只 ETF 追加今日盘中 bar + 重算全套指标 | `_long_klines.json` + `xa.get_rt` |
+
+**盘中注入（唯一的机制，`strategies/vol_legs/_idxcache.py::frame`）**：环境变量
+`XALPHA_INTRADAY_BARS` 携带 `{leg: {date, close, volume}}`，`frame()` 在出口把今日 bar
+接到已收盘序列末尾 —— 五个 `_idxcache` 实例同时生效，七个单腿策略与 v12 **一行都不用改**。
+- 价格：A股三腿 + 恒生科技用 `get_rt` 的**指数点位**（指数自己就有实时源，不再用 ETF 外推）；
+  黄金用 `518880` 实时价；美股两腿**不注入**（库里就是今天凌晨收盘那根）。
+- 量能：`rvol` 属强弱档判据，而盘中只有累计量 → 按「已过交易分钟占比」折算当日量
+  （实测 14:19 沪深300 累计量占昨日全天 0.81 vs 时间进度 0.83）。含 V12 成分的腿标 🟠。
+- 美股两腿：正式版产物若已是今天凌晨那根收盘就直接沿用（用户要求不重跑），
+  若产物停在更早（上一次正式流程跑在盘中）则改为重算。
+
+> v2/v3/v6 的预演重算仍在跑（写临时树），但**不进看板**：板块2 自 2026-11-18 起只列 v14~v20。
+>
+> ⚠ 2026-11-24 起行情库只存**已收盘**的 bar（`data/_market_clock.py`），所以盘中序列末根是
+> **T-1**。预演必须把实时价**追加**成一根日期为今天的合成 bar（`_intraday_series` /
+> `_intraday_wide`），不能沿用旧的 `px.iloc[-1] = 实时价` —— 那会把今天的价写到昨天的日期上，
+> 让整条信号安静地错一天。
 
 机械规则输出，非投资建议。预演**不是**信号：收盘价一翻，结论可能整条变。
 """
 from __future__ import annotations
 
 import contextlib
+import copy
 import importlib.util
 import json
 import os
@@ -53,6 +68,9 @@ CFG = dd.CFG
 OUT_HTML = os.path.join(_ROOT, "data", "_daily_digest_intraday.html")
 _TMP = None            # 临时树根（镜像仓库布局，供各 parse_* 用 _ROOT 拼接）
 _LOG = []
+
+# 盘中快照的日期标签（合成 bar 用；跨零点运行的预演不存在，脚本一次跑完就退出）
+_TODAY = datetime.now().strftime("%Y-%m-%d")
 
 
 # ---------------------------------------------------------------- 基础设施
@@ -127,20 +145,39 @@ def _pct(rt):
         return None
 
 
+_RT_RAW = {}           # code -> get_rt 原始返回（含 volume），折算盘中量能用
+
+
+def _bare(code):
+    """`SH000300` -> `000300`（`_idxcache` 用带前缀的代码，`get_rt` 用不带前缀的）。"""
+    return code[2:] if len(code) > 6 and code[:2] in ("SH", "SZ") else code
+
+
 def rt_prices(codes):
-    """{code: (price, pct)} —— 取不到就跳过（返回的 dict 里没有该 code）。"""
+    """{code: (price, pct)} —— 取不到就跳过（返回的 dict 里没有该 code）。
+
+    原始返回同时存进 `_RT_RAW`：`get_rt` 对指数也给 `volume`（当日累计），强弱档的
+    `rvol` 折算要用它，不必为此再请求一次。
+    """
     import xalpha as xa
 
     gi = _mp("gi_intraday", os.path.join(_ROOT, "_gen_indicators.py"))
     out, fails = {}, {}
     for c in dict.fromkeys(codes):
-        pref = gi.exchange_prefix(c)
-        for p in (pref, "SZ" if pref == "SH" else "SH"):
+        # 港股/美股代码本身就是 `get_rt` 的入参（不能再拼 SH/SZ 前缀，否则拼出来的是废代码）
+        if c.startswith(("HK", ".")):
+            cands = (c,)
+        else:
+            pref = gi.exchange_prefix(c)
+            cands = (pref + c, ("SZ" if pref == "SH" else "SH") + c)
+        for full in cands:
             try:
-                rt = xa.get_rt(p + c)
+                rt = xa.get_rt(full)
                 cur = rt.get("current")
                 if cur:
                     out[c] = (float(cur), _pct(rt) or 0.0)
+                    _RT_RAW[c] = rt
+                    _RT_RAW[_bare(c)] = rt
                     break
             except Exception as exc:  # noqa: BLE001
                 fails[c] = f"{type(exc).__name__}: {exc}"
@@ -148,6 +185,102 @@ def rt_prices(codes):
         _note(f"实时价缺失 {len(fails)} 只（沿用缓存末根）: "
               + "、".join(list(fails)[:6]))
     return out
+
+
+# ---------------------------------------------------------------- 盘中量能的折算
+# 八态的强弱档要 `rvol = 当日量 / 20 日均量`（阈值 1.20 / 0.85），而 14:35 只能拿到**当日累计量**。
+# 折算：`当日量 ≈ 累计量 / f`，`f` = 已过交易分钟 / 当日总交易分钟。
+# 实测标定（2026-11-24 14:19 沪深300）：累计 165.5 亿股 ÷ 昨日全天 203.9 亿 = 0.81，
+# 同期时间进度 199/240 = 0.83 → 误差约 2%，且量纲同口径（股）。尾盘放量会让折算略低估。
+_SESSIONS = {
+    "CN": ((9 * 60 + 30, 11 * 60 + 30), (13 * 60, 15 * 60)),    # 240 分钟
+    "HK": ((9 * 60 + 30, 12 * 60), (13 * 60, 16 * 60)),         # 330 分钟
+}
+
+
+def session_progress(market, now=None):
+    """已过交易分钟占比：收盘后 1.0、开盘前 0.0。"""
+    now = now or datetime.now()
+    m = now.hour * 60 + now.minute + now.second / 60.0
+    segs = _SESSIONS.get(market)
+    if not segs:
+        return 1.0
+    total = sum(b - a for a, b in segs)
+    done = sum(max(0.0, min(m, b) - a) for a, b in segs)
+    return max(0.0, min(1.0, done / total)) if total else 1.0
+
+
+def inject_bars():
+    """把 A股/港股/黄金的盘中价 + 折算量能做成注入表（走环境变量，不落盘）。
+
+    美股两腿**不注入**：库里那根已经是「T 日 05:00 凌晨收盘」，与正式版同一根 bar。
+    """
+    ic = _mp("ip_idxcache", os.path.join(_ROOT, "strategies", "vol_legs", "_idxcache.py"))
+    legs = ("a500", "hs300", "kc50", "hkt", "gold")
+    bars, miss = {}, []
+    for leg in legs:
+        code = ic.LEGS[leg][1]
+        raw = _RT_RAW.get(code) or _RT_RAW.get(_bare(code)) or {}
+        cur = raw.get("current")
+        if not cur:
+            miss.append(f"{leg}({code})")
+            continue
+        prog = session_progress(ic.clock.market_of(code))
+        bar = {"date": _TODAY, "close": float(cur)}
+        vol = raw.get("volume")
+        if vol and prog > 0.02:                  # 刚开盘时折算因子太小，宁可不给量能
+            bar["volume"] = float(vol) / prog
+            bar["progress"] = round(prog, 3)
+        bars[leg] = bar
+    os.environ[ic.INTRADAY_ENV] = json.dumps(bars, ensure_ascii=False)
+    _note(f"注入盘中 bar {len(bars)}/{len(legs)} 条 · 量能按交易进度折算"
+          f"（A股 {session_progress('CN'):.0%} / 港股 {session_progress('HK'):.0%}）；"
+          "美股两腿用今天凌晨收盘，不注入"
+          + (f"；缺 {', '.join(miss)}" if miss else ""))
+    return bars
+
+
+# ---------------------------------------------------------------- 盘中 bar 的接法
+# ⚠ 2026-11-24 起行情库**只存已收盘的 bar**（`data/_market_clock.py`：A 股 15:05 / 港股 16:05 /
+# 美股北京次日 05:05），所以 14:35 跑时序列末根是**上一交易日**。
+# 旧的预演写法是 `px.iloc[-1] = 实时价`，它假设末根是「今天的半根」——在只写收盘的库里，
+# 这样等于把今天的价写到昨天的日期上，**整条信号系统性错一天**（而且不会报错）。
+# 正确做法：拿实时价在末尾**追加**一根日期为今天的合成 bar；旧库（末根已是今天）仍原地替换。
+def _intraday_series(px, price=None, pct=None):
+    """把「今日盘中」接到已收盘 Series 的末尾 -> 新 Series（末根日期 = 今天）。"""
+    import pandas as pd
+
+    if px is None or not len(px):
+        return px
+    px = px.copy()
+    if price is None:
+        price = float(px.iloc[-1]) * (1.0 + float(pct or 0.0) / 100.0)
+    if str(px.index[-1].date()) == _TODAY:          # 旧库：今天那根已在，原地替换
+        px.iloc[-1] = float(price)
+    else:                                            # 新库：末根是 T-1，追加今日 bar
+        px.loc[pd.Timestamp(_TODAY)] = float(price)
+    return px
+
+
+def _intraday_wide(wide, pct_by_code):
+    """宽表版本：按跟踪 ETF 的实时涨幅外推今日一行（没有代理的列沿用上一收盘）。"""
+    import pandas as pd
+
+    if wide is None or not len(wide) or not pct_by_code:
+        return wide
+    cols = [c for c in wide.columns if c in pct_by_code]
+    if not cols:
+        return wide
+    if str(wide.index[-1].date()) == _TODAY:        # 旧库：原地改今天那行
+        for c in cols:
+            prev = float(wide[c].iloc[-2]) if len(wide) >= 2 else float(wide[c].iloc[-1])
+            wide.iloc[-1, wide.columns.get_loc(c)] = prev * (1 + pct_by_code[c] / 100.0)
+        return wide
+    row = wide.iloc[[-1]].copy()
+    row.index = [pd.Timestamp(_TODAY)]
+    for c in cols:
+        row.at[pd.Timestamp(_TODAY), c] = float(wide[c].iloc[-1]) * (1 + pct_by_code[c] / 100.0)
+    return pd.concat([wide, row])
 
 
 # ---------------------------------------------------------------- 板块5 技术指标
@@ -185,28 +318,48 @@ def _mark_v17(entry):
 
 
 def preview_tech(rt):
-    """用实时价替换 54 只 ETF 的末根并重算指标，再跑一遍 _daily_recommend.py。"""
+    """把 54 只 ETF 的实时价接成「今日 bar」并重算指标，再跑一遍 _daily_recommend.py。
+
+    库末根是上一交易日（只存已收盘），所以是**追加**今日 bar，不是替换末根。
+    """
     _stage_v17()
     rec = _mp("ip_tech", os.path.join(_ROOT, "strategies", "tech_indicators",
                                       "daily", "_daily_recommend.py"))
     # 1) 关掉刷新（ensure_fresh 会写 _long_klines.json / _indicators_hist.json）
-    rec._refresh_data.ensure_fresh = lambda codes=None, verbose=True: (
-        rec._refresh_data.last_dates(), set())
+    #    但「最新日」必须报**注入后的末根**：库里只存已收盘 bar（末根 T-1），若照抄
+    #    `last_dates()`，看板就会写「ETF 行情 T-1」而逐行数字是今天的实时价（自相矛盾），
+    #    且所有行会被判成「⚠️陈旧」。所以有实时价的代码一律报到今天。
+    def _fresh_dates(codes=None, verbose=True):
+        latest = rec._refresh_data.last_dates()
+        for code in rt:
+            if code in latest:                  # 只有落进了 lk（load 里才会被追加今日 bar）
+                latest[code] = _TODAY
+        return latest, set()
+
+    rec._refresh_data.ensure_fresh = _fresh_dates
     # 2) 末根换成实时价 + 内存重算指标（_recompute 是纯函数）
     orig_load = rec.base.load
 
     def load():
         ind, lk = orig_load()
-        hit = 0
+        hit = app = 0
         for code, (price, _p) in rt.items():
             if code not in lk or code not in ind:
                 continue
-            lk[code]["close"][-1] = price
-            close = [float("nan") if v is None else float(v) for v in lk[code]["close"]]
-            ind[code] = rec._refresh_data._recompute(
-                lk[code]["dates"], close, ind[code].get("volume"))
+            node = lk[code]
+            vols = list(ind[code].get("volume") or [])
+            if node["dates"] and node["dates"][-1] == _TODAY:      # 旧库：原地替换今天那根
+                node["close"][-1] = price
+            else:                                                  # 新库：末根是 T-1，追加今日
+                node["dates"].append(_TODAY)
+                node["close"].append(price)
+                vols = vols[:len(node["dates"]) - 1] + [None]      # 盘中量不完整 -> 不编假量
+                app += 1
+            close = [float("nan") if v is None else float(v) for v in node["close"]]
+            ind[code] = rec._refresh_data._recompute(node["dates"], close, vols)
             hit += 1
-        _note(f"技术指标：{hit}/{len(ind)} 只 ETF 末根已换实时价")
+        _note(f"技术指标：{hit}/{len(ind)} 只 ETF 已换实时价"
+              + (f"（其中 {app} 只在 T-1 序列末尾追加了今日盘中 bar）" if app else ""))
         return ind, lk
 
     rec.base.load = load
@@ -236,9 +389,9 @@ _VOL_ETF = {
 
 
 def _preview_v6_gold(rt, vl):
-    """V6 黄金三口径：A/B/C 共用场内 `518880` 同一条序列，末根直接换实时价。
+    """V6 黄金三口径：A/B/C 共用场内 `518880` 同一条序列，实时价接成今日 bar。
 
-    只替换末根、不改历史：`gold.load` 被换成本地闭包，`refresh` 一律当 False，
+    只动尾部、不改历史：`gold.load` 被换成本地闭包，`refresh` 一律当 False，
     避免盘中半成品 bar 落到 `data/_long_klines.json`。
     """
     sub = os.path.join(vl, "v6_gold")
@@ -253,9 +406,8 @@ def _preview_v6_gold(rt, vl):
         hit = rt.get(code)
         if not hit or px is None or not len(px):
             return px
-        px = px.copy()
-        px.iloc[-1] = hit[0]
-        return px
+        # 库末根是上一交易日（只存已收盘）-> 追加今日 bar，别把实时价盖到昨天上
+        return _intraday_series(px, price=hit[0])
 
     g.load = load
     try:
@@ -279,10 +431,10 @@ def preview_vol_variants(rt):
         def px_for(leg, _pkg=pkg):
             px = _pkg.vdata.series_for_leg(leg)
             etf = _VOL_ETF.get(leg)
-            # 指数点位与 ETF 价格量纲不同，只能按实时涨幅外推末根（美股腿无 A 股盘中源）
-            if etf and etf in rt and len(px) >= 2:
-                px = px.copy()
-                px.iloc[-1] = float(px.iloc[-2]) * (1 + rt[etf][1] / 100.0)
+            # 指数点位与 ETF 价格量纲不同，只能按实时涨幅外推；库末根是 T-1（只存已收盘），
+            # 所以是**追加**今日 bar 而不是替换末根（见 `_intraday_series`）
+            if etf and etf in rt and len(px):
+                px = _intraday_series(px, pct=rt[etf][1])
             return px
 
         pkg.load = px_for
@@ -303,7 +455,7 @@ def preview_vol_variants(rt):
                 dd_["as_of"] = max(dates)
                 with open(jp, "w", encoding="utf-8") as fh:
                     json.dump(dd_, fh, ensure_ascii=False, indent=2)
-        _note(f"{key}: 跟踪 ETF 实时涨幅外推指数末根，已重算（代理口径）")
+        _note(f"{key}: 跟踪 ETF 实时涨幅外推成今日 bar，已重算（代理口径）")
 
     # v6 黄金三口径：A/B/C 都用场内 518880，末根直接换实时价。
     # 失败也不拖累 v2/v3，退回收盘口径产物。
@@ -318,50 +470,123 @@ def preview_vol_variants(rt):
                 shutil.copyfile(src, _tpath(f"strategies/vol_legs/v6_gold/daily/{fn}"))
 
     # v4 / v9 / v12 没有盘中源：原样复制已有产物进临时树，让汇总卡能照常解析。
-    # v12 硬依赖**指数量能**（七腿全要完整成交量；盘中量不完整会把弱回调/强回调判反），不能按实时价重算。
+    # v12 现在**有**注入通道（见 `inject_bars`：A股/港股/黄金的盘中价 + 折算量能都会进
+    # `_idxcache.frame`），但它自己不在看板上，预演不对它单独出卡，保留复制仅供 v14~v20 的
+    # `bridge.v12` 与卡片的「前三名参考」列读取。
     for rel in ("v4_erp_band/daily/_v4_erp_band_daily.md",
                 "v4_erp_band/daily/_v4_erp_band_daily.json",
                 "v9_vol_target/daily/_v9_vol_target_daily.md",
                 "v9_vol_target/daily/_v9_vol_target_daily.json",
                 "v12_octo_trend/daily/_v12_daily.md",
-                "v12_octo_trend/daily/_v12_daily.json",
-                "v14_a500_e2/daily/_v14_daily.md",
-                "v14_a500_e2/daily/_v14_daily.json",
-                "v15_hs300_min2/daily/_v15_daily.md",
-                "v15_hs300_min2/daily/_v15_daily.json",
-                "v16_ndx_sw/daily/_v16_daily.md",
-                "v16_ndx_sw/daily/_v16_daily.json",
-                "v17_spx_v12/daily/_v17_daily.md",
-                "v17_spx_v12/daily/_v17_daily.json",
-                "v18_kc50_e2tv/daily/_v18_daily.md",
-                "v18_kc50_e2tv/daily/_v18_daily.json",
-                "v19_hkt_v3/daily/_v19_daily.md",
-                "v19_hkt_v3/daily/_v19_daily.json",
-                "v20_gold_v5/daily/_v20_daily.md",
-                "v20_gold_v5/daily/_v20_daily.json"):
+                "v12_octo_trend/daily/_v12_daily.json"):
         src = os.path.join(vl, rel.replace("/", os.sep))
         if os.path.exists(src):
             shutil.copyfile(src, _tpath(f"strategies/vol_legs/{rel}"))
-    _note("v4（月度 ERP）/ v9（美股未开盘）/ v12（硬依赖指数量能）/ v14~v20（单腿专用，无独立盘中源）无盘中源，沿用上一次收盘")
+    _note("v4（月度 ERP）/ v9（无盘中增量）/ v12（自己不出卡）沿用上一收盘产物")
+
+    try:
+        _stage_vol_variants(vl)
+    except Exception as exc:  # noqa: BLE001
+        _note(f"v14~v20 预演整体失败，全部沿用上一收盘（{type(exc).__name__}: {exc}）")
+        traceback.print_exc()
+
+
+# v14~v20：`run` = 是否在临时树里用盘中 bar 重算。美股两腿（v16/v17）不重跑 ——
+# 它们的行情就是「今天凌晨收盘」，与正式版同一根 bar，重跑只会得到同一组数字。
+_VARIANTS = (
+    ("v14", "v14_a500_e2", "_v14_daily", True, "🟠"),
+    ("v15", "v15_hs300_min2", "_v15_daily", True, "🟠"),
+    ("v16", "v16_ndx_sw", "_v16_daily", False, "🟢"),
+    ("v17", "v17_spx_v12", "_v17_daily", False, "🟢"),
+    ("v18", "v18_kc50_e2tv", "_v18_daily", True, "🟠"),
+    ("v19", "v19_hkt_v3", "_v19_daily", True, "🟢"),
+    ("v20", "v20_gold_v5", "_v20_daily", True, "🟢"),
+)
+# 🟠 = 含 V12 八态成分：强弱档要 `rvol`，盘中量只能按交易进度折算
+# 🟢 = A股/港股纯价格策略，或美股腿（行情已完整）
+_VARIANT_TONE = {v[0]: v[4] for v in _VARIANTS}
+_US_LEG = {"v16": "ndx", "v17": "spx"}      # 美股两腿：正常情况下沿用正式版产物
+
+
+def _us_artifact_stale(key, rel_js):
+    """美股腿：正式版产物的数据日若落后于库里最新收盘，返回该日期（否则 None）。
+
+    「不重跑」的前提是**正式版今天已经跑过**（产物就是今天凌晨那根收盘）。若产物停在前几天
+    （例如上一次正式流程跑在盘中、只拿到 11-20），照抄会让预演落后好几天 —— 那就重算。
+    """
+    leg = _US_LEG.get(key)
+    if not leg:
+        return None
+    path = os.path.join(_ROOT, rel_js.replace("/", os.sep))
+    if not os.path.exists(path):
+        return None
+    try:
+        d = json.load(open(path, encoding="utf-8"))
+        got = str(d.get("as_of") or ((d.get("legs") or [{}])[0].get("date") or ""))
+    except (OSError, ValueError):
+        return None
+    if not got:
+        return None
+    ic = _mp("ip_idxcache2", os.path.join(_ROOT, "strategies", "vol_legs", "_idxcache.py"))
+    want = str(ic.series(leg).index[-1].date())
+    return got if got < want else None
+
+
+def _stage_vol_variants(vl):
+    """v14~v20 逐条在临时树里出产物：A股/港股腿用盘中 bar 重算，美股两腿默认照抄正式版。"""
+    rerun, copied = [], []
+    for key, sub, tag, run, _tone in _VARIANTS:
+        rel_md = f"strategies/vol_legs/{sub}/daily/{tag}.md"
+        rel_js = f"strategies/vol_legs/{sub}/daily/{tag}.json"
+        rels = (rel_md, rel_js)
+
+        def _copy():
+            for rel in rels:
+                src = os.path.join(_ROOT, rel.replace("/", os.sep))
+                if os.path.exists(src):
+                    shutil.copyfile(src, _tpath(rel))
+
+        if not run:
+            stale = _us_artifact_stale(key, rel_js)
+            if stale:
+                _note(f"{key}: 正式版产物数据日 {stale} 落后于库末根，改为重算"
+                      "（美股腿无盘中替换，只是把收盘补到最新）")
+                run = True
+            else:
+                _copy()
+                copied.append(key)
+                continue
+        try:
+            with _isolated(os.path.join(vl, sub),
+                           ("engine", "data", "rule", "_top3_bridge")):
+                mod = _mp(f"ip_{key}", os.path.join(vl, sub, "daily", "_daily_scan.py"))
+            mod.OUT_MD = _tpath(rel_md)
+            mod.OUT_JSON = _tpath(rel_js)
+            with _argv(["daily_scan"]):
+                mod.main()
+            rerun.append(key)
+        except Exception as exc:  # noqa: BLE001
+            _note(f"{key}: 预演重算失败，沿用上一收盘（{type(exc).__name__}: {exc}）")
+            _copy()
+    _note(f"v14~v20：盘中重算 {len(rerun)} 条（{', '.join(rerun) or '无'}）；"
+          f"沿用正式版 {len(copied)} 条（{', '.join(copied) or '无'}，行情与正式版同值）")
 
 
 # ---------------------------------------------------------------- 板块3 风格轮动
-_PROXY = {"000688": "588000", "399006": "159915", "000922": "515080"}
+# 2026-11-24：三个指数**直接有实时点位**（`get_rt("SH000688"/"SZ399006"/"SH000922")` 实测可用），
+# 不再用跟踪 ETF 外推 —— ETF 会掺进溢价与跟踪误差（同日 恒生科技ETF −2.27% vs 指数 −1.82%）。
+_PROXY = ("000688", "399006", "000922")
 
 
 def preview_growth_div(rt):
-    """指数没有稳定的实时源 —— 用跟踪 ETF 的实时涨幅外推指数末根。"""
+    """指数用**自己的实时点位**接成今日 bar（此前是 ETF 涨幅外推，属代理口径）。"""
     gd = os.path.join(_ROOT, "strategies", "growth_div_rotation")
-    pct = {idx: rt[etf][1] for idx, etf in _PROXY.items() if etf in rt}
+    pct = {idx: rt[idx][1] for idx in _PROXY if idx in rt}
 
     def patched_loader(orig):
         def load_wide(codes=None, **kw):
-            wide = orig(codes=codes, **kw)
-            for code in list(wide.columns):
-                if code in pct and len(wide) >= 2:
-                    col = wide.columns.get_loc(code)
-                    wide.iloc[-1, col] = float(wide.iloc[-2, col]) * (1 + pct[code] / 100.0)
-            return wide
+            # 指数库末根是 T-1（只存已收盘）-> 追加今日一行，别覆盖昨天那行
+            return _intraday_wide(orig(codes=codes, **kw), pct)
         return load_wide
 
     # v0
@@ -388,7 +613,7 @@ def preview_growth_div(rt):
         m5.main()
 
     miss = [k for k in _PROXY if k not in pct]
-    _note("风格轮动：指数按跟踪 ETF 实时涨幅外推"
+    _note("风格轮动：指数用**实时点位**接成今日 bar"
           + (f"（缺 {', '.join(miss)}，沿用缓存末根）" if miss else ""))
 
 
@@ -401,8 +626,57 @@ def _mark(entry, tone, text):
     return entry
 
 
+_ACT_TXT = {"buy": "买入", "sell": "卖出", "hold": "持有",
+            "watch": "观察", "avoid": "回避", "none": "无动作"}
+
+
+def _row_key(row):
+    """行的身份：优先「代码/策略名」列（板块4/3 那类没有代码的卡退到名称列）。"""
+    c = str(row.get("c") or "").strip()
+    if c and c not in ("—", "-"):
+        return c
+    return str(row.get("n") or "").strip()
+
+
+def _row_txt(row):
+    """一行操作的文字表述：动作文案（如「20pp → 0pp」「买入 1」）。"""
+    a = str(row.get("a") or "").strip()
+    return a or _ACT_TXT.get(str(row.get("act")), "")
+
+
+def attach_diff(entries, base):
+    """逐卡逐行比对「预演 vs 正式版」的操作，不一致就挂到 `entry["diff"]`（前端加粗加红）。"""
+    total = 0
+    for key, ent in entries.items():
+        old = base.get(key) or {}
+        prev = {_row_key(r): r for r in (old.get("rows") or []) if not r.get("sep")}
+        items = []
+        for r in ent.get("rows") or []:
+            if r.get("sep"):
+                continue
+            kb = _row_key(r)
+            o = prev.get(kb)
+            if not o:
+                continue
+            if (r.get("act"), _row_txt(r)) == (o.get("act"), _row_txt(o)):
+                continue
+            ko = _row_key(o)
+            was = _row_txt(o) if ko == kb else f"{ko} {_row_txt(o)}"
+            now = _row_txt(r) if ko == kb else f"{kb} {_row_txt(r)}"
+            items.append(f"{kb[:30]}：正式版 {was} → 预演 {now}")
+        if items:
+            ent["diff"] = items
+            total += len(items)
+    if total:
+        _note(f"与正式版比对：**{total} 处操作不一致**（卡片顶部红色提示）")
+    else:
+        _note("与正式版比对：无操作差异")
+
+
 def main():
     global _TMP
+    # 预演**不写任何数据文件**：置位给各策略的数据层看（如 v5 的 FRED 缓存刷新会检查它）
+    os.environ["XALPHA_PREVIEW"] = "1"
     # 临时树必须与仓库**同盘符**：好几个脚本会算 os.path.relpath(产物, 仓库根)，
     # 跨盘符会抛 ValueError('path is on mount ...')；放仓库同级目录，跑完即删。
     try:
@@ -418,7 +692,10 @@ def main():
     lk_path = os.path.join(_ROOT, "data", "_long_klines.json")
     if os.path.exists(lk_path):
         tech_codes = list(json.load(open(lk_path, encoding="utf-8")))
-    rt = rt_prices(vol_codes + tech_codes + list(_PROXY.values()))
+    # 指数腿也要实时价：A股三腿 + 港股 + 黄金（`inject_bars` 用），板块3 的三个指数同批取
+    idx_codes = ["000510", "000300", "000688", "HKHSTECH", "518880"]
+    rt = rt_prices(vol_codes + tech_codes + list(_PROXY) + idx_codes)
+    inject_bars()
 
     # 各策略重算（全部落在临时树）
     blocks = [
@@ -450,6 +727,9 @@ def main():
         except Exception as exc:  # noqa: BLE001
             _note(f"{key} 收盘口径解析失败：{type(exc).__name__}: {exc}")
 
+    # 正式版（收盘口径）快照：重算完逐卡逐行比对，**操作不一致**的要在卡片顶部红色提醒
+    base = copy.deepcopy(entries)
+
     # 用临时树覆盖可预演板块的卡片
     # 板块3 自 2026-11-23 起只出 v5 一张卡（v0 已下板）：v0 产物仍在临时树里重算，
     # 但**不回填 entries** —— 否则已撤掉的卡会被覆盖回来。
@@ -468,9 +748,23 @@ def main():
 
     # 口径标注
     t = datetime.now().strftime("%H:%M")
-    for key in ("tech_indicators", "vol_variants", "gd_v5"):
+    for key in ("tech_indicators", "gd_v5"):
         if key in entries:
             _mark(entries[key], "🟢", f"盘中价入信号（{t} 快照当收盘）")
+    # 板块2 变种卡：2026-11-24 起 A股/港股腿用盘中价重算（🟠 = 含 V12，量能按进度折算），
+    # 美股两腿沿用正式版（🟢，行情就是今天凌晨收盘）。逐行标注在「变种策略」列。
+    if "vol_variants" in entries:
+        ent = entries["vol_variants"]
+        _mark(ent, "🟠", f"盘中价入信号（{t} 快照）；A股/港股 5 条腿的量能按交易进度折算")
+        for r in ent.get("rows") or []:
+            if r.get("sep"):
+                continue
+            head = str(r.get("c") or "")
+            low = head.lower()
+            for vx, tone in _VARIANT_TONE.items():
+                if low.startswith(vx + " ") or low.startswith(vx + "·"):
+                    r["c"] = f"{head} {tone}"
+                    break
     if "tech_indicators" in entries:
         entries["tech_indicators"]["note"] += (
             "\n\n> 本卡最后一行的 **V17 八态** 是 🟡 上一收盘口径：强弱回调/反弹依赖完整日成交量 "
@@ -492,12 +786,20 @@ def main():
             ent["note"] = (ent.get("note") or "") + (
                 "\n\n> 预演版不重画产物 PNG（图是收盘口径的，塞进来会被误读）。")
 
-    # 变种卡口径再补一句：v2/v3/v6 是盘中代理，不是正式口径
+    # 变种卡口径补一段：逐行说明哪条腿用了盘中价、哪条是正式版同值
     if "vol_variants" in entries:
         entries["vol_variants"]["note"] += (
-            "\n\n> 本卡 2026-11-18 起只列 v14~v20 七个单标的策略，均无独立盘中源，"
-            "预演沿用上一次收盘的 daily 产物（图墙本次不重画）。"
-            "收盘价一翻结论可能整条变，只用于提前准备，不作为成交依据。")
+            "\n\n> **本卡口径（2026-11-24 起）**：A股/港股五条腿（v14 A500 / v15 沪深300 / "
+            "v18 科创50 / v19 恒生科技 / v20 黄金）用 **T+0 盘中价**重算，标记 🟠/🟢；"
+            "美股两条腿（v16 纳指100 / v17 标普500）标记 🟢 且**「数据与正式版同值」** —— "
+            "它们的行情就是今天凌晨 05:00 收盘那根，预演与正式版是同一组数字，不重跑。"
+            "\n> 🟠 = 策略成分含 **V12 八态**，强弱档要 `rvol = 当日量/20日均量`，而盘中只能拿到"
+            "累计量 → 按「已过交易分钟占比」折算成当日量（实测 14:19 沪深300 累计量占昨日全天 "
+            "0.81 vs 时间进度 0.83，误差约 2%）。尾盘放量会让折算略低估，落在阈值 ±0.05 带内时"
+            "强弱档可能翻转 —— 这类腿的结论按「可能变」读。"
+            "\n> 🟢 = 纯价格策略（v19 V3 / v20 V5.1）或行情已完整（美股两腿），不受量能折算影响。"
+            "图墙本次不重画（图是收盘口径的）。收盘价一翻结论可能整条变，只用于提前准备，"
+            "不作为成交依据。")
         entries["vol_variants"]["imgs"] = []
 
     # 板块2 的「近五年口径」对照卡：**不重算**。
@@ -512,9 +814,14 @@ def main():
             "以 v14~v20 为准。预演版不重跑排名研究（`_beat_best_5y.py` 会改写研究产物），"
             "只沿用上一收盘的仓位快照。")
 
+    # 与正式版逐行比对（用户要求：某个操作不一致时必须额外提醒）
+    attach_diff(entries, base)
+
     _emit(entries)
     shutil.rmtree(_TMP, ignore_errors=True)
     _TMP = None
+    os.environ.pop("XALPHA_INTRADAY_BARS", None)
+    os.environ.pop("XALPHA_PREVIEW", None)
 
 
 def _assets(entries):
@@ -541,7 +848,9 @@ _BANNER = (
     'padding:8px 16px;font:13px/1.6 -apple-system,Segoe UI,Microsoft YaHei,sans-serif;color:#8a4b00">'
     '<b>盘中预演</b> · 用最新盘中快照当作收盘价重算，<b>不写任何数据文件</b>；'
     '收盘价一翻结论可能整条变，<b>不作为成交依据</b>。正式版见 <code>data/_daily_digest.html</code>。'
-    '🟢=盘中价入信号 · 🟡=无盘中源（沿用上一收盘）</div>'
+    '<br>🟢=盘中价入信号 · 🟠=盘中价 + 量能按交易进度折算（强弱档可能翻转）'
+    ' · 🟡=无盘中源（沿用上一收盘）'
+    ' · <span style="color:#c62828;font-weight:800">红色提示条 = 该卡有操作与正式版不一致</span></div>'
 )
 
 

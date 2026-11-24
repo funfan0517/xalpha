@@ -92,7 +92,13 @@ def read_rate(path=RATE_CSV):
 
 
 def refresh_rate(path=RATE_CSV, timeout=25):
-    """从 FRED 重取 DFII10（`observation_date,DFII10`）-> (Series, 说明)，原子覆盖。"""
+    """从 FRED 重取 DFII10（`observation_date,DFII10`）-> (Series, 说明)，原子覆盖。
+
+    `pipeline/intraday_preview.py` 会设 `XALPHA_PREVIEW=1`：预演版**不写任何数据文件**，
+    这条缓存是跨策略共享的数据类（`data/`），所以预演一律沿用末次观测。
+    """
+    if os.environ.get("XALPHA_PREVIEW"):
+        return read_rate(path), "预演不刷新缓存（沿用末次 FRED 观测）"
     import requests
     r = requests.get(FRED_URL, timeout=timeout)
     r.raise_for_status()

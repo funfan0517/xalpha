@@ -109,7 +109,11 @@ def _fetch_us(code, start):
 
 
 def refresh_us(codes=None):
-    """增量刷新美股指数库。返回 (latest, fails)。"""
+    """增量刷新美股指数库。返回 (latest, fails)。
+
+    落库前过一遍 `_idxcache.clock`：美股 bar 的日期是美东交易日、收盘在北京次日 05:05，
+    22:30–05:00 之间那根是半成品（`rvol` 只看比值，但收盘价错会带偏 MA/回撤），不写。
+    """
     lib = _read_us_lib()
     targets = codes or sorted({v["idx"] for v in rule.LEGS.values()
                                if str(v["idx"]).startswith(".")})
@@ -135,6 +139,7 @@ def refresh_us(codes=None):
                     add = [d for d in df["d"] if d > dates[-1]]
                     node["dates"] = dates + add
                     node["close"] = close + [fmap[d] for d in add]
+            _idxcache.clock.trim_incomplete({code: lib[code]})   # 未收盘的尾部 bar 不入库
             latest[code] = lib[code]["dates"][-1]
         except Exception as exc:  # noqa: BLE001  —— 网络/口径问题都退化为「用缓存」
             fails[code] = f"{type(exc).__name__}: {exc}"

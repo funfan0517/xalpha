@@ -267,17 +267,32 @@ strategies/dividend/v11_gate/
   rule.py          ① 参数权威源（池 / 闸门阈值 / 网格 / flags / 路径）
   engine.py        ① 倍率族（RSI 三档、冷闸、热闸、纯温度、连续倾斜）+ 评估与诊断
   data.py          ① 数据层（V4 净值/RSI + 板块温度 CSV）
-  _temp_board.py   ② 数据生产：跑 V9 五因子并聚合成板块温度（独立进程，避免模块名冲突）
+  _temp_board.py   ② 数据生产：跑 V9 五因子并聚合成板块温度（独立进程，避免模块名冲突）；
+                   2026-11-24 起同时产出 10 只价格温度与混合温度
   backtest.py      ③ 回测 + 报告（消融 / 网格 / 三把刀 / 置换 / 触发诊断）
   daily.py         ⑤ 今日读数（温度档位 + 闸门状态；**不出仓位建议**）
   RULES.md         本文件
   data/_board_temp.csv        板块温度月频（board6_med 主口径；board4_med 本版与它同值，留列不打断读取方）
+  data/_board_temp_px.csv     10 只**价格温度**（dev/pos 各 50%，10 只同一刻度）
+  data/_board_temp_mix.csv    10 只**混合温度**（估值温度优先、缺则价格温度兜底）
   backtest/_v11_report.md     回测报告
   backtest/_v11_bt.jsonl      逐月：rsi_board / temp6 / temp4 / m_rsi / m_cold / m_hot
   daily/_v11_signal.{md,json} 今日读数
+  research/xs_rsi_temp/       横截面「RSI + 温度双排序取交集」专项（脚本 + 报告）
 ```
 
 `data/_board_temp.csv` 是**跨策略数据类**（月频板块温度），别的策略可直接复用。
+`_board_temp_px.csv` / `_board_temp_mix.csv` 是 2026-11-24 为「让 10 只都有温度」新增的：
+4 只（007760 / 018388 / 008163 / 005125）三源无等权估值，只能用价格温度。
+**已验证：把价格温度并进选品排序会让效果变差**（见 `research/xs_rsi_temp/_xs_rsi_temp.md` §8.3），
+所以它们目前只用于读数展示与研究，**不进 `GATE_ENABLED` / 每日仓位**。
+
+横截面选品的研究结论（`research/xs_rsi_temp/`）：用户 2026-11-24 选定
+**「6 只估值温度池、RSI 与温度都排前 2、交集等权、交集空→RSI 前 2」**。
+全样本 13.6% / −7.2% / Calmar 1.90（V4 为 1.44），但三项硬检验只过 1 项
+（选品超额 t=1.26、剔 3 月后 12.1%/1.69 仍略低于 V4），且 **38/82 个月交集为空、
+只有 3 个月真选出 2 只** —— 它的实质是「RSI top2 偶尔被温度缩到 1 只」。
+故**未上板**（`GATE_ENABLED` 与每日仓位不动），仅作为候选口径留存。
 
 ---
 

@@ -12,6 +12,11 @@
 4. 输出 `_v12_daily.md` / `_v12_daily.json`（后者被 `pipeline/daily_digest.py` 的
    「变种操作一览」卡读取，字段：`leg/name/action/pos/level_txt`）。
 
+报告头写的是**数据日**（各腿末根日期）而不是运行日，并逐腿列出该 bar 在北京时间几点起被视为
+已收盘 —— 七腿跨三个市场（A 股 15:00 / 港股 16:00 / 美股 bar 是美东交易日、收盘在北京次日
+05:00）。14:35 跑时 A股/港股是 T-1 收盘、美股是**今天凌晨**收盘，这正是设计口径：
+`T 日收盘出信号、T+1 收盘前执行`。
+
 **执行范围 = 全七腿**（`rule.CORE_LEGS`，2026-11-18 由「只做沪深300」扩到七腿）；
 额度分配按回测 §1c 的 Δ夏普排，别七腿等权。
 """
@@ -106,12 +111,25 @@ def main():
             asof=str(r["end"].date()),
         ))
 
-    date = max(r["end"] for r in results.values() if r["end"] is not None)
+    data_date = max(r["end"] for r in results.values() if r["end"] is not None)
+    # 逐腿数据日 + 该 bar 在北京时间几点收盘。七腿跨三个市场（A股 15:05 / 港股 16:05 /
+    # 美股 bar 日期是美东交易日、收盘在北京次日 05:05），只写一个日期会被读成「都同一天」。
+    clock = vdata._idxcache.clock
+    dparts = []
+    for _leg in rule.LEG_ORDER:
+        _r = results.get(_leg)
+        if not _r or _r["end"] is None:
+            continue
+        _code = vdata.IDX_MAP[_leg][1] if _leg in vdata.IDX_MAP else rule.LEGS[_leg][0]
+        _t = clock.bar_close_at(_code, _r["end"].date())
+        _tag = " 美东" if clock.market_of(_code) == "US" else ""
+        dparts.append(f"{rule.NAMES[_leg]} {_r['end'].date():%m-%d}{_tag}"
+                      f"（北京 {_t:%m-%d %H:%M} 起）")
     todo = [x for x in rows if x["scope"] == "执行" and abs(x.get("act") or 0) > 1e-9]
     pending_note = [x for x in rows if x["scope"] == "执行" and abs(x.get("act") or 0) <= 1e-9]
 
     L = [
-        f"# V12 · 八态趋势 · 每日操作（{date.date()}）",
+        f"# V12 · 八态趋势 · 每日操作（数据日 {data_date.date()}）",
         "",
         "> 规则：`G:\\tradingagents\\hs300_trend\\八态趋势参数规格.md` v1.1（八态：急涨/慢涨/弱回调/强回调 ｜ "
         "急跌/慢跌/弱反弹/强反弹）。状态机 `engine.py::classify`，参数 `rule.py`。",
@@ -138,6 +156,16 @@ def main():
         f"> 执行范围：**{' + '.join(rule.NAMES[l] for l in rule.CORE_LEGS)}**"
         "（`rule.CORE_LEGS`，2026-11-18 由「只做沪深300」扩到七腿；"
         "`z_th`/`rvol` 仍是规格在沪深300 上的标定值，额度按回测 §1c 的 Δ夏普排）。",
+        "",
+        f"> **数据日（逐腿，末根都是已收盘的 bar）**：{' · '.join(dparts)}。"
+        "括号里的北京时间 = 该 bar 在数据层**被视为已收盘**的起点（各市场收盘 + 5 分钟缓冲，"
+        "判据 `data/_market_clock.py`）。",
+        "> **美股两腿的日期是「美东交易日」**，不是北京日期：`11-23` 这根就是**北京时间 11-24 凌晨**"
+        "（美东 16:00 收盘）的那一根 —— 也就是「昨夜美股」，不是「前天的数据」。"
+        "同理 A股/港股腿的 `11-23` 是它们各自的 11-23 收盘。",
+        "> **14:35 跑时 A股/港股是 T-1 收盘**（当日 bar 还没收盘，数据层不写也不读未收盘的 bar），"
+        "美股是今天凌晨收盘 —— 这不是「数据没刷新」，是设计口径。"
+        "**T 日收盘出信号、T+1 收盘前执行**，所以今天下单用的就是上表这些 bar。",
         "",
         "## 1. 今日动作（执行范围）",
         "",
@@ -217,7 +245,9 @@ def main():
         f.write("\n".join(L))
 
     payload = dict(
-        as_of=str(date.date()),
+        # `as_of` = **数据日**（各腿末根的最大日期），不是运行日：14:35 跑时它是 T-1。
+        as_of=str(data_date.date()),
+        data_dates={l: str(r["end"].date()) for l, r in results.items() if r["end"] is not None},
         variant="v12_octo_trend",
         core=rule.CORE_LEGS,
         cap_opt={l: rule.cap_map(l) for l in rule.LEGS} if rule.OPT else None,
@@ -239,7 +269,8 @@ def main():
         f.write(json.dumps(payload, ensure_ascii=False, indent=1))
 
     print("操作表:", OUT_MD)
-    print(f"  信号日 {date.date()}（T+1 收盘前执行）")
+    print(f"  数据日 {data_date.date()}（T 日收盘出信号、T+1 收盘前执行）")
+    print("  逐腿：" + " · ".join(dparts))
     for x in rows:
         act_txt = (f"{x['act'] * 100:+.0f}pp" if abs(x.get("act") or 0) > 1e-9 else "—")
         print(f"  {x['name']:8s} {x['state']:4s} regime {x.get('regime', '—'):2s} "

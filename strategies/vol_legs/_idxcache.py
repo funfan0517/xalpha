@@ -29,6 +29,11 @@ schema：`{code: {dates, open, high, low, close, volume}}`。**旧库只有 `dat
 读侧用 `close` 回填 `open/high/low` 并在 `SOURCE[code]` 里标注「无日内高低」—— 所以本模块
 可以在「还没重取」的库上直接工作，不会因为字段缺失报错。
 
+**只写已收盘的 bar**：`refresh()` 落库前一律过 `trim_partial()`，判据统一在
+`data/_market_clock.py`（**逐代码按市场**：A 股 15:05 / 港股 16:05 / 美股 bar 收盘于北京次日 05:05）。
+本库 `gidx` 把三个市场装在一起，用「全局 15:05 + 北京时间今天」判会漏掉港股的 15:05–16:00 窗口
+和美股的 22:30–05:00 窗口，把半成品量能写进库（`rvol` 分母错 → 弱回调/强回调判反）。
+
 ## 用法
 
 ```bash
@@ -36,8 +41,10 @@ python strategies/vol_legs/_idxcache.py            # 自检：逐腿打印区间
 python strategies/vol_legs/_idxcache.py --refresh  # 重取七个指数（黄金 ETF 不在此列）
 ```
 """
+import importlib.util
 import json
 import os
+import sys
 
 import pandas as pd
 
@@ -70,7 +77,26 @@ EXTRA = {"SH000001": ("cn", "上证指数")}
 # 但**既有全部报告都以 2005 为起算**，为了多一年样本再把全族数字重算一轮不划算，
 # 所以固定 2005；要更长的单次研究请自己传 `start=`，别改这个常量。
 START = "20050101"
-CLOSE_AT = 15 * 60 + 5   # 15:05 之后视为当日已收盘
+
+
+def _load_clock():
+    """按**路径**加载 `data/_market_clock.py`（半成品 bar 的唯一判据）。
+
+    不写成 `import _market_clock`：那需要把 `data/` 插到 `sys.path`，而那里有 `_refresh_data.py`
+    等脚本，且各策略目录里还有 5 个同名 `data.py`，插路径换来过期模块被顶掉的风险。
+    """
+    mod = sys.modules.get("_xalpha_market_clock")
+    if mod is not None:
+        return mod
+    spec = importlib.util.spec_from_file_location(
+        "_xalpha_market_clock", os.path.join(_DATA, "_market_clock.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["_xalpha_market_clock"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+clock = _load_clock()
 
 SOURCE = {}           # {code: 一句话说明}，命令式自检与报告标注用
 
@@ -94,17 +120,19 @@ def _write(path, lib):
 
 
 def trim_partial(lib):
-    """丢掉「今天还没收盘」的那根 bar（盘中刷新写入的量能只有半天，会把 rvol 压到 0.5 以下）。"""
-    now = pd.Timestamp.now()
-    if now.hour * 60 + now.minute >= CLOSE_AT:
-        return lib
-    today = now.strftime("%Y-%m-%d")
-    for node in lib.values():
-        if (node.get("dates") or [""])[-1] == today:
-            for col in ("dates", "open", "high", "low", "close", "volume"):
-                if node.get(col):
-                    node[col] = node[col][:-1]
-    return lib
+    """丢掉每个节点末尾「尚未收盘」的 bar，**逐代码按它自己的市场**判断。
+
+    判据在 `data/_market_clock.py`：A 股 15:05 / 港股 16:05 / 美股 bar 收盘于北京次日 05:05。
+
+    旧实现是「现在早于 15:05 就把末根丢掉」—— 对 A 股成立，对这两个市场不成立，
+    而本库 `gidx` 恰恰把三个市场装在了一起：
+
+    - **港股** `HKHSTECH` 16:00 收盘，15:05–16:00 跑刷新会把它 15:0x 的半根写进库
+      （`run_daily_vol_legs.ps1` 要求「15:05 之后跑」，正好落在这个窗口里）；
+    - **美股** `.NDX/.INX` 的 bar 日期是美东交易日，22:30–次日 05:00 期间那根是半成品，
+      旧判据两头都放行（22:30–24:00 已过 15:05；00:00–05:00 bar 日期是昨天）。
+    """
+    return clock.trim_incomplete(lib)
 
 
 # ---------------------------------------------------------------- 取数
@@ -159,14 +187,19 @@ def refresh(legs=None, codes=None, start=START):
 
     抓取失败**保留旧节点**：一次网络抖动不该把 20 年历史清空（`xa.get_daily` 走雪球适配，
     偶发 `ConnectionResetError` 已经出现过）。
+
+    `latest` 报的是**落库后的末日**（已过 `trim_partial`）：上游在盘中会给出当天的半成品，
+    旧版这里把「上游末根」当成「库里末根」报出去，日报脚注就写成了 `SH000300 2026-11-24`
+    而库里其实是 11-23 —— 报错了没人看得出来。
     """
     latest, fails, dirty = {}, {}, set()
     for code, (kind, _name) in _targets(legs, codes).items():
         lib = _read(LIB[kind])
         try:
             node = _fetch(code, start)
+            trim_partial({code: node})          # 未收盘的尾部 bar 不入库、也不上报
             lib[code] = node
-            latest[code] = node["dates"][-1]
+            latest[code] = (node["dates"] or [""])[-1]
         except Exception as exc:  # noqa: BLE001
             fails[code] = f"{type(exc).__name__}: {exc}"
             latest[code] = ((lib.get(code) or {}).get("dates") or [""])[-1]
@@ -229,6 +262,56 @@ def _frame_gold():
     return df.sort_index()
 
 
+# ---------------------------------------------------------------- 预演注入（只进内存，绝不落库）
+# `pipeline/intraday_preview.py` 把「今日盘中 bar」用**环境变量**传进来，本模块在 `frame()` 出口
+# 追加一根合成 bar（价格 = 实时点位、量能 = 按交易进度折算的当日量），然后各策略照常算。
+#
+# 为什么用环境变量而不是模块全局：仓库里有多份 `_idxcache` 实例（v12 按路径加载一份、
+# `vol_legs/data.py` import 一份、`_top3_bridge` 又一份），模块全局只能打进其中一份，
+# 环境变量在**同进程内对所有实例同时生效**，且不产生任何磁盘文件。
+INTRADAY_ENV = "XALPHA_INTRADAY_BARS"
+
+
+def intraday_bars():
+    """`{leg: {"date", "close", "volume"}}` —— 预演注入表；正式跑时为空。"""
+    raw = os.environ.get(INTRADAY_ENV)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw) or {}
+    except ValueError:
+        return {}
+
+
+def _with_intraday_bar(leg, df):
+    """把预演的今日 bar 接到已收盘序列末尾（只影响返回值）。"""
+    bar = intraday_bars().get(leg)
+    if not bar or df is None or not len(df):
+        return df
+    ts = pd.Timestamp(bar["date"])
+    close = float(bar["close"])
+    vol = float(bar["volume"]) if bar.get("volume") not in (None, "") else None
+    if df.index[-1] == ts:                      # 兼容旧库：今天那根已在 -> 原地替换
+        df = df.copy()
+        df.loc[ts, "close"] = close
+        for k in ("open", "high", "low"):
+            if k in df.columns:
+                df.loc[ts, k] = close
+        if vol is not None and "volume" in df.columns:
+            df.loc[ts, "volume"] = vol
+    else:
+        row = {c: float("nan") for c in df.columns}
+        for k in ("open", "high", "low", "close"):
+            if k in row:
+                row[k] = close
+        if "volume" in row:
+            row["volume"] = vol if vol is not None else float("nan")
+        df = pd.concat([df, pd.DataFrame([row], index=pd.DatetimeIndex([ts]))]).sort_index()
+    code = LEGS[leg][1]
+    SOURCE[code] = (SOURCE.get(code) or "") + f" · **预演注入 {bar['date']} 盘中 bar**"
+    return df
+
+
 def frame(leg):
     """该腿信号用 OHLCV -> DataFrame(index=date, columns=open/high/low/close/volume)。
 
@@ -237,7 +320,7 @@ def frame(leg):
     """
     kind, code, name = LEGS[leg]
     if kind == "etf":                       # 黄金：两库合并（见 `_frame_gold`）
-        return _frame_gold()
+        return _with_intraday_bar(leg, _frame_gold())
     node = _read(LIB[kind]).get(code)
     if not node or not node.get("dates"):
         raise KeyError(f"{code} 不在 {os.path.basename(LIB[kind])}"
@@ -254,7 +337,7 @@ def frame(leg):
         cols.setdefault(k, cols["close"])
     SOURCE[code] = (f"{name}（`{code}`）· " +
                     ("真实 OHLCV" if real_ohl else "库无日内高低，OHL 已用收盘回填"))
-    return pd.DataFrame(cols).sort_index()
+    return _with_intraday_bar(leg, pd.DataFrame(cols).sort_index())
 
 
 def series(leg, dropna=True):

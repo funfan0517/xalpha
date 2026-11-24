@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 """每日操作配置自检: `pipeline/strategies.json` 的 `daily.*` 与 runner 文件是否自洽。
 
-**为什么需要**：18 个策略里只有 5 个 `daily.runner` 非空，其余靠 `runner_note`
-的自由文本解释「为什么留空、由谁代跑」（典型：变种的每日脚本写在家族 runner 的第 2 步里）。
+**为什么需要**：只有少数策略的 `daily.runner` 非空，其余靠 `runner_note` 的自由文本
+解释「为什么留空、由谁代跑」（典型：变种的每日脚本写在家族 runner 的第 2/3/4 步里）。
 这层约束原先只靠人记，挡不住两类「配置漂移」——代码没改、结果悄悄错：
 
-  E1 重复调度：同一个 runner 被 2 个 enabled 策略引用 → `run_daily_all` 会把该 ps1 跑两遍
-     （最典型的翻车方式：新增变种时忘了把 runner 置空）
+  E1 重复调度：同一个 runner 被 2 个**上板**策略引用 → 允许（`run_daily_all` 按 runner
+     去重只跑一次），但必须打印出来；**跨板块**共享才算 ERROR（产物归属不清）
   E2 悬空引用：runner 指向不存在的 .ps1，或 daily.block 不在 blocks[].key
      → 运行时只打印一行 [skip]，表现是「看板有卡但数据是昨天的」
   E3 缺显式开关：`daily` 段没有 `enabled` 键 —— **新策略未经允许不得写入每日操作报告**
      （`daily.enabled=false` 才是默认；漏写会按 True 处理，等于偷偷上板）
   E4 上板无凭据：`enabled=true` 但 `enabled_note` 为空或不含日期
      —— 上板必须留下「YYYY-MM-DD 谁同意的」这一行，否则下次没人知道它为什么在报告里
-  W1 留空无解释：runner 为空却没有 runner_note
+  E5 不出卡却占调度：`card=false` 但 `runner` 非空 —— 用户 2026-11-24 规则是
+     「不上报告看板的策略无需随每日操作跑」，`run_daily_all` 不会调度它；必跑产物
+     应把调度权挂到出卡的家族卡上（如 vol_variants / gd_v5），否则产物永远不刷新
+  W1 留空无解释：上板策略 runner 为空、又没有 runner_note
   W2 产物缺失：声明的 signal_report / signal_json 尚未生成（可能只是还没跑过）
-  W3 空板块：某个 block 下没有任何 enabled 策略
+  W3 空板块：某个 block 下没有任何上板策略
 
 用法:
   python pipeline/check_daily_config.py            # ERROR 非 0 退出, WARN 只提示
@@ -49,19 +52,19 @@ def _is_path(k, v):
 
 
 def check(cfg):
-    """-> (errors, warns, stats)，纯函数，不打印。"""
-    errors, warns = [], []
+    """-> (errors, warns, stats, infos)，纯函数，不打印。"""
+    errors, warns, infos = [], [], []
     blocks = [b.get("key") for b in (cfg.get("blocks") or []) if b]
     strategies = cfg.get("strategies") or {}
 
-    runner_users = {}          # runner -> [enabled 策略 id]
+    runner_users = {}          # runner -> [(策略 id, block)]，只收上板策略
     enabled_by_block = {k: 0 for k in blocks}
-    n_enabled = 0
+    n_on_board = 0
 
     for sid, st in strategies.items():
         daily = (st or {}).get("daily")
         if not daily:
-            errors.append(f"{sid}: 缺 daily 段（run_daily_all 会把它排到最后但仍无 runner）")
+            errors.append(f"{sid}: 缺 daily 段（run_daily_all 不会调度它）")
             continue
         # E3：新策略未经允许不得写入每日操作报告 —— 必须显式声明 enabled，
         # 缺省 True 会让「忘了写」变成「偷偷上板」。
@@ -69,8 +72,7 @@ def check(cfg):
             errors.append(f"{sid}: daily 段缺显式 enabled —— 新策略默认不进每日操作报告，"
                           f"必须显式写 \"enabled\": false；上板须经用户同意")
         enabled = daily.get("enabled") is True   # 缺键按「不上板」算（与 daily_digest._card_on 一致）
-        # 「不出卡但照跑」：card=false 时 runner 仍执行（变种产物靠家族 runner 生成），
-        # 只是 daily_digest 不渲染这张卡 —— 与 _card_on 同口径，避免统计把两张卡算成上板。
+        # 上板 = 出卡。card=false 表示「不单独出卡」，也不随每日操作跑（用户 2026-11-24 规则）。
         on_board = enabled and daily.get("card") is not False
 
         # E4：上板要留凭据（日期 + 谁同意），否则没人知道它为什么在报告里。
@@ -86,7 +88,7 @@ def check(cfg):
         if block not in blocks:
             errors.append(f"{sid}: daily.block={block!r} 不在 blocks {blocks}")
         if on_board:
-            n_enabled += 1
+            n_on_board += 1
             if block in enabled_by_block:
                 enabled_by_block[block] += 1
 
@@ -94,9 +96,17 @@ def check(cfg):
         if runner:
             if not os.path.isfile(os.path.join(_ROOT, runner)):
                 errors.append(f"{sid}: daily.runner={runner} 文件不存在")
-            if enabled:
-                runner_users.setdefault(runner, []).append(sid)
-        elif enabled and not (daily.get("runner_note") or "").strip():
+            if on_board:
+                runner_users.setdefault(runner, []).append((sid, block))
+            elif enabled:
+                # E5：不出卡（card=false）却配了 runner —— run_daily_all 不调度它，
+                # 典型后果是「以为在跑、其实产物一直是旧的」。
+                errors.append(f"{sid}: card=false 却配了 daily.runner={runner} —— 不出卡的策略"
+                              f"不随每日操作跑；把调度权挂到出卡的家族卡上，本条目 runner 置空")
+            else:
+                warns.append(f"{sid}: enabled=false 但留了 daily.runner={runner} "
+                             f"（不会被 run_daily_all 调度，只能手动跑）")
+        elif on_board and not (daily.get("runner_note") or "").strip():
             warns.append(f"{sid}: daily.runner 为空且没有 runner_note（为什么留空？由谁代跑？）")
 
         for k, v in daily.items():
@@ -105,22 +115,31 @@ def check(cfg):
 
     for runner, users in runner_users.items():
         if len(users) > 1:
-            errors.append(f"{runner} 被 {len(users)} 个 enabled 策略引用 {users}"
-                          f" —— run_daily_all 会把同一个 runner 跑 {len(users)} 遍")
+            sids = [u[0] for u in users]
+            blks = {u[1] for u in users}
+            if len(blks) > 1:
+                errors.append(f"{runner} 被跨板块的 {len(users)} 张卡引用 {sids}{sorted(blks)}"
+                              f" —— 产物归属不清，需人工确认")
+            else:
+                infos.append(f"{runner} 被同板块 {len(users)} 张卡共享 {sids} —— "
+                             f"run_daily_all 去重后只执行一次")
 
     for k, n in enabled_by_block.items():
         if n == 0:
-            warns.append(f"block={k} 下没有 enabled 策略（该板块的看板卡片将长期沿用旧数据）")
+            warns.append(f"block={k} 下没有上板策略（该板块的看板卡片将长期沿用旧数据）")
 
-    stats = {"strategies": len(strategies), "enabled": n_enabled,
+    card_off = [sid for sid, st in strategies.items()
+                if ((st or {}).get("daily") or {}).get("enabled") is True
+                and ((st or {}).get("daily") or {}).get("card") is False]
+    stats = {"strategies": len(strategies), "enabled": n_on_board,
              "runners": len(runner_users), "blocks": len(blocks),
              "on_board": [sid for sid, st in strategies.items()
                           if ((st or {}).get("daily") or {}).get("enabled") is True
                           and ((st or {}).get("daily") or {}).get("card") is not False],
-             "card_off": [sid for sid, st in strategies.items()
-                          if ((st or {}).get("daily") or {}).get("enabled") is True
-                          and ((st or {}).get("daily") or {}).get("card") is False]}
-    return errors, warns, stats
+             "card_off": card_off,
+             "off_board": [sid for sid, st in strategies.items()
+                           if ((st or {}).get("daily") or {}).get("enabled") is not True]}
+    return errors, warns, stats, infos
 
 
 def main(argv=None):
@@ -129,18 +148,20 @@ def main(argv=None):
 
     with open(CFG, encoding="utf-8") as f:
         cfg = json.load(f)
-    errors, warns, stats = check(cfg)
+    errors, warns, stats, infos = check(cfg)
 
     print("每日操作配置自检 · pipeline/strategies.json")
-    print(f"  策略 {stats['strategies']} · enabled {stats['enabled']} · "
-          f"唯一 runner {stats['runners']} 个 · 板块 {stats['blocks']} 个")
+    print(f"  策略 {stats['strategies']} · 上板 {stats['enabled']} · "
+          f"调度 runner {stats['runners']} 个 · 板块 {stats['blocks']} 个")
     print(f"  每日操作报告收录 {len(stats['on_board'])} 个：{', '.join(stats['on_board'])}")
-    if stats.get("card_off"):
-        print(f"  不出卡但照跑 {len(stats['card_off'])} 个：{', '.join(stats['card_off'])}"
-              f"（card=false，runner 仍刷新产物）")
-    print(f"  未上板 {stats['strategies'] - stats['enabled']} 个（产物照跑、不进报告；"
-          f"上板需用户同意并在 enabled_note 留日期）")
+    if stats["card_off"]:
+        print(f"  不出卡、不参与调度 {len(stats['card_off'])} 个：{', '.join(stats['card_off'])}"
+              f"（card=false；产物随出卡的家族卡刷新）")
+    print(f"  未上板 {len(stats['off_board'])} 个（enabled=false，不随每日操作跑；"
+          f"需刷新手动跑各自 runner）")
 
+    for msg in infos:
+        print(f"  [INFO ] {msg}")
     for msg in errors:
         print(f"  [ERROR] {msg}")
     for msg in warns:

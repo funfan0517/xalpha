@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v20 每日操作：黄金 · V5.1 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
+"""v20 每日操作：黄金 · V5 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
 
 T 日盘后算决策 → T+1 收盘前执行。行情只读本地缓存；**实际利率（FRED DFII10）过期时联网补一次**
 （拿不到就沿用缓存并在报告里标注，不中断流程 —— 闸门是慢变量，缺一天不影响档位）。
@@ -80,7 +80,7 @@ def main():
                 current_position=round(pos, 4), next_target=round(nxt, 4),
                 action=action, legs=[leg], recent_flow=recent,
                 reading=gate_txt, rate_note=rate_note,
-                note="best_by_leg.md §0（2026-11-19）：黄金 ★1 = V5.1；"
+                note="best_by_leg.md §0（2026-11-19）：黄金 ★1 = V5；"
                      "_beat_best_top3.md 九个组合候选无一通过双闸门。")
     with io.open(OUT_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snap, f, ensure_ascii=False, indent=2)
@@ -89,11 +89,11 @@ def main():
          f"> **{engine.STATUS}** · 数据截至 {date} · T 日盘后出信号、T+1 收盘前执行。", "",
          "## 今日动作", "",
          f"- 当前持仓：**{pos:.0%}**；次日目标仓位：**{nxt:.0%}**；动作：**{action}**。",
-         f"- 标的：黄金（`518880`，真实指数口径）；策略：V5.1 黄金仓位（风险预算 × 利率闸门）。", "",
+         f"- 标的：黄金（`518880`，真实指数口径）；策略：V5 黄金仓位（风险预算 × 利率闸门）。", "",
          "## 规则", "", f"{engine.RULE_TXT}。", "",
          f"- 当日读数：{gate_txt}（目标档已按 20pp 量化，跨 1 档才动）。",
          f"- 上一交易日收盘仓位 {prev:.0%} → 今日收盘成交后 {cur:.0%}。", "",
-         f"> {engine.STATUS}。best_by_leg.md §0：黄金 ★1 = V5.1（含费夏普 1.02 / 回撤 −12.33%，"
+         f"> {engine.STATUS}。best_by_leg.md §0：黄金 ★1 = V5（含费夏普 1.02 / 回撤 −12.33%，"
          "V6-B 退到 ★2 的 0.74 / −16.12%）。", "",
          "## 近期信号流水", "",
          "| 日期 | 动作 | 仓位变化 |", "|---|---|---:|"]

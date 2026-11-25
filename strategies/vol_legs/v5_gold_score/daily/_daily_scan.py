@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V5.1 黄金仓位 · 每日操作（风险预算 × 实际利率闸门）。
+"""V5 黄金仓位 · 每日操作（风险预算 × 实际利率闸门）。
 
 输出（本目录 `daily/`）：`_v5_gold_score_daily.md` · `_v5_gold_score_daily.json`。
 报告字段：**实现波动 → 风险预算 / 实际利率水平 → 闸门 / 目标档 e* / 当前档 / 推荐动作 / 数据截止日**，
@@ -86,7 +86,7 @@ def macro_note(m):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="V5.1 黄金仓位 · 每日读数")
+    ap = argparse.ArgumentParser(description="V5 黄金仓位 · 每日读数")
     ap.add_argument("--offline", action="store_true", help="不联网（只用本地缓存）")
     ap.add_argument("--hold", type=float, default=None,
                     help="覆盖当前档（占带比例，如 0.8）；默认按状态机回放")
@@ -142,7 +142,7 @@ def main():
 
     L = []
     A = L.append
-    A(f"# V5.1 黄金仓位 · 每日推荐操作（{date}）")
+    A(f"# V5 黄金仓位 · 每日推荐操作（{date}）")
     A("")
     A(f"> 标的：**场内 `{S.SIGNAL_CODE}` 黄金ETF华安**（收盘 {last['close']:.4f}）· "
       f"信号/执行/回测同一只 ETF · 目标带 {S.BAND_PP:g}pp（1.0 = 满带 = {S.BAND_PP:g}pp）")

@@ -1111,7 +1111,7 @@ _VOL_FIGS = [
      f"**恒生科技**（执行 `012805` · {_VOL_PRICE}）· V19 V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升"
      " · 长期图（近三年版在策略目录 research/ 下）"),
     ("strategies/vol_legs/v20_gold_v5/research/_v20_gold.png",
-     f"**黄金**（执行 `518880` · {_VOL_PRICE}）· V20 V5.1 黄金仓位（风险预算 × 实际利率闸门），当前 ★1"
+     f"**黄金**（执行 `518880` · {_VOL_PRICE}）· V20 V5 黄金仓位（风险预算 × 实际利率闸门），当前 ★1"
      " · 长期图（近三年版在策略目录 research/ 下）"),
 ]
 
@@ -1496,9 +1496,9 @@ def parse_vol_variants(_cfg):
              "v14 中证A500=E2(V3+V12)、v15 沪深300=MIN2(V12∩V2)、"
              "v16 纳指100=MA200 切换（上=V10 波动层 / 下=V12 八态）、"
              "v17 标普500=V12、v18 科创50=E2×TV20、v19 恒生科技=V3、"
-             "v20 黄金=V5.1（风险预算 × 实际利率闸门）。"
+             "v20 黄金=V5（风险预算 × 实际利率闸门）。"
              "**2026-11-19 研究重跑**：v12 把「慢跌」改到 0% 后，沪深300/标普500/科创50 的 ★1 都换成 V12；"
-             "黄金腿纳入重构后的 v5_gold_score 后 ★1 换成 V5.1。"
+             "黄金腿纳入重构后的 v5_gold_score 后 ★1 换成 V5。"
              "**2026-11-20**：v12 的美股两腿改 C5（无死区）后，纳指 ★2 由 V9 换成 V12，"
              "`SW MA200→V12` 成为纳指的超越项，v16 据此由「纯 V10」改为「MA200 切换」；"
              "v14(E2)/v15(MIN2)/v16(SW-v12)/v18(E2×TV20) 是 `research/beat_best/_beat_best_top3.md` 的研究超越项；"
@@ -2113,6 +2113,31 @@ PARSERS = {
 
 
 # ---------------------------------------------------------------- 归档
+# 历史归档里存的是当时写下的显示名。改名后（2026-11-25 用户要求「v5 就是 v5，
+# 不叫 v5.1」）翻历史日期还会看到旧名，所以归档/渲染前统一按这里刷新一遍。
+# 只动文本，不动任何数值 —— 加新条目时保持「旧写法 → 新写法」。
+_LABEL_RENAMES = (("V5.1", "V5"),)
+
+
+def _rename_old_labels(node):
+    """把归档/渲染树里的旧显示名原地替换成当前叫法（不碰非字符串叶子）。"""
+    if isinstance(node, dict):
+        items = list(node.items())
+    elif isinstance(node, list):
+        items = list(enumerate(node))
+    else:
+        return
+    for k, v in items:
+        if isinstance(v, str):
+            new = v
+            for old, now in _LABEL_RENAMES:
+                new = new.replace(old, now)
+            if new != v:
+                node[k] = new
+        else:
+            _rename_old_labels(v)
+
+
 def _normalize_vol_history(db, entries):
     """2026-11-18 板块2 移除 v2/v3/v4/v6/v9/v12 后，把历史归档里的旧卡片一起收敛。
 
@@ -2120,6 +2145,7 @@ def _normalize_vol_history(db, entries):
     一并 base64 内嵌进 HTML（多 5MB）。行/图按当前 `_VOL_VARIANTS` / `_VOL_FIGS`
     过滤，描述性字段用当前卡片覆盖，历史数据字段（as_of/badge/tone）保留。
     """
+    _rename_old_labels(db)
     cur = (entries or {}).get("vol_variants") or {}
     allow_rows = {lab for _vx, lab, _rel, _em in _VOL_VARIANTS}
     allow_figs = {rel for rel, _cap in _VOL_FIGS}

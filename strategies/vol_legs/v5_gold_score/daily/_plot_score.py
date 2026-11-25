@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V5.1 黄金仓位（风险预算 × 实际利率闸门）· 净值 + 操作点 + 预算 + 六档仓位图。
+"""V5 黄金仓位（风险预算 × 实际利率闸门）· 净值 + 操作点 + 预算 + 六档仓位图。
 
 三格：
 - 上格：策略净值（扣真实成本）vs 恒持满带 vs 恒定半仓，▲▼ 标操作点；
@@ -165,7 +165,7 @@ def plot(years=None, out_dir=_HERE):
 
     win_txt = f"近 {years:g} 年 · " if years else ""
     fig.text(0.045, 0.962,
-             f"黄金（{S.SIGNAL_CODE}）· V5.1 仓位 = 风险预算 × 实际利率闸门 → 六档"
+             f"黄金（{S.SIGNAL_CODE}）· V5 仓位 = 风险预算 × 实际利率闸门 → 六档"
              f" · 波动目标 {F.VOL_TARGET:.0%}/{F.VOL_WINDOW}日"
              f" / 闸门 {F.RATE_LEVEL_TH:+.1f}±{F.RATE_LEVEL_BAND:.2f}pp",
              ha="left", fontsize=12.2, color="#1b2b3a", weight="bold")
@@ -206,7 +206,7 @@ def plot(years=None, out_dir=_HERE):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="V5.1 黄金仓位净值图")
+    ap = argparse.ArgumentParser(description="V5 黄金仓位净值图")
     ap.add_argument("--years", type=float, action="append",
                     help="额外出近 N 年版（默认同时出全历史 + 近三年）")
     args = ap.parse_args()

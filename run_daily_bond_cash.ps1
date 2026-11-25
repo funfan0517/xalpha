@@ -1,13 +1,14 @@
 ﻿# 稳健资产（债腿 30pp + 现金腿 10pp）每日扫描 - 双击运行
 # 抓取 data/_universe.md 第六类(债券 6xx)+第七类(现金 7xx) 共 15 只场外累计净值
-#   -> v0 基准 35/65 固定中性 + v1~v8 各变种，一次跑完 9 步（产物全刷新，看板只出 V7）
+#   默认只跑 V7（看板板块6 唯一卡片，自己有独立净值缓存）; v0 基准 + v1~v6/v8 变种加 -Full 才跑
 # 板块6 默认策略 = V7 门派风险预算（2026-11-21 用户指令）；v0 转为基准，不再单独出卡
 # 产物: strategies\bond_cash\daily\_bond_cash_daily.{md,json} + _universe_bond_cash_active.{md,json}
 #       以及各变种 <策略目录>\daily\_vN_daily.{md,json}
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_bond_cash.ps1
 param(
     [switch]$Force,     # 强制重抓净值（忽略当日缓存）
-    [switch]$Gate       # 按动量开关口径出档位（默认关，固定哑铃）
+    [switch]$Gate,      # 按动量开关口径出档位（默认关，固定哑铃）
+    [switch]$Full       # 连 v0/v1~v6/v8 一起跑（默认只跑看板唯一卡片 V7）
 )
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -28,6 +29,7 @@ $scanArgs = @("strategies\bond_cash\daily\_daily_scan.py")
 if ($Force) { $scanArgs += "--force" }
 if ($Gate)  { $scanArgs += "--gate" }
 
+if ($Full) {
 Write-Host "[1/9] 稳健资产 V0 每日扫描（基准口径：债腿 35/65 固定中性 + 现金腿 10pp）..."
 $rc = Invoke-Py @scanArgs
 if ($rc -ne 0) { throw "bond_cash daily scan failed (exit $rc)" }
@@ -74,6 +76,9 @@ $v6Args = @("strategies\bond_cash\v6_dual_spread\daily\_daily_scan.py")
 if ($Force) { $v6Args += "--force" }
 $rc = Invoke-Py @v6Args
 if ($rc -ne 0) { Write-Host "  [warn] v6 扫描失败（研究变种，不中断）" }
+} else {
+Write-Host "[1-7/9] [skip] V0 基准 + V1~V6 变种 —— 都不出卡（V7 自己有独立净值缓存）; 要刷加 -Full"
+}
 
 # V7 门派风险预算：四门派 ERC 配比 + 风险贡献分解（现金 10pp 固定、不进 ERC）。
 # 2026-11-21 起这是板块6 的默认策略、看板唯一卡片 → 失败必须中断（产物缺了卡就空）。
@@ -85,11 +90,15 @@ if ($rc -ne 0) { throw "bond_cash v7 daily scan failed (exit $rc)" }
 
 # V8 久期阶梯风险预算：六腿 0~100% 权重（长端 20/中端 45/短端 5/信用 30）
 #                        + 中端同档择一 + 进攻档波动煞车（只砍仓不追高）。
+if ($Full) {
 Write-Host "[9/9] V8 久期阶梯风险预算（六腿 0~100%）..."
 $v8Args = @("strategies\bond_cash\v8_duration_ladder\daily\_daily_scan.py")
 if ($Force) { $v8Args += "--force" }
 $rc = Invoke-Py @v8Args
 if ($rc -ne 0) { Write-Host "  [warn] v8 扫描失败（研究变种，不中断）" }
+} else {
+Write-Host "[9/9] [skip] V8 久期阶梯 —— 不出卡; 要刷加 -Full"
+}
 
 Write-Host ""
 Write-Host "Done."

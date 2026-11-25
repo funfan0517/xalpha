@@ -155,8 +155,9 @@ python pipeline/check_daily_config.py          # E3 缺显式 enabled / E4 上�
 ### 9.5 不出卡就不跑（2026-11-24 用户规则）
 
 - `run_daily_all.ps1` 的调度名单 = 上板策略（`enabled=true` 且 `card != false`），其余一律不执行，只在头部打印一行清单。
-- 同一 `daily.runner` 被多张出卡卡共享时**去重执行一次**（家族脚本一次跑完 v0 七腿 + 全部变种，不可能也不该按卡重复跑）。
-- 想刷新某个不出卡的策略/变种：直接手动跑它自己的 `run_daily_*.ps1`，或跑持有调度权的家族卡对应的脚本；不要重新给它配 `daily.runner`。
+- 同一 `daily.runner` 被多张出卡卡共享时**去重执行一次**（家族脚本一次聚合多张卡的产物，不可能也不该按卡重复跑）。
+- 家族 runner 默认只跑**看板要读的产物**（2026-11-25 用户要求「和看板无关的策略不要执行」）：vol_legs 只跑 v14~v20 + 七张长期图 + 5y 快照；bond_cash 只跑 V7；tech 跳过 v9/v10 的 md/html/png；dividend 跳过逐标的图/HTML/独立 fit；gd 跳过 v0/v2。不出卡的变种与研究图统一用 `-Full` 手动刷新（各 runner 的开关）。
+- 想刷新某个不出卡的策略/变种：直接手动跑它自己的 `run_daily_*.ps1 -Full`，或跑持有调度权的家族卡对应的脚本 `-Full`；不要重新给它配 `daily.runner`。
 - 家族调度权的现行归属：板块2 `vol_variants` → `run_daily_vol_legs.ps1`；板块3 `gd_v5` → `run_daily_growth_div_rotation.ps1`；板块4 `dividend` → `run_daily_dividend.ps1`；板块5 `tech_indicators` → `run_daily_tech_indicators.ps1`；板块6 `bond_cash_v7` → `run_daily_bond_cash.ps1`；板块1 `permanent` → `run_daily_permanent.ps1`。
 
 ## 10. 看板双版本必须同步

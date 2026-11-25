@@ -18,7 +18,7 @@
     v17 spx    V12 八态趋势 ........... 研究确认无提升，保持当前 ★1
     v18 kc50   E2×TV20 波动上限 ....... ★ 超越项
     v19 hkt    V3 MACD+BOLL ........... 研究确认无提升，保持当前 ★1
-    v20 gold   V5.1 黄金仓位（风险预算 × 利率闸门） 当前 ★1
+    v20 gold   V5 黄金仓位（风险预算 × 利率闸门） 当前 ★1
 
 ⚠ v14 在 2026-11-19 换过两次：上午 E3（V3+V2+V12，因 v12 慢跌改 0%）、下午改 E2
 （V3+V12，因 v12 波动层按腿后 A500 的 ★2/★3 互换）。目录名同步 `v14_a500_e3` → `v14_a500_e2`。
@@ -142,7 +142,7 @@ class _Bridge:
         return self.auxs["v5"]
 
     def v5_detail(self, px, leg="gold"):
-        """V5.1 的完整因子表：`state` / `target` / `action` / `vol` / `scale` / `gate` / `rate_level`。
+        """V5 的完整因子表：`state` / `target` / `action` / `vol` / `scale` / `gate` / `rate_level`。
 
         状态机在**全样本**上跑（见 `v5()`），返回**全样本**表；调用方自己按 `px.index` 截。
         """
@@ -153,7 +153,7 @@ class _Bridge:
         return df
 
     def v5(self, px, leg="gold"):
-        """V5.1 黄金仓位（风险预算 × 实际利率闸门）→ 决策仓位（= `score.run` 的 `state`）。
+        """V5 黄金仓位（风险预算 × 实际利率闸门）→ 决策仓位（= `score.run` 的 `state`）。
 
         `state[t]` = t 日**收盘成交后**的仓位（引擎内部已含 T+1 成交滞后），
         正好是本桥约定的 `decision[t]`（`run()` 里再 shift(1) → `hold[t] = state[t-1]`，与

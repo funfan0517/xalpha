@@ -2,6 +2,11 @@
 # 盘后运行: 口径自检 -> 刷新行情 -> 变种 v9/v10 各自扫描 + 出报告 -> 固定 6 策略 MACD/V3/V6/V7/V9/V10 汇总表
 #           -> 变种 v17 八态趋势每日仓位（54 只，联网增量刷新）
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_tech_indicators.ps1
+#       默认只跑看板需要的产物：_panel 自检 + v9/v10 scan(scan_out.jsonl) + _daily_recommend + V17 八态。
+#       v9/v10 的 md/html/png 报告看板不读，加 -Full 才出。
+param(
+    [switch]$Full
+)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
@@ -17,17 +22,25 @@ Write-Host "[1/7] 变种9 右侧买入 · 全池扫描 (五票确认)..."
 python -W ignore strategies\tech_indicators\v9_right_side\scan.py
 if ($LASTEXITCODE -ne 0) { throw "v9 scan failed" }
 
+if ($Full) {
 Write-Host "[2/7] 变种9 右侧买入 · 每日操作报告..."
 python -W ignore strategies\tech_indicators\v9_right_side\_scan_report.py
 if ($LASTEXITCODE -ne 0) { throw "v9 report failed" }
+} else {
+Write-Host "[2/7] [skip] v9 的 md/html（看板只读 scan_out.jsonl）—— 要出报告加 -Full"
+}
 
 Write-Host "[3/7] 变种10 亮灯 · 全池扫描 (门槛+灯评分)..."
 python -W ignore strategies\tech_indicators\v10_lights\scan.py
 if ($LASTEXITCODE -ne 0) { throw "v10 scan failed" }
 
+if ($Full) {
 Write-Host "[4/7] 变种10 亮灯 · 每日操作报告..."
 python -W ignore strategies\tech_indicators\v10_lights\_scan_report.py
 if ($LASTEXITCODE -ne 0) { throw "v10 report failed" }
+} else {
+Write-Host "[4/7] [skip] v10 的 md/html/png（看板只读 scan_out.jsonl）—— 要出报告加 -Full"
+}
 
 Write-Host "[5/7] 生成技术指标每日操作建议 (MACD / V3 / V6 / V7 / V9 / V10)..."
 python -W ignore strategies\tech_indicators\daily\_daily_recommend.py

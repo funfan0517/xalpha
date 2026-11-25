@@ -660,7 +660,7 @@
       "pipeline_mode": "single_leg"
     },
     "v20_gold_v5": {
-      "name": "V20 黄金 单腿策略 · V5.1 黄金仓位（风险预算 × 实际利率闸门）",
+      "name": "V20 黄金 单腿策略 · V5 黄金仓位（风险预算 × 实际利率闸门）",
       "source_methodology": "research/beat_best/_beat_best_top3.md（2026-11-19 重跑）。逐日权重由 strategies/vol_legs/_top3_bridge.py 隔离加载各变种原生引擎，不重写规则；**研究确认无提升**。",
       "universe": {
         "signal": "黄金 真实指数收盘（黄金 = 场内 518880）",
@@ -694,7 +694,7 @@
         "enabled": false,
         "enabled_note": "并入板块2「变种操作一览」汇总卡，不单独出卡；脚本照常每日刷新产物"
       },
-      "note": "**当前 ★1（研究确认无提升）** —— 黄金 ★1 由 best_by_leg.md §0（2026-11-19 重跑）定为 V5.1（含费夏普 1.02 / 回撤 −12.33%，V6-B 退到 ★2 的 0.74 / −16.12%），规则本体在 strategies/vol_legs/v5_gold_score/（factors.py 参数权威源 + score.py 状态机）；beat_best_top3 的九个组合候选无一通过双闸门（最佳 MIN2 0.98 < 1.04）。依赖 data/_dfii10.csv（FRED 实际利率），每日扫描过期时联网补一次、失败降级沿用缓存。回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
+      "note": "**当前 ★1（研究确认无提升）** —— 黄金 ★1 由 best_by_leg.md §0（2026-11-19 重跑）定为 V5（含费夏普 1.02 / 回撤 −12.33%，V6-B 退到 ★2 的 0.74 / −16.12%），规则本体在 strategies/vol_legs/v5_gold_score/（factors.py 参数权威源 + score.py 状态机）；beat_best_top3 的九个组合候选无一通过双闸门（最佳 MIN2 0.98 < 1.04）。依赖 data/_dfii10.csv（FRED 实际利率），每日扫描过期时联网补一次、失败降级沿用缓存。回测先在全样本算信号再截预热窗，数字与研究报告略有差异但相对结论不变。每策略自带长期图与近三年图（research/_plot_leg.py）。机械规则输出，非投资建议。",
       "pipeline_mode": "single_leg"
     },
     "v21_livermore_keypoint": {

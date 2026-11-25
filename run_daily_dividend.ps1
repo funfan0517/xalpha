@@ -7,6 +7,11 @@
 #  规则: 五因子估值温度(利差 35/PE 20/PB 16/乖离 15/位置 14); 只出「逐只档位 + 额度参考」, 不调仓位
 #  输出: _v9_signal.md/json + 逐标的图 + HTML 看板
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1
+#   默认只跑看板需要的两个产物：V4 `_v4_signal.json` + V9 `_v9_signal.json`
+#   （V4 daily.py 内部已调 fit 并写 _v4_fit.json）。逐标的图 / dashboard HTML / 独立 fit 加 -Full 才跑。
+param(
+    [switch]$Full
+)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
@@ -27,24 +32,36 @@ function Invoke-Py {
 Write-Host "[1/3] V4 RSI14 timing signal (10-fund dividend pool, hold only top-2)..."
 $rc = Invoke-Py strategies\dividend\v4_rsi\daily.py --refresh
 if ($rc -ne 0) { throw "dividend v4 signal failed (exit $rc)" }
+if ($Full) {
 $rc = Invoke-Py strategies\dividend\v4_rsi\chart.py
 if ($rc -ne 0) { throw "dividend v4 charts failed (exit $rc)" }
 $rc = Invoke-Py strategies\dividend\v4_rsi\dashboard.py
 if ($rc -ne 0) { throw "dividend v4 dashboard failed (exit $rc)" }
+} else {
+Write-Host "[skip] V4 逐标的图 / dashboard HTML —— 看板读 _v4_signal.json（要出图加 -Full）"
+}
 
 Write-Host ""
 Write-Host "[2/3] V9 five-factor valuation temperature (6-fund dividend pool)..."
 $rc = Invoke-Py strategies\dividend\v9_temp5\daily.py --refresh
 if ($rc -ne 0) { throw "dividend v9 daily failed (exit $rc)" }
+if ($Full) {
 $rc = Invoke-Py strategies\dividend\v9_temp5\charts.py --refresh
 if ($rc -ne 0) { throw "dividend v9 charts failed (exit $rc)" }
 $rc = Invoke-Py strategies\dividend\v9_temp5\dashboard.py
 if ($rc -ne 0) { throw "dividend v9 dashboard failed (exit $rc)" }
+} else {
+Write-Host "[skip] V9 逐标的图 / dashboard HTML —— 看板读 _v9_signal.json（要出图加 -Full）"
+}
 
 Write-Host ""
+if ($Full) {
 Write-Host "[3/3] V4 per-fund fit (RSI timing vs buy-and-hold)..."
 $rc = Invoke-Py strategies\dividend\v4_rsi\fit.py
 if ($rc -ne 0) { throw "dividend v4 fit failed (exit $rc)" }
+} else {
+Write-Host "[3/3] [skip] V4 独立 fit —— V4 daily.py 已算过同一份 fit（要重跑加 -Full）"
+}
 
 Write-Host ""
 Write-Host "Done."

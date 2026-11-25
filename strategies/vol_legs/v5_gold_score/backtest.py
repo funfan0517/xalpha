@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V5.1 黄金仓位（风险预算 × 实际利率闸门）· 回测与稳健性。
+"""V5 黄金仓位（风险预算 × 实际利率闸门）· 回测与稳健性。
 
 跑七件事：
 1. **主表**：策略 vs 恒满仓（买入持有）vs 恒半仓 vs 纯现金；
@@ -367,7 +367,7 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
     L = []
     A = L.append
 
-    A("# V5.1 · 黄金仓位（风险预算 × 实际利率闸门）· 回测")
+    A("# V5 · 黄金仓位（风险预算 × 实际利率闸门）· 回测")
     A("")
     A(f"> 口径：`scale = clip({F.VOL_TARGET:.0%} / {F.VOL_WINDOW} 日实现波动, "
       f"{F.VOL_MIN:.0%}, 1)`；`gate = 1 if DFII10 > {F.RATE_LEVEL_TH:+.2f}% else "

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v20 回测：黄金 · V5.1 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
+"""v20 回测：黄金 · V5 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
 
 产物：`backtest/_<v>_bt.md` / `.jsonl`。机械规则输出，非投资建议。
 用法：`python strategies/vol_legs/v20_gold_v5/backtest.py`
@@ -54,7 +54,7 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="best_by_leg.md §0（2026-11-19 二次重跑）：黄金 ★1 = V5.1（夏普 1.02 / 回撤 -12.33%），"
+               note="best_by_leg.md §0（2026-11-19 二次重跑）：黄金 ★1 = V5（夏普 1.02 / 回撤 -12.33%），"
                     "V12 升到 ★2（0.81）；_beat_best_top3.md 九个组合候选无一通过双闸门"
                     "（最佳 MAX2 0.98 < 1.04）。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
@@ -72,7 +72,7 @@ def main():
         f"t 日收盘成交后建仓 → T+1 收益；统一单边 {engine.FEE_SIDE:.2%}、"
         f"空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
         "> 研究出处：`research/best_by_leg/_best_by_leg.md` §0（2026-11-19 第二次重跑）——"
-        "黄金 ★1 = V5.1（含费夏普 1.02 / 回撤 −12.33%）；**V12 升到 ★2（0.81 / −12.84%）**，"
+        "黄金 ★1 = V5（含费夏普 1.02 / 回撤 −12.33%）；**V12 升到 ★2（0.81 / −12.84%）**，"
         "V6-B 退到 ★3（0.74 / −16.12%）。`research/beat_best/_beat_best_top3.md` 里的九个组合/叠加候选"
         "无一通过双闸门（最佳 MAX2 0.98 < 基线 1.04），所以 v20 直接采用 ★1 本身。", "",
         "## 结果", "",

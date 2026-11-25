@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v20 · 黄金 · V5.1 黄金仓位（风险预算 × 实际利率闸门）· 当前 ★1。
+"""v20 · 黄金 · V5 黄金仓位（风险预算 × 实际利率闸门）· 当前 ★1。
 
 来源：`strategies/vol_legs/research/best_by_leg/_best_by_leg.md` §0（2026-11-19 重跑）：
-黄金腿 ★1 由 V6-B（夏普 0.74 / 回撤 −16.12%）换成 **V5.1**（夏普 1.02 / 回撤 −12.33%）。
+黄金腿 ★1 由 V6-B（夏普 0.74 / 回撤 −16.12%）换成 **V5**（夏普 1.02 / 回撤 −12.33%）。
 `research/beat_best/_beat_best_top3.md` 里九个「前三名之上的组合/叠加」候选
 **无一通过双闸门**（最好的 MIN2 0.98 < 基线 1.04），所以 v20 就是 ★1 本身。
 
@@ -36,7 +36,7 @@ for _p in (_HERE, _STRAT, _VL):
 from _top3_bridge import CASH_ANNUAL, FEE_SIDE, WARMUP, bridge  # noqa: E402
 
 LEG = "gold"
-LABEL = "v20 黄金 · V5.1 黄金仓位（风险预算 × 利率闸门）"
+LABEL = "v20 黄金 · V5 黄金仓位（风险预算 × 利率闸门）"
 STATUS = "当前 ★1（研究确认无提升）"
 RULE_TXT = ("风险预算 scale=clip(10%/120 日波动, 20%, 1) × 实际利率闸门 gate(DFII10 水平 0.5%±0.15pp) "
             "→ 量化到 20pp 六档；跨 1 档才动，T 日收盘信号 → T+1 收盘成交")
@@ -48,7 +48,7 @@ def load(leg=LEG):
 
 
 def detail(px=None):
-    """V5.1 全因子表（state / target / action / vol / scale / gate / rate_level）。
+    """V5 全因子表（state / target / action / vol / scale / gate / rate_level）。
 
     `px` 只用于确定窗口末端，状态机本身在 `_idxcache` 的全历史上跑。
     """

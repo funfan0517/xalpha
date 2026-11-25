@@ -5,6 +5,11 @@
 # 调度权在出卡的 gd_v5 上(run_daily_all 按 runner 去重, 只执行一次); v0 条目 card=false, 不随每日操作跑
 # v1 (绝对阈值 0.20/0.31 + 5期分批) 2026-11-02 起退出看板, 不再每日跑; 需要时手跑 v1_ratio_bands/scan.py
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_growth_div_rotation.ps1
+#   默认只刷新 v5（板块3 唯一卡片）: data.py 增量刷新 + v5 scan（内含 _v5_alloc.png 重画）。
+#   v0 / v2 都不出卡，加 -Full 才跑。
+param(
+    [switch]$Full
+)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
@@ -13,6 +18,7 @@ Write-Host "[1/4] 增量刷新指数行情缓存..."
 python -W ignore strategies\growth_div_rotation\v0\data.py
 if ($LASTEXITCODE -ne 0) { throw "行情刷新失败" }
 
+if ($Full) {
 Write-Host "[2/4] 生成 v0 信号 (MA20 缓冲带 + 250日分位)..."
 python -W ignore strategies\growth_div_rotation\v0\scan.py
 if ($LASTEXITCODE -ne 0) { throw "v0 信号生成失败" }
@@ -20,6 +26,9 @@ if ($LASTEXITCODE -ne 0) { throw "v0 信号生成失败" }
 Write-Host "[3/4] 生成 v2 状态 (绝对水位 0.35/0.65)..."
 python -W ignore strategies\growth_div_rotation\v2_absolute_bands\scan.py
 if ($LASTEXITCODE -ne 0) { throw "v2 状态生成失败" }
+} else {
+Write-Host "[2-3/4] [skip] v0 / v2 —— 都不出卡（要刷加 -Full）"
+}
 
 Write-Host "[4/4] 生成 v5 状态 (水位 + 双 MA200 + 18% 波动目标)..."
 python -W ignore strategies\growth_div_rotation\v5_vol_target\scan.py

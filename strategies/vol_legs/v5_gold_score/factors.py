@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V5.1 · 黄金仓位（风险预算 × 实际利率闸门）—— **因子层**（唯一口径）。
+"""V5 · 黄金仓位（风险预算 × 实际利率闸门）—— **因子层**（唯一口径）。
 
 回测（`backtest.py`）与每日（`daily/_daily_scan.py`）都调本文件，杜绝两套口径。
 
@@ -254,7 +254,7 @@ def _event_mask(index, k=EVENT_FREEZE):
     return hit.rolling(2 * k + 1, center=True, min_periods=1).max().astype(bool)
 
 
-# ---------------------------------------------------------------- 因子（v5.1 唯一口径）
+# ---------------------------------------------------------------- 因子（v5 唯一口径）
 def f_vol(px, p=None):
     """风险预算：`scale = clip(VOL_TARGET / VOL_WINDOW 日实现波动, VOL_MIN, 1)`。"""
     p = p or params()

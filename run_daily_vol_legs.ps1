@@ -1,4 +1,4 @@
-# 波动资产操作规则 v1.3(A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10 = 40pp) · 每日操作 - 双击运行
+﻿# 波动资产操作规则 v1.3(A500 5 / 纳指100 10 / 标普500 10 / 科创50 2.5 / 恒生科技 2.5 / 黄金 10 = 40pp) · 每日操作 - 双击运行
 
 # 口径: 信号 + 回测 + 记账 **全部用该市场真实指数收盘**; 黄金用场内 518880; 无口径开关
 # ⚠ 跑的时间点决定「哪条腿的数据齐了」，已不会再有「写半根」的风险（2026-11-24 起）:
@@ -44,6 +44,14 @@ $env:PYTHONIOENCODING = "utf-8"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# 默认只跑「每日操作看板」需要的产物（v14~v20 的 daily json + 七张长期图 + 5y 快照）。
+# v2/v3/v4/v6/v9/v12 全都不出卡（看板 2026-11-18 起只列 v14~v20），默认不跑；要刷新它们加 -Full。
+$Full = $false
+if ($args -contains "-Full" -or $args -contains "--full") {
+    $Full = $true
+    $args = @($args | Where-Object { $_ -ne "-Full" -and $_ -ne "--full" })
+}
+
 Write-Host "[1/3] Recomputing 7-leg actions on real index closes (A500 2.5 / HS300 2.5 / NDX 10 / SPX 10 / STAR50 2.5 / HSTECH 2.5 / Gold 518880 10)..."
 python -W ignore strategies\vol_legs\scan.py --force @args
 if ($LASTEXITCODE -ne 0) { throw "vol_legs scan failed" }
@@ -54,6 +62,7 @@ if ($LASTEXITCODE -ne 0) { throw "vol_legs scan failed" }
 Write-Host ""
 Write-Host "[2/3] Recomputing variants (v2 BOLL / v3 MACD+BOLL / v4 ERP / v6 gold A-B-C / v9 vol target) ..."
 
+if ($Full) {
 Write-Host "  - v2 BOLL breakout ..."
 python -W ignore strategies\vol_legs\v2_boll_breakout\daily\_daily_scan.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v2_boll daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
@@ -75,6 +84,9 @@ Write-Host "  - v9 vol target ..."
 # --no-refresh: 第 1 步 scan.py --force 已刷新美股指数(.NDX/.INX), 这里直接复用
 python -W ignore strategies\vol_legs\v9_vol_target\daily\_daily_scan.py --no-refresh
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9_vol_target daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+} else {
+Write-Host "  [skip] v2 / v3 / v4 / v6 / v9 —— 都不出卡, 产物不再每日刷新（要刷加 -Full）"
+}
 
 Write-Host "  - v14 中证A500 单腿 ..."
 python -W ignore strategies\vol_legs\v14_a500_e2\daily\_daily_scan.py
@@ -107,16 +119,21 @@ if ($LASTEXITCODE -ne 0) { Write-Warning "v20 daily scan failed (exit $LASTEXITC
 # v21（利弗莫尔关键点）**不进每日流程**：规则与 7 腿样本仍在验证，需要时手跑
 #   python strategies\vol_legs\v21_livermore_keypoint\daily\_daily_scan.py
 
+if ($Full) {
 Write-Host "  - v12 octo trend (八态) ..."
 # 默认联网: v12 需要**最新成交量**（同源指数量能 + 518880 自身量）, 第 1 步只刷收盘价, 没有量。
 # 网络失败时脚本内部退化为用缓存并在报告里标注, 不会中断。
 python -W ignore strategies\vol_legs\v12_octo_trend\daily\_daily_scan.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v12_octo_trend daily scan failed (exit $LASTEXITCODE) - 保留上次产物" }
+} else {
+Write-Host "  [skip] v12 八态 —— 不出卡（板块5 的 V17 是另一套）, 产物不再每日刷新（要刷加 -Full）"
+}
 
-# 第 3 步: 刷新十二张重点图(只重画, 不重算回测; 失败只告警)
+# 第 3 步: 只重画看板图墙嵌的七张 v14~v20 长期图(只重画, 不重算回测; 失败只告警)
 Write-Host ""
-Write-Host "[3/3] Refreshing 12 key figures + 14 single-leg figures (v14~v20 long + 3y) ..."
+Write-Host "[3/3] Refreshing 7 figure-wall PNGs (v14~v20 long) ..."
 
+if ($Full) {
 Write-Host "  - v2_boll_breakout\research\_v2_a500.png / _v2_hs300.png / _v2_kc50.png ..."
 python -W ignore strategies\vol_legs\v2_boll_breakout\research\_plot_leg.py --leg a500 --leg hs300 --leg kc50
 if ($LASTEXITCODE -ne 0) { Write-Warning "v2 plot_leg failed (exit $LASTEXITCODE) - 保留上次的图" }
@@ -137,55 +154,74 @@ if ($LASTEXITCODE -ne 0) { Write-Warning "v6 plot_legs failed (exit $LASTEXITCOD
 Write-Host "  - v9_vol_target\research\_v9_vt_spx.png / _v9_vt_ndx.png ..."
 python -W ignore strategies\vol_legs\v9_vol_target\research\_plot_target.py --leg spx --leg ndx
 if ($LASTEXITCODE -ne 0) { Write-Warning "v9 plot_target failed (exit $LASTEXITCODE) - 保留上次的图" }
+} else {
+Write-Host "  [skip] v2 / v3 / v4 / v6 / v9 九张图 —— 不进看板图墙（要刷加 -Full）"
+}
 
-Write-Host "  - v14 中证A500 长期图 + 近三年图 ..."
+Write-Host "  - v14 中证A500 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v14_a500_e2\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v14 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v14_a500_e2\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v14 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
-Write-Host "  - v15 沪深300 长期图 + 近三年图 ..."
+Write-Host "  - v15 沪深300 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v15_hs300_min2\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v15 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v15_hs300_min2\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v15 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
-Write-Host "  - v16 纳指100 长期图 + 近三年图 ..."
+Write-Host "  - v16 纳指100 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v16_ndx_sw\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v16 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v16_ndx_sw\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v16 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
-Write-Host "  - v17 标普500 长期图 + 近三年图 ..."
+Write-Host "  - v17 标普500 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v17_spx_v12\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v17 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v17_spx_v12\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v17 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
-Write-Host "  - v18 科创50 长期图 + 近三年图 ..."
+Write-Host "  - v18 科创50 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v18_kc50_e2tv\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v18 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v18_kc50_e2tv\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v18 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
-Write-Host "  - v19 恒生科技 长期图 + 近三年图 ..."
+Write-Host "  - v19 恒生科技 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v19_hkt_v3\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v19 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v19_hkt_v3\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v19 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
-Write-Host "  - v20 黄金 长期图 + 近三年图 ..."
+Write-Host "  - v20 黄金 长期图(看板图墙) ..."
 python -W ignore strategies\vol_legs\v20_gold_v5\research\_plot_leg.py
 if ($LASTEXITCODE -ne 0) { Write-Warning "v20 plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+if ($Full) {
 python -W ignore strategies\vol_legs\v20_gold_v5\research\_plot_leg.py --years 3
 if ($LASTEXITCODE -ne 0) { Write-Warning "v20 3y plot failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
 # v21 的图属研究产物，不进每日流程（手跑 research\_plot_leg.py 即可）
 
+if ($Full) {
 Write-Host "  - v12_octo_trend\research\_v12_state_hs300.png ..."
 # --leg hs300: 执行范围 2026-11-18 已扩到七腿, 但看板只嵌标定腿这一张; 不传 --leg 会画全部七张(慢且无用)
 python -W ignore strategies\vol_legs\v12_octo_trend\research\_plot_state.py --leg hs300
 if ($LASTEXITCODE -ne 0) { Write-Warning "v12 plot_state failed (exit $LASTEXITCODE) - 保留上次的图" }
+}
 
 # ---- 板块2「近五年口径」对照卡：只刷「今日目标仓位」，**不重跑排名研究** ----
 # 重跑 `_beat_best_5y.py` 要 ~40s 且会改写研究产物；落地清单沿用上次的 `_beat_best_5y.jsonl`。
@@ -200,12 +236,8 @@ Write-Host "Done."
 Write-Host "  Report  : strategies\vol_legs\daily\_vol_legs_report.md"
 Write-Host "  Snapshot: strategies\vol_legs\daily\_vol_legs_signal.json"
 Write-Host "  Universe: strategies\vol_legs\daily\_universe_vol_legs_active.md"
-Write-Host "  Variants: v2_boll_breakout / v3_macd_boll / v4_erp_band / v6_gold / v9_vol_target / v12_octo_trend  daily\_*_daily.md (+ .json)"
-Write-Host "  Figures : v14~v20\research\_v{14..20}_{leg}.png (+ _3y.png) ·"
-Write-Host "            v2\research\_v2_{a500,hs300,kc50}.png · v3\research\_v3_{hkt,kc50}.png ·"
-Write-Host "            v4\backtest\_v4_erp_band_signals.png ·"
-Write-Host "            v6_gold\daily\_v6_gold_{A,B,C}.png · v9\research\_v9_vt_{spx,ndx}.png ·"
-Write-Host "            v12_octo_trend\research\_v12_state_hs300.png"
+Write-Host "  Variants: v14~v20 daily\_*_daily.md (+ .json)  [默认只跑这 7 个; v2/v3/v4/v6/v9/v12 需 -Full]"
+Write-Host "  Figures : v14~v20\research\_v{14..20}_{leg}.png  [看板图墙这 7 张; _3y.png 需 -Full]"
 Write-Host "  Digest  : run_daily_all.ps1 末尾会跑 python pipeline\daily_digest.py, 汇总到 data\_daily_digest.html"
 Write-Host "  Note    : signal on real index closes; six index legs execute via OTC A-class funds, gold"
 Write-Host "            via on-exchange 518880. Place the OTC order BEFORE 15:00 next trading day;"

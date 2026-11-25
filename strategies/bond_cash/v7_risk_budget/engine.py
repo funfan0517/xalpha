@@ -25,7 +25,7 @@ BLOCKS = rule.BLOCKS
 def block_returns(navs, index=None):
     """-> DataFrame(index=日期, columns=[rate, credit, conv]) 的**债腿内部**日收益。
 
-    利率腿 = 0.35×003376 + 0.65×011983（固定权重，日频再平衡近似；2026-11-20 随 v0 由 70/30 改 35/65）。
+    利率腿 = 0.35×003376 + 0.65×001512（固定权重，日频再平衡近似；2026-11-25 中端由 011983 政金 3-5 换成 001512 国债 3-5，比例仍为 35/65）。
     """
     need = [CFG["long_leg"], CFG["base_leg"], CFG["credit_leg"], CFG["conv_leg"]]
     px = pd.concat({c: navs[c] for c in need}, axis=1, join="inner").dropna()

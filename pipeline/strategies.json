@@ -2264,7 +2264,7 @@
       "source_methodology": "《债券种类手册》(G:/tradingagents/bond_strategy/债券种类手册.md) §二 四门派分类 + 等风险贡献 ERC（Maillard/Roncalli/Teïletche 2010）；复用 strategies/permanent/research/_alloc_study.py 的风险贡献分解 · 参数权威源 strategies/bond_cash/v7_risk_budget/rule.py::CFG",
       "universe": {
         "offshore_pool": "data/_universe.md",
-        "pool": "利率腿 = 003376(#606)×70% + 011983(#605)×30% 合成；信用腿 000032(#608)；转债腿 470058（场外可转债 A）；现金 000198+014437 固定 10pp",
+        "pool": "利率腿 = 003376(#606)×35% + 001512(#604)×65% 合成（2026-11-25 中端由 011983 政金 3-5 换成 001512 国债 3-5，比例不变）；信用腿 000032(#608)；转债腿 470058（场外可转债 A）；现金 000198+014437 固定 10pp",
         "data": "strategies/bond_cash/v7_risk_budget/data/_nav_cache.json（6 只场外累计净值，当日缓存）；转债不用场内 511380 行情（v0 §5-8）",
         "note": "债腿 30pp 内部只做风险预算，不做方向择时；现金 10pp 固定、不进 ERC（σ≈0 会把逆波动解推到现金）。"
       },

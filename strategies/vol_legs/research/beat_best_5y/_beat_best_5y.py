@@ -23,7 +23,12 @@
 3. **基线会换人**：5 年窗口含 2022 年熊市（A 股与美股同步大跌、港股续跌），
    所以沪深300 / 黄金的 ★1 与全历史版不同。基线一换，「能不能超越」的答案也跟着换。
 
-产出：`_beat_best_5y.md`（本目录）。
+产出（本目录）：
+- `_beat_best_5y.md`    正文；
+- `_beat_best_5y.jsonl` 机读落地清单（`_daily_positions_5y.py` 读它取当日目标仓位）；
+- `_beat_best_5y_grid.png` 七腿总览图（近 5 年窗口），每腿一格「采用策略净值 vs 同窗口恒持」，
+  版式对齐 `v12_octo_trend/research/_v12_grid_all_5y.png`，绘图函数复用
+  `beat_best/_beat_best_top3.py::grid`（全历史那张是同目录的 `_beat_best_grid.png`）。
 用法：`python strategies/vol_legs/research/beat_best_5y/_beat_best_5y.py`
       （先跑 `best_by_leg_5y/_best_by_leg_5y.py`，本脚本读它的 jsonl 当基线）
 
@@ -56,6 +61,7 @@ if _VL not in sys.path:
 
 OUT = os.path.join(_HERE, "_beat_best_5y.md")
 OUT_JSONL = os.path.join(_HERE, "_beat_best_5y.jsonl")
+OUT_PNG = os.path.join(_HERE, "_beat_best_5y_grid.png")
 SRC_BB = os.path.join(_RES, "beat_best", "_beat_best_top3.py")
 SRC_5Y = os.path.join(_RES, "best_by_leg_5y", "_best_by_leg_5y.jsonl")
 
@@ -607,6 +613,11 @@ def main():
 
     print("WROTE", OUT)
     print("WROTE", OUT_JSONL)
+    # 七腿总览图：复用全历史版的 `grid()`，只换窗口（各腿排名的基线快照）与图注。
+    bb.grid(detail, OUT_PNG, "各腿最优策略 · 七腿总览（近 5 年窗口）",
+            "口径：单边 10bp、空仓货基 1.40%、T 日收盘决策 → T+1 收益 ｜ "
+            "灰线 = 同窗口恒持（不计费） ｜ 采用项取自本目录 `_beat_best_5y.jsonl`"
+            "（窗口敏感性检验；与全历史版冲突时以全历史版为准） ｜ 机械规则输出，非投资建议")
     for leg in LEGS:
         d = detail.get(leg)
         if not d:

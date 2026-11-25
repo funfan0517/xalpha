@@ -44,7 +44,11 @@
 - `SW`：MA200 上方用 ★1、下方用三条里平均仓位最低的一条 —— 补 ★1 缺的方向层。
 - `E2×TV`：E2 再乘一层 TV20 波动上限（复用 v2/v3 的 `vol_cap`），只压 σ 高时的仓位。
 
-产物：`_beat_best_top3.md`（本目录）。
+产物（本目录）：
+- `_beat_best_top3.md`  正文；
+- `_beat_best_grid.png` 七腿总览图：每腿一格，「**采用策略**净值 vs 同窗口恒持」，版式对齐
+  `v12_octo_trend/research/_v12_grid_all.png`，可直接并排看。采用项 = 过双闸门的超越项，
+  否则沿用 ★1 —— 与报告 §落地汇总 同一口径。`_beat_best_5y.py` 复用本文件的 `grid()`。
 用法：`python strategies/vol_legs/research/beat_best/_beat_best_top3.py`
 模拟结果，非投资建议。
 """
@@ -72,6 +76,7 @@ sys.path.insert(0, _VL)
 import data as vdata  # noqa: E402
 
 OUT = os.path.join(_HERE, "_beat_best_top3.md")
+OUT_PNG = os.path.join(_HERE, "_beat_best_grid.png")
 TD = 252
 CASH_ANNUAL = 0.014
 CASH_D = (1.0 + CASH_ANNUAL) ** (1.0 / TD) - 1.0
@@ -220,6 +225,121 @@ def evaluate(hold, px, cut):
     hh, pp = hold.loc[cut:], px.loc[cut:]
     post = metrics(hh, pp)
     return full, post
+
+
+# ---------------------------------------------------------------- 七腿总览图
+# 图注里括号中的代码：与 v12 那张总览图（`_v12_grid_all.png`）保持同一套写法
+CODES = {"a500": "000510", "hs300": "000300", "ndx": "NDX100", "spx": "SPX500",
+         "kc50": "588000", "hkt": "513180", "gold": "518880"}
+C_NAV, C_HOLD, C_IDX = "#7b52ab", "#8a8a8a", "#5b6b7a"
+
+
+def nav_series(hold, px, fee=FEE_SIDE):
+    """与 `metrics` **同一记账**（h[t] 赚 t 日收益 / |Δh| 单边扣费 / 空仓吃货基）-> 净值。"""
+    h = hold.reindex(px.index).fillna(0.0).astype(float).clip(0.0, 1.0)
+    ret = px.pct_change().fillna(0.0)
+    d = h.diff().fillna(h)
+    r = h * ret + (1.0 - h) * CASH_D - d.abs() * fee
+    return (1.0 + r).cumprod()
+
+
+def _plt():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
+    plt.rcParams["axes.unicode_minus"] = False
+    return plt
+
+
+def grid(detail, out, head, foot, ncol=4):
+    """七腿总览图：每腿一格，**采用策略**净值 vs 同窗口恒持（都从窗口首日归 1）。
+
+    版式对齐 `v12_octo_trend/research/_plot_state.py::grid`：灰线 = 恒持、紫线 = 采用、
+    右下空格放 Δ夏普排序，两张图可以并排看。数字直接取 `metrics`（与正文表同尺同源）。
+
+    采用项 = `detail[leg]["best"]`（过双闸门）否则 `detail[leg]["ev"][0]`（★1）——
+    与报告 §落地汇总 完全同一条规则，不在这里重排座次。
+    """
+    plt = _plt()
+    import matplotlib.dates as mdates
+
+    order = [leg for leg in NAMES if leg in detail]
+    nrow = int(np.ceil(len(order) / ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.5 * ncol, 3.9 * nrow + 1.6))
+    axes = np.atleast_1d(axes).ravel()
+
+    rows, spans = [], []
+    for ax, leg in zip(axes, order):
+        d = detail[leg]
+        px = d["px"]
+        if d.get("best"):
+            label, hold = d["best"][0], d["best"][1]
+        else:
+            label, hold = d["ev"][0][0], d["ev"][0][1]
+        # 表里的 "S1 V3 BOLL" 是候选序号，图上只写策略名
+        if label[:1] == "S" and label[1:2].isdigit():
+            label = label.split(" ", 1)[1]
+        hh = hold.reindex(px.index).fillna(0.0).astype(float).clip(0.0, 1.0)
+        nav = nav_series(hh, px)
+        nav = nav / nav.iloc[0]
+        bh = px / px.iloc[0]
+        f1 = metrics(hh, px) or {}
+        f2 = metrics(pd.Series(1.0, index=px.index), px, fee=0.0) or {}
+        s1, s2 = f1.get("sharpe", np.nan), f2.get("sharpe", np.nan)
+        dsh = s1 - s2
+        expo = float(hh.mean())
+        rows.append((leg, label, f1, f2, dsh, expo))
+        spans.append((px.index[0], px.index[-1]))
+
+        ax.plot(bh.index, bh.to_numpy(), color=C_HOLD, lw=1.05, label="恒持")
+        ax.plot(nav.index, nav.to_numpy(), color=C_NAV, lw=1.45, label="采用")
+        ax.axhline(1.0, color="#cccccc", lw=0.7, ls=":")
+        ax.set_title(f"{NAMES[leg]}（{CODES[leg]}）\n"
+                     f"{label}  {fmt(f1.get('ann'))} / 回撤 {fmt(f1.get('mdd'))} / 夏普 {s1:.2f}\n"
+                     f"恒持 {fmt(f2.get('ann'))} / 回撤 {fmt(f2.get('mdd'))} / 夏普 {s2:.2f}"
+                     f" · Δ夏普 {dsh:+.2f}",
+                     fontsize=8.6, loc="left", color="#1b2b3a")
+        ax.set_ylabel("净值（起点 = 1）", fontsize=8.2)
+        ax.grid(ls="--", lw=0.5, alpha=0.3)
+        ax.tick_params(labelsize=7.6)
+        span_y = (px.index[-1] - px.index[0]).days / 365.25
+        ax.xaxis.set_major_locator(mdates.YearLocator(
+            base=5 if span_y > 15 else (2 if span_y > 8 else 1)))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+        ax.set_xlim(px.index[0], px.index[-1])
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+        if leg == order[0]:
+            ax.legend(fontsize=7.6, frameon=False, loc="upper left")
+
+    spare = list(axes[len(order):])
+    if spare:
+        ax = spare[0]
+        ax.axis("off")
+        rank = sorted(rows, key=lambda x: -x[4])
+        lines = ["Δ夏普排序（采用 vs 恒持，同窗口）", ""]
+        for i, (leg, _lab, _f1, _f2, dsh, expo) in enumerate(rank, 1):
+            verdict = "净增益" if dsh >= 0.10 else ("≈噪声" if dsh >= 0 else "负贡献")
+            lines.append(f"{i}. {NAMES[leg]:6s} {dsh:+.2f}  仓位 {expo:>3.0%}  {verdict}")
+        ax.text(0.0, 1.0, "\n".join(lines), va="top", ha="left", fontsize=8.2,
+                color="#1b2b3a", linespacing=1.75, transform=ax.transAxes)
+        for a in spare[1:]:
+            a.axis("off")
+
+    first = min(s[0] for s in spans)
+    last = max(s[1] for s in spans)
+    fig.suptitle(f"{head}（{first.date()} ~ {last.date()}，各腿起点归 1；样本较短的腿从自身首根起）",
+                 x=0.012, ha="left", y=0.985, fontsize=13.5, color="#1b2b3a", weight="bold")
+    fig.text(0.012, 0.014, foot, fontsize=7.4, color=C_IDX, linespacing=1.5, va="bottom")
+    fig.subplots_adjust(left=0.045, right=0.99, top=0.885, bottom=0.125,
+                        hspace=0.52, wspace=0.24)
+    fig.savefig(out, dpi=125, facecolor="white")
+    plt.close(fig)
+    print("图:", out)
+    for leg, label, f1, _f2, dsh, expo in sorted(rows, key=lambda x: -x[4]):
+        print(f"  {NAMES[leg]:8s} {label[:22]:22s} 年化 {fmt(f1.get('ann'))} "
+              f"夏普 {f1.get('sharpe', float('nan')):5.2f}  Δ夏普 {dsh:+.2f}  仓位 {expo:.0%}")
 
 
 # ---------------------------------------------------------------- 候选（参数事先固定）
@@ -465,6 +585,10 @@ def main():
     with io.open(OUT, "w", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")
     print("WROTE", OUT)
+    grid(detail, OUT_PNG, "各腿最优策略 · 七腿总览（全历史）",
+         "口径：单边 10bp、空仓货基 1.40%、T 日收盘决策 → T+1 收益 ｜ "
+         "灰线 = 同窗口恒持（不计费） ｜ 采用项取自本报告 §落地汇总"
+         "（过双闸门用超越项，否则沿用 ★1） ｜ 机械规则输出，非投资建议")
     for leg, best in wins:
         d = detail[leg]
         print(f"  {NAMES[leg]:8s} {d['base_f']['sharpe']:.2f} -> {best[0]} {best[2]['sharpe']:.2f} "

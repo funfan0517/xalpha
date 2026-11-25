@@ -735,6 +735,8 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > 其余三条毛夏普同步抬升（0.74→0.96 / 0.98→1.01 / 0.81→0.89），属信号层面的改进。
 > 落地形态即下方 §v14–v20：**V14 = E2、V15 = MIN2、V16 = SW、V18 = E2×TV20，V17 / V19 / V20 取 ★1 原样**。
 > 以上均为**同尺重算值**，与 `best_by_leg.md` 里各变种**原生费率**的含费数字不可逐位对账。
+> 图：`research/beat_best/_beat_best_grid.png` —— 七腿各一格，「**采用策略**净值 vs 同窗口恒持」
+> （版式对齐 `v12_octo_trend/research/_v12_grid_all.png`，可直接并排看），重跑主脚本即刷新。
 
 > **窗口敏感性：同一批策略换成近 3 年 / 近 5 年窗口再排一次** ——
 > [`research/best_by_leg/_best_by_leg_3y.md`](research/best_by_leg/_best_by_leg_3y.md)、
@@ -761,6 +763,8 @@ v1.4 起作为沪深300 腿的 ERP 数据源，现由 `v4_erp_band/erp.py` 维�
 > 报告的「同尺夏普」列会明显低于 5y 榜的含费数字；这类伪超越在表里标 `·成本效应`。
 > 跑一次：`python strategies/vol_legs/research/beat_best_5y/_beat_best_5y.py`
 > （先跑 5y 榜，它读那里的 jsonl 当基线）。
+> 图：`research/beat_best_5y/_beat_best_5y_grid.png` —— 同一版式换成近 5 年窗口
+> （对照 `v12_octo_trend/research/_v12_grid_all_5y.png`），绘图函数复用全历史版的 `grid()`。
 >
 > **看板（2026-11-23 用户要求）**：每日操作报告板块2 已挂一张「近五年口径」对照卡 ——
 > `pipeline/daily_digest.py::parse_vol_5y` 读 `_daily_positions_5y.json`（机读版，

@@ -1,6 +1,6 @@
 # 在「5 年当前最优」之上，还能再往前推一步吗？—— 原生引擎 · 同尺版
 
-> 由 `research/beat_best_5y/_beat_best_5y.py` 生成（2026-11-23）。基线取自 `research/best_by_leg_5y/_best_by_leg_5y.md` §0 的**近五年前三名**，逐日权重来自各变种**原生引擎**，不重写规则、不做网格搜索。
+> 由 `research/beat_best_5y/_beat_best_5y.py` 生成（2026-11-24）。基线取自 `research/best_by_leg_5y/_best_by_leg_5y.md` §0 的**近五年前三名**，逐日权重来自各变种**原生引擎**，不重写规则、不做网格搜索。
 
 ## 0. 口径与判定
 

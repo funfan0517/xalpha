@@ -5,13 +5,15 @@
 #  输出: 今日该持什么(当前生效信号) + 预览 + 下一个决策点 + 逐只最优策略(RSI择时/买入持有)
 # V9 标的池: 6 只(有 etf.run 等权真实 PE/PB 的标的)
 #  规则: 五因子估值温度(利差 35/PE 20/PB 16/乖离 15/位置 14); 只出「逐只档位 + 额度参考」, 不调仓位
-#  输出: _v9_signal.md/json + 逐标的图 + HTML 看板
+# 2026-11-25 用户要求「和看板无关的策略不要执行」: 只跑看板要读的两份 json ——
+#   V4 daily.py（内部已调 fit 并写 _v4_fit.json）与 V9 daily.py。
+# 逐标的图 / dashboard HTML / 独立 fit.py 都不进看板，不再每日跑；需要时手动:
+#   python strategies\dividend\v4_rsi\chart.py
+#   python strategies\dividend\v4_rsi\dashboard.py
+#   python strategies\dividend\v9_temp5\charts.py --refresh
+#   python strategies\dividend\v9_temp5\dashboard.py
+#   python strategies\dividend\v4_rsi\fit.py
 # Usage: powershell -ExecutionPolicy Bypass -File run_daily_dividend.ps1
-#   默认只跑看板需要的两个产物：V4 `_v4_signal.json` + V9 `_v9_signal.json`
-#   （V4 daily.py 内部已调 fit 并写 _v4_fit.json）。逐标的图 / dashboard HTML / 独立 fit 加 -Full 才跑。
-param(
-    [switch]$Full
-)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
@@ -29,45 +31,20 @@ function Invoke-Py {
     return $LASTEXITCODE
 }
 
-Write-Host "[1/3] V4 RSI14 timing signal (10-fund dividend pool, hold only top-2)..."
+Write-Host "[1/2] V4 RSI14 timing signal (10-fund dividend pool, hold only top-2)..."
 $rc = Invoke-Py strategies\dividend\v4_rsi\daily.py --refresh
 if ($rc -ne 0) { throw "dividend v4 signal failed (exit $rc)" }
-if ($Full) {
-$rc = Invoke-Py strategies\dividend\v4_rsi\chart.py
-if ($rc -ne 0) { throw "dividend v4 charts failed (exit $rc)" }
-$rc = Invoke-Py strategies\dividend\v4_rsi\dashboard.py
-if ($rc -ne 0) { throw "dividend v4 dashboard failed (exit $rc)" }
-} else {
-Write-Host "[skip] V4 逐标的图 / dashboard HTML —— 看板读 _v4_signal.json（要出图加 -Full）"
-}
 
 Write-Host ""
-Write-Host "[2/3] V9 five-factor valuation temperature (6-fund dividend pool)..."
+Write-Host "[2/2] V9 five-factor valuation temperature (6-fund dividend pool)..."
 $rc = Invoke-Py strategies\dividend\v9_temp5\daily.py --refresh
 if ($rc -ne 0) { throw "dividend v9 daily failed (exit $rc)" }
-if ($Full) {
-$rc = Invoke-Py strategies\dividend\v9_temp5\charts.py --refresh
-if ($rc -ne 0) { throw "dividend v9 charts failed (exit $rc)" }
-$rc = Invoke-Py strategies\dividend\v9_temp5\dashboard.py
-if ($rc -ne 0) { throw "dividend v9 dashboard failed (exit $rc)" }
-} else {
-Write-Host "[skip] V9 逐标的图 / dashboard HTML —— 看板读 _v9_signal.json（要出图加 -Full）"
-}
-
-Write-Host ""
-if ($Full) {
-Write-Host "[3/3] V4 per-fund fit (RSI timing vs buy-and-hold)..."
-$rc = Invoke-Py strategies\dividend\v4_rsi\fit.py
-if ($rc -ne 0) { throw "dividend v4 fit failed (exit $rc)" }
-} else {
-Write-Host "[3/3] [skip] V4 独立 fit —— V4 daily.py 已算过同一份 fit（要重跑加 -Full）"
-}
 
 Write-Host ""
 Write-Host "Done."
 Write-Host "  V4 signal: strategies\dividend\v4_rsi\daily\_v4_signal.md ; JSON: strategies\dividend\v4_rsi\daily\_v4_signal.json"
-Write-Host "  V4 fit:    strategies\dividend\v4_rsi\daily\_v4_fit.json ; HTML: strategies\dividend\v4_rsi\daily\_v4_dashboard.html"
-Write-Host "  V9 signal: strategies\dividend\v9_temp5\daily\_v9_signal.md ; HTML: strategies\dividend\v9_temp5\daily\_v9_temp.html"
+Write-Host "  V4 fit:    strategies\dividend\v4_rsi\daily\_v4_fit.json （daily.py 内已写）"
+Write-Host "  V9 signal: strategies\dividend\v9_temp5\daily\_v9_signal.md ; JSON: strategies\dividend\v9_temp5\daily\_v9_signal.json"
 Write-Host "[i] V4 is a MONTH-END timing strategy: confirmed at month-end close, trade next open; intra-month output is preview only."
 Write-Host "[i] V9 is a 'valuation thermometer' (贵不贵), NOT a timing/position signal; use it for 加/减仓额度参考."
-Write-Host "[i] Since 2026-10-26 daily ops = V4 (replaced V0 scoring); 2026-10-30 V9 temperature merged in. V0 outputs remain in strategies\dividend\v0_rank\daily\; manual rerun: python strategies\dividend\v0_rank\rank.py --refresh"
+Write-Host "[i] 逐标的图 / dashboard HTML / 独立 fit.py 不进看板, 手动命令见本脚本头注释."

@@ -9,11 +9,9 @@
 #   data\_daily_digest_intraday.html  盘中预演（最新盘中快照当收盘重算，不写任何数据文件）
 # 用法: powershell -ExecutionPolicy Bypass -File run_daily_all.ps1
 #       powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Only tech_indicators,vol_variants   # 只跑指定上板策略
-#       powershell -ExecutionPolicy Bypass -File run_daily_all.ps1 -Full   # 连不出卡的研究产物一起刷（慢，约 2 倍）
-# 想刷新某个不出卡的家族(vol_legs / growth_div_rotation / bond_cash v0..v6 等): 直接手动跑它自己的 run_daily_*.ps1 -Full。
+# 想刷新某个不出卡的变种/研究产物: 手动跑它自己的脚本（命令写在各 run_daily_*.ps1 头注释里）。
 param(
-    [string[]]$Only = @(),
-    [switch]$Full
+    [string[]]$Only = @()
 )
 
 $ErrorActionPreference = "Continue"
@@ -84,7 +82,7 @@ foreach ($n in $names) {
     $runner = $st.daily.runner
     if (-not $runner) {
         Write-Host "[$n] $($st.name)"
-        Write-Host "  无独立 runner: 产物由家族 runner 生成, 本卡只读产物"
+        Write-Host "  无独立 runner: 本卡只读其它策略产物, 不单独执行"
         $ok += $n
         Write-Host ""
         continue
@@ -104,8 +102,7 @@ foreach ($n in $names) {
     if (-not (Test-Path $rp)) { Write-Host "  [skip] 找不到 $rp"; $skip += $n; continue }
     $ranBy[$runner] = $n   # 先登记: 同一 runner 后续共享卡不再重复调用(失败也不重试)
     try {
-        # -Full 时把开关透传给各家族 runner（它们默认只跑看板要读的产物）
-        if ($Full) { & $rp -Full } else { & $rp }
+        & $rp
         if ($LASTEXITCODE -ne 0) { throw "runner 退出码 $LASTEXITCODE" }
         $ok += $n
         Write-Host "  [OK] $n"

@@ -87,10 +87,11 @@
       },
       "daily": {
         "enabled": true,
-        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意",
+        "enabled_note": "2026-11-19 已在看板（规则生效前上板，追认历史状态）；新增策略上板必须经用户明确同意。**2026-11-25 用户要求：本卡只是「基准% × 各腿最优策略仓位%」的择时汇总，不展示 §2 的 ±50% 倾斜权重，因此不再随每日操作跑**（runner 置空，卡片改读各腿策略自己的 daily 产物；`_permanent_signal.json` 只在需要时手跑 run_daily_permanent.ps1 刷新）",
         "block": "core",
         "codes": [],
-        "runner": "run_daily_permanent.ps1",
+        "runner": "",
+        "runner_note": "2026-11-25 用户要求不随每日操作跑：本卡五列全部由「基准% × 各腿策略 daily 产物」拼出，§2 倾斜权重不上看板，故无必跑产物；`_permanent_signal.json`(base 快照) 仅在 rule.RAW 变动后手动跑 run_daily_permanent.ps1 刷新。",
         "signal_report": "strategies/permanent/daily/_permanent_report.md",
         "automation": "(未创建)"
       },

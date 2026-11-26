@@ -19,14 +19,18 @@
 
 缓存策略：
 * 新鲜度 3 天（盘中 15:10 前当天的半根 K 由 `factors.align_asof` 剔除，不在这里处理）；
-* `--refresh` 强制重抓；抓取失败**沿用旧缓存**并在 stderr 提示，不静默假装成功。
+* `--refresh` 按需重抓：缓存末根已到「已收盘最新交易日」（`data/_refresh_data.expected_closed`）
+  就直接用缓存，同一天重跑不重复请求；未到才抓，失败沿用旧缓存并提示；
+* 中证指数 / etf.run 的多标的抓取用线程池并发（各线程独立 requests.Session）。
 """
 from __future__ import annotations
 
 import json
 import os
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
 import pandas as pd
@@ -42,15 +46,33 @@ try:
     import urllib3
 
     urllib3.disable_warnings()
-    _SESSION = requests.Session()
-    _SESSION.headers.update({
-        "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
-        "Accept": "application/json, text/plain, */*",
-    })
-    _SESSION.verify = False
 except ImportError:                                  # pragma: no cover - requests 是硬依赖
-    _SESSION = None
+    requests = None
+
+# requests.Session 不是线程安全的；并发抓取时每个工作线程各持一个会话。
+_LOCAL = threading.local()
+
+
+def _session():
+    if requests is None:
+        raise RuntimeError("requests 不可用")
+    s = getattr(_LOCAL, "session", None)
+    if s is None:
+        s = requests.Session()
+        s.headers.update({
+            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
+            "Accept": "application/json, text/plain, */*",
+        })
+        s.verify = False
+        _LOCAL.session = s
+    return s
+
+# 「缓存是否已到已收盘最新交易日」复用跨策略唯一判据，避免同一天重复抓 8 个中证指数。
+_DATA_PATH = os.path.join(rule.ROOT, "data")
+if _DATA_PATH not in sys.path:
+    sys.path.insert(0, _DATA_PATH)
+from _refresh_data import expected_closed as _expected_closed  # noqa: E402
 
 _START = "20100101"
 _CSI_URL = "https://www.csindex.com.cn/csindex-home/perf/index-perf"
@@ -63,15 +85,28 @@ def _warn(msg: str) -> None:
     print(f"[v9:warn] {msg}", file=sys.stderr)
 
 
+def _frame_at_least(df: pd.DataFrame, when: str) -> bool:
+    """DataFrame 的 date 列末根是否已到 when（YYYY-MM-DD）。"""
+    if df is None or df.empty or "date" not in df:
+        return False
+    return pd.to_datetime(df["date"]).max().normalize() >= pd.Timestamp(when)
+
+
+def _cache_at_least(path: str, when: str) -> bool:
+    """CSV 缓存末根是否已到 when（已收盘最新交易日）。"""
+    if not os.path.exists(path):
+        return False
+    return _frame_at_least(pd.read_csv(path, usecols=["date"]), when)
+
+
 def _get_json(url: str, params: dict, referer: str, tries: int = 4, timeout: int = 25):
     """带退避重试的 GET -> json（规则 R2-3：单点失败不许炸掉整轮采集）。"""
-    if _SESSION is None:
-        raise RuntimeError("requests 不可用")
+    sess = _session()
     last = None
     for i in range(tries):
         try:
-            r = _SESSION.get(url, params=params, headers={"Referer": referer},
-                             timeout=timeout, verify=False)
+            r = sess.get(url, params=params, headers={"Referer": referer},
+                         timeout=timeout, verify=False)
             if r.status_code == 200:
                 return r.json()
             last = RuntimeError(f"HTTP {r.status_code}")
@@ -120,10 +155,13 @@ def _cache_fresh(path: str, days: int = 3) -> bool:
 
 
 def load_index(code: str, refresh: bool = False, days: int = 3) -> pd.DataFrame:
-    """指数日频（缓存优先）-> DataFrame(date, close, high, low, pe)。"""
+    """指数日频（缓存优先）-> DataFrame(date, close, high, low, pe)。
+
+    ``refresh=True`` 也只在缓存末根早于「已收盘最新交易日」时才抓：同一天重跑不重复请求。
+    """
     os.makedirs(rule.IDX_DIR, exist_ok=True)
     path = os.path.join(rule.IDX_DIR, f"{code}.csv")
-    if not refresh and _cache_fresh(path, days):
+    if _cache_at_least(path, _expected_closed()) or (not refresh and _cache_fresh(path, days)):
         return pd.read_csv(path, parse_dates=["date"])
     try:
         df = fetch_index_perf(code)
@@ -165,10 +203,10 @@ def fetch_sina(symbol: str, datalen: int = 3000) -> pd.DataFrame:
 
 
 def load_proxy(symbol: str, refresh: bool = False, days: int = 3) -> pd.DataFrame:
-    """标普系价格代理（缓存优先）。"""
+    """标普系价格代理（缓存优先）；已到已收盘日则 refresh 也不重复抓。"""
     os.makedirs(rule.SINA_DIR, exist_ok=True)
     path = os.path.join(rule.SINA_DIR, f"{symbol}.csv")
-    if not refresh and _cache_fresh(path, days):
+    if _cache_at_least(path, _expected_closed()) or (not refresh and _cache_fresh(path, days)):
         return pd.read_csv(path, parse_dates=["date"])
     try:
         df = fetch_sina(symbol)
@@ -401,9 +439,7 @@ def fetch_etfrun_eva(code: str) -> pd.DataFrame:
       与中证官网市值加权的 `peg` **不可混用**（同一天 000922 等权 PE 12.0 vs 加权 9.2）；
     * `close` 实测与中证官网逐日一致（偏差 1e-6 量级），只作交叉校验，不替换价格源。
     """
-    if _SESSION is None:
-        raise RuntimeError("requests 不可用")
-    r = _SESSION.get(_ETF_RUN_URL.format(code=code), timeout=40)
+    r = _session().get(_ETF_RUN_URL.format(code=code), timeout=40)
     if r.status_code != 200:
         raise RuntimeError(f"HTTP {r.status_code}")
     flat = r.text.replace('\\"', '"')
@@ -433,19 +469,27 @@ def load_etfrun_eva(refresh: bool = False, days: int = 3) -> pd.DataFrame:
             old = pd.read_csv(rule.ETF_RUN_CSV, parse_dates=["date"])
         except Exception:  # noqa: BLE001 - 坏缓存当没有
             old = None
-    if not refresh and old is not None and len(old):
-        if old["date"].max() >= pd.Timestamp.today().normalize() - pd.Timedelta(days=days):
-            return old[cols]
+    if old is not None and len(old) and (
+        _frame_at_least(old, _expected_closed())
+        or (not refresh and old["date"].max() >= pd.Timestamp.today().normalize()
+            - pd.Timedelta(days=days))
+    ):
+        return old[cols]
 
     frames, ok = [], set()
-    for idx_key, code in rule.ETF_RUN_CODE.items():
-        try:
-            df = fetch_etfrun_eva(code)
-            df["index_code"] = idx_key
-            frames.append(df[cols])
-            ok.add(idx_key)
-        except Exception as exc:  # noqa: BLE001 - 单只失败不炸整轮
-            _warn(f"etf.run 估值 {idx_key}({code}) 失败：{type(exc).__name__}: {exc}")
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futs = {ex.submit(fetch_etfrun_eva, code): idx_key
+                for idx_key, code in rule.ETF_RUN_CODE.items()}
+        for fut in as_completed(futs):
+            idx_key = futs[fut]
+            try:
+                df = fut.result()
+                df["index_code"] = idx_key
+                frames.append(df[cols])
+                ok.add(idx_key)
+            except Exception as exc:  # noqa: BLE001 - 单只失败不炸整轮
+                _warn(f"etf.run 估值 {idx_key}({rule.ETF_RUN_CODE[idx_key]}) 失败："
+                      f"{type(exc).__name__}: {exc}")
 
     if not frames:
         if old is not None and len(old):

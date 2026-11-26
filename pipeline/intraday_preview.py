@@ -55,6 +55,7 @@ import shutil
 import sys
 import tempfile
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -153,34 +154,48 @@ def _bare(code):
     return code[2:] if len(code) > 6 and code[:2] in ("SH", "SZ") else code
 
 
-def rt_prices(codes):
+def rt_prices(codes, workers=8):
     """{code: (price, pct)} —— 取不到就跳过（返回的 dict 里没有该 code）。
 
     原始返回同时存进 `_RT_RAW`：`get_rt` 对指数也给 `volume`（当日累计），强弱档的
-    `rvol` 折算要用它，不必为此再请求一次。
+    `rvol` 折算要用它，不必为此再请求一次。约 65 只标的的 `get_rt` 互不依赖，
+    用 8 路线程池并发；同一标的的备选源仍在线程内串行尝试。返回按输入顺序重排。
     """
     import xalpha as xa
 
     gi = _mp("gi_intraday", os.path.join(_ROOT, "_gen_indicators.py"))
-    out, fails = {}, {}
-    for c in dict.fromkeys(codes):
+    wanted = list(dict.fromkeys(codes))
+
+    def _one(c):
         # 港股/美股代码本身就是 `get_rt` 的入参（不能再拼 SH/SZ 前缀，否则拼出来的是废代码）
         if c.startswith(("HK", ".")):
             cands = (c,)
         else:
             pref = gi.exchange_prefix(c)
             cands = (pref + c, ("SZ" if pref == "SH" else "SH") + c)
+        last = None
         for full in cands:
             try:
                 rt = xa.get_rt(full)
                 cur = rt.get("current")
                 if cur:
-                    out[c] = (float(cur), _pct(rt) or 0.0)
-                    _RT_RAW[c] = rt
-                    _RT_RAW[_bare(c)] = rt
-                    break
+                    return c, (float(cur), _pct(rt) or 0.0), rt, None
             except Exception as exc:  # noqa: BLE001
-                fails[c] = f"{type(exc).__name__}: {exc}"
+                last = f"{type(exc).__name__}: {exc}"
+        return c, None, None, last or "无实时价"
+
+    out, fails = {}, {}
+    with ThreadPoolExecutor(max_workers=min(workers, len(wanted) or 1)) as ex:
+        futs = {ex.submit(_one, c): c for c in wanted}
+        for fut in as_completed(futs):
+            c, val, raw, err = fut.result()
+            if val is not None:
+                out[c] = val
+                _RT_RAW[c] = raw
+                _RT_RAW[_bare(c)] = raw
+            else:
+                fails[c] = err
+    out = {c: out[c] for c in wanted if c in out}
     if fails:
         _note(f"实时价缺失 {len(fails)} 只（沿用缓存末根）: "
               + "、".join(list(fails)[:6]))

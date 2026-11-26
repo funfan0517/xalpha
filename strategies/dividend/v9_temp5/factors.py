@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
@@ -55,6 +56,19 @@ TEMP_KIND_VAL = "五因子温度"
 TEMP_KIND_PX = "价格温度"
 
 
+def _load_indexes(codes, refresh=False, workers=6):
+    """并行补齐指数日频缓存 -> {code: DataFrame}；口径与 data.load_index 完全一致。"""
+    wanted = list(dict.fromkeys(c for c in codes if c))
+    out = {}
+    if not wanted:
+        return out
+    with ThreadPoolExecutor(max_workers=min(workers, len(wanted))) as ex:
+        futs = {ex.submit(data.load_index, c, refresh): c for c in wanted}
+        for fut in as_completed(futs):
+            out[futs[fut]] = fut.result()
+    return out
+
+
 # ------------------------------------------------------------------ 日频面板
 def _bond_for(index: pd.DatetimeIndex, cn: pd.Series) -> pd.Series:
     """10Y 中债前填到价格日期（池内已无港股标的，不再分支美债锚）。"""
@@ -63,7 +77,8 @@ def _bond_for(index: pd.DatetimeIndex, cn: pd.Series) -> pd.Series:
 
 
 def fund_daily(f: dict, cn: pd.Series, refresh: bool = False,
-               dy_map: dict | None = None, eva_map: dict | None = None) -> pd.DataFrame:
+               dy_map: dict | None = None, eva_map: dict | None = None,
+               idx_map: dict | None = None) -> pd.DataFrame:
     """单只标的日频面板 -> DataFrame(index=date, close/high/low/pe/pb/dev/pos/dy/spread/y10)。
 
     价格取中证官网日频；PE/PB 取 etf.run 等权日频（**唯一**估值源）。
@@ -73,7 +88,9 @@ def fund_daily(f: dict, cn: pd.Series, refresh: bool = False,
     if ew is None or not len(ew):
         print(f"[v9:warn] {f['code']}({f['index']}) 无 etf.run 等权估值，跳过", file=sys.stderr)
         return pd.DataFrame()
-    raw = data.load_index(f["index"], refresh=refresh)
+    raw = idx_map.get(f["index"]) if idx_map is not None else None
+    if raw is None:
+        raw = data.load_index(f["index"], refresh=refresh)
     if raw.empty:
         return pd.DataFrame()
     d = raw.set_index("date").sort_index()
@@ -107,7 +124,8 @@ def fund_daily(f: dict, cn: pd.Series, refresh: bool = False,
 
 
 # ------------------------------------------------------------------ † 副表（只价格，无估值）
-def px_daily(f: dict, refresh: bool = False) -> tuple[pd.DataFrame, dict]:
+def px_daily(f: dict, refresh: bool = False,
+             idx_map: dict | None = None) -> tuple[pd.DataFrame, dict]:
     """副表标的日频面板（**只算价格因子**）-> (DataFrame, meta)。
 
     * `src="csi"`：中证官网日频（931157 / 930914）；
@@ -124,7 +142,9 @@ def px_daily(f: dict, refresh: bool = False) -> tuple[pd.DataFrame, dict]:
             return pd.DataFrame(), meta
         d = raw.set_index("date")[["close", "high", "low"]].sort_index()
     else:
-        raw = data.load_index(f["index"], refresh=refresh)
+        raw = idx_map.get(f["index"]) if idx_map is not None else None
+        if raw is None:
+            raw = data.load_index(f["index"], refresh=refresh)
         if raw.empty:
             return pd.DataFrame(), meta
         d = raw.set_index("date")[["close", "high", "low"]].sort_index()
@@ -153,9 +173,11 @@ def build_side(refresh: bool = False) -> dict[str, dict]:
 
     只服务 `daily.py` 与 `charts.py`；**不进 `backtest.py`**，避免价格温度混入回测池。
     """
+    idx_map = _load_indexes([f["index"] for f in rule.SIDE_FUNDS
+                             if f.get("src") != "sina"], refresh=refresh)
     out = {}
     for f in rule.SIDE_FUNDS:
-        daily, meta = px_daily(f, refresh=refresh)
+        daily, meta = px_daily(f, refresh=refresh, idx_map=idx_map)
         if daily.empty:
             print(f"[v9:warn] 副表 {f['code']}({f['index']}) 无价格数据，跳过", file=sys.stderr)
             continue
@@ -262,9 +284,11 @@ def build(weights: dict | None = None, refresh: bool = False,
     if len(eva):
         eva_map = {c: g.set_index("date")[["pe", "pb"]].sort_index()
                    for c, g in eva.groupby("index_code")}
+    idx_map = _load_indexes([f["index"] for f in rule.FUNDS], refresh=refresh)
     out = {}
     for f in rule.FUNDS:
-        daily = fund_daily(f, cn, refresh=refresh, dy_map=dy_map, eva_map=eva_map)
+        daily = fund_daily(f, cn, refresh=refresh, dy_map=dy_map, eva_map=eva_map,
+                           idx_map=idx_map)
         if daily.empty:
             print(f"[v9:warn] {f['code']} 无价格数据，跳过", file=sys.stderr)
             continue

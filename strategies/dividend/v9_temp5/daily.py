@@ -21,7 +21,7 @@
 用法::
 
     python strategies/dividend/v9_temp5/daily.py            # 用缓存
-    python strategies/dividend/v9_temp5/daily.py --refresh  # 先抓最新行情
+    python strategies/dividend/v9_temp5/daily.py --refresh  # 缓存未到已收盘最新交易日才抓（并发）
 """
 from __future__ import annotations
 

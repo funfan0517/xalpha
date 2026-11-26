@@ -10,6 +10,7 @@ r"""标的池与行情面板（三个策略共用）。
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import pandas as pd
@@ -71,18 +72,27 @@ def load_bars(code, start=START):
 
 
 def fetch_all(codes=None):
-    """逐标的抓取日线 -> {code: {dates, open, high, low, close, volume}}。"""
-    out = {}
-    for code in (codes or CODES):
-        try:
-            df = load_bars(code)
-        except Exception as e:  # noqa: BLE001 - 单标的失败仅记录，不影响全池
-            print(f"[warn] {code} 抓取失败: {type(e).__name__}: {e}", file=sys.stderr)
-            continue
-        out[code] = {"dates": [str(d.date()) for d in df["date"]]}
-        for f in _FIELDS:
-            out[code][f] = [float(x) for x in df[f].to_list()]
-    return out
+    """并发抓取全池日线 -> {code: {dates, open, high, low, close, volume}}。
+
+    与 v17_octo_trend 一样用 6 路线程池（单标的一次 HTTP、互不依赖）；写缓存仍在调用方主线程，
+    返回时按传入顺序重排，保持面板列序稳定。
+    """
+    want = list(codes or CODES)
+    got = {}
+    with ThreadPoolExecutor(max_workers=min(6, len(want) or 1)) as ex:
+        futs = {ex.submit(load_bars, code): code for code in want}
+        for fut in as_completed(futs):
+            code = futs[fut]
+            try:
+                df = fut.result()
+            except Exception as e:  # noqa: BLE001 - 单标的失败仅记录，不影响全池
+                print(f"[warn] {code} 抓取失败: {type(e).__name__}: {e}", file=sys.stderr)
+                continue
+            node = {"dates": [str(d.date()) for d in df["date"]]}
+            for f in _FIELDS:
+                node[f] = [float(x) for x in df[f].to_list()]
+            got[code] = node
+    return {c: got[c] for c in want if c in got}
 
 
 def load_panels(refresh=False, cache=CACHE, ffill=False):

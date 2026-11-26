@@ -2,7 +2,7 @@
 
 > **研究确认无提升**。规则与数字来源：
 > [`research/beat_best/_beat_best_top3.md`](../research/beat_best/_beat_best_top3.md)（2026-11-18）。
-> _beat_best_top3.md：同尺基线夏普 0.28，九个候选无一通过双闸门（最佳 ROT 也是 0.28、后段 0.30 vs 0.23）；保持当前 ★1 V3。
+> _beat_best_top3.md：同尺基线夏普 0.28，十一个候选（含 2026-11-26 新增的 TV10/TV15）无一通过双闸门（最佳 ROT 也是 0.28、后段 0.30 vs 0.23）；保持当前 ★1 V3。
 
 ## 规则
 

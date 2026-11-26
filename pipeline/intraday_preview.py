@@ -500,9 +500,10 @@ _VARIANTS = (
     ("v17", "v17_spx_v12", "_v17_daily", False, "🟢"),
     ("v18", "v18_kc50_e2tv", "_v18_daily", True, "🟠"),
     ("v19", "v19_hkt_v3", "_v19_daily", True, "🟢"),
-    ("v20", "v20_gold_v5", "_v20_daily", True, "🟢"),
+    ("v20", "v20_gold_v5", "_v20_daily", True, "🟠"),
 )
 # 🟠 = 含 V12 八态成分：强弱档要 `rvol`，盘中量只能按交易进度折算
+#      （v20 自 2026-11-26 改成 `E2×TV15` 后也含 V12，由 🟢 改 🟠）
 # 🟢 = A股/港股纯价格策略，或美股腿（行情已完整）
 _VARIANT_TONE = {v[0]: v[4] for v in _VARIANTS}
 _US_LEG = {"v16": "ndx", "v17": "spx"}      # 美股两腿：正常情况下沿用正式版产物

@@ -284,10 +284,11 @@ def main():
     g_all_sh = int((gdf["g_sharpe"] > ru_bh_sharpe(d)).sum()) if "g_sharpe" in gdf else 0
 
     # 步长对照 + 敏感性
-    sens = [("基准（10% 目标 · 120 日 · 闸门 0.5±0.15 · 低配 0.5 · 步长 20%）", rS)]
+    sens = [(f"基准（10% 目标 · {F.VOL_WINDOW} 日 · 闸门 0.5±0.15 · 低配 0.5 · 步长 20%）", rS)]
     for nm, over in (("步长 25%（五档）", dict(STEP=0.25)),
                      ("波动目标 8%", dict(VOL_TARGET=0.08)),
                      ("波动目标 12%", dict(VOL_TARGET=0.12)),
+                     ("窗口 120 日", dict(VOL_WINDOW=120)),
                      ("窗口 60 日", dict(VOL_WINDOW=60)),
                      ("闸门关闭（恒满预算）", dict(RATE_LEVEL_TH=-99.0)),
                      ("闸门死区 0", dict(RATE_LEVEL_BAND=0.0)),
@@ -375,7 +376,7 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
       f"`e* = 量化(scale × gate, {F.STEP:.0%})`。")
     A(f"> 标的 = 场内 `{S.SIGNAL_CODE}`（信号/执行/回测同一只 ETF），实际利率 = FRED `DFII10`"
       f"（{d['rate'].index[0].date()} 起）。样本 {px.loc[d['start']:].index[0].date()} ~ "
-      f"{px.index[-1].date()}（{yrs_all:.1f} 年，起算点 = 120 日波动就绪）。"
+      f"{px.index[-1].date()}（{yrs_all:.1f} 年，起算点 = {F.VOL_WINDOW} 日波动就绪）。"
       f"T 日收盘算信号 → **T+1 收盘成交**；单边佣金 {S.FEE:.5%}、滑点 {S.SLIP:.2%}，"
       f"空仓按货基 {S.CASH_ANNUAL:.2%} 计息。")
     A("> 参数唯一权威源：`factors.py` 顶部常量（风险预算 + 闸门）+ `score.py` 顶部常量（成本与现金）。")
@@ -421,7 +422,7 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
     A(f"| 信号价 / 执行 | 场内 `{S.SIGNAL_CODE}` 黄金ETF华安（无分红，前复权价与原始价一致） |")
     A(f"| 价格数据 | `data/_ohlcv.json` + `data/_long_klines.json`（`_idxcache.frame('gold')` 合并，"
       f"{px.index[0].date()} 起，**有真实日内高低**） |")
-    A(f"| 风险预算 | 120 日已实现波动 → `clip({F.VOL_TARGET:.0%} / vol, {F.VOL_MIN:.0%}, 1)`，"
+    A(f"| 风险预算 | {F.VOL_WINDOW} 日已实现波动 → `clip({F.VOL_TARGET:.0%} / vol, {F.VOL_MIN:.0%}, 1)`，"
       "逐日更新、跨 1 档（20pp）才动 |")
     A(f"| 实际利率闸门 | `data/_dfii10.csv`（FRED DFII10，{d['rate'].index[0].date()} ~ "
       f"{d['rate'].index[-1].date()}）；T 日用 ≤T−1；`> {F.RATE_LEVEL_TH:+.2f}%` "
@@ -519,7 +520,7 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
     A(f"> 夏普区间 {num(float(gdf['sharpe'].min()))} ~ {num(float(gdf['sharpe'].max()))}、"
       f"中位 {num(float(gdf['sharpe'].median()))}（满仓 {num(mBH['sharpe'])}、恒半仓 "
       f"{num(mHF['sharpe'])}）—— **没有一个参数组合掉回基准水平**，说明这不是单点拟合。")
-    A(f"> 默认参数（10% / 120 日 / 闸门 0.5 / 低配 0.5）落在 {pct(mS['ann'])} / "
+    A(f"> 默认参数（10% / {F.VOL_WINDOW} 日 / 闸门 0.5 / 低配 0.5）落在 {pct(mS['ann'])} / "
       f"{pct(mS['mdd'])} / 夏普 {num(mS['sharpe'])}，处于网格的中间偏上位置，不是尖峰。")
     A("")
 
@@ -601,8 +602,8 @@ def render(d, rS, rBH, rHF, rCA, seg, yrs, yS, yBH, yHF, abl, gdf,
       "「独立段 ≥50 才写成规则」，低换手的风险预算天然达不到。证据等级由另外三条补强："
       "400 组参数面方向一致性、20 年 XAU 外推、三段 IS/OOS 同向。"
       "**如果要求严格满足段数门槛，这套规则应降级为「描述级」。**")
-    A("5. **样本 2014-01 起（120 日波动就绪）**：比 ETF 上市晚半年，但四个口径（策略/满仓/半仓/现金）"
-      "都在同一窗口上比较，不影响可比性。")
+    A(f"5. **样本 {px.loc[d['start']:].index[0].date()} 起（{F.VOL_WINDOW} 日波动就绪）**：比 ETF 上市晚"
+      "几个月，但四个口径（策略/满仓/半仓/现金）都在同一窗口上比较，不影响可比性。")
     A("6. **与 v6 不叠加**：`v6_gold` 的 B 口径（纯波动目标）与本策略共用同一个风险机制，"
       "同时跑会重复加减同一份额度；差别只在本策略多了利率闸门与 20pp 档位量化。")
     A("7. **20 年 XAU 不是「样本外」的严格意义**：闸门阈值与波动目标都是在 518880 这 13 年里定的，"

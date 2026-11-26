@@ -1111,7 +1111,7 @@ _VOL_FIGS = [
      f"**恒生科技**（执行 `012805` · {_VOL_PRICE}）· V19 V3 MACD+BOLL（原生引擎），当前 ★1；研究确认无提升"
      " · 长期图（近三年版在策略目录 research/ 下）"),
     ("strategies/vol_legs/v20_gold_v5/research/_v20_gold.png",
-     f"**黄金**（执行 `518880` · {_VOL_PRICE}）· V20 V5 黄金仓位（风险预算 × 实际利率闸门），当前 ★1"
+     f"**黄金**（执行 `518880` · {_VOL_PRICE}）· V20 `(V5 + V12)/2 × 波动上限 TV15%`，★ 研究超越项"
      " · 长期图（近三年版在策略目录 research/ 下）"),
 ]
 

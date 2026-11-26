@@ -3,7 +3,8 @@
 
 落地清单不在这里维护：读同目录 `_beat_best_5y.jsonl`（由 `_beat_best_5y.py` 生成），
 每腿取 `adopted_idx` 指向的候选（无超越项时 = 0 = ★1 本身），然后用**同一套组合公式**
-在**决策层**重算最后一根 bar 的仓位。
+在**决策层**重算最后一根 bar 的仓位。例外见模块常量 `_OVERRIDE`（黄金 2026-11-26
+用户指定改用 E2×TV10 波动上限）—— 只改本卡的采用项，研究产物保持原结论。
 
 ## 三个仓位概念，别混
 
@@ -34,6 +35,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import sys
 
 import pandas as pd
@@ -49,6 +51,14 @@ OUT_MD = os.path.join(_HERE, "_daily_positions_5y.md")
 # 看板**不解析 md**（列宽/文案一改就断），产物结构变更要同步那边的字段名。
 OUT_JSON = os.path.join(_HERE, "_daily_positions_5y.json")
 REC_JSONL = os.path.join(_HERE, "_beat_best_5y.jsonl")
+
+# 本卡对采用项的覆盖（**只改落地清单，不动研究结论**）。
+# 2026-11-26 用户指定：黄金采用 **E2×TV10 波动上限**（近五年 1.83 / 后段 2.14，全历史 1.08 也第一），
+# 不用 `_beat_best_5y.jsonl` 默认的 SW MA200→V12 —— SW 的超越只在 5 年窗口成立、跨窗口不复现。
+# `label` 用于在 `bb.candidates()` 的候选里按前缀定位（TV10/TV15/TV20 三档并列，前缀必须带刻度）。
+_OVERRIDE = {
+    "gold": dict(label="E2×TV10", kind="E2×TV", attr="信号效应"),
+}
 
 
 def _load(mod_name):
@@ -91,13 +101,20 @@ def explain(rec, legs_dec, px, LAST):
         used = ks[0] if above else ks[1]
         return (f"MA200 **{'上方' if above else '下方'}**（前一日判断）→ 用 {lab[used]}；"
                 f"{part}")
-    # `_beat_best_5y.py::cand_kind` 归类别时只保留 "E2×TV"（不带 20），故两种写法都要认，
-    # 否则这一支永不命中，科创50 的解释会退化成裸的「分项 / 分项」。
-    if kind in ("E2×TV", "E2×TV20"):
+    # `_beat_best_5y.py::cand_kind` 会对 TV 分档返回 "E2×TV10 / E2×TV15 / E2×TV20"，
+    # 更早的版本只返回 "E2×TV"（不带刻度）—— 两种写法都要认，否则这一支永不命中，
+    # 科创50 / 黄金 的解释会退化成裸的「分项 / 分项」。
+    if kind.startswith("E2×TV"):
         avg = (LAST[ks[0]] + LAST[ks[1]]) / 2.0
-        cap = _last(legs_dec["__tv20__"])
-        return (f"{lab[ks[0]]} + {lab[ks[1]]} 平均 {_pct(avg)}，过 TV20 上限 "
-                f"{_pct(cap)} → 取低者；{part}")
+        mm = re.search(r"TV(\d+)", str(rec["adopted"]))
+        tv = int(mm.group(1)) if mm else 20
+        cap = _last(legs_dec.get(f"__tv{tv}__"))
+        if avg is None or cap is None:
+            return part
+        # 候选公式是 `等权仓位 × TV 上限系数`（不是 min），说明里必须写乘法，否则
+        # 显示 20% / 上限 69% 而目标是 14%，看起来像算错（2026-11-26 修）。
+        return (f"{lab[ks[0]]} + {lab[ks[1]]} 等权 {_pct(avg)} × TV{tv} 上限系数 "
+                f"{_pct(cap)} = {_pct(avg * cap)}；{part}")
     if kind == "ROT":
         return f"月末 252 日动量轮动 → {part}"
     return part
@@ -140,8 +157,20 @@ def main():
         cands_h = bb.candidates(hold, px)
         cands_d = bb.candidates(dec, px)
         idx = int(rec.get("adopted_idx") or 0)
-        # TV20 上限单独算一次，供 explain 显示（E2×TV20 那条候选的封顶值）
-        dec["__tv20__"] = bb.vol_cap(px, 0.20)
+        ov = _OVERRIDE.get(leg)
+        if ov:
+            hit = [i for i, item in enumerate(cands_d) if item[0].startswith(ov["label"])]
+            if not hit:
+                raise SystemExit(
+                    f"{rec['leg_name']} 找不到采用项 {ov['label']}；候选："
+                    + " / ".join(x[0] for x in cands_d))
+            idx = hit[0]
+            rec["adopted"] = cands_d[idx][0].strip()
+            rec["adopted_kind"] = ov["kind"]
+            rec["attr"] = ov.get("attr")
+        # TV 三档上限各算一次，供 explain 按采用项的刻度取用（TV10/15/20 并列候选）
+        for _tv in (0.20, 0.15, 0.10):
+            dec[f"__tv{int(_tv * 100)}__"] = bb.vol_cap(px, _tv)
 
         LAST = {k: _last(dec[k]) for k in dec}
         now = _last(cands_h[idx][1])
@@ -191,7 +220,7 @@ def main():
             f"**{r['name']} {r['tgt'] * 100:.0f}%**" for r in held) + "，其余全部 0%——")
     if worst:
         brief += ("近 5 日 " + "、".join(f"{r['name']} {r['ret5'] * 100:+.1f}%" for r in worst)
-                  + "，八态趋势 / 波动层类策略集体转空仓。这**不是脚本没跑出数**，是规则在防守。")
+                  + "，多数单腿策略仍在减仓防守。这**不是脚本没跑出数**，是规则在防守。")
     L = ["# 按「近五年各标的最优组合」给出的当日目标仓位", "",
          f"> 由 `research/beat_best_5y/_daily_positions_5y.py` 生成（{pd.Timestamp.now():%Y-%m-%d %H:%M}）。"
          f"行情截止：**{'、'.join(str(d) for d in dates)}**。", ""]
@@ -223,16 +252,21 @@ def main():
 
     L += ["", "## 3. 边界（必读）", "",
           "1. **这是近五年窗口内的筛选结果，未经样本外验证**：★1 与超越项用的是同一段数据。"
-          "跨窗口复现的只有纳指100（SW MA200→V12）与科创50（E2×TV20）；"
-          "**中证A500（MAX2）与沪深300（E3）的超越技法在两个窗口不一致**，这两条腿的"
+          "跨窗口复现的只有纳指100（SW MA200→V12）、科创50 与黄金（E2×TV10）；"
+          "**中证A500（MAX2）与沪深300（E2×TV10）的超越技法在两个窗口不一致**，这两条腿的"
           "「超越项」不宜单独当实盘依据。",
           "2. **同尺口径 vs 原生费率**：本组合的评估用统一单边 10bp。零费 C 类腿"
           "（A500/科创50/恒科）上的 V1~V3 在原生口径下更强，`_beat_best_5y.md` 的"
           "`·成本效应` 标记说明哪些「超越」只是省费。",
           "3. **与全历史版冲突时以全历史版为准**：`beat_best/_beat_best_top3.md` 的基线来自 20 年样本，"
-          "其超越项（A500=E2、沪深300=MIN2、纳指=SW、科创50=E2×TV20）才是主要参考。",
+          "其超越项（A500=E2、沪深300=MIN2、纳指=SW、科创50=E2×TV10、黄金=E2×TV10）才是主要参考。",
           "4. **仓位是「单腿目标」，不是组合权重**：七条腿合计不等于账户整体风险敞口，"
-          "空仓部分只拿货基（1.40%），未计跨腿相关性。", "",
+          "空仓部分只拿货基（1.40%），未计跨腿相关性。",
+          "5. **黄金的采用项是本卡覆盖**：用户 2026-11-26 指定用 **E2×TV10 波动上限**"
+          "（近五年 1.83 / 后段 2.14，全历史 1.08 也是第一），不用 `_beat_best_5y.md` 默认的"
+          "SW MA200→V12 —— SW 的超越只在 5 年窗口成立、跨窗口不复现。"
+          "注意本卡（TV10）与 v20 卡（TV15，用户同日定的折中档）**不是同一档**："
+          "本卡是研究口径的「近五年最优」，v20 是落地交易口径。",
           "> 机械规则输出，非投资建议。"]
     with io.open(OUT_MD, "w", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")

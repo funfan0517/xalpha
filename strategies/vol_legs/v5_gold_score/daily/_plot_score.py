@@ -3,7 +3,7 @@
 
 三格：
 - 上格：策略净值（扣真实成本）vs 恒持满带 vs 恒定半仓，▲▼ 标操作点；
-- 中格：120 日已实现波动（右轴）与风险预算 `scale`（左轴）+ 利率闸门 `gate`（虚线）；
+- 中格：90 日已实现波动（右轴）与风险预算 `scale`（左轴）+ 利率闸门 `gate`（虚线）；
 - 下格：目标档 e*（虚线）与实际档 e（实线阶梯），六档 0/20/40/60/80/100%。
 
 产物（本目录 `daily/`）：`_v5_gold_score.png`（全历史）· `_v5_gold_score_3y.png`（近三年）。
@@ -119,7 +119,7 @@ def plot(years=None, out_dir=_HERE):
     axr.grid(ls="--", lw=0.55, alpha=0.28)
     axr2 = axr.twinx()
     axr2.plot(idx, vol.to_numpy(), color=C_VOL, lw=2.6, alpha=0.55, zorder=2,
-              label="120 日实现波动（右轴）")
+              label=f"{F.VOL_WINDOW} 日实现波动（右轴）")
     axr2.step(idx, gate.to_numpy(), where="post", color=C_GATE, lw=1.0, ls="--", zorder=3,
               label="利率闸门 gate（右轴 0.5/1）")
     axr2.set_ylim(-0.1, max(0.85, float(vol.max()) * 1.15))

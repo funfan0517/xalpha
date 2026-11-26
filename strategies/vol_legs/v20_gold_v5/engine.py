@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
-"""v20 · 黄金 · V5 黄金仓位（风险预算 × 实际利率闸门）· 当前 ★1。
+"""v20 · 黄金 · `(V5 + V12)/2 × 波动上限 TV15%` —— ★ 研究超越项。
 
-来源：`strategies/vol_legs/research/best_by_leg/_best_by_leg.md` §0（2026-11-19 重跑）：
-黄金腿 ★1 由 V6-B（夏普 0.74 / 回撤 −16.12%）换成 **V5**（夏普 1.02 / 回撤 −12.33%）。
-`research/beat_best/_beat_best_top3.md` 里九个「前三名之上的组合/叠加」候选
-**无一通过双闸门**（最好的 MIN2 0.98 < 基线 1.04），所以 v20 就是 ★1 本身。
+来源：`strategies/vol_legs/research/beat_best/_beat_best_top3.md`（2026-11-26 重跑，
+候选池加入 TV15 / TV10 两档之后）。黄金腿 ★1 仍是 `v5_gold_score`（V5，波动窗口 90 日），
+但「E2 = 与 V12 等权融合 + 波动上限」在 2026-11-26 首次过了双闸门。
 
-规则（`v5_gold_score/factors.py` + `score.py`，原生状态机）：
-1. `scale = clip(10% / 120 日实现波动, 20%, 1)` —— 风险预算（不是 alpha，是风险归一化）；
-2. `gate = 1.0 / 0.5` —— 实际利率（FRED `DFII10`）**水平**闸门，`0.5% ± 0.15pp` 死区；
-3. `e* = 量化(clip(scale × gate, 0, 1), 20%)` —— 六档 0/20/40/60/80/100%；
-4. 跨 1 档（20pp）才动；T 日收盘算信号 → **T+1 收盘成交**。
+**2026-11-26 用户决定：黄金腿采用 `E2×TV15`（不取研究最优的 TV10）** ——
+TV10 的换手从 5.3 涨到 57.9 次/年、且同一技法在 XAU 19.5 年上反向（夏普 0.79→0.72）；
+TV15 是折中档：全历史同尺 1.0x（后段 1.6x）、近五年 1.74（后段 2.03）。
 
-与 v20 旧口径（V6-B 纯波动层）的区别只有一条：多了**实际利率水平**这一维 ——
-闸门不开（实际利率过低，未来更可能上行）时只拿一半风险预算。两者共用同一风险机制，
-**不可叠加在同一份额度上**。
+规则（逐日权重全部来自原生引擎，经 `_top3_bridge.py` 隔离加载，不重写规则）：
+1. **V5**：`scale = clip(10% / 90 日实现波动, 20%, 1)` × 实际利率闸门（`DFII10` 水平
+   `0.5% ± 0.15pp`）→ 量化到 20pp 六档 —— `v5_gold_score` 原生状态机；
+2. **V12**：八态趋势的许可上限仓位（`v12_octo_trend` 原生引擎，黄金腿 TV10 + 死区）；
+3. **E2** = 两条腿等权平均 —— 跨信号族分散（风险预算 × 趋势状态机）；
+4. **cap** = `min(1, 15% / σ20)`，带 5 日冷却与 5pp 死区（复用 v2/v3 的 `vol_cap`）；
+5. 仓位 = `E2 × cap`；T 日收盘算信号 → **T+1 收盘成交**。
 
-`weight(t)` = t 日收盘成交后的仓位（v5 的 `state` 已含 T+1 成交滞后），
-`run()` 内 `shift(1)` → 与研究/回测同口径。
+`weight(t)` = t 日收盘决策（未 shift），`run()` 内 `shift(1)` → T+1 收益生效。
 成本：研究口径统一单边 10bp（V5 自己的产物用场内万 2.5）；空仓货基 1.40%。
 """
 import os
@@ -36,11 +36,12 @@ for _p in (_HERE, _STRAT, _VL):
 from _top3_bridge import CASH_ANNUAL, FEE_SIDE, WARMUP, bridge  # noqa: E402
 
 LEG = "gold"
-LABEL = "v20 黄金 · V5 黄金仓位（风险预算 × 利率闸门）"
-STATUS = "当前 ★1（研究确认无提升）"
-RULE_TXT = ("风险预算 scale=clip(10%/120 日波动, 20%, 1) × 实际利率闸门 gate(DFII10 水平 0.5%±0.15pp) "
-            "→ 量化到 20pp 六档；跨 1 档才动，T 日收盘信号 → T+1 收盘成交")
-PARAMS = {"VOL_TARGET": 0.10, "VOL_WINDOW": 120, "STEP": 0.20, "HYST": 1}
+LABEL = "v20 黄金 · (V5 + V12)/2 × 波动上限 TV15%"
+STATUS = "★ 研究超越项（E2×TV15）"
+RULE_TXT = ("(V5 黄金仓位 + V12 八态趋势) 等权 × 波动上限 TV15%（σ20，5 日冷却 / 5pp 死区）；"
+            "T 日收盘信号 → T+1 收盘成交")
+PARAMS = {"VOL_TARGET": 0.10, "VOL_WINDOW": 90, "TV": 0.15, "TV_WIN": 20, "BLEND": "E2"}
+
 
 def load(leg=LEG):
     """该腿信号价：真实指数收盘（黄金 = 518880 场内 ETF）。"""
@@ -55,10 +56,21 @@ def detail(px=None):
     return bridge.v5_detail(px if px is not None else load(), LEG)
 
 
-def weight(px):
-    """t 日收盘成交后的仓位 ∈ [0,1]（v5 `state` 已含 T+1 成交滞后）。"""
+def parts(px):
+    """E2×TV 的三个部件（决策口径，未 shift），供日报解释用。"""
     px = px.astype("float64")
-    return bridge.v5(px, LEG)
+    a = bridge.v5(px, LEG)
+    b = bridge.v12(px, LEG)
+    e2 = ((a + b) / 2.0).reindex(px.index).fillna(0.0)
+    cap = bridge.cap_for_decision(px, tv=float(PARAMS["TV"]))
+    return dict(v5=a.reindex(px.index).fillna(0.0), v12=b.reindex(px.index).fillna(0.0),
+                e2=e2, cap=cap.reindex(px.index).fillna(0.0))
+
+
+def weight(px):
+    """t 日收盘决策仓位 ∈ [0,1]：`E2 × cap`（cap 已按决策口径左移一格）。"""
+    d = parts(px)
+    return (d["e2"] * d["cap"]).reindex(px.index).fillna(0.0).clip(0.0, 1.0)
 
 
 def run(px, sig=None, cash=None, fee=None):

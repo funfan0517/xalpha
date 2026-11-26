@@ -115,7 +115,7 @@ def main():
     gap_pp = abs(target - state) * S.BAND_PP
     threshold_pp = F.HYST * F.STEP * S.BAND_PP
 
-    cond = (f"120 日实现波动 {vol:.1%}（目标 {F.VOL_TARGET:.0%}）→ 风险预算 {scale:.2f}；"
+    cond = (f"{F.VOL_WINDOW} 日实现波动 {vol:.1%}（目标 {F.VOL_TARGET:.0%}）→ 风险预算 {scale:.2f}；"
             f"DFII10 {lvl:+.2f}%（{rate_date}）"
             f"{'高于' if gate >= 1.0 else '不高于'} {F.RATE_LEVEL_TH:+.1f}% → 闸门 {gate:.2f}"
             f"（死区 ±{F.RATE_LEVEL_BAND:.2f}pp）")
@@ -154,7 +154,7 @@ def main():
     A("")
     A("| 项 | 读数 |")
     A("|---|---|")
-    A(f"| 实现波动（120 日） | **{vol:.1%}**（目标 {F.VOL_TARGET:.0%}，下限 {F.VOL_MIN:.0%}） |")
+    A(f"| 实现波动（{F.VOL_WINDOW} 日） | **{vol:.1%}**（目标 {F.VOL_TARGET:.0%}，下限 {F.VOL_MIN:.0%}） |")
     A(f"| 风险预算 scale | **{scale:.2f}** = clip({F.VOL_TARGET:.0%} / {vol:.1%}, "
       f"{F.VOL_MIN:.0%}, 1) |")
     A(f"| 实际利率水平 | **{lvl:+.2f}%**（{rate_date}；阈值 {F.RATE_LEVEL_TH:+.1f}%"
@@ -170,7 +170,7 @@ def main():
 
     A("## 一、规则读数")
     A("")
-    A(f"- 风险预算：120 日已实现波动 **{vol:.1%}**，目标 {F.VOL_TARGET:.0%} → "
+    A(f"- 风险预算：{F.VOL_WINDOW} 日已实现波动 **{vol:.1%}**，目标 {F.VOL_TARGET:.0%} → "
       f"`scale = clip({F.VOL_TARGET:.0%} / {vol:.1%}, {F.VOL_MIN:.0%}, 1) = {scale:.2f}`。"
       "波动越高、能承担的风险越小 —— 这是「风险归一化」，不是方向判断。")
     A(f"- 利率闸门：DFII10 水平 **{lvl:+.2f}%**（{rate_date}，T−1 口径）。"

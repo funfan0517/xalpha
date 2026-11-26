@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v20 单腿图：黄金 · V5 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
+"""v20 单腿图：黄金 · `(V5 + V12)/2 × 波动上限 TV15%` · ★ 研究超越项。
 
 产物：`research/_<v>___leg__.png`（长期）与 `_<v>___leg___3y.png`（近三年）。
 信号与净值在全样本上算，近三年只截末端并归 1。机械规则输出，非投资建议。
@@ -20,11 +20,11 @@ for _p in (_VL, _STRAT, _HERE):
 import engine                  # noqa: E402
 import _plot_leg_core as core  # noqa: E402
 
-PARAMS = {"VOL_TARGET": 0.10, "VOL_WINDOW": 120, "STEP": 0.20}
+PARAMS = {"VOL_TARGET": 0.10, "VOL_WINDOW": 90, "TV": 0.15, "TV_WIN": 20}
 
 SPEC = dict(
-    mod=engine, tag="v20", short="V5 黄金仓位（风险预算 × 闸门）",
-    line="v20 择时（V5 风险预算 × 利率闸门）",
+    mod=engine, tag="v20", short="(V5 + V12)/2 × TV15%",
+    line="v20 择时（E2 × 波动上限 TV15%）",
     warmup=engine.WARMUP,
     signal=lambda px: engine.weight(px),
     mark_signal=lambda px: (engine.weight(px) >= 0.5).astype(float),

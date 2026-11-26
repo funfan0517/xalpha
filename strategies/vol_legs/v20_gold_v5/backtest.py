@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""v20 回测：黄金 · V5 黄金仓位（风险预算 × 利率闸门）· 当前 ★1。
+"""v20 回测：黄金 · `(V5 + V12)/2 × 波动上限 TV15%`（2026-11-26 由「V5 原样」改）。
 
 产物：`backtest/_<v>_bt.md` / `.jsonl`。机械规则输出，非投资建议。
 用法：`python strategies/vol_legs/v20_gold_v5/backtest.py`
@@ -54,9 +54,8 @@ def main():
                bh_ann=round(mb["ann"], 4), bh_mdd=round(mb["mdd"], 4),
                bh_sharpe=round(mb["sharpe"], 3),
                fee_side=engine.FEE_SIDE, cash_annual=engine.CASH_ANNUAL,
-               note="best_by_leg.md §0（2026-11-19 二次重跑）：黄金 ★1 = V5（夏普 1.02 / 回撤 -12.33%），"
-                    "V12 升到 ★2（0.81）；_beat_best_top3.md 九个组合候选无一通过双闸门"
-                    "（最佳 MAX2 0.98 < 1.04）。")
+               note="2026-11-26 用户决定：黄金由 V5 原样改为 E2×TV15（V5 + V12 等权 × TV15）；"
+                    "研究最优是 E2×TV10（1.08 / 后段 1.87），因换手 5.3→57.9 次/年且 XAU 反向而放弃。")
     with io.open(JSONL, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -65,16 +64,17 @@ def main():
     post = engine.perf(nav.loc[cut:] / float(nav.loc[cut:].iloc[0]))
     L = [
         "# v20 回测报告 · 黄金", "",
-        f"> 由 `strategies/vol_legs/v20_gold_v5/backtest.py` 生成。**当前 ★1（研究确认无提升）**。", "",
+        f"> 由 `strategies/vol_legs/v20_gold_v5/backtest.py` 生成。**{engine.STATUS}**。", "",
         "## 规则", "",
         f"{engine.RULE_TXT}。", "",
-        f"逐日权重来自原生引擎（`_top3_bridge.py` → `v5_gold_score/score.py`），"
-        f"t 日收盘成交后建仓 → T+1 收益；统一单边 {engine.FEE_SIDE:.2%}、"
+        f"逐日权重来自原生引擎（`_top3_bridge.py` → `v5_gold_score/score.py`、`v12_octo_trend/engine.py`），"
+        f"t 日收盘决策 → T+1 收益；统一单边 {engine.FEE_SIDE:.2%}、"
         f"空仓 {engine.CASH_ANNUAL:.2%}；预热 {engine.WARMUP} 根。", "",
-        "> 研究出处：`research/best_by_leg/_best_by_leg.md` §0（2026-11-19 第二次重跑）——"
-        "黄金 ★1 = V5（含费夏普 1.02 / 回撤 −12.33%）；**V12 升到 ★2（0.81 / −12.84%）**，"
-        "V6-B 退到 ★3（0.74 / −16.12%）。`research/beat_best/_beat_best_top3.md` 里的九个组合/叠加候选"
-        "无一通过双闸门（最佳 MAX2 0.98 < 基线 1.04），所以 v20 直接采用 ★1 本身。", "",
+        "> 研究出处：`research/beat_best/_beat_best_top3.md`（2026-11-26 重跑，候选池加入 TV15/TV10）——"
+        "黄金 ★1 = V5（同尺 1.06 / 后段 1.55）；`E2×TV20` 首次过闸门后，TV 目标越紧夏普越高："
+        "TV20 → 1.0x、**TV15 → 已采纳**、TV10 → 1.08 / 后段 1.87。"
+        "**用户 2026-11-26 决定取 TV15**：TV10 的换手 5.3 → 57.9 次/年，"
+        "且同一技法在 XAU 19.5 年上反向（夏普 0.79→0.72、回撤 −13.9%→−19.3%）。", "",
         "## 结果", "",
         "| 口径 | 年化 | 波动 | 最大回撤 | 夏普 | Calmar | 平均仓位 | 调仓/年 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",

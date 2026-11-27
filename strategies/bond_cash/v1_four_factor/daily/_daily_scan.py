@@ -2,7 +2,7 @@
 """V1 · 四因子久期档 每日扫描。
 
 产物
-  ``daily/_v1_daily.md`` / ``_v1_daily.json``        看板板块6 的 V1 卡片
+  ``daily/_v1_daily.md`` / ``_v1_daily.json``        看板板块6 的 V1 卡片（§四附最近一个月逐日情景概率）
   ``daily/_v1_state.json``                           **当前长端占比**（滞后带 R-18 的状态）
 
 状态文件只有 ``w_long`` 一个字段：首次运行按基准 35% 起（并在报告里标注「按基准假设」），
@@ -66,7 +66,7 @@ def _fmt(v, nd=1):
     return "—" if v is None else f"{v:.{nd}f}"
 
 
-def render(ctx, init_state):
+def render(ctx, init_state, hist=None, fc=None):
     t, f, s, sc, pos = (ctx[k] for k in ("temp", "factors", "signal", "scenario", "position"))
     L, A = [], None
     A = L.append
@@ -131,6 +131,27 @@ def render(ctx, init_state):
       f"债熊 **{sc['bear']:.1f}%**（和 = 100%）")
     A(f"- {sc['note']}。R-12：严禁点位预测；R-15：估值分位对债券短期方向预测力弱。")
     A("")
+    if hist:
+        A("最近一个月逐日读数（**point-in-time**：每天只用当日及之前的样本重算桶统计，不含前视）：")
+        A("")
+        A("| 日期 | 估值温度 | 桶 | 样本n | 上涨概率 | 牛/震荡/熊 | 20日后实际 |")
+        A("|---|---:|---:|---:|---:|---|---:|")
+        for r in hist:
+            bk = "—" if r["bucket"] is None else f"{r['bucket']:.0f}"
+            fw = "未到期" if r["fwd20"] is None else f"{r['fwd20']:+.2f}%"
+            A(f"| {r['date']} | {_fmt(r['valuation'])} | {bk} | {r['n']} | "
+              f"{r['p_up']:.1f}% | {r['bull']:.1f}/{r['flat']:.1f}/{r['bear']:.1f} | {fw} |")
+        A("")
+        A("> 「20日后实际」= 该日之后 20 个交易日 `511260` 累计净值涨跌，仅用于事后核对；"
+          "概率不是交易指令，未到期的留空。")
+        A("")
+    if fc:
+        n = fc["next_week"]
+        A(f"> 下周晴雨表概率预测（生成 {fc['generated']}，详见 "
+          "`strategies/bond_cash/v1_four_factor/research/next_week_forecast/_next_week_forecast.md`）："
+          f"合成温度中位 {n['composite']:.1f} · 主信号 {n['modal_side']}（{n['modal_prob']:.0f}%）"
+          f" · 长端目标中位 {n['target']:.1f}% · 触发滞后带概率 {n['p_move']:.0f}%。")
+        A("")
     A(f"> {ctx['note']}")
     A("")
     A("> 机械规则输出，仅供研究参考，不构成投资建议。")
@@ -178,9 +199,20 @@ def main(argv=None):
     src = data.data_asof(p)
     ctx["sources"] = src
 
+    bench = p["navs"][CFG["bench"]]
+    temps = engine.build_temps(p["navs"], p["y10"], p["shibor"], p["curve"])
+    hist = engine.scenario_history(temps, bench)
+    if hist and hist[-1]["p_up"] != ctx["scenario"]["p_up"]:
+        print(f"[warn] 逐日情景末行 {hist[-1]['p_up']} 与当日 {ctx['scenario']['p_up']} 不一致")
+    fc_path = os.path.join(_PKG, "research", "next_week_forecast", "_next_week_forecast.json")
+    fc = None
+    if os.path.exists(fc_path):
+        with open(fc_path, encoding="utf-8") as f:
+            fc = json.load(f)
+
     os.makedirs(_HERE, exist_ok=True)
     with open(OUT_MD, "w", encoding="utf-8") as f:
-        f.write(render(ctx, init_state) + "\n")
+        f.write(render(ctx, init_state, hist, fc) + "\n")
 
     snap = dict(
         strategy="V1 · 四因子久期档（债券晴雨表）",
@@ -188,7 +220,7 @@ def main(argv=None):
         generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
         source_methodology="G:/tradingagents/bond_strategy/bond_rules.md v1.0（2026-11-17）",
         temp=ctx["temp"], factors=ctx["factors"], signal=ctx["signal"],
-        scenario=ctx["scenario"], position=ctx["position"], note=ctx["note"],
+        scenario=ctx["scenario"], scenario_history=hist, position=ctx["position"], note=ctx["note"],
         rows=card_rows(ctx), sources=src,
         state=dict(w_long=ctx["position"]["w_long"] / 100.0, init=init_state),
     )
@@ -198,6 +230,8 @@ def main(argv=None):
 
     print(f"[ok] {OUT_MD}")
     print(f"[ok] {OUT_JSON}")
+    if hist:
+        print(f"  情景逐日: {len(hist)} 天（{hist[0]['date']} ~ {hist[-1]['date']}）")
     s, pos, t = ctx["signal"], ctx["position"], ctx["temp"]
     print(f"  as_of {ctx['as_of']} · 合成温度 {_fmt(t['composite'])} {t['band']} · "
           f"score {s['score']:+d} {s['side']}（{s['conf']}）")

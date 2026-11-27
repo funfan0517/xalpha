@@ -173,6 +173,41 @@ def scenario(temps, bench, i=-1):
                 bull=round(p, 1), flat=round(flat, 1), bear=round(flat, 1), note=note)
 
 
+def scenario_history(temps, bench, months=1):
+    """最近 ``months`` 个自然月逐日的 point-in-time 情景概率。
+
+    每个交易日都把 temps/bench **截到当日**再调 :func:`scenario`，所以桶样本与
+    未来 20 日频率都只用当时已知的数据，不含前视；最后一行与当日 ``scenario()`` 完全一致。
+    ``fwd20`` 是该日之后 20 个交易日基准累计净值的已实现涨跌（未到期为 None），仅供事后核对。
+    """
+    if not len(temps):
+        return []
+    end = temps.index[-1]
+    idx = temps.index[temps.index >= end - pd.DateOffset(months=months)]
+    bx = bench.reindex(temps.index)
+    fwd = bx.shift(-CFG["scenario"]["horizon"]) / bx - 1.0
+
+    rows = []
+    for d in idx:
+        pos = int(temps.index.get_loc(d))
+        t_sub = temps.iloc[:pos + 1]
+        b_sub = bx.iloc[:pos + 1]
+        sc = scenario(t_sub, b_sub)
+        rv = fwd.iloc[pos]
+        val = t_sub["valuation"].iloc[-1]
+        rows.append(dict(
+            date=str(d.date()),
+            valuation=None if pd.isna(val) else round(float(val), 1),
+            bucket=sc["bucket"],
+            n=sc["n"],
+            p_up=sc["p_up"],
+            bull=sc["bull"], flat=sc["flat"], bear=sc["bear"],
+            fwd20=None if pd.isna(rv) else round(float(rv) * 100.0, 2),
+            ok=sc["ok"],
+        ))
+    return rows
+
+
 # ---------------------------------------------------------------- 当日决策
 def evaluate(p, cur_w=None, today=None):
     """-> 当日决策 dict。``cur_w`` 为当前长端占比（缺省按基准 35% 并标注）。"""
